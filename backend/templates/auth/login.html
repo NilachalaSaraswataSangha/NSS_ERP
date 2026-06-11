@@ -1,0 +1,122 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-md-5 col-lg-4">
+
+        <div class="card shadow-lg mt-5">
+
+            <div class="card-header text-center bg-primary text-white">
+
+                <h3>
+                    Nilachala Saraswata Sangha
+                </h3>
+
+                <p class="mb-0">
+                    ERP Login
+                </p>
+
+            </div>
+
+            <div class="card-body p-4">
+
+                {% if error %}
+
+                    <div class="alert alert-danger">
+
+                        {{ error }}
+
+                    </div>
+
+                {% endif %}
+
+                <form method="post">
+
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Sangha Sevi ID / Username
+                        </label>
+
+                        <input
+                            type="text"
+                            class="form-control"
+                            name="username"
+                            placeholder="SS000123">
+
+                    </div>
+
+                    <div class="mb-3">
+
+                        <label class="form-label">
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            class="form-control"
+                            name="password"
+                            placeholder="Enter Password">
+
+                    </div>
+
+                    <div class="form-check mb-3">
+
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="remember_me">
+
+                        <label
+                            class="form-check-label"
+                            for="remember_me">
+
+                            Remember Me
+
+                        </label>
+
+                    </div>
+
+                    <div class="d-grid">
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary">
+
+                            Login
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+                <div class="text-center mt-3">
+
+                    <a href="#">
+                        Forgot Password?
+                    </a>
+
+                </div>
+
+            </div>
+
+            <div class="card-footer text-center">
+
+                <small>
+                    Version 1.0
+                </small>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
