@@ -1,0 +1,46 @@
+:root {
+
+    --nss-primary: #1e3a8a;
+    --nss-secondary: #f59e0b;
+
+    --nss-sidebar: #0f172a;
+    --nss-navbar: #1e293b;
+
+    --nss-background: #f8fafc;
+}
+
+body {
+
+    background-color: var(--nss-background);
+}
+
+.nss-navbar {
+
+    background-color: var(--nss-navbar);
+}
+
+.nss-sidebar {
+
+    background-color: var(--nss-sidebar);
+
+    min-height: 100vh;
+
+    padding-top: 20px;
+}
+
+.nss-sidebar .nav-link {
+
+    color: white;
+
+    padding: 12px 20px;
+}
+
+.nss-sidebar .nav-link:hover {
+
+    background-color: var(--nss-primary);
+}
+
+.login-body {
+
+    background-color: #f5f5f5;
+}
