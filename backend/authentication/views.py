@@ -19,7 +19,7 @@ def login_view(request):
 
             login(request, user)
 
-            return redirect("kendra_dashboard")
+            return redirect("/dashboard/")
 
         return render(
             request,
