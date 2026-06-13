@@ -35,12 +35,13 @@ PATHA_CHAKRA
 Official hierarchy:
 
 KENDRA
-↓
-ANCHALIKA
-↓
-ZILLA
-↓
-SAKHA
+   ├── ANCHALIKA
+   │      └── SAKHA
+   │
+   ├── ZILLA
+   │      └── SAKHA
+   │
+   └── PATHA_CHAKRA
 
 ---
 
