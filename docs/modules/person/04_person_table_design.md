@@ -14,13 +14,32 @@ Business Rules and ERD must be approved before modifying this document.
 
 ---
 
+# Design Principles
+
+* Person ≠ Member
+* Person Code is the primary business identifier
+* Mobile Number must be unique
+* Email is not required to be unique
+* At least one contact method is mandatory
+* Date of Birth is optional for Person records
+* Date of Birth becomes mandatory before Membership approval
+* Multiple addresses supported
+* Soft delete enabled
+* Audit enabled
+* Master Data driven architecture
+* Photo and document storage deferred to Document Management Module
+
+---
+
 # Table 1: gender_master
 
-Purpose:
+## Purpose
 
 Stores supported genders.
 
-Columns:
+---
+
+## Columns
 
 gender_pk UUID PRIMARY KEY
 
@@ -36,7 +55,7 @@ is_active BOOLEAN NOT NULL DEFAULT TRUE
 
 ---
 
-Seed Data
+## Seed Data
 
 MALE
 
@@ -46,7 +65,7 @@ OTHER
 
 ---
 
-Unique Constraints
+## Unique Constraints
 
 gender_code
 
@@ -54,13 +73,21 @@ gender_name
 
 ---
 
+## Indexes
+
+is_active
+
+---
+
 # Table 2: marital_status_master
 
-Purpose:
+## Purpose
 
 Stores marital status values.
 
-Columns:
+---
+
+## Columns
 
 marital_status_pk UUID PRIMARY KEY
 
@@ -76,7 +103,7 @@ is_active BOOLEAN NOT NULL DEFAULT TRUE
 
 ---
 
-Seed Data
+## Seed Data
 
 UNMARRIED
 
@@ -90,7 +117,7 @@ SEPARATED
 
 ---
 
-Unique Constraints
+## Unique Constraints
 
 marital_status_code
 
@@ -98,13 +125,21 @@ marital_status_name
 
 ---
 
+## Indexes
+
+is_active
+
+---
+
 # Table 3: address_type_master
 
-Purpose:
+## Purpose
 
 Stores address classifications.
 
-Columns:
+---
+
+## Columns
 
 address_type_pk UUID PRIMARY KEY
 
@@ -120,7 +155,7 @@ is_active BOOLEAN NOT NULL DEFAULT TRUE
 
 ---
 
-Seed Data
+## Seed Data
 
 PERMANENT
 
@@ -130,7 +165,7 @@ OFFICIAL
 
 ---
 
-Unique Constraints
+## Unique Constraints
 
 address_type_code
 
@@ -138,9 +173,15 @@ address_type_name
 
 ---
 
+## Indexes
+
+is_active
+
+---
+
 # Table 4: person
 
-Purpose:
+## Purpose
 
 Stores every individual known to NSS.
 
@@ -148,7 +189,7 @@ A Person may or may not be a Member.
 
 ---
 
-Columns
+## Columns
 
 person_pk UUID PRIMARY KEY
 
@@ -170,37 +211,29 @@ email VARCHAR(255) NULL
 
 marital_status_pk UUID NULL
 
-photo_path VARCHAR(500) NULL
-
 remarks TEXT NULL
 
 created_at TIMESTAMPTZ NOT NULL
 
-created_by_sangha_sevi_pk UUID NULL
-
 updated_at TIMESTAMPTZ NULL
 
-updated_by_sangha_sevi_pk UUID NULL
-
 deleted_at TIMESTAMPTZ NULL
-
-deleted_by_sangha_sevi_pk UUID NULL
 
 is_active BOOLEAN NOT NULL DEFAULT TRUE
 
 ---
 
-Foreign Keys
+## Foreign Keys
 
 gender_pk
-→ gender_master
+→ gender_master.gender_pk
 
 marital_status_pk
-→ marital_status_master
+→ marital_status_master.marital_status_pk
 
 ---
 
-Unique Constraints
+## Unique Constraints
 
 person_code
 
@@ -208,9 +241,11 @@ mobile_number
 
 ---
 
-Check Constraints
+## Check Constraints
 
-At least one contact method required:
+### Contact Information Rule
+
+At least one contact method must exist.
 
 CHECK (
 mobile_number IS NOT NULL
@@ -220,7 +255,7 @@ email IS NOT NULL
 
 ---
 
-Indexes
+## Indexes
 
 person_code
 
@@ -240,7 +275,7 @@ is_active
 
 ---
 
-Business ID Examples
+## Business ID Examples
 
 P00000001
 
@@ -254,17 +289,99 @@ id_sequence_master
 
 ---
 
+## Frozen Business Rules
+
+### Name Rules
+
+first_name NOT NULL
+
+middle_name NULL
+
+last_name NULL
+
+---
+
+### Gender Rule
+
+gender_pk NOT NULL
+
+---
+
+### Date of Birth Rule
+
+date_of_birth NULL ALLOWED
+
+Date of Birth becomes mandatory before Membership approval.
+
+---
+
+### Mobile Number Rule
+
+mobile_number UNIQUE
+
+mobile_number NULL ALLOWED
+
+---
+
+### Email Rule
+
+email NOT UNIQUE
+
+email NULL ALLOWED
+
+---
+
+### Contact Information Rule
+
+Both mobile_number and email cannot be NULL simultaneously.
+
+---
+
+### Membership Rule
+
+Person records shall not store:
+
+* Sangha Sevi ID
+* Membership Type
+* Membership Status
+
+These belong to the Membership Module.
+
+---
+
+### Photo Rule
+
+Photo storage is deferred to the Document Management Module.
+
+No photo column shall be stored in the Person table.
+
+---
+
+### Audit Rule
+
+Audit foreign key ownership is deferred until Membership and Authentication modules are frozen.
+
+Current columns:
+
+created_at
+
+updated_at
+
+deleted_at
+
+---
+
 # Table 5: person_address
 
-Purpose:
+## Purpose
 
-Stores person addresses.
+Stores addresses belonging to a Person.
 
 A Person may have multiple addresses.
 
 ---
 
-Columns
+## Columns
 
 person_address_pk UUID PRIMARY KEY
 
@@ -294,26 +411,26 @@ is_active BOOLEAN NOT NULL DEFAULT TRUE
 
 ---
 
-Foreign Keys
+## Foreign Keys
 
 person_pk
-→ person
+→ person.person_pk
 
 address_type_pk
-→ address_type_master
+→ address_type_master.address_type_pk
 
 district_pk
-→ district_master
+→ district_master.district_pk
 
 state_pk
-→ state_master
+→ state_master.state_pk
 
 country_pk
-→ country_master
+→ country_master.country_pk
 
 ---
 
-Indexes
+## Indexes
 
 person_pk
 
@@ -329,7 +446,53 @@ is_active
 
 ---
 
-Future Tables
+## Address Rules
+
+A Person may have multiple addresses.
+
+Examples:
+
+* Permanent Address
+* Current Address
+* Official Address
+
+Address type is controlled through address_type_master.
+
+---
+
+# Deferred Features
+
+The following items are intentionally excluded from Person Module v1:
+
+* Person Photo
+* Aadhaar
+* Passport
+* Voter ID
+* Driving License
+* Educational Documents
+* Employment Documents
+* Contact History
+* Merge History
+
+These will be implemented through future modules.
+
+---
+
+# Future Modules
+
+## Document Management Module
+
+Will support:
+
+* Person Photo
+* Aadhaar
+* Passport
+* Voter ID
+* Other Attachments
+
+---
+
+## Future Tables
 
 person_document
 
@@ -339,4 +502,4 @@ person_merge_history
 
 person_photo_history
 
-These are outside Person Module v1 scope.
+These are outside the scope of Person Module v1.
