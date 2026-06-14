@@ -48,17 +48,12 @@ Person Code shall never be reused.
 
 A Person may be created through:
 
-Family Registration
-
-Membership Application
-
-Kumari Registration
-
-Kishore Registration
-
-Administrative Entry
-
-Historical Data Migration
+* Family Registration
+* Membership Application
+* Kumari Registration
+* Kishore Registration
+* Administrative Entry
+* Historical Data Migration
 
 ---
 
@@ -94,107 +89,161 @@ Partial information may be supported in future versions.
 
 # 8. Mobile Number Rule
 
-One primary mobile number per Person.
+One primary mobile number may be maintained for a Person.
 
-Mobile number may be blank.
+Mobile number is optional.
 
-Mobile number is not required to be unique.
+Mobile number must be unique across all Person records.
 
-Example:
+Examples:
 
-Family members may share a phone number.
+Valid
+
+P00000001
+→ 9876543210
+
+P00000002
+→ 9123456789
+
+Invalid
+
+P00000001
+→ 9876543210
+
+P00000002
+→ 9876543210
+
+If a duplicate mobile number is detected, the system shall prevent creation of the duplicate record and display the existing Person information for review.
+
+Shared family mobile numbers shall not be duplicated across Person records.
+
+Family communication requirements shall be handled through Family relationships and future Family Contact functionality.
 
 ---
 
 # 9. Email Rule
 
-One primary email address per Person.
+One primary email address may be maintained for a Person.
 
 Email is optional.
 
 Email is not required to be unique.
 
+Examples:
+
+Valid
+
+P00000001
+→ [abc@example.com](mailto:abc@example.com)
+
+P00000002
+→ [abc@example.com](mailto:abc@example.com)
+
+Shared family email addresses are permitted.
+
 ---
 
-# 10. Marital Status Rule
+# 10. Contact Information Rule
+
+Every Person must have at least one contact method.
+
+At least one of the following must be provided:
+
+* Mobile Number
+* Email Address
+
+Valid Examples
+
+Mobile + NULL
+
+NULL + Email
+
+Mobile + Email
+
+Invalid Example
+
+NULL + NULL
+
+The system shall prevent creation of a Person record when both Mobile Number and Email Address are NULL.
+
+The database shall enforce this rule through a CHECK constraint.
+
+Example:
+
+CHECK (
+mobile_number IS NOT NULL
+OR
+email IS NOT NULL
+)
+
+---
+
+# 11. Marital Status Rule
 
 Marital status shall be maintained through master data.
 
 Examples:
 
-UNMARRIED
-
-MARRIED
-
-WIDOWED
-
-DIVORCED
-
-SEPARATED
+* UNMARRIED
+* MARRIED
+* WIDOWED
+* DIVORCED
+* SEPARATED
 
 ---
 
-# 11. Address Rule
+# 12. Address Rule
 
 A Person may have multiple addresses.
 
 Examples:
 
-PERMANENT
-
-CURRENT
-
-OFFICIAL
+* PERMANENT
+* CURRENT
+* OFFICIAL
 
 Address types managed through master data.
 
 ---
 
-# 12. Duplicate Detection Rule
+# 13. Duplicate Detection Rule
 
 Before creating a new Person, the system should check:
 
-Name
-
-Date of Birth
-
-Mobile Number
-
-Email
+* Name
+* Date of Birth
+* Mobile Number
+* Email
 
 Potential matches should be flagged for review.
 
 ---
 
-# 13. Merge Rule
+# 14. Merge Rule
 
 Duplicate Person records may be merged.
 
 Merge operations must:
 
-Preserve audit history
-
-Preserve references
-
-Maintain historical traceability
+* Preserve audit history
+* Preserve references
+* Maintain historical traceability
 
 ---
 
-# 14. Membership Rule
+# 15. Membership Rule
 
 Person records do not contain:
 
-Sangha Sevi ID
-
-Membership Status
-
-Membership Type
+* Sangha Sevi ID
+* Membership Status
+* Membership Type
 
 These belong to the Membership Module.
 
 ---
 
-# 15. Family Rule
+# 16. Family Rule
 
 Person records do not contain family relationships.
 
@@ -202,7 +251,7 @@ Family relationships belong to the Family Module.
 
 ---
 
-# 16. Deletion Rule
+# 17. Deletion Rule
 
 Person records shall not be physically deleted.
 
@@ -212,50 +261,38 @@ Historical references must remain valid.
 
 ---
 
-# 17. Audit Rule
+# 18. Audit Rule
 
 All changes must capture:
 
-Created By
-
-Updated By
-
-Deleted By
-
-Timestamp
-
-Reason
+* Created By
+* Updated By
+* Deleted By
+* Timestamp
+* Reason
 
 ---
 
-# 18. Privacy Rule
+# 19. Privacy Rule
 
 Sensitive identity documents shall not be stored in Person v1.
 
 Examples:
 
-Aadhaar
-
-Passport
-
-Voter ID
+* Aadhaar
+* Passport
+* Voter ID
 
 These will be handled by future Document Management modules.
 
 ---
 
-# 19. Design Principles
+# 20. Design Principles
 
-Person First
-
-Membership Separate
-
-Family First
-
-History Preserved
-
-Audit Enabled
-
-Soft Delete Enabled
-
-Privacy Aware
+* Person First
+* Membership Separate
+* Family First
+* History Preserved
+* Audit Enabled
+* Soft Delete Enabled
+* Privacy Aware
