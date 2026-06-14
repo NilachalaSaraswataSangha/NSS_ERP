@@ -81,7 +81,11 @@ gender_master
 
 # 7. Date of Birth Rule
 
-Date of Birth may be unknown for historical records.
+Date of Birth is optional for Person records.
+
+Date of Birth becomes mandatory before a Person can be approved as a Member.
+
+Membership workflows shall validate the presence of Date of Birth before membership activation.
 
 Partial information may be supported in future versions.
 
