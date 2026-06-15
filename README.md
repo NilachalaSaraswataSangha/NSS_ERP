@@ -308,10 +308,10 @@ NSS_ERP
 Current Stable Release:
 
 ```text
-v0.4.0
+v0.5.0
 ```
 
-Organization Module Frozen
+Person Module Frozen
 
 ---
 
