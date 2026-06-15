@@ -2,7 +2,7 @@
 -- NSS ERP
 -- Module: Person
 -- File: 02_person.sql
--- Version: 1.0
+-- Version: 1.1
 -- =====================================================
 
 CREATE TABLE person
@@ -21,6 +21,8 @@ CREATE TABLE person
     gender_pk UUID NOT NULL,
 
     date_of_birth DATE NULL,
+
+    country_phone_code VARCHAR(10) NULL,
 
     mobile_number VARCHAR(20) NULL,
 
@@ -43,8 +45,12 @@ CREATE TABLE person
     CONSTRAINT uq_person_code
         UNIQUE (person_code),
 
-    CONSTRAINT uq_person_mobile_number
-        UNIQUE (mobile_number),
+    CONSTRAINT uq_person_mobile
+        UNIQUE
+        (
+            country_phone_code,
+            mobile_number
+        ),
 
     CONSTRAINT fk_person_gender
         FOREIGN KEY (gender_pk)
@@ -60,12 +66,22 @@ CREATE TABLE person
             mobile_number IS NOT NULL
             OR
             email IS NOT NULL
+        ),
+
+    CONSTRAINT chk_person_mobile_pair
+        CHECK
+        (
+            (
+                country_phone_code IS NULL
+                AND mobile_number IS NULL
+            )
+            OR
+            (
+                country_phone_code IS NOT NULL
+                AND mobile_number IS NOT NULL
+            )
         )
 );
-
--- =====================================================
--- Indexes
--- =====================================================
 
 CREATE INDEX idx_person_code
     ON person(person_code);
@@ -76,8 +92,8 @@ CREATE INDEX idx_person_first_name
 CREATE INDEX idx_person_last_name
     ON person(last_name);
 
-CREATE INDEX idx_person_mobile_number
-    ON person(mobile_number);
+CREATE INDEX idx_person_mobile
+    ON person(country_phone_code, mobile_number);
 
 CREATE INDEX idx_person_email
     ON person(email);

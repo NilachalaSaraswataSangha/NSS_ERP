@@ -205,6 +205,8 @@ gender_pk UUID NOT NULL
 
 date_of_birth DATE NULL
 
+country_phone_code VARCHAR(10) NULL
+
 mobile_number VARCHAR(20) NULL
 
 email VARCHAR(255) NULL
@@ -247,11 +249,32 @@ mobile_number
 
 At least one contact method must exist.
 
-CHECK (
+UNIQUE
+(
+country_phone_code,
+mobile_number
+)
+
+CHECK
+(
 mobile_number IS NOT NULL
 OR
 email IS NOT NULL
 )
+
+CHECK
+(
+(
+country_phone_code IS NULL
+AND mobile_number IS NULL
+)
+OR
+(
+country_phone_code IS NOT NULL
+AND mobile_number IS NOT NULL
+)
+)
+
 
 ---
 
