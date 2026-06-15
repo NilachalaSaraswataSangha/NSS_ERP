@@ -1,6 +1,6 @@
 # NSS ERP Person Table Design
 
-Version: 1.0
+Version: 1.1
 
 Status: DRAFT
 
@@ -18,7 +18,8 @@ Business Rules and ERD must be approved before modifying this document.
 
 * Person ≠ Member
 * Person Code is the primary business identifier
-* Mobile Number must be unique
+* * Mobile Number + Country Phone Code must be unique
+* International mobile numbers supported
 * Email is not required to be unique
 * At least one contact method is mandatory
 * Date of Birth is optional for Person records
@@ -205,6 +206,8 @@ gender_pk UUID NOT NULL
 
 date_of_birth DATE NULL
 
+country_phone_code VARCHAR(10) NULL
+
 mobile_number VARCHAR(20) NULL
 
 email VARCHAR(255) NULL
@@ -237,7 +240,7 @@ marital_status_pk
 
 person_code
 
-mobile_number
+(country_phone_code, mobile_number)
 
 ---
 
@@ -247,11 +250,32 @@ mobile_number
 
 At least one contact method must exist.
 
-CHECK (
+UNIQUE
+(
+country_phone_code,
+mobile_number
+)
+
+CHECK
+(
 mobile_number IS NOT NULL
 OR
 email IS NOT NULL
 )
+
+CHECK
+(
+(
+country_phone_code IS NULL
+AND mobile_number IS NULL
+)
+OR
+(
+country_phone_code IS NOT NULL
+AND mobile_number IS NOT NULL
+)
+)
+
 
 ---
 
@@ -317,9 +341,13 @@ Date of Birth becomes mandatory before Membership approval.
 
 ### Mobile Number Rule
 
-mobile_number UNIQUE
+country_phone_code + mobile_number UNIQUE
 
 mobile_number NULL ALLOWED
+
+country_phone_code NULL ALLOWED
+
+Both values must be supplied together.
 
 ---
 
@@ -393,13 +421,11 @@ address_line_1 VARCHAR(200) NOT NULL
 
 address_line_2 VARCHAR(200) NULL
 
-district_pk UUID NOT NULL
+landmark VARCHAR(255) NULL
 
-state_pk UUID NOT NULL
+city_village_postal_code_map_pk UUID NOT NULL
 
-country_pk UUID NOT NULL
-
-postal_code VARCHAR(20) NULL
+is_primary BOOLEAN NOT NULL DEFAULT FALSE
 
 created_at TIMESTAMPTZ NOT NULL
 
@@ -419,14 +445,8 @@ person_pk
 address_type_pk
 → address_type_master.address_type_pk
 
-district_pk
-→ district_master.district_pk
-
-state_pk
-→ state_master.state_pk
-
-country_pk
-→ country_master.country_pk
+city_village_postal_code_map_pk
+→ city_village_postal_code_map.city_village_postal_code_map_pk
 
 ---
 
@@ -448,15 +468,21 @@ is_active
 
 ## Address Rules
 
-A Person may have multiple addresses.
+A Person may designate one address as the Primary Address.
 
-Examples:
+At any point in time, only one address may be designated as the Primary Address.
 
-* Permanent Address
-* Current Address
-* Official Address
+The Primary Address may be changed by an authorized user.
 
-Address type is controlled through address_type_master.
+When a new address is marked as Primary, the system shall automatically remove the Primary designation from the previous address.
+
+The database shall enforce that no Person can have more than one Primary Address simultaneously.
+
+Implementation:
+
+CREATE UNIQUE INDEX uq_person_primary_address
+ON person_address(person_pk)
+WHERE is_primary = TRUE;
 
 ---
 

@@ -1,6 +1,6 @@
 # NSS ERP Person Business Rules
 
-Version: 1.0
+Version: 1.1
 
 Status: DRAFT
 
@@ -97,31 +97,57 @@ One primary mobile number may be maintained for a Person.
 
 Mobile number is optional.
 
-Mobile number must be unique across all Person records.
+Mobile numbers shall support international formats.
+
+A mobile number consists of:
+
+* Country Phone Code
+* Mobile Number
 
 Examples:
 
 Valid
 
-P00000001
-→ 9876543210
++91 9876543210
 
-P00000002
-→ 9123456789
++1 5551234567
+
++44 7700123456
+
+A mobile number must be unique across all Person records when combined with Country Phone Code.
+
+Valid
+
++91 9876543210
+
++1 9876543210
 
 Invalid
 
-P00000001
-→ 9876543210
++91 9876543210
 
-P00000002
-→ 9876543210
++91 9876543210
 
 If a duplicate mobile number is detected, the system shall prevent creation of the duplicate record and display the existing Person information for review.
 
 Shared family mobile numbers shall not be duplicated across Person records.
 
 Family communication requirements shall be handled through Family relationships and future Family Contact functionality.
+
+Country Phone Code and Mobile Number must be provided together.
+
+Valid
+
++91 + 9876543210
+
+NULL + NULL
+
+Invalid
+
++91 + NULL
+
+NULL + 9876543210
+
 
 ---
 
@@ -206,7 +232,24 @@ Examples:
 * CURRENT
 * OFFICIAL
 
-Address types managed through master data.
+Address types shall be managed through master data.
+
+A Person may designate one address as the Primary Address.
+
+At any point in time, only one address may be designated as the Primary Address.
+
+The Primary Address may be changed by an authorized user.
+
+When a new address is marked as Primary, the system shall automatically remove the Primary designation from the previous address.
+
+A Person may have zero addresses during initial Person creation.
+
+Address information may be added later.
+
+The system shall enforce a maximum of one Primary Address per Person.
+
+The system shall not require an address before Person creation.
+
 
 ---
 
@@ -237,13 +280,13 @@ Merge operations must:
 
 # 15. Membership Rule
 
-Person records do not contain:
+While filling a Membership Application, a Personal Details page shall be completed mandatorily.
 
-* Sangha Sevi ID
-* Membership Status
-* Membership Type
+The applicant must provide all required Person information before Membership submission.
 
-These belong to the Membership Module.
+A Membership Application cannot be submitted until mandatory Person details are completed.
+
+Date of Birth becomes mandatory during Membership Application submission.
 
 ---
 
