@@ -4,17 +4,27 @@ Nilachala Saraswata Sangha Enterprise Resource Planning (NSS ERP)
 
 ---
 
-## Overview
+# Overview
 
 NSS ERP is a comprehensive web-based management platform being developed for Nilachala Saraswata Sangha.
 
 The system is designed to support membership management, family management, governance, attendance tracking, Kumari Sangha, Kishore Puja, Founder & Heritage records, UPBS operations, reporting, and future NSS operational activities.
 
-The project follows a **Database First → API First → UI First** design philosophy, ensuring that business rules are frozen before implementation.
+The project follows a:
+
+```text
+Database First
+    ↓
+API First
+    ↓
+UI First
+```
+
+design philosophy, ensuring that business rules are frozen before implementation.
 
 ---
 
-## Project Objectives
+# Project Objectives
 
 * Centralized NSS member management
 * Family-first relationship tracking
@@ -26,38 +36,49 @@ The project follows a **Database First → API First → UI First** design philo
 * Historical record preservation
 * Audit-compliant data management
 * Role-based access control
+* International branch support
 
 ---
 
-## Technology Stack
+# Technology Stack
 
-### Frontend
+## Frontend
 
 * Django Templates
 * Bootstrap 5
 * HTMX
 
-### Backend
+---
+
+## Backend
 
 * Django
 * FastAPI
 
-### Database
+---
+
+## Database
 
 * PostgreSQL
 
-### Authentication
+---
+
+## Authentication
 
 * Django Authentication
 * JWT (Future)
 
-### Deployment
+---
+
+## Deployment
 
 * Ubuntu
 * Nginx
 * Gunicorn
 
-### Future Enhancements
+---
+
+## Future Enhancements
 
 * Redis Cache
 * Background Workers
@@ -66,7 +87,7 @@ The project follows a **Database First → API First → UI First** design philo
 
 ---
 
-## Project Architecture
+# Project Architecture
 
 ```text
 Browser
@@ -86,41 +107,59 @@ PostgreSQL
 
 ---
 
-## Core Principles
+# Core Principles
 
-### Person ≠ Member
+## Person ≠ Member
 
-A person may exist without being a member.
+A Person may exist without being a Member.
 
 Examples:
 
-* Family member
-* Kumari participant
-* Kishore participant
-* Future applicant
-* Historical person
+* Family Member
+* Kumari Participant
+* Kishore Participant
+* Future Applicant
+* Historical Person
 
-### Family First
+A Member must always be a Person.
+
+---
+
+## Family First
 
 Family relationships are maintained independently of membership status.
 
-### History Never Deleted
+---
+
+## History Never Deleted
 
 Business records are preserved permanently.
 
 Physical deletion is avoided.
 
-### Audit First
+Soft delete is preferred.
 
-All critical changes are auditable.
+---
 
-### Master Data Driven
+## Audit First
+
+All critical business operations must be auditable.
+
+---
+
+## Master Data Driven
 
 Business configuration is controlled through master tables rather than hardcoded values.
 
 ---
 
-## Organization Hierarchy
+## Global Ready
+
+The system is designed to support NSS activities within India and internationally.
+
+---
+
+# Organization Hierarchy
 
 ```text
 KENDRA
@@ -131,33 +170,49 @@ KENDRA
 └── PATHA_CHAKRA
 ```
 
+Notes:
+
+* PATHA_CHAKRA is an Organization Type.
+* PATHA_CHAKRA exists directly under KENDRA.
+* PATHA_CHAKRA may operate within India or internationally.
+* SAKHA exists under ANCHALIKA or ZILLA.
+
 ---
 
-## Module Structure
+# Module Structure
 
-### Foundation
+## Foundation
 
 * Organization Management
 * Person Management
 * Master Data
 * Authentication & RBAC
 * Audit & History
+* Global Location Management
 
-### Membership
+---
+
+## Membership
 
 * Member Registration
 * Membership Types
+* Membership Approval
 * Renewal
 * Transfer
 * Membership Journey
+* Sangha Sevi ID Management
 
-### Family
+---
+
+## Family
 
 * Family Dashboard
 * Family Tree
 * Relationship Management
 
-### Governance
+---
+
+## Governance
 
 * General Body
 * Governing Body
@@ -165,59 +220,77 @@ KENDRA
 * Committees
 * Position Assignment
 
-### Attendance
+---
+
+## Attendance
 
 * Weekly Attendance
 * Attendance Review
 * Attendance Reports
 
-### Mahila Sangha
+---
+
+## Mahila Sangha
 
 * Membership
 * Activities
 * Governance
 
-### Kumari Sangha
+---
+
+## Kumari Sangha
 
 * KM Identity
 * Activities
 * Training
 * Membership Transition
 
-### Kishore Puja
+---
+
+## Kishore Puja
 
 * KH Identity
 * Registration
 * Guardian Assignment
 
-### Sevak Sangha
+---
+
+## Sevak Sangha
 
 * Volunteer Development
 * Training
 * Activities
 
-### Founder & Heritage
+---
+
+## Founder & Heritage
 
 * Biography
 * Philosophy
 * Teachings
 * Publications
 
-### UPBS
+---
+
+## UPBS
 
 * Registration
 * Accommodation
 * Committee Management
 * Reports
 
-### Reports & Analytics
+---
+
+## Reports & Analytics
 
 * Membership Reports
 * Attendance Reports
 * Governance Reports
 * UPBS Reports
 
-### Administration
+---
+
+## Administration
 
 * Users
 * Roles
@@ -226,9 +299,72 @@ KENDRA
 
 ---
 
-## Development Workflow
+# Database Design Principles
 
-### Branch Strategy
+## Person Module
+
+```text
+Person ≠ Member
+```
+
+A Person may exist without Membership.
+
+A Member must always be linked to a Person.
+
+---
+
+## Contact Information
+
+Supports:
+
+* International Phone Numbers
+* Country Phone Codes
+* Email Addresses
+
+Rules:
+
+* Mobile Number + Country Phone Code must be unique.
+* Email is not required to be unique.
+* At least one contact method is mandatory.
+
+---
+
+## Address Management
+
+Supports:
+
+* Multiple Addresses
+* Primary Address Selection
+* Global Locations
+* Postal Code Mapping
+
+Rules:
+
+* One Person may have multiple addresses.
+* Only one address may be Primary.
+* Primary Address may be changed at any time.
+
+---
+
+## Location Hierarchy
+
+```text
+Country
+    ↓
+State / Province
+    ↓
+District / Region
+    ↓
+City / Village
+```
+
+Postal Codes are maintained separately and linked through mapping tables.
+
+---
+
+# Development Workflow
+
+## Branch Strategy
 
 ```text
 main
@@ -236,7 +372,9 @@ main
       └── feature/*
 ```
 
-### Feature Development
+---
+
+## Feature Development Workflow
 
 ```text
 Create Feature Branch
@@ -258,7 +396,7 @@ Create GitHub Release
 
 ---
 
-## Release Management
+# Release Management
 
 Every version must include:
 
@@ -280,17 +418,98 @@ v0.2.0.md
 v0.2.1.md
 v0.3.0.md
 v0.4.0.md
+v0.5.0.md
+v0.5.1.md
 ```
 
 ---
 
-## Repository Structure
+# Completed Milestones
+
+## v0.1.0
+
+Initial Project Setup
+
+---
+
+## v0.2.0
+
+Foundation Models
+
+---
+
+## v0.2.1
+
+Admin Setup
+
+---
+
+## v0.3.0
+
+UI Foundation and Authentication Complete
+
+---
+
+## v0.4.0
+
+Organization Module Complete
+
+---
+
+## v0.5.0
+
+Person Module Design Complete
+
+---
+
+## v0.5.1
+
+Person Database Schema Complete
+
+* Global Location Model
+* Person Schema
+* Person Address Schema
+* International Mobile Support
+* Address Mapping Model
+
+---
+
+# Current Development Status
+
+Completed:
+
+* Foundation Architecture
+* Authentication Foundation
+* Organization Module
+* Person Module Design
+* Person Database Schema
+* Global Location Model
+
+Current Focus:
+
+* Membership Module Design
+
+Next Release Target:
+
+```text
+v0.6.0
+Membership Module Design
+```
+
+---
+
+# Repository Structure
 
 ```text
 NSS_ERP
 │
 ├── backend
+│
 ├── database
+│   ├── ddl
+│   ├── seed
+│   └── scripts
+│
 ├── docs
 │   ├── standards
 │   ├── modules
@@ -303,20 +522,18 @@ NSS_ERP
 
 ---
 
-## Current Stable Version
-
-Current Stable Release:
+# Current Stable Version
 
 ```text
-v0.4.0
+v0.5.1
 ```
 
-Organization Module Frozen
+Person Database Schema Complete
 
 ---
 
-## License
+# License
 
 Internal NSS ERP Project
 
-All rights reserved.
+All Rights Reserved.
