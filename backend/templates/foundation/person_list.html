@@ -1,0 +1,86 @@
+{% extends "base/base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between mb-3">
+
+        <h2>Persons</h2>
+
+        <a href="#" class="btn btn-primary">
+            Add Person
+        </a>
+
+    </div>
+
+    <table class="table table-bordered table-striped">
+
+        <thead>
+
+            <tr>
+                <th>Name</th>
+                <th>Gender</th>
+                <th>Mobile</th>
+                <th>Email</th>
+                <th>Action</th>
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            {% for person in persons %}
+
+            <tr>
+
+                <td>
+                    {{ person.first_name }}
+                    {{ person.middle_name }}
+                    {{ person.last_name }}
+                </td>
+
+                <td>
+                    {{ person.gender }}
+                </td>
+
+                <td>
+                    {{ person.mobile_number }}
+                </td>
+
+                <td>
+                    {{ person.email }}
+                </td>
+
+                <td>
+
+                    <a
+                        href="{% url 'person_detail' person.pk %}"
+                        class="btn btn-sm btn-info"
+                    >
+                        View
+                    </a>
+
+                </td>
+
+            </tr>
+
+            {% empty %}
+
+            <tr>
+
+                <td colspan="5">
+                    No persons found.
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

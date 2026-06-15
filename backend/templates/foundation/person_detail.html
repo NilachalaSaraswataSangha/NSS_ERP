@@ -1,0 +1,52 @@
+{% extends "base/base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>Person Profile</h2>
+
+    <hr>
+
+    <table class="table table-bordered">
+
+        <tr>
+            <th>First Name</th>
+            <td>{{ person.first_name }}</td>
+        </tr>
+
+        <tr>
+            <th>Middle Name</th>
+            <td>{{ person.middle_name }}</td>
+        </tr>
+
+        <tr>
+            <th>Last Name</th>
+            <td>{{ person.last_name }}</td>
+        </tr>
+
+        <tr>
+            <th>Gender</th>
+            <td>{{ person.gender }}</td>
+        </tr>
+
+        <tr>
+            <th>Date of Birth</th>
+            <td>{{ person.date_of_birth }}</td>
+        </tr>
+
+        <tr>
+            <th>Mobile</th>
+            <td>{{ person.mobile_number }}</td>
+        </tr>
+
+        <tr>
+            <th>Email</th>
+            <td>{{ person.email }}</td>
+        </tr>
+
+    </table>
+
+</div>
+
+{% endblock %}
