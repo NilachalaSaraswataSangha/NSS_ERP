@@ -528,7 +528,7 @@ NSS_ERP
 v0.5.1
 ```
 
-Organization Module Frozen
+Person Database Schema Complete
 
 ---
 
