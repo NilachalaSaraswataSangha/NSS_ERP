@@ -2,7 +2,10 @@
 
 Version: 1.0
 
-Status: DRAFT
+Status: FROZEN
+
+Source Version:
+04_MEMBERSHIP_BUSINESS_RULES.md v4.0
 
 Branch:
 feature/membership-design
