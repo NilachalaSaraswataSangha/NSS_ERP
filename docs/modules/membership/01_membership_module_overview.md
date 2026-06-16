@@ -4,10 +4,14 @@ Version: 1.0
 
 Status: FROZEN
 
-Source Version:
-04_MEMBERSHIP_BUSINESS_RULES.md v4.0
+Source Documents:
+
+* 03_NSS_MEMBERSHIP_RULES.md
+* 04_MEMBERSHIP_BUSINESS_RULES.md v4.0
+* 00_membership_decision_register.md
 
 Branch:
+
 feature/membership-design
 
 ---
