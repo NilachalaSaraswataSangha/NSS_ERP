@@ -4,331 +4,315 @@ Version: 1.0
 
 Status: DRAFT
 
----
-
-# 1. Purpose
-
-The Membership Module manages NSS Membership identities, membership lifecycle, membership status, transfers, renewals, attendance-related reviews, and governance eligibility foundations.
-
-The module is built on top of the Person Module.
+Branch:
+feature/membership-design
 
 ---
 
-# 2. Core Principle
+# Purpose
 
-Person ≠ Member
+The Membership Module manages the complete NSS Membership lifecycle.
+
+The module establishes Membership identity, Membership progression, Membership renewal, Membership transfer, attendance-related reviews, disciplinary actions, and Membership history.
+
+Membership is built upon the Person Module and serves as the foundation for Governance, Attendance, and future NSS operational modules.
+
+---
+
+# Module Objectives
+
+The Membership Module shall:
+
+* Manage Membership identity.
+* Manage Sangha Sevi IDs.
+* Support Probationary Membership.
+* Support Regular Membership.
+* Support Associate Membership.
+* Support Membership renewal.
+* Support Membership Type Restoration.
+* Support Membership transfers.
+* Support Attendance Review processes.
+* Support disciplinary actions.
+* Preserve Membership history permanently.
+
+---
+
+# Core Principles
+
+## Person ≠ Member
 
 A Person may exist without Membership.
 
-A Membership must always belong to a Person.
+Examples:
 
-Membership cannot exist independently.
+* Family Member
+* Kumari Participant
+* Kishore Participant
+* Guardian
+* Guest
 
-Examples of Persons without Membership:
-
-* Family Members
-* Kumari Participants
-* Kishore Participants
-* Guardians
-* Guests
-* Historical Persons
+A Member must always be a Person.
 
 ---
 
-# 3. Membership Identity
+## One Person = One Membership
 
-Membership identity is represented by the Sangha Sevi ID.
+Each Person may possess only one Membership.
+
+Each Membership belongs to exactly one Person.
+
+---
+
+## One Membership = One Sangha Sevi ID
+
+Each Membership shall have exactly one Sangha Sevi ID.
+
+The Sangha Sevi ID is:
+
+* Unique
+* Permanent
+* Never Reused
+
+---
+
+## History Never Deleted
+
+Membership records shall never be physically deleted.
+
+Historical information shall remain permanently available.
+
+---
+
+# Membership Types
+
+The NSS Membership model supports:
+
+* PROBATIONARY_MEMBER
+* REGULAR_MEMBER
+* ASSOCIATE_MEMBER
+
+Membership Types are controlled through Membership business rules and Bye-Law provisions.
+
+---
+
+# Membership Status
+
+The NSS Membership model supports:
+
+* ACTIVE
+* SUSPENDED
+* DECEASED
+* DISCIPLINARY_REVIEW
+
+Membership Status represents the operational standing of a Member.
+
+Membership Status is separate from Membership Type.
 
 Example:
 
-```text
-SS00000001
-SS00000002
-SS00000003
-```
+REGULAR_MEMBER + ACTIVE
 
-Rules:
+REGULAR_MEMBER + SUSPENDED
 
-* System Generated
-* Globally Unique
-* Permanent
-* Never Reused
-* Never Changed
+PROBATIONARY_MEMBER + ACTIVE
 
 ---
 
-# 4. One Person One Membership Rule
+# Membership Identity Model
 
-Frozen Principle:
+Membership identity is established through:
 
-```text
-One Person
-    ↓
-One Membership
-    ↓
-One Sangha Sevi ID
-```
-
-Rules:
-
-* One Person can have only one Membership.
-* One Membership belongs to exactly one Person.
-* One Person can have only one Sangha Sevi ID.
-
----
-
-# 5. Membership Types
-
-The Membership Module supports the following membership types:
-
-## Probationary Member
-
-Entry-level membership.
-
-Subject to review and evaluation.
-
----
-
-## Regular Member
-
-Full membership status.
-
-Eligible for governance participation subject to NSS rules.
-
----
-
-## Associate Member
-
-Special membership category.
-
-Governance eligibility determined by NSS policy.
-
----
-
-# 6. Membership Sources
-
-Membership may originate through:
-
-* Direct Application
-* Kumari Transition
-* Kishore Transition
-* Administrative Entry
-* Historical Data Migration
-
----
-
-# 7. Membership Lifecycle
-
-Typical lifecycle:
-
-```text
-Applicant
-    ↓
-Probationary Member
-    ↓
-Regular Member
-```
-
-Alternative lifecycle:
-
-```text
-Applicant
-    ↓
-Associate Member
-```
-
-Detailed lifecycle rules are maintained in:
-
-```text
-03_membership_lifecycle.md
-```
-
----
-
-# 8. Membership Status
-
-Membership status is maintained independently of membership type.
-
-Examples:
-
-* ACTIVE
-* RENEWAL_PENDING
-* EXPIRED
-* SUSPENDED
-* ON_HOLD
-* DISCIPLINARY_REVIEW
-* TRANSFERRED
-* DECEASED
-
-Managed through:
-
-```text
-membership_status_master
-```
-
----
-
-# 9. Relationship With Person Module
-
-The Membership Module depends on the Person Module.
-
-Relationship:
-
-```text
 Person
-    ↓
+↓
 Membership
-```
+↓
+Sangha Sevi ID
 
-Rules:
+A Membership identity remains constant throughout the lifetime of the Member.
 
-* Membership cannot exist without a Person.
-* Person records may exist without Membership.
-* Membership inherits identity information from Person.
-
----
-
-# 10. Relationship With Family Module
-
-Family relationships are not maintained by Membership.
-
-Examples:
-
-* Father
-* Mother
-* Husband
-* Wife
-* Child
-
-These belong to the Family Module.
+Membership transfers, renewals, suspensions, and Membership Type changes do not create new identities.
 
 ---
 
-# 11. Relationship With Governance Module
+# Membership Documents
 
-Membership provides eligibility foundations.
+## Anumati Patra
 
-Membership alone does not grant governance authority.
+Official Membership document for Probationary Members.
 
-Governance eligibility is controlled by Governance rules.
-
----
-
-# 12. Relationship With Attendance Module
-
-Attendance affects reviews and membership monitoring.
-
-Attendance alone does not automatically:
-
-* Suspend Membership
-* Cancel Membership
-
-Human review is always required.
+Issuance of Anumati Patra establishes Probationary Membership.
 
 ---
 
-# 13. Membership Transfer
+## Parichaya Patra
 
-Transfers are supported between Sakhas.
+Official Membership document for Regular Members.
 
-Rules:
-
-* Sangha Sevi ID remains unchanged.
-* Local Sakha Number may change.
-* Transfer history preserved permanently.
-* Effective date follows NSS policy.
+Issuance of Parichaya Patra establishes Regular Membership.
 
 ---
 
-# 14. Membership Renewal
+# Membership Lifecycle Overview
 
-Membership renewal is supported.
+## Admission
 
-Rules:
-
-* Renewal history preserved.
-* Sangha Sevi ID remains unchanged.
-* Membership identity remains permanent.
-
----
-
-# 15. Audit Principles
-
-All membership actions must preserve:
-
-* Created By
-* Updated By
-* Timestamp
-* Historical Traceability
-
-Audit history must never be deleted.
+Applicant
+↓
+Sakha Review
+↓
+Sakha President Recommendation
+↓
+Parichalak Approval
+↓
+Anumati Patra Issued
+↓
+Probationary Member
 
 ---
 
-# 16. Deletion Principles
+## Regular Membership Progression
 
-Physical deletion is prohibited.
-
-Membership history is permanent.
-
-Only status transitions are allowed.
+Probationary Member
+↓
+Renewal Cycle Review
+↓
+Sakha President Recommendation
+↓
+Parichalak Approval
+↓
+Parichaya Patra Issued
+↓
+Regular Member
 
 ---
 
-# 17. Future Expansion
+## Renewal Failure
+
+Regular Member
+↓
+Fails To Renew
+↓
+Probationary Member
+
+---
+
+## Membership Type Restoration
+
+Probationary Member
+↓
+Review
+↓
+Parichalak Approval
+↓
+Regular Member
+
+---
+
+## Membership Transfer
+
+Member
+↓
+Transfer Request
+↓
+Verification
+↓
+Parichalak Approval
+↓
+Transfer Effective On Dola Purnima
+
+---
+
+# Renewal Model
+
+Membership renewal occurs annually.
+
+Official renewal deadline:
+
+Dola Purnima
+
+There is no grace period after Dola Purnima.
+
+Failure to renew results in Membership Type change according to Membership business rules.
+
+---
+
+# Attendance Integration
+
+Membership attendance is based primarily on:
+
+Weekly Sangha Puja
+
+Attendance reviews may be triggered according to NSS policy.
+
+Attendance reviews do not automatically suspend Membership.
+
+---
+
+# Disciplinary Integration
+
+The Membership Module supports:
+
+* Warning
+* Suspension
+* Restoration
+
+Disciplinary decisions affect Membership Status.
+
+Disciplinary decisions do not affect Membership identity.
+
+---
+
+# Governance Integration
+
+Governance eligibility depends upon Membership standing.
+
+Membership alone does not automatically grant Governance authority.
+
+Governance rules are defined within the Governance Module.
+
+---
+
+# Module Dependencies
+
+Depends On:
+
+* Foundation Module
+* Person Module
+* Organization Module
+
+Supports:
+
+* Governance Module
+* Attendance Module
+* Family Module
+* Kumari Module
+* Kishore Module
+* Reporting Module
+
+---
+
+# Future Enhancements
 
 Future Membership enhancements may include:
 
-* Membership Reinstatement
-* Disciplinary Workflow
-* Advanced Eligibility Rules
-* Membership Scoring
 * Digital Membership Cards
+* Online Renewal
+* Automated Notifications
+* Mobile Application Integration
+* Advanced Membership Analytics
 
 ---
 
-# 18. Frozen Decisions
+# Related Documents
 
-* Person ≠ Member
-* One Person = One Membership
-* One Membership = One Sangha Sevi ID
-* Sangha Sevi ID Permanent
-* Sangha Sevi ID Never Reused
-* Transfer Does Not Change Sangha Sevi ID
-* Membership History Never Deleted
-* Physical Delete Prohibited
-* Attendance Review Required Before Membership Action
+Membership Design Documents:
 
----
+* 00_membership_decision_register.md
+* 02_membership_business_rules.md
+* 03_membership_lifecycle.md
+* 04_membership_table_design.md
 
-# 19. Module Dependencies
+Project Source Documents:
 
-```text
-Foundation
-    ↓
-Person
-    ↓
-Membership
-    ↓
-Family
-    ↓
-Governance
-    ↓
-Attendance
-```
-
----
-
-# 20. Summary
-
-The Membership Module provides the official NSS Membership identity and lifecycle management system.
-
-It is the authoritative source for:
-
-* Sangha Sevi ID
-* Membership Type
-* Membership Status
-* Membership Lifecycle
-* Transfers
-* Renewals
-* Membership Audit History
+* 03_NSS_MEMBERSHIP_RULES.md
+* 04_MEMBERSHIP_BUSINESS_RULES.md
