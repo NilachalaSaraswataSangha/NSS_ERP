@@ -7,7 +7,9 @@
 **Title:** Constitution of the Kendra Sangha
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/`
+
+**Parent Reference:** REF-003
 
 **Source Reference:** REF-SRC-003
 
@@ -25,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-09 | Initial Governance By-Law reference register |
+| 1.0 | 2026-07-10 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -41,11 +43,11 @@
 
 **Primary Source**
 
-Nilachala Saraswata Sangha Governance By-Laws
+Bye-Law of Nilachala Saraswata Sangha
 
 **Edition**
 
-Fourth Edition (2025)
+Official Registered Bye-Law (Fourth Edition – 2025)
 
 **Source Status**
 
@@ -61,7 +63,9 @@ REF-SRC-003
 
 This document serves as the authoritative reference register for the constitutional provisions relating to the Constitution of the Kendra Sangha.
 
-It preserves the governing provisions in a structured reference format and shall not be interpreted as modifying, replacing, or superseding the official Governance By-Laws of the Nilachala Saraswata Sangha.
+It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
+
+Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -69,9 +73,11 @@ It preserves the governing provisions in a structured reference format and shall
 
 REF-003-001 is an Authoritative Reference document.
 
-It preserves governing provisions without introducing ERP interpretation, implementation guidance, or business rules.
+It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
-Where ambiguity or inconsistency exists, the official governing source shall prevail.
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
+
+Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -95,22 +101,57 @@ REF-SRC-003
 
 The Kendra Sangha shall mainly consist of three organs:
 
-1. Governing Body
-2. Advisory Board
-3. General Body
+(i) a Governing Body
+
+(ii) an Advisory Board
+
+(iii) a General Body.
 
 ---
 
 ### Traceability
 
-**Related Requirement IDs**
+**Parent Reference**
+
+REF-003
+
+**Source Reference**
+
+REF-SRC-003
+
+**Derived Requirement IDs**
 
 Pending
 
-**Related Documents**
+**Related References**
 
-- REF-001 — NSS Constitution
-- REF-002 — NSS Membership By-Laws
+REF-001
+
+REF-002
+
+**Related ERP Documents**
+
+Pending
+
+**Related Architecture**
+
+Pending
+
+**Related Design**
+
+Pending
+
+**Related Implementation**
+
+Pending
+
+**Related Test Cases**
+
+Pending
+
+---
+
+### Verification
 
 **Verification Status**
 
@@ -126,7 +167,7 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-07-09
+2026-07-10
 
 **Remarks**
 
@@ -141,7 +182,6 @@ None
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard
-- ERP-003 — Governance Model
 
 ---
 
