@@ -7,7 +7,9 @@
 **Title:** Governing Body
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/`
+
+**Parent Reference:** REF-003
 
 **Source Reference:** REF-SRC-003
 
@@ -25,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-09 | Initial Governance By-Law reference register |
+| 1.0 | 2026-07-10 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -41,11 +43,11 @@
 
 **Primary Source**
 
-Nilachala Saraswata Sangha Governance By-Laws
+Bye-Law of Nilachala Saraswata Sangha
 
 **Edition**
 
-Fourth Edition (2025)
+Official Registered Bye-Law (Fourth Edition – 2025)
 
 **Source Status**
 
@@ -61,7 +63,9 @@ REF-SRC-003
 
 This document serves as the authoritative reference register for the constitutional provisions relating to the Governing Body of the Nilachala Saraswata Sangha.
 
-It preserves the governing provisions in a structured reference format and shall not be interpreted as modifying, replacing, or superseding the official Governance By-Laws of the Nilachala Saraswata Sangha.
+It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
+
+Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -69,9 +73,9 @@ It preserves the governing provisions in a structured reference format and shall
 
 REF-003-002 is an Authoritative Reference document.
 
-It preserves governing provisions without introducing ERP interpretation, implementation guidance, or business rules.
+It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
-Where ambiguity or inconsistency exists, the official governing source shall prevail.
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -93,80 +97,133 @@ REF-SRC-003
 
 #### Clause 1
 
-The Governing Body shall consist of nine (9) members who shall be elected at a combined meeting of the existing Governing Body and the members of the Advisory Board convened by the Secretary of the Kendra Sangha for this purpose.
+The Governing Body shall consist of 9 members who shall be elected in the combined meeting of the existing members of the Governing Body and the members of the Advisory Board to be convened by the Secretary of the Kendra Sangha for this purpose.
+
+---
 
 #### Clause 2
 
 The Governing Body shall elect from amongst its members:
 
-- President
-- Vice-President
-- Parichalak
-- Secretary
-- Assistant Secretary
-- Treasurer
+(i) a President
+
+(ii) a Vice-President
+
+(iii) a Parichalak
+
+(iv) a Secretary
+
+(v) an Assistant Secretary
+
+(vi) a Treasurer.
+
+---
 
 #### Clause 3
 
-The term of office of the members of the Governing Body, except the Life Members, shall be three years from the date on which they assume office.
+The terms for the members of the Governing Body except the life members shall be 3 years from the date they assume office.
+
+---
 
 #### Clause 4
 
-Any vacancy arising due to the death, resignation or removal of a member of the Governing Body shall be filled by election in the manner prescribed for the constitution of the Governing Body.
+The Governing Body shall meet at least four times in a year to discuss about the management of the affairs of the Kendra Sangha at places to be decided by the President for the purpose. The quorum for a meeting of the Governing Body shall be 5 members.
+
+---
 
 #### Clause 5
 
-The Governing Body shall meet at least four times in every year to discuss and manage the affairs of the Kendra Sangha.
+In case of any vacancy arising out of death, resignation or removal of any member of the Governing Body, it will be filled up by a person or persons elected in the manner prescribed in para (a) above.
+
+---
 
 #### Clause 6
 
-The place of each meeting shall be decided by the President.
+At present the Governing Body consists of:
+
+1. Shri Chaitanya Charan Das — Vill. Matia, P.S. Pattamundai, Dist. Cuttack (Life Member) — President
+
+2. Shri Gunanidhi Patnaik — Asarapipur, Kakatpur, Puri (Life Member) — Vice-President
+
+3. Shri Durga Charan Mohanty — Vill. Biratung, P.S. Gop, Dist. Puri (Life Member) — Secretary and Parichalak
+
+4. Shri Jagannath Samantray — Vill. Ameipal, P.O. Kujang, Dist. Cuttack — Member
+
+5. Shri Baman Charan Parida — Vill./P.O. Kendupatna, Dist. Cuttack — Member
+
+6. Shri Raghunath Pati — At. Tulsipur, Cuttack — Assistant Secretary
+
+7. Shri Damodar Dash — Vill. Erbang, P.O. Gop, Dist. Puri — Treasurer
+
+8. Shri Satyapriya Mohanty — Kancha Lane, Bhubaneswar — Member
+
+9. Shri Padmanabh Samal — Rtd. Executive Engineer, Jobra, Cuttack — Member.
+
+---
 
 #### Clause 7
 
-The quorum for a meeting of the Governing Body shall be five members.
+The present Governing Body shall continue to function as such for a period of three years from the date of registration of the Kendra Sangha.
+
+---
 
 #### Clause 8
 
-At the time of registration of the Kendra Sangha, the Governing Body consisted of the following members:
+On the retirement or non-existence of any one or all the three life members mentioned above, the combined meeting of the Governing Body and the Advisory Board may fill up the vacancy thus created by unanimously selecting a person or persons as the case may be.
 
-- Shri Chaitanya Charan Das — Life Member, President
-- Shri Gunanidhi Patnaik — Life Member, Vice-President
-- Shri Durga Charan Mohanty — Life Member, Secretary and Parichalak
-- Shri Jagannath Samantray — Member
-- Shri Baman Charan Parida — Member
-- Shri Raghunath Pati — Assistant Secretary
-- Shri Damodar Dash — Treasurer
-- Shri Satyapriya Mohanty — Member
-- Shri Padmanabh Samal — Member
+---
 
 #### Clause 9
 
-The present Governing Body shall continue to function for a period of three years from the date of registration of the Kendra Sangha.
-
-#### Clause 10
-
-Upon the retirement or non-existence of any or all of the three Life Members, the combined meeting of the Governing Body and the Advisory Board may fill the resulting vacancy or vacancies by unanimously selecting a suitable person or persons.
-
-#### Clause 11
-
-The members of the Governing Body shall conduct themselves as humble servants of the Sangha, recognising the Sangha as the manifestation of Shri Shri Thakur (Sangha Sevi), and shall maintain uniformity in conception, expression and action.
+The members of the Governing Body shall behave themselves as humble servants of the Sangha which is considered as the very manifestation of Shri Shri Thakur (Sangha Sevi) and maintain uniformity in their conception, expression and action.
 
 ---
 
 ### Traceability
 
-**Related Requirement IDs**
+**Parent Reference**
+
+REF-003
+
+**Source Reference**
+
+REF-SRC-003
+
+**Derived Requirement IDs**
 
 Pending
 
-**Related Documents**
+**Related References**
 
-- REF-001 — NSS Constitution
+REF-001
 
-- REF-002 — NSS Membership By-Laws
+REF-002
 
-- REF-003-001 — Constitution of the Kendra Sangha
+REF-003-001
+
+**Related ERP Documents**
+
+Pending
+
+**Related Architecture**
+
+Pending
+
+**Related Design**
+
+Pending
+
+**Related Implementation**
+
+Pending
+
+**Related Test Cases**
+
+Pending
+
+---
+
+### Verification
 
 **Verification Status**
 
@@ -182,11 +239,15 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-07-09
+2026-07-10
 
 **Remarks**
 
-None
+Historical constitutional record.
+
+Clause 6 records the composition of the Governing Body at the time of publication/registration of the official Bye-Law and is preserved for constitutional reference only.
+
+The current Governing Body is maintained separately through the applicable governance records and shall not be inferred from this clause.
 
 ---
 
@@ -198,7 +259,6 @@ None
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard
-- ERP-003 — Governance Model
 
 ---
 
