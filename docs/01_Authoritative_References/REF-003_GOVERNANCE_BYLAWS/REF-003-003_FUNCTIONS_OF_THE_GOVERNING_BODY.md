@@ -7,7 +7,7 @@
 **Title:** Functions of the Governing Body
 
 **Repository Path:**
-`docs/01_Authoritative_References/`
+`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS`
 
 **Parent Reference:** REF-003
 
