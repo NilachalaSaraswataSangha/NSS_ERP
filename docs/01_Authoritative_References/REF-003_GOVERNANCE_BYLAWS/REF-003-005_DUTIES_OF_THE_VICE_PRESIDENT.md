@@ -9,9 +9,11 @@
 **Repository Path:**
 `docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
 
+**Parent Reference:** REF-003
+
 **Source Reference:** REF-SRC-003
 
-**Authority:** Primary Governing Authority
+**Authority:** Primary Governance Authority
 
 **Version:** 1.0
 
@@ -25,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-09 | Initial Governance By-Law reference register |
+| 1.0 | 2026-07-11 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -41,11 +43,11 @@
 
 **Primary Source**
 
-Nilachala Saraswata Sangha Governance By-Laws
+Bye-Law of Nilachala Saraswata Sangha
 
 **Edition**
 
-Fourth Edition (2025)
+Official Registered Bye-Law (Fourth Edition – 2025)
 
 **Source Status**
 
@@ -61,7 +63,9 @@ REF-SRC-003
 
 This document serves as the authoritative reference register for the provisions relating to the Duties of the Vice-President of the Nilachala Saraswata Sangha.
 
-It preserves the governing provisions in a structured reference format and shall not be interpreted as modifying, replacing, or superseding the official Governance By-Laws of the Nilachala Saraswata Sangha.
+It preserves the original Bye-Law provisions without interpretation, modification or ERP implementation guidance.
+
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -69,9 +73,9 @@ It preserves the governing provisions in a structured reference format and shall
 
 REF-003-005 is an Authoritative Reference document.
 
-It preserves governing provisions without introducing ERP interpretation, implementation guidance, or business rules.
+It preserves the Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
-Where ambiguity or inconsistency exists, the official governing source shall prevail.
+Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -93,32 +97,61 @@ REF-SRC-003
 
 #### Clause 1
 
-The Vice-President shall assist the President in the discharge of the duties and responsibilities of the office.
-
-#### Clause 2
-
-In the absence of the President, the Vice-President shall perform the duties and exercise the powers of the President.
-
-#### Clause 3
-
-The Vice-President shall perform such other functions as may be assigned under the By-Laws or entrusted by the Governing Body from time to time.
+The Vice-President shall preside over all the meetings of the Governing Body and the combined meeting of the Governing Body and Advisory Board during the absence of the President.
 
 ---
 
 ### Traceability
 
-**Related Requirement IDs**
+**Parent Reference**
+
+REF-003
+
+**Source Reference**
+
+REF-SRC-003
+
+**Derived Requirement IDs**
 
 Pending
 
-**Related Documents**
+**Related References**
 
-- REF-001 — NSS Constitution
-- REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
-- REF-003-003 — Functions of the Governing Body
-- REF-003-004 — Duties of the President
+REF-001
+
+REF-002
+
+REF-003-001
+
+REF-003-002
+
+REF-003-003
+
+REF-003-004
+
+**Related ERP Documents**
+
+Pending
+
+**Related Architecture**
+
+Pending
+
+**Related Design**
+
+Pending
+
+**Related Implementation**
+
+Pending
+
+**Related Test Cases**
+
+Pending
+
+---
+
+### Verification
 
 **Verification Status**
 
@@ -134,7 +167,7 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-07-09
+2026-07-11
 
 **Remarks**
 
@@ -153,7 +186,6 @@ None
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard
-- ERP-003 — Governance Model
 
 ---
 
