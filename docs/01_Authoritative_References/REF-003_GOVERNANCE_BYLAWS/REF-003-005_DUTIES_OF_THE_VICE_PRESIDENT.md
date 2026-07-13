@@ -13,7 +13,7 @@
 
 **Source Reference:** REF-SRC-003
 
-**Authority:** Primary Governance Authority
+**Authority:** Primary Governing Authority
 
 **Version:** 1.0
 
@@ -63,7 +63,7 @@ REF-SRC-003
 
 This document serves as the authoritative reference register for the provisions relating to the Duties of the Vice-President of the Nilachala Saraswata Sangha.
 
-It preserves the original Bye-Law provisions without interpretation, modification or ERP implementation guidance.
+It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
 Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
@@ -73,9 +73,9 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 REF-003-005 is an Authoritative Reference document.
 
-It preserves the Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
+It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
-Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
