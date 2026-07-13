@@ -9,6 +9,8 @@
 **Repository Path:**
 `docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
 
+**Parent Reference:** REF-003
+
 **Source Reference:** REF-SRC-003
 
 **Authority:** Primary Governing Authority
@@ -25,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-09 | Initial Governance By-Law reference register |
+| 1.0 | 2026-07-13 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -41,11 +43,11 @@
 
 **Primary Source**
 
-Nilachala Saraswata Sangha Governance By-Laws
+Bye-Law of Nilachala Saraswata Sangha
 
 **Edition**
 
-Fourth Edition (2025)
+Official Registered Bye-Law (Fourth Edition – 2025)
 
 **Source Status**
 
@@ -59,9 +61,11 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the constitutional provisions relating to the duties, responsibilities, and authority of the Secretary of the Nilachala Saraswata Sangha..
+This document serves as the authoritative reference register for the provisions relating to the Duties of the Secretary of the Nilachala Saraswata Sangha.
 
-It preserves the governing provisions in a structured reference format and shall not be interpreted as modifying, replacing, or superseding the official Governance By-Laws of the Nilachala Saraswata Sangha.
+It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
+
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -69,9 +73,9 @@ It preserves the governing provisions in a structured reference format and shall
 
 REF-003-006 is an Authoritative Reference document.
 
-It preserves governing provisions without introducing ERP interpretation, implementation guidance, or business rules.
+It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
-Where ambiguity, inconsistency, or conflict exists, the official governing source shall prevail.
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
@@ -93,33 +97,61 @@ REF-SRC-003
 
 #### Clause 1
 
-The Secretary shall act as the Chief Executive Officer of the Kendra Sangha and shall conduct its day-to-day administration under the supervision of the Governing Body.
+In addition to various functions of the Secretary mentioned in different paragraphs of the Article, the further functions of the Secretary shall be as under:
+
+---
 
 #### Clause 2
 
-The Secretary shall convene meetings of the Governing Body, the General Body, and the combined meetings of the Governing Body and the Advisory Board in accordance with the provisions of the By-Laws.
+The Secretary shall prepare agenda for the meeting of the Governing Body and the General Body and issue notices for convening the meetings in consultation with the President of the Governing Body.
+
+---
 
 #### Clause 3
 
-The Secretary shall prepare and maintain the proceedings, records, registers, correspondence, reports, and other official documents of the Kendra Sangha.
+The Secretary shall maintain all the records, the accounts and documents of the Kendra Sangha.
+
+---
 
 #### Clause 4
 
-The Secretary shall implement the resolutions and decisions of the Governing Body and the General Body and supervise their execution.
+The Secretary shall arrange to send copies of all the resolutions and proceedings of all the meetings of the Governing Body and those of the General Body to all the concerned members.
+
+---
 
 #### Clause 5
 
-The Secretary shall maintain proper coordination with the Sakha Sanghas and perform such other duties as may be assigned under the Bye-Laws or entrusted by the Governing Body from time to time.
+The Secretary shall ensure implementation of all the decisions taken by the Governing Body and the General Body.
+
+---
+
+#### Clause 6
+
+The Secretary shall arrange for the preparation of the Draft Annual Budget of the Kendra Sangha for the consideration of the Governing Body.
+
+---
+
+#### Clause 7
+
+The Secretary shall arrange to prepare an Annual Report of the activities of the Kendra Sangha and other organisations run/controlled by it.
 
 ---
 
 ### Traceability
 
-**Related Requirement IDs**
+**Parent Reference**
+
+REF-003
+
+**Source Reference**
+
+REF-SRC-003
+
+**Derived Requirement IDs**
 
 Pending
 
-**Related Documents**
+**Related References**
 
 REF-001
 
@@ -135,6 +167,30 @@ REF-003-004
 
 REF-003-005
 
+**Related ERP Documents**
+
+Pending
+
+**Related Architecture**
+
+Pending
+
+**Related Design**
+
+Pending
+
+**Related Implementation**
+
+Pending
+
+**Related Test Cases**
+
+Pending
+
+---
+
+### Verification
+
 **Verification Status**
 
 Verified
@@ -149,7 +205,7 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-07-09
+2026-07-13
 
 **Remarks**
 
@@ -169,7 +225,6 @@ None
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard
-- ERP-003 — Governance Model
 
 ---
 
