@@ -1,5 +1,7 @@
 # GOV-002 — Organizational Governance Standard
 
+## Document Metadata
+
 | Attribute | Value |
 |----------|-------|
 | Document ID | GOV-002 |
@@ -15,13 +17,13 @@
 | Parent Document | GOV-001 – Project Governance Principles |
 | Related Documents | AUTH-001, GOV-003, GOV-004, GOV-005, GDR-001 |
 
-# Revision History
+## Revision History
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0.0 | TBD | NSS ERP Governance Committee | Initial Release |
 
-# Table of Contents
+## Table of Contents
 
 1. Purpose
 2. Scope
@@ -90,13 +92,14 @@ The NSS Constitution is the supreme governing authority for all organizational s
 ## 5. Organizational Governance Principles
 
 The organizational governance principles defined in this section establish the constitutional foundation for the organizational structure implemented within the NSS ERP. These principles govern the creation, maintenance, authority, and integrity of organizational entities and ensure that the ERP faithfully represents the constitutionally approved organizational hierarchy.
+
 ### 5.1 GOV-ORG-001 — Apex Organizational Governance Principle
 
 The NSS ERP shall recognize a single constitutionally established apex organization as the highest governing authority within the organizational hierarchy.
 
 All organizational entities maintained by the ERP shall derive their authority through the constitutional hierarchy originating from the apex organization.
 
-No organizational entity shall exist outside the constitutional organizational structure.Principle
+No organizational entity shall exist outside the constitutional organizational structure.
 
 ### 5.2 GOV-ORG-002 — Constitutional Authority Precedence
 
@@ -326,6 +329,5 @@ This appendix provides a consolidated summary of the organizational governance p
 | GOV-DATA-002 | Single Organizational Root |
 | GOV-DATA-003 | Traceable Organizational Lineage |
 | GOV-DATA-004 | Organizational Identifier Integrity |
-| GOV-DATA-005 | Governance Enforcement by Design |
 
-End of Document
+# End of Document
