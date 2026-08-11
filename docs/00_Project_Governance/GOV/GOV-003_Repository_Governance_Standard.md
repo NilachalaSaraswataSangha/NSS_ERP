@@ -1,5 +1,7 @@
 # GOV-003 — Repository Governance Standard
 
+## Document Metadata
+
 | Attribute | Value |
 |----------|-------|
 | Document ID | GOV-003 |
@@ -15,7 +17,7 @@
 | Parent Document | GOV-001 – Project Governance Principles |
 | Related Documents | AUTH-001, GOV-002, GOV-004, GOV-005, GDR-001 |
 
-# Revision History
+## Revision History
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
@@ -361,5 +363,4 @@ This appendix provides a consolidated summary of the repository governance princ
 | GOV-REP-DATA-004 | Controlled Document Lifecycle |
 | GOV-REP-DATA-005 | Repository Governance by Design |
 
-
-End of Document
+# End of Document
