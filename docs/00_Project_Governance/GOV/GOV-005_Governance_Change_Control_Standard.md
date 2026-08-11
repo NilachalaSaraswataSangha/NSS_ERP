@@ -1,5 +1,7 @@
 # GOV-005 — Governance Change Control Standard
 
+## Document Metadata
+
 | Attribute | Value |
 |----------|-------|
 | Document ID | GOV-005 |
@@ -15,13 +17,13 @@
 | Parent Document | GOV-001 – Project Governance Principles |
 | Related Documents | AUTH-001, GOV-002, GOV-003, GOV-004, GDR-001 |
 
-# Revision History
+## Revision History
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0.0 | TBD | NSS ERP Governance Committee | Initial Release |
 
-# Table of Contents
+## Table of Contents
 
 1. Purpose
 
@@ -46,8 +48,6 @@
 Appendix A – Governance Change Workflow
 
 Appendix B – Governance Change Control Rule Summary
-
-End of Document
 
 ## 1. Purpose
 
@@ -93,7 +93,7 @@ These documents collectively establish the governance framework for managing con
 | Governance Change | Any approved modification to governance documents, standards, policies, principles, procedures, or controlled governance artifacts. |
 | Change Request | A formal proposal requesting the addition, modification, or retirement of a governance artifact. |
 | Governance Baseline | The approved and controlled set of governance artifacts that define the current governance framework. |
-| Impact Analysis | The assessment of the effects of a proposed governance change on related documents, processes, systems, and project artifacts. |
+| Impact Assessment | The assessment of the effects of a proposed governance change on related documents, processes, systems, and project artifacts. |
 | Governance Approval | Formal authorization to implement a governance change following the prescribed review process. |
 | Governance Exception | An approved deviation from one or more governance requirements under defined circumstances. |
 | Change Record | The documented history of a governance change, including approvals, implementation, and related decisions. |
@@ -144,11 +144,11 @@ Governance changes shall originate through a formal Change Request.
 
 A Change Request shall:
 
-- Clearly Describe The Proposed Change.
-- Identify The Reason For The Change.
-- Reference The Affected Governance Artifacts.
-- Identify The Requesting Party.
-- Include Supporting Documentation Where Applicable.
+- Clearly describe the proposed change.
+- Identify the reason for the change.
+- Reference the affected governance artifacts.
+- Identify the requesting party.
+- Include supporting documentation where applicable.
 
 No governance change shall proceed without a formally documented Change Request.
 
@@ -158,11 +158,11 @@ Every proposed governance change shall undergo a formal review before approval.
 
 The review shall evaluate:
 
-- Governance Alignment.
-- Business Justification.
-- Impact On Existing Governance Standards.
-- Impact On Project Artifacts.
-- Potential Risks And Dependencies.
+- Governance alignment.
+- Business justification.
+- Impact on existing governance standards.
+- Impact on project artifacts.
+- Potential risks and dependencies.
 
 Review findings shall be documented as part of the Change Record.
 
@@ -172,11 +172,11 @@ Governance changes shall be approved only by the designated governance authority
 
 Approval shall confirm that:
 
-- The Change Has Been Properly Reviewed.
-- The Impact Assessment Is Complete.
-- Governance Risks Are Acceptable.
-- Related Artifacts Have Been Identified.
-- Implementation Is Authorized.
+- The change has been properly reviewed.
+- The impact assessment is complete.
+- Governance risks are acceptable.
+- Related artifacts have been identified.
+- Implementation is authorized.
 
 No governance change shall be implemented before formal approval.
 
@@ -186,11 +186,11 @@ Approved governance changes shall be implemented in a controlled and traceable m
 
 Implementation activities shall:
 
-- Update Affected Governance Artifacts.
-- Preserve Document Version History.
-- Maintain Traceability Relationships.
-- Record Implementation Details.
-- Notify Relevant Stakeholders Where Required.
+- Update affected governance artifacts.
+- Preserve document version history.
+- Maintain traceability relationships.
+- Record implementation details.
+- Notify relevant stakeholders where required.
 
 Implementation shall preserve the integrity of the governance baseline.
 
@@ -200,11 +200,11 @@ Implemented governance changes shall be verified before being incorporated into 
 
 Verification shall confirm that:
 
-- Approved Changes Have Been Correctly Implemented.
-- Related Documents Have Been Updated.
-- Traceability Has Been Maintained.
-- Governance Requirements Continue To Be Satisfied.
-- No Unintended Governance Conflicts Have Been Introduced.
+- Approved changes have been correctly implemented.
+- Related documents have been updated.
+- Traceability has been maintained.
+- Governance requirements continue to be satisfied.
+- No unintended governance conflicts have been introduced.
 
 ### 6.6 Change Closure
 
@@ -212,11 +212,11 @@ A governance change shall be formally closed after successful verification.
 
 Change closure shall:
 
-- Record The Final Implementation Status.
-- Update Governance Records.
-- Maintain Historical Audit Information.
-- Reference Related Governance Decisions.
-- Preserve Complete Traceability For Future Reviews.
+- Record the final implementation status.
+- Update governance records.
+- Maintain historical audit information.
+- Reference related governance decisions.
+- Preserve complete traceability for future reviews.
 
 ## 7. Governance Change Control Rules
 
@@ -440,3 +440,5 @@ This appendix summarizes the governance change control principles and design rul
 | GOV-CHG-DATA-003 | Immutable Change History |
 | GOV-CHG-DATA-004 | Decision Accountability |
 | GOV-CHG-DATA-005 | Continuous Governance Integrity |
+
+# End of Document
