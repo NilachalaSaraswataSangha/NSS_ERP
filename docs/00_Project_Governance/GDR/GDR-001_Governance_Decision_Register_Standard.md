@@ -1,5 +1,7 @@
 # GDR-001 — Governance Decision Register Standard
 
+## Document Metadata
+
 | Attribute | Value |
 |----------|-------|
 | Document ID | GDR-001 |
@@ -15,13 +17,13 @@
 | Parent Document | GOV-001 – Project Governance Principles |
 | Related Documents | AUTH-001, GOV-002, GOV-003, GOV-004, GOV-005 |
 
-# Revision History
+## Revision History
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0.0 | TBD | NSS ERP Governance Committee | Initial Release |
 
-# Table of Contents
+## Table of Contents
 
 1. Purpose
 
@@ -46,8 +48,6 @@
 Appendix A – Governance Decision Register Template
 
 Appendix B – Governance Decision Rule Summary
-
-End of Document
 
 ## 1. Purpose
 
@@ -142,9 +142,9 @@ Traceability shall include references to:
 
 Traceability relationships shall remain complete throughout the decision lifecycle.
 
-### 5.4 GDR-DEC-004 — Governance Accountability
+### 5.4 GDR-DEC-004 — Governance Accountability (Decision-Level)
 
-Every governance decision shall identify the responsible approving authority.
+Every individual governance decision shall identify the responsible approving authority.
 
 Decision records shall preserve accountability by documenting:
 
@@ -153,6 +153,8 @@ Decision records shall preserve accountability by documenting:
 - The implementation status.
 - Related governance reviews.
 - Any subsequent revisions or retirement.
+
+This rule establishes accountability at the level of each individual governance decision. Governance accountability for the Governance Decision Register as a whole is separately established at the register level by GDR-DATA-005.
 
 Governance accountability shall remain auditable throughout the decision lifecycle.
 
@@ -371,9 +373,11 @@ The Governance Decision Register shall support complete traceability between gov
 
 Traceability shall enable efficient governance reviews, impact analysis, compliance verification, and historical analysis.
 
-### 8.5 GDR-DATA-005 — Governance Accountability
+### 8.5 GDR-DATA-005 — Governance Accountability (Register-Level)
 
 The Governance Decision Register shall preserve governance accountability by recording decision ownership, approval authority, implementation status, and related governance activities.
+
+This rule establishes accountability at the level of the Governance Decision Register as a whole — the register's obligation to preserve and expose accountability data across all decisions it holds. It is distinct from GDR-DEC-004, which establishes accountability for each individual governance decision.
 
 Accountability information shall remain complete, accurate, and auditable throughout the decision lifecycle.
 
@@ -476,9 +480,11 @@ This appendix summarizes the governance decision principles and design rules est
 | GDR-DEC-001 | Documented Governance Decisions |
 | GDR-DEC-002 | Unique Decision Identity |
 | GDR-DEC-003 | Decision Traceability |
-| GDR-DEC-004 | Governance Accountability |
+| GDR-DEC-004 | Governance Accountability (Decision-Level) |
 | GDR-DATA-001 | Single Authoritative Register |
 | GDR-DATA-002 | Immutable Decision Identity |
 | GDR-DATA-003 | Complete Decision History |
 | GDR-DATA-004 | Decision Traceability by Design |
-| GDR-DATA-005 | Governance Accountability |
+| GDR-DATA-005 | Governance Accountability (Register-Level) |
+
+# End of Document
