@@ -1,5 +1,7 @@
 # GOV-004 — Requirement Traceability Standard
 
+## Document Metadata
+
 | Attribute | Value |
 |----------|-------|
 | Document ID | GOV-004 |
@@ -15,13 +17,13 @@
 | Parent Document | GOV-001 – Project Governance Principles |
 | Related Documents | AUTH-001, GOV-002, GOV-003, GOV-005, GDR-001 |
 
-# Revision History
+## Revision History
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0.0 | TBD | NSS ERP Governance Committee | Initial Release |
 
-# Table of Contents
+## Table of Contents
 
 1. Purpose
 
@@ -46,9 +48,6 @@
 Appendix A – Requirement Traceability Matrix
 
 Appendix B – Requirement Traceability Rule Summary
-
-End of Document
-
 
 ## 1. Purpose
 
@@ -403,4 +402,4 @@ This appendix summarizes the requirement traceability principles and design rule
 | GOV-TRC-DATA-004 | Requirement Coverage |
 | GOV-TRC-DATA-005 | Impact Analysis Support |
 
-End of Document
+# End of Document
