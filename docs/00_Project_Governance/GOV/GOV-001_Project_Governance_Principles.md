@@ -1,7 +1,5 @@
 # GOV-001 — Project Governance Principles
 
-# GOV-001 — Project Governance Principles
-
 ## Document Metadata
 
 | Field | Value |
@@ -33,9 +31,12 @@
 5. Governance Lifecycle
 6. Governance Roles and Responsibilities
 7. Governance Compliance
-8. Appendices
 
-# 1. Purpose
+Appendix A – Governance Lifecycle
+Appendix B – Document Hierarchy
+Appendix C – Governance Responsibility Matrix
+
+## 1. Purpose
 
 The purpose of this document is to establish the governance principles that direct the planning, development, implementation, maintenance, and evolution of the NSS ERP project.
 
@@ -49,7 +50,7 @@ This standard defines the governance framework that ensures all project activiti
 
 This document provides the governing principles for project decision-making, establishes the hierarchy of governance authority, and defines the responsibilities necessary to maintain consistency, traceability, and compliance throughout the project lifecycle.
 
-# 2. Scope
+## 2. Scope
 
 This standard applies to the governance of the NSS ERP project throughout its lifecycle.
 
@@ -75,7 +76,7 @@ This standard does not define:
 
 These subjects are governed by their respective standards.
 
-# 3. Definitions
+## 3. Definitions
 
 For the purposes of this standard, the following definitions apply.
 
@@ -105,7 +106,7 @@ A formally approved decision that establishes, modifies, interprets, or clarifie
 
 **Governance Decision Register (GDR)**
 
-The official repository of approved governance decisions affecting the NSS ERP project.
+The official repository of approved governance decisions affecting the NSS ERP project. The GDR operates as a cross-cutting governance-decision and record-keeping mechanism rather than as a sequential layer within the project lifecycle (see GOV-ORG-002).
 
 ---
 
@@ -119,13 +120,13 @@ The state of conforming to approved governance standards, authoritative referenc
 
 The ability to trace every project artifact back through the governance hierarchy to its originating authority.
 
-# 4. Governance Principles
+## 4. Governance Principles
 
 The governance principles defined in this section establish the foundational rules that direct all governance activities within the NSS ERP project.
 
 These principles are mandatory unless superseded through the approved governance change process.
 
-## GOV-ORG-001 — Constitutional Authority
+### GOV-ORG-001 — Constitutional Authority
 
 **Status:** Frozen
 
@@ -137,42 +138,62 @@ Where a conflict exists between project documentation and the Official NSS Const
 
 ---
 
-## GOV-ORG-002 — Governance Hierarchy
+### GOV-ORG-002 — Governance Hierarchy
 
 **Status:** Frozen
 
-The NSS ERP project shall maintain the following governance hierarchy:
+The NSS ERP project shall maintain the following governance lifecycle hierarchy:
 
 ```text
 Official Constitution & Bye-Laws
         │
         ▼
-REF
+       REF
+        │
         ▼
-AUTH
+      AUTH
+        │
         ▼
-GOV
+       GOV
+        │
         ▼
-GDR
+       REQ
+        │
         ▼
-REQ
+   SOLUTION
+        │
         ▼
-SOLUTION
+      CODE
+        │
         ▼
-CODE
+      TEST
+        │
         ▼
-TEST
-        ▼
-RELEASE
+    RELEASE
 ```
 
 Each governance layer derives its authority from the layer immediately above it.
 
 Lower governance layers shall not modify, reinterpret, or supersede higher governance layers unless explicitly authorized through the approved governance process.
 
+The Governance Decision Register (GDR) is **not** a sequential layer within this lifecycle. It functions as a cross-cutting governance-decision, approval, and record-keeping mechanism that applies across every layer of the hierarchy:
+
+```text
+                 ┌───────────────────────┐
+                 │          GDR          │
+                 │  Governance Decisions  │
+                 │   Approval / Record    │
+                 └───────────┬────────────┘
+                              │
+                              ▼
+   REF → AUTH → GOV → REQ → SOLUTION → CODE → TEST → RELEASE
+```
+
+Any normative change to a layer within the lifecycle shall be recorded in the GDR, but the GDR itself does not sit between GOV and REQ or between any two other layers.
+
 ---
 
-## GOV-ORG-003 — Rule Authority
+### GOV-ORG-003 — Rule Authority
 
 **Status:** Frozen
 
@@ -190,7 +211,7 @@ Rules without an identifiable governing authority shall not be adopted as projec
 
 ---
 
-## GOV-ORG-004 — Separation of Governance and Implementation
+### GOV-ORG-004 — Separation of Governance and Implementation
 
 **Status:** Frozen
 
@@ -204,7 +225,7 @@ This separation ensures governance remains stable while implementation evolves.
 
 ---
 
-## GOV-ORG-005 — Traceability Principle
+### GOV-ORG-005 — Traceability Principle
 
 **Status:** Frozen
 
@@ -222,7 +243,7 @@ Traceability shall be preserved across the complete project lifecycle, including
 
 Loss of traceability shall be treated as a governance non-compliance requiring corrective action.
 
-# 5. Governance Lifecycle
+## 5. Governance Lifecycle
 
 The governance lifecycle defines the processes for establishing, maintaining, modifying, and retiring governance standards within the NSS ERP project.
 
@@ -230,7 +251,7 @@ Governance activities shall preserve stability, traceability, and constitutional
 
 ---
 
-## GOV-LIFE-001 — Governance Baseline
+### GOV-LIFE-001 — Governance Baseline
 
 **Status:** Frozen
 
@@ -247,7 +268,7 @@ Routine project development shall operate within the approved Governance Baselin
 
 ---
 
-## GOV-LIFE-002 — Governance Change Control
+### GOV-LIFE-002 — Governance Change Control
 
 **Status:** Frozen
 
@@ -265,7 +286,7 @@ Normative governance changes shall require approval through the Governance Decis
 
 ---
 
-## GOV-LIFE-003 — Governance Decision Register
+### GOV-LIFE-003 — Governance Decision Register
 
 **Status:** Frozen
 
@@ -283,7 +304,7 @@ Approved GDR entries become authoritative governance records.
 
 ---
 
-## GOV-LIFE-004 — Governance Version Management
+### GOV-LIFE-004 — Governance Version Management
 
 **Status:** Frozen
 
@@ -301,7 +322,7 @@ Version identifiers shall never be reused or reassigned.
 
 ---
 
-## GOV-LIFE-005 — Governance Retirement
+### GOV-LIFE-005 — Governance Retirement
 
 **Status:** Frozen
 
@@ -316,13 +337,13 @@ When a governance document is superseded or withdrawn, it shall be:
 
 Retired governance documents shall remain part of the permanent governance history.
 
-# 6. Governance Roles and Responsibilities
+## 6. Governance Roles and Responsibilities
 
 This section defines the governance responsibilities necessary to establish accountability, maintain governance integrity, and ensure compliance throughout the NSS ERP project lifecycle.
 
 ---
 
-## GOV-ROLE-001 — Project Owner
+### GOV-ROLE-001 — Project Owner
 
 **Status:** Frozen
 
@@ -340,7 +361,7 @@ The Project Owner serves as the highest authority for project governance, subjec
 
 ---
 
-## GOV-ROLE-002 — Governance Authority
+### GOV-ROLE-002 — Governance Authority
 
 **Status:** Frozen
 
@@ -359,7 +380,7 @@ The Governance Authority shall ensure that governance documentation remains accu
 
 ---
 
-## GOV-ROLE-003 — Contributors
+### GOV-ROLE-003 — Contributors
 
 **Status:** Frozen
 
@@ -377,7 +398,7 @@ Contributors shall not introduce governance changes outside the approved governa
 
 ---
 
-## GOV-ROLE-004 — Review and Approval
+### GOV-ROLE-004 — Review and Approval
 
 **Status:** Frozen
 
@@ -396,7 +417,7 @@ Approval signifies that the document has successfully completed the required gov
 
 ---
 
-## GOV-ROLE-005 — Accountability
+### GOV-ROLE-005 — Accountability
 
 **Status:** Frozen
 
@@ -406,7 +427,7 @@ Each governance activity shall have an identified responsible authority.
 
 Responsibility for governance may be delegated; however, accountability for governance decisions remains with the approving authority.
 
-# 7. Governance Compliance
+## 7. Governance Compliance
 
 This section establishes the mandatory compliance requirements for all governance activities, project artifacts, and contributors within the NSS ERP project.
 
@@ -414,7 +435,7 @@ Compliance ensures that the project remains consistent with approved governance 
 
 ---
 
-## GOV-COMP-001 — Mandatory Compliance
+### GOV-COMP-001 — Mandatory Compliance
 
 **Status:** Frozen
 
@@ -434,7 +455,7 @@ Non-compliant artifacts shall not receive approval.
 
 ---
 
-## GOV-COMP-002 — Governance Exceptions
+### GOV-COMP-002 — Governance Exceptions
 
 **Status:** Frozen
 
@@ -453,7 +474,7 @@ Unapproved governance exceptions shall not be implemented.
 
 ---
 
-## GOV-COMP-003 — Governance Review
+### GOV-COMP-003 — Governance Review
 
 **Status:** Frozen
 
@@ -472,7 +493,7 @@ Governance reviews shall not modify the Governance Baseline unless approved thro
 
 ---
 
-## GOV-COMP-004 — Corrective Actions
+### GOV-COMP-004 — Corrective Actions
 
 **Status:** Frozen
 
@@ -491,7 +512,7 @@ Corrective actions shall preserve governance integrity and historical traceabili
 
 ---
 
-## GOV-COMP-005 — Governance Baseline Protection
+### GOV-COMP-005 — Governance Baseline Protection
 
 **Status:** Frozen
 
@@ -508,44 +529,43 @@ Changes to the Governance Baseline shall require:
 
 The Governance Baseline is a governed project asset and shall remain under formal governance control.
 
-# Appendix A — Governance Lifecycle
+## Appendix A — Governance Lifecycle
 
 ```text
 Official Constitution & Bye-Laws
             │
             ▼
-REF
+           REF
             │
             ▼
-AUTH
+          AUTH
             │
             ▼
-GOV
+           GOV
             │
             ▼
-GDR
+           REQ
             │
             ▼
-REQ
+       SOLUTION
             │
             ▼
-SOLUTION
+          CODE
             │
             ▼
-CODE
+          TEST
             │
             ▼
-TEST
-            │
-            ▼
-RELEASE
+        RELEASE
 ```
+
+The Governance Decision Register (GDR) is a cross-cutting mechanism applied across all layers of this lifecycle. It is not a sequential layer and does not sit between any two layers shown above.
 
 This appendix is informative.
 
 The normative governance hierarchy is defined in GOV-ORG-002.
 
-# Appendix B — Document Hierarchy
+## Appendix B — Document Hierarchy
 
 | Layer | Primary Purpose |
 |--------|-----------------|
@@ -553,16 +573,16 @@ The normative governance hierarchy is defined in GOV-ORG-002.
 | REF | Constitutional references |
 | AUTH | Repository governance |
 | GOV | Project governance |
-| GDR | Governance decisions |
 | REQ | Business requirements |
 | SOLUTION | Technical solution design |
 | CODE | Software implementation |
 | TEST | Verification and validation |
 | RELEASE | Approved project releases |
+| GDR | Governance decisions (cross-cutting; applies across all layers above, not positioned sequentially between them) |
 
 This appendix is informative.
 
-# Appendix C — Governance Responsibility Matrix
+## Appendix C — Governance Responsibility Matrix
 
 | Activity | Project Owner | Governance Authority | Contributors |
 |----------|---------------|----------------------|--------------|
