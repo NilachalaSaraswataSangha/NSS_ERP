@@ -2,10 +2,10 @@
 
 ---
 
-# Document Metadata
+## Document Metadata
 
 | Item | Value |
-|------|-------|
+|---|---|
 | Document Name | Authoritative Reference Standard |
 | Document ID | AUTH-001 |
 | Domain | AUTH |
@@ -19,42 +19,42 @@
 
 ---
 
-# Revision History
+## Revision History
 
 | Version | Date | Description |
-|----------|------|-------------|
+|---|---|---|
 | 1.0.0 | TBD | Initial draft created following Governance Baseline v1.0 |
 
 ---
 
-# Table of Contents
+## Table of Contents
 
 1. Purpose
 2. Scope
 3. Definitions
 4. Governance Context
 5. Repository Architecture
-6. Repository Organization Standard
+6. Authoritative Reference Repository Standard
 7. Authoritative Reference Identification Standard
 8. Repository Metadata Standard
 9. Repository Cross-Reference Standard
 10. Repository Traceability Standard
 11. Repository Verification Standard
-12. Repository Versioning Standard
-13. Governance and Change Control
-14. Compliance Requirements
+12. Repository Governance and Lifecycle
+13. Compliance Requirements
 
 Appendix A – Repository Structure
-
 Appendix B – REF Family Mapping
+Appendix C – File Naming Examples
+Appendix D – REF Metadata Template
+Appendix E – Traceability Examples
+Appendix F – Editorial vs. Normative Change Examples
 
-Appendix C – Naming Examples
-
-Appendix D – Metadata Template
+End of Document
 
 ---
 
-# 1. Purpose
+## 1. Purpose
 
 This standard establishes the authoritative rules governing the organization, identification, management, verification, and traceability of the Authoritative Reference (REF) repository within the NSS ERP project.
 
@@ -64,26 +64,26 @@ This standard governs the repository that contains authoritative references. It 
 
 ---
 
-# 2. Scope
+## 2. Scope
 
 This standard applies to all Authoritative Reference (REF) documents maintained within the NSS ERP project.
 
 It defines the standards for:
 
-- Repository organization
-- Document identification
-- Metadata
-- Cross-references
-- Traceability
-- Verification
-- Version management
-- Governance of repository changes
+- Repository organization.
+- Document identification.
+- Metadata.
+- Cross-references.
+- Traceability.
+- Verification.
+- Version management.
+- Governance of repository changes.
 
 This standard does not define constitutional provisions, business rules, functional requirements, implementation details, or software design.
 
 ---
 
-# 3. Definitions
+## 3. Definitions
 
 For the purposes of this standard:
 
@@ -109,7 +109,7 @@ Supporting material such as metadata, introductions, examples, notes, or formatt
 
 ---
 
-# 4. Governance Context
+## 4. Governance Context
 
 The NSS ERP project follows the Governance Baseline v1.0 lifecycle:
 
@@ -140,16 +140,9 @@ Official Constitution & Bye-Laws
                 ▼
      RELEASE
 ```
-
-Within this lifecycle, AUTH defines the standards governing the management of the REF repository.
-
-AUTH does not create constitutional authority. It establishes how authoritative references are organized, identified, maintained, and governed within the project.
-
-The REF repository remains the constitutional source of truth for all downstream governance, requirements, solution artifacts, implementation, testing, and release documentation.
-
 ---
 
-# 5. Repository Architecture
+## 5. Repository Architecture
 
 This section establishes the authoritative repository architecture for governance and documentation within the NSS ERP project.
 
@@ -165,7 +158,7 @@ The NSS ERP documentation repository shall be organized into governance domains 
 
 The top-level documentation structure shall be:
 
-```text
+
 docs/
 │
 ├──00_Project_Governance/
@@ -182,7 +175,7 @@ docs/
 ├──04_Testing/
 │
 └──05_Releases/
-```
+
 
 No additional top-level documentation domains shall be introduced without approval through the Governance Decision Register (GDR).
 
@@ -262,7 +255,7 @@ New documents may be added within existing documentation domains without modifyi
 Creation of a new documentation domain or modification of the governance lifecycle constitutes a normative governance change and shall follow the Governance Decision Register (GDR) process.
 
 ---
-# 6. Authoritative Reference Repository Standard
+## 6. Authoritative Reference Repository Standard
 
 This section establishes the standards governing the organization of the Authoritative Reference (REF) repository.
 
@@ -346,7 +339,7 @@ Editorial material shall be clearly distinguishable from authoritative constitut
 Editorial content shall never alter, reinterpret, or supersede the meaning of the governing source.
 
 ---
-# 7. Authoritative Reference Identification Standard
+## 7. Authoritative Reference Identification Standard
 
 This section establishes the permanent identification standard for all Authoritative Reference (REF) documents.
 
