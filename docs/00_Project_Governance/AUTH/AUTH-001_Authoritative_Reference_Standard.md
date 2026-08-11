@@ -140,6 +140,7 @@ Official Constitution & Bye-Laws
                 ▼
      RELEASE
 ```
+
 ---
 
 ## 5. Repository Architecture
@@ -150,7 +151,7 @@ The repository architecture is governed by the following normative rules.
 
 ---
 
-## AUTH-ORG-001 — Governance Repository Structure
+### AUTH-ORG-001 — Governance Repository Structure
 
 **Status:** Frozen
 
@@ -158,7 +159,7 @@ The NSS ERP documentation repository shall be organized into governance domains 
 
 The top-level documentation structure shall be:
 
-
+```text
 docs/
 │
 ├──00_Project_Governance/
@@ -175,13 +176,13 @@ docs/
 ├──04_Testing/
 │
 └──05_Releases/
-
+```
 
 No additional top-level documentation domains shall be introduced without approval through the Governance Decision Register (GDR).
 
 ---
 
-## AUTH-ORG-002 — Domain Responsibilities
+### AUTH-ORG-002 — Domain Responsibilities
 
 **Status:** Frozen
 
@@ -202,7 +203,7 @@ A document shall belong to exactly one primary documentation domain.
 
 ---
 
-## AUTH-ORG-003 — Repository Layer Independence
+### AUTH-ORG-003 — Repository Layer Independence
 
 **Status:** Frozen
 
@@ -232,7 +233,7 @@ RELEASE
 
 ---
 
-## AUTH-ORG-004 — Repository Organization Principle
+### AUTH-ORG-004 — Repository Organization Principle
 
 **Status:** Frozen
 
@@ -244,7 +245,7 @@ Permanent document identity shall be established only through document identifie
 
 ---
 
-## AUTH-ORG-005 — Repository Extensibility
+### AUTH-ORG-005 — Repository Extensibility
 
 **Status:** Frozen
 
@@ -255,6 +256,7 @@ New documents may be added within existing documentation domains without modifyi
 Creation of a new documentation domain or modification of the governance lifecycle constitutes a normative governance change and shall follow the Governance Decision Register (GDR) process.
 
 ---
+
 ## 6. Authoritative Reference Repository Standard
 
 This section establishes the standards governing the organization of the Authoritative Reference (REF) repository.
@@ -263,7 +265,7 @@ The REF repository contains the constitutional source documents upon which all d
 
 ---
 
-## AUTH-REF-001 — Constitutional Source Repository
+### AUTH-REF-001 — Constitutional Source Repository
 
 **Status:** Frozen
 
@@ -275,7 +277,7 @@ Where no authoritative governing source exists, downstream artifacts shall expli
 
 ---
 
-## AUTH-REF-002 — Repository Organization
+### AUTH-REF-002 — Repository Organization
 
 **Status:** Frozen
 
@@ -287,7 +289,7 @@ Editorial convenience shall never supersede constitutional organization.
 
 ---
 
-## AUTH-REF-003 — Repository Hierarchy
+### AUTH-REF-003 — Repository Hierarchy
 
 **Status:** Frozen
 
@@ -313,7 +315,7 @@ Additional document families may be introduced only when officially recognized g
 
 ---
 
-## AUTH-REF-004 — Constitutional Integrity
+### AUTH-REF-004 — Constitutional Integrity
 
 **Status:** Frozen
 
@@ -328,7 +330,7 @@ The repository shall not introduce alternative constitutional structures.
 
 ---
 
-## AUTH-REF-005 — Editorial Separation
+### AUTH-REF-005 — Editorial Separation
 
 **Status:** Frozen
 
@@ -339,6 +341,7 @@ Editorial material shall be clearly distinguishable from authoritative constitut
 Editorial content shall never alter, reinterpret, or supersede the meaning of the governing source.
 
 ---
+
 ## 7. Authoritative Reference Identification Standard
 
 This section establishes the permanent identification standard for all Authoritative Reference (REF) documents.
@@ -347,7 +350,7 @@ Document identifiers are immutable and provide the primary means of identifying,
 
 ---
 
-## AUTH-ID-001 — Permanent Document Identity
+### AUTH-ID-001 — Permanent Document Identity
 
 **Status:** Frozen
 
@@ -359,7 +362,7 @@ Deprecation of a document shall not invalidate or recycle its identifier.
 
 ---
 
-## AUTH-ID-002 — REF Family Assignment
+### AUTH-ID-002 — REF Family Assignment
 
 **Status:** Frozen
 
@@ -381,7 +384,7 @@ The mapping between REF families and governing document sections is permanent.
 
 ---
 
-## AUTH-ID-003 — Composite Document Identifier
+### AUTH-ID-003 — Composite Document Identifier
 
 **Status:** Frozen
 
@@ -404,7 +407,7 @@ The official constitutional reference shall preserve the official numbering, let
 
 ---
 
-## AUTH-ID-004 — File Naming Convention
+### AUTH-ID-004 — File Naming Convention
 
 **Status:** Frozen
 
@@ -433,7 +436,7 @@ The document identifier remains the authoritative identity.
 
 ---
 
-## AUTH-ID-005 — Identifier Independence
+### AUTH-ID-005 — Identifier Independence
 
 **Status:** Frozen
 
@@ -450,7 +453,8 @@ Only the assigned document identifier constitutes the permanent identity of a RE
 Repository organization may evolve without affecting document identity.
 
 ---
-# 8. Repository Metadata Standard
+
+## 8. Repository Metadata Standard
 
 This section establishes the mandatory metadata requirements for all Authoritative Reference (REF) documents.
 
@@ -458,7 +462,7 @@ Metadata provides document identity, governance status, traceability, and reposi
 
 ---
 
-## AUTH-META-001 — Mandatory Metadata
+### AUTH-META-001 — Mandatory Metadata
 
 **Status:** Frozen
 
@@ -468,7 +472,7 @@ The metadata section shall be complete before a document is approved.
 
 ---
 
-## AUTH-META-002 — Standard Metadata Fields
+### AUTH-META-002 — Standard Metadata Fields
 
 **Status:** Frozen
 
@@ -493,7 +497,7 @@ Additional metadata fields may be introduced through the governance change proce
 
 ---
 
-## AUTH-META-003 — Metadata Integrity
+### AUTH-META-003 — Metadata Integrity
 
 **Status:** Frozen
 
@@ -509,7 +513,7 @@ Metadata exists solely for repository governance and management.
 
 ---
 
-## AUTH-META-004 — Metadata Consistency
+### AUTH-META-004 — Metadata Consistency
 
 **Status:** Frozen
 
@@ -521,7 +525,7 @@ Alternative labels shall not be introduced without governance approval.
 
 ---
 
-## AUTH-META-005 — Metadata Versioning
+### AUTH-META-005 — Metadata Versioning
 
 **Status:** Frozen
 
@@ -533,7 +537,7 @@ Normative metadata changes that alter repository governance shall follow the Gov
 
 ---
 
-## AUTH-META-006 — Metadata Placement
+### AUTH-META-006 — Metadata Placement
 
 **Status:** Frozen
 
@@ -551,7 +555,8 @@ The recommended document order is:
 This structure shall be applied consistently across all REF documents.
 
 ---
-# 9. Repository Cross-Reference Standard
+
+## 9. Repository Cross-Reference Standard
 
 This section establishes the standards governing cross-references between Authoritative Reference (REF) documents and between REF documents and downstream project artifacts.
 
@@ -559,7 +564,7 @@ Cross-references provide navigational and traceability support. They shall not m
 
 ---
 
-## AUTH-XREF-001 — Standard Cross References
+### AUTH-XREF-001 — Standard Cross References
 
 **Status:** Frozen
 
@@ -581,7 +586,7 @@ docs/01_Authoritative_References/...
 
 ---
 
-## AUTH-XREF-002 — Reference Format
+### AUTH-XREF-002 — Reference Format
 
 **Status:** Frozen
 
@@ -603,7 +608,7 @@ The document identifier remains the authoritative reference.
 
 ---
 
-## AUTH-XREF-003 — Cross-Layer References
+### AUTH-XREF-003 — Cross-Layer References
 
 **Status:** Frozen
 
@@ -627,7 +632,7 @@ Cross-layer references shall preserve end-to-end traceability.
 
 ---
 
-## AUTH-XREF-004 — Broken References
+### AUTH-XREF-004 — Broken References
 
 **Status:** Frozen
 
@@ -639,7 +644,7 @@ Deprecated documents shall remain referenceable through their permanent identifi
 
 ---
 
-## AUTH-XREF-005 — Reference Stability
+### AUTH-XREF-005 — Reference Stability
 
 **Status:** Frozen
 
@@ -650,7 +655,8 @@ Cross-references shall remain stable through the use of permanent document ident
 Only the referenced document identifier constitutes the authoritative target.
 
 ---
-# 10. Repository Traceability Standard
+
+## 10. Repository Traceability Standard
 
 This section establishes the mandatory traceability requirements for all Authoritative Reference (REF) documents and their relationship to downstream governance, requirements, solution, implementation, testing, and release artifacts.
 
@@ -658,7 +664,7 @@ Traceability ensures that every project artifact can be traced to its governing 
 
 ---
 
-## AUTH-TRACE-001 — End-to-End Traceability
+### AUTH-TRACE-001 — End-to-End Traceability
 
 **Status:** Frozen
 
@@ -698,7 +704,7 @@ Each downstream layer shall maintain traceability to the layer from which it der
 
 ---
 
-## AUTH-TRACE-002 — Constitutional Authority
+### AUTH-TRACE-002 — Constitutional Authority
 
 **Status:** Frozen
 
@@ -712,7 +718,7 @@ Implementation decisions shall be clearly identified and shall not be presented 
 
 ---
 
-## AUTH-TRACE-003 — Downstream Traceability
+### AUTH-TRACE-003 — Downstream Traceability
 
 **Status:** Frozen
 
@@ -732,7 +738,7 @@ Additional traceability may be maintained where beneficial.
 
 ---
 
-## AUTH-TRACE-004 — Traceability Preservation
+### AUTH-TRACE-004 — Traceability Preservation
 
 **Status:** Frozen
 
@@ -744,7 +750,7 @@ Permanent document identifiers shall be used to preserve traceability.
 
 ---
 
-## AUTH-TRACE-005 — Missing Authority
+### AUTH-TRACE-005 — Missing Authority
 
 **Status:** Frozen
 
@@ -754,7 +760,7 @@ Implementation decisions shall not be represented as constitutional authority.
 
 ---
 
-## AUTH-TRACE-006 — Traceability Validation
+### AUTH-TRACE-006 — Traceability Validation
 
 **Status:** Frozen
 
@@ -768,7 +774,8 @@ Verification shall confirm:
 - implementation decisions are explicitly marked where applicable.
 
 ---
-# 11. Repository Verification Standard
+
+## 11. Repository Verification Standard
 
 This section establishes the mandatory verification requirements for all Authoritative Reference (REF) documents.
 
@@ -776,7 +783,7 @@ Verification ensures that every REF document accurately represents its authorita
 
 ---
 
-## AUTH-VERIFY-001 — Mandatory Verification
+### AUTH-VERIFY-001 — Mandatory Verification
 
 **Status:** Frozen
 
@@ -786,7 +793,7 @@ No REF document shall be published as an approved authoritative reference withou
 
 ---
 
-## AUTH-VERIFY-002 — Verification Scope
+### AUTH-VERIFY-002 — Verification Scope
 
 **Status:** Frozen
 
@@ -805,7 +812,7 @@ Additional verification criteria may be introduced through governance approval.
 
 ---
 
-## AUTH-VERIFY-003 — Constitutional Accuracy
+### AUTH-VERIFY-003 — Constitutional Accuracy
 
 **Status:** Frozen
 
@@ -823,7 +830,7 @@ Editorial content shall be excluded from constitutional verification except wher
 
 ---
 
-## AUTH-VERIFY-004 — Repository Compliance
+### AUTH-VERIFY-004 — Repository Compliance
 
 **Status:** Frozen
 
@@ -840,7 +847,7 @@ Non-compliant documents shall not receive Approved status.
 
 ---
 
-## AUTH-VERIFY-005 — Verification Record
+### AUTH-VERIFY-005 — Verification Record
 
 **Status:** Frozen
 
@@ -857,7 +864,7 @@ Verification records form part of the repository governance history.
 
 ---
 
-## AUTH-VERIFY-006 — Reverification
+### AUTH-VERIFY-006 — Reverification
 
 **Status:** Frozen
 
@@ -872,7 +879,8 @@ A previously approved REF document shall be reverified whenever:
 Editorial corrections that do not affect governance, traceability, or constitutional integrity may be exempt from full reverification.
 
 ---
-# 12. Repository Governance and Lifecycle
+
+## 12. Repository Governance and Lifecycle
 
 This section establishes the governance requirements for managing the Authoritative Reference (REF) repository throughout its lifecycle.
 
@@ -880,7 +888,7 @@ It defines version management, governance change control, editorial practices, a
 
 ---
 
-## AUTH-GOV-001 — Repository Version Management
+### AUTH-GOV-001 — Repository Version Management
 
 **Status:** Frozen
 
@@ -892,7 +900,7 @@ Version identifiers shall never be reused.
 
 ---
 
-## AUTH-GOV-002 — Governance Change Control
+### AUTH-GOV-002 — Governance Change Control
 
 **Status:** Frozen
 
@@ -911,7 +919,7 @@ No normative change shall be incorporated without an approved GDR entry.
 
 ---
 
-## AUTH-GOV-003 — Editorial Changes
+### AUTH-GOV-003 — Editorial Changes
 
 **Status:** Frozen
 
@@ -929,7 +937,7 @@ Editorial changes shall not modify normative requirements.
 
 ---
 
-## AUTH-GOV-004 — Governance Compliance
+### AUTH-GOV-004 — Governance Compliance
 
 **Status:** Frozen
 
@@ -941,7 +949,7 @@ Compliance verification shall form part of repository governance.
 
 ---
 
-## AUTH-GOV-005 — Governance Baseline
+### AUTH-GOV-005 — Governance Baseline
 
 **Status:** Frozen
 
@@ -959,7 +967,8 @@ Changes to the governance baseline itself shall require:
 The governance baseline is a governed asset and shall not be modified through ordinary feature development.
 
 ---
-# 13. Compliance Requirements
+
+## 13. Compliance Requirements
 
 The standards defined within AUTH-001 are mandatory for all Authoritative Reference (REF) documents maintained by the NSS ERP project.
 
@@ -978,11 +987,8 @@ Failure to comply with this standard shall require corrective action before appr
 This standard shall remain in effect until superseded through the established governance process.
 
 ---
-# 14. Compliance Requirements
 
----
-
-# Appendix A — Repository Structure
+## Appendix A — Repository Structure
 
 The NSS ERP documentation repository is organized as follows:
 
@@ -1014,7 +1020,9 @@ This appendix is informative.
 
 The normative repository architecture is defined by AUTH-ORG-001.
 
-# Appendix B — REF Family Mapping
+---
+
+## Appendix B — REF Family Mapping
 
 | REF Family | Official Constitutional Section |
 |------------|---------------------------------|
@@ -1033,7 +1041,9 @@ This appendix is informative.
 
 The normative document identification rules are defined in Section 7.
 
-# Appendix C — File Naming Examples
+---
+
+## Appendix C — File Naming Examples
 
 Examples:
 
@@ -1057,7 +1067,9 @@ These examples illustrate the naming convention.
 
 The normative naming rules are defined in Section 7.
 
-# Appendix D — REF Metadata Template
+---
+
+## Appendix D — REF Metadata Template
 
 Every REF document should use the following metadata template.
 
@@ -1080,7 +1092,9 @@ This appendix provides a standard template.
 
 The normative metadata requirements are defined in Section 8.
 
-# Appendix E — Traceability Examples
+---
+
+## Appendix E — Traceability Examples
 
 Example 1
 
@@ -1110,7 +1124,9 @@ This appendix illustrates end-to-end traceability.
 
 The normative traceability requirements are defined in Section 10.
 
-# Appendix F — Editorial vs. Normative Change Examples
+---
+
+## Appendix F — Editorial vs. Normative Change Examples
 
 Examples of Editorial Changes
 
@@ -1134,5 +1150,7 @@ Normative changes require Governance Decision Register (GDR) approval.
 This appendix is illustrative.
 
 The normative governance requirements are defined in Section 12.
+
+---
 
 # End of Document
