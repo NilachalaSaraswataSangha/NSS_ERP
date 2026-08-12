@@ -114,15 +114,18 @@ invitation to reopen it.**
 
 ```
 docs/
-├── 00_Project_Governance/{AUTH, GOV, GDR}/
+├── PROJECT_DOCUMENTATION.md
+├── 00_Project_Governance/{AUTH, GOV, GDR, STD}/
 ├── 01_Authoritative_References/NSS/SECTION-A..J/ (+ MAHILA_SANGHA/, RESOLUTIONS/, CIRCULARS/, NOTIFICATIONS/ planned)
-├── 02_Requirements/
-├── 03_Solution/
-├── 04_Testing/
-├── 05_Releases/
-├── modules/{organization, person, ...}/
-└── standards/
+├── 02_Requirements/ (scaffolded, empty)
+├── 03_Solution/modules/{organization, person, ...}/ (+ api/architecture/database/infrastructure/security/ui scaffolding)
+├── 04_Testing/ (scaffolded, empty)
+└── 05_Releases/
 ```
+`modules/` and `standards/` used to live directly under `docs/` — as of the 2026-08-12
+folder-consolidation pass (see Session Log) they were moved to `docs/03_Solution/modules/` and
+`docs/00_Project_Governance/STD/` respectively. If you see either old path referenced anywhere,
+it's stale.
 REF documents preserve **original authoritative wording** — no paraphrasing, no ERP
 interpretation injected into REF, no silently "correcting" the source, no merging unrelated
 provisions, no inventing missing clauses. Editorial notes allowed only if clearly marked as
@@ -232,15 +235,24 @@ authority. Attendance Enforcement + Attendance Review are frozen.
 | Security | UUID internal PKs, separate business IDs, RBAC, RLS, immutable audit, soft delete |
 | Deployment (earlier direction) | Ubuntu, Docker, Nginx, PostgreSQL |
 
-**Django app structure:** `backend/apps/{foundation, authentication, membership, family,
-governance, attendance, mahila, kumari, kishore, sevak, heritage, publications, upbs, reports,
-administration}` — do not casually redesign this structure.
+**Django app structure — corrected against actual code (2026-08-12):** apps live directly under
+`backend/` (no `apps/` subdirectory): `backend/{authentication, foundation, family, membership,
+dashboard, governance, attendance, config}`. Of these, only `authentication`, `foundation`, and
+`membership`/`family` have real models; `dashboard`/`governance`/`attendance` are stubs (empty
+`models.py`, no `urls.py` for governance/attendance). Only `authentication`, `dashboard`, and
+`foundation` are in `INSTALLED_APPS` and wired into `config/urls.py`. `mahila`, `kumari`,
+`kishore`, `sevak`, `heritage`, `publications`, `upbs`, `reports`, `administration` are **not
+yet scaffolded at all** — planned only. Full detail: `docs/PROJECT_DOCUMENTATION.md` §Directory
+structure / §Gotchas. Do not casually redesign this structure.
 
 **DB naming standards:** tables `snake_case` (e.g. `family_group`); internal PK suffix
-`_pk` (e.g. `person_pk`); business IDs suffix `_id` (e.g. `sangha_sevi_id`); FKs reference
-internal PKs, never business IDs; audit columns:
+`_pk` (e.g. `person_pk`); FKs reference internal PKs, never business IDs; audit columns:
 `created_at/created_by_sangha_sevi_pk, updated_at/updated_by_sangha_sevi_pk,
 deleted_at/deleted_by_sangha_sevi_pk, is_active`.
+**Correction (2026-08-12):** the actual SQL DDL uses `_code` (not `_id`) for business
+identifiers — `person_code`, `country_code`, `sequence_code`, etc. — never `_id`. The prior
+`sangha_sevi_id` example was a Django model field name (`backend/membership/models.py`), not a
+SQL/DDL convention; don't generalize from it. Follow `_code` for new DDL.
 
 **Schema scale:** conceptual table count has been estimated anywhere from ~88 to ~95+ to a
 projected 110–130 depending on remaining operational modules — **these are estimates, not a
@@ -288,6 +300,56 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-12 — document-project skill updated to auto-create per-folder READMEs, re-run (Claude Code)
+- Context: Previous doc-refresh pass (below) only flagged folders missing a `README.md`
+  rather than creating them. User asked to change that behavior in the `document-project`
+  skill itself and re-run.
+- Decision/Outcome: Edited `~/.claude/skills/document-project/SKILL.md` step 4 to create a
+  scoped `README.md` for any non-trivial folder/module lacking one (skipping trivial/empty
+  folders), instead of just noting the gap. Re-ran the skill: created READMEs for `backend/`,
+  `backend/{config,authentication,dashboard,foundation,family,membership}/`, `database/`,
+  `docs/`, `docs/01_Authoritative_References/NSS/`,
+  `docs/00_Project_Governance/{AUTH,GOV,GDR,STD}/`,
+  `docs/03_Solution/modules/organization/`, `docs/05_Releases/`. Skipped `backend/attendance/`
+  and `backend/governance/` (pure stubs), `backend/static/`+`backend/templates/` (asset dirs,
+  already covered in `docs/PROJECT_DOCUMENTATION.md`), and the empty `docs/03_Solution/
+  {api,architecture,database,infrastructure,security,ui}/`, `docs/02_Requirements/`,
+  `docs/04_Testing/` scaffolding.
+- Follow-up: none — this is a completed mechanical pass. If new non-trivial folders are added
+  later, re-running `/document-project` should pick them up per the updated skill instructions.
+
+### 2026-08-12 — Doc folder consolidation + full documentation refresh (Claude Code)
+- Context: Continuing folder-renaming work on `feature/ref-renaming`. `docs/standards/` and
+  `docs/modules/` had already been git-moved into `docs/00_Project_Governance/STD/` and
+  `docs/03_Solution/modules/` respectively; `docs/releases/` into `docs/05_Releases/`. A staged
+  rename had accidentally nested `docs/modules/{organization,person}` under
+  `docs/03_Solution/modules/modules/` instead of directly under `docs/03_Solution/modules/`.
+  Then ran `/document-project` to generate a comprehensive standalone doc and refresh existing
+  markdown files against actual code.
+- Decision/Outcome: (a) Fixed the nesting — removed the empty placeholder dirs, `git mv`'d
+  `organization`/`person` up one level, confirmed via `git status`. (b) Read the actual backend
+  code and DDL (agents explored `backend/`, `database/ddl`, `database/seed`,
+  `docs/00_Project_Governance`, `docs/03_Solution/modules`) and found several stale claims: this
+  file's §5 doc-tree diagram and §8 Django app list were both wrong (§8 said `backend/apps/...`;
+  real apps live directly under `backend/`, and `dashboard`/`governance`/`attendance` aren't in
+  `INSTALLED_APPS`); this file's §8 DB-naming claim of `_id` for business identifiers doesn't
+  match the SQL, which uses `_code` throughout. Corrected both in §8/§5 above. Created
+  `docs/PROJECT_DOCUMENTATION.md` as the full code-verified reference. Fixed a stale index list
+  in `docs/03_Solution/modules/person/04_person_table_design.md` (leftover `district_pk`/
+  `state_pk`/`country_pk` from an older address design, not matching the actual implemented
+  `person_address` table) and updated its module `README.md` status line (SQL implementation is
+  actually done, not "in progress"). Updated root `README.md`'s repository-structure and
+  release-notes-path sections to match the post-rename layout.
+- Key finding worth carrying forward: **Organization module is fully designed
+  (`docs/03_Solution/modules/organization/`) but has zero SQL implementation** —
+  `database/ddl/02_organization/*.sql` are all 0-byte placeholder files. Person module design
+  and SQL match closely. Also: Django ORM models (`foundation.Person`, `foundation.Organization`)
+  and the SQL DDL schema (`person`, `organization` tables) are two separate, unreconciled designs
+  right now — see `docs/PROJECT_DOCUMENTATION.md` Architecture/Gotchas for detail.
+- Follow-up: next session should decide whether to (1) implement `database/ddl/02_organization/`
+  against the existing design docs, or (2) reconcile the Django ORM models with the SQL DDL
+  track before building more on either. Neither decision was made this session — flagged only.
 
 ### 2026-08-11 — Full project handoff ingested (3 phases) + live repo verification (Enchanté)
 - Context: User provided a 3-phase project handoff (originally written for a fresh-chat
