@@ -1,0 +1,25 @@
+<nav class="navbar navbar-expand-lg navbar-dark nss-navbar">
+
+    <div class="container-fluid">
+
+        <a class="navbar-brand fw-bold"
+           href="#">
+
+            NSS ERP
+
+        </a>
+
+        <div class="ms-auto text-white">
+
+            {% if request.user.is_authenticated %}
+
+                Welcome,
+                {{ request.user.username }}
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</nav>
