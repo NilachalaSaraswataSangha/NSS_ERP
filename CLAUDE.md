@@ -104,25 +104,28 @@ flagged as an ERP implementation decision) · `GOV-DATA-001` (parent-child integ
 `GOV-LIFE-002` (immutable rule identifiers; deprecated rules keep their ID and point to
 successors).
 
-## 3. Live-Verified Repository State (as of 2026-08-12, updated same day — branch/working-tree
-refreshed during a second `/document-project` pass, later in the day than the entry directly
-below in §12)
+## 3. Live-Verified Repository State (as of 2026-08-12, updated same day — after committing,
+pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
-- **Branch:** `feature/ref-documentation`, now **1 commit ahead** of `pie/feature/ref-documentation`
-  (local commit `a9cd4bc "docs(ref): complete REF corpus source-verification pass, add BY-LAW
-  originals"`, not yet pushed). This supersedes the earlier `feature/ref-renaming` snapshot
-  further below, which has since been merged into `develop` and is no longer the active branch.
-- **Working tree:** **not clean** — modified: small "Repository Path" metadata corrections in
-  `REF-001`, `REF-002`, `REF-003-001`, `REF-003-002`, and an update to
+- **Branch:** currently on `develop`, which is now at `a2e6a6a` — **fast-forwarded from**
+  `feature/ref-documentation` (no conflicts; `develop` had no commits of its own past the common
+  ancestor `26dfed9`). Both `develop` and `feature/ref-documentation` and their `pie/` remotes
+  are identical at `a2e6a6a` as of this writing; working tree is clean, nothing uncommitted.
+  This supersedes the earlier `feature/ref-renaming` snapshot further below, which has since
+  been merged into `develop` and is no longer the active branch.
+- **Latest 2 commits (both now on `develop`):** `a2e6a6a "docs(ref): add Mahila Sangha REF-MS
+  corpus, refresh docs to match"` → `a9cd4bc "docs(ref): complete REF corpus source-verification
+  pass, add BY-LAW originals"`.
+- **Prior working-tree state (now resolved, committed as `a2e6a6a`):** small "Repository Path"
+  metadata corrections in `REF-001`, `REF-002`, `REF-003-001`, `REF-003-002`, and an update to
   `docs/01_Authoritative_References/MAHILA_SANGHA/README.md` (from "reserved, nothing added" to
-  documenting the now-complete 22-document `REF-MS-XXX` corpus). Untracked: the 12
+  documenting the now-complete 22-document `REF-MS-XXX` corpus), plus the 12
   `MAHILA_SANGHA/SECTION-*` folders themselves (each holding its `REF-MS-*` document — see
-  bullet below). Run `git status` before assuming any of this is committed/merged elsewhere.
-- **Recent commits (newest first):** `a9cd4bc` (REF corpus source-verification pass + BY-LAW
-  originals, uncommitted as of this writing — see Working tree above) → AUTH-001 minor
+  bullet below).
+- **Recent commits (newest first):** `a2e6a6a` → `a9cd4bc` (both above) → AUTH-001 minor
   corrections → GDR-001 added → GOV-005 added → GOV-004 added → GOV-003 added → GOV-002 added
   → GOV-001 added → AUTH-001 added (replacing an older AUTH-001) → merge of
   `feature/ref-documentation` into `develop` → authoritative reference repository standard
@@ -400,6 +403,20 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 
 <!-- Newest entries at the top. -->
 
+### 2026-08-12 — Committed, pushed, and merged the Mahila Sangha REF corpus + doc refresh into develop (Claude Code)
+- Context: Follow-on from the drift-check entry directly below. User asked to commit and push,
+  then to merge `feature/ref-documentation` into `develop`.
+- Decision/Outcome: Staged and committed everything from the prior entry (the `MAHILA_SANGHA/`
+  REF-MS corpus + all documentation fixes) as `a2e6a6a "docs(ref): add Mahila Sangha REF-MS
+  corpus, refresh docs to match"` on top of `a9cd4bc`, pushed `feature/ref-documentation` to
+  `pie`. Confirmed via `git log`/`git fetch` that `develop` had not advanced past the common
+  ancestor `26dfed9`, so merging was a clean fast-forward (no conflicts) — checked out `develop`,
+  fast-forwarded to `a2e6a6a`, pushed to `pie`. Both branches and their `pie/` remotes are now
+  identical.
+- Follow-up: none outstanding from this step. Carried-forward open items: (1) add a `REF-MS`
+  family definition to `AUTH-001` in a future governance-doc session (§13), (2) decide the next
+  feature branch per the §4 branch policy now that `feature/ref-documentation`'s work is merged.
+
 ### 2026-08-12 — Mahila Sangha REF corpus drift check, re-ran document-project (Claude Code)
 - Context: User ran `/document-project` again. Live `git status` showed the working tree had
   moved since the last pass: commit `a9cd4bc` added the full `MAHILA_SANGHA/` REF corpus (22
@@ -423,11 +440,8 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   definition — flagged in `docs/PROJECT_DOCUMENTATION.md` Open questions and §13 below, not
   fixed here since `AUTH-001` changes go through the controlled process in §6, and this was a
   documentation-refresh pass, not a governance-doc edit.
-- Follow-up: (1) Decide whether/when to commit the still-uncommitted `MAHILA_SANGHA/` corpus
-  and REF metadata fixes from the prior session, plus this pass's own documentation edits
-  (README/`PROJECT_DOCUMENTATION.md`/`CLAUDE.md` updates) — none of it is committed yet. (2) Add
-  a `REF-MS` family definition to `AUTH-001` in a future governance-doc session. (3) Push
-  `feature/ref-documentation` to `pie/` once ready — currently 1 commit ahead, unpushed.
+- Follow-up: superseded by the entry directly above — this work has since been committed,
+  pushed, and merged into `develop`.
 
 ### 2026-08-12 — Merged feature/ref-renaming + feature/founder-heritage into develop; synced most other branches; re-ran document-project (Claude Code)
 - Context: User asked to push `feature/ref-renaming` into `develop` and sync every other
