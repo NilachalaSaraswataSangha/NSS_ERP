@@ -81,12 +81,14 @@ NSS_ERP/
 ├── docs/
 │   ├── PROJECT_DOCUMENTATION.md This file
 │   ├── 00_Project_Governance/   AUTH/ GOV/ GDR/ STD/ — governance framework + engineering standards
-│   ├── 01_Authoritative_References/NSS/  Source-faithful transcription of NSS's Constitution & Bye-Laws (see detail below)
+│   ├── 01_Authoritative_References/
+│   │   ├── NSS/            Source-faithful transcription of NSS's Constitution & Bye-Laws (see detail below)
+│   │   └── MAHILA_SANGHA/  Source-faithful transcription of Mahila Sangha's own Bye-Law (see detail below)
 │   ├── 02_Requirements/         Scaffolded only — business/functional/non_functional/traceability subfolders, no content yet
 │   ├── 03_Solution/             Per-module design docs (organization, person) + api/architecture/database/infrastructure/security/ui scaffolding
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
-├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source `docs/01_Authoritative_References/NSS/` is transcribed from
+├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
 ├── requirements.txt              Python dependencies (pip, not pinned to a venv tool)
 ├── CLAUDE.md                     AI-agent operating memory/context (terse, instruction-oriented)
 └── README.md                     Project pitch / high-level status
@@ -148,6 +150,39 @@ generic sequential "Clause N" labels throughout regardless of the source's actua
 names + addresses), witnesses table, and the source's three distinct certification/signature
 blocks (Memorandum, post-Dissolution, and post-Resolution) as separate, non-deduplicated
 content, since all three appear separately in the source.
+
+### `docs/01_Authoritative_References/MAHILA_SANGHA/` detail
+
+Source-faithful transcription of the Nilachala Saraswata Mahila Sangha's own Constitution &
+Bye-Law (`BY-LAW/NSS - Mahila Sangha/NSS Mahila Sangha By-Law.pdf`, cross-checked against
+`BY-LAW/NSS - Mahila Sangha/NSS_Mahila_Sangha_Bye_Law.docx`) — a sibling folder to `NSS/`, not
+nested under it, since Mahila Sangha is a separately registered entity with its own Bye-Law.
+Uses a dedicated `REF-MS-XXX` identifier family (distinct from NSS's `REF-00X` family):
+
+```
+MAHILA_SANGHA/
+├── SECTION-A_MEMORANDUM_AND_REGISTRATION/  REF-MS-MOA — Certificate of Registration, Memorandum, founding Governing Body + signatories + witnesses, historical 1989-1991 roster
+├── SECTION-B_AIMS_AND_OBJECTS/             REF-MS-1
+├── SECTION-C_MEMBERSHIP/                   REF-MS-2
+├── SECTION-D_ENROLMENT_PROCEDURE/          REF-MS-3
+├── SECTION-E_CESSATION_OF_MEMBERSHIP/      REF-MS-4
+├── SECTION-F_CONSTITUTION_OF_THE_SANGHA/   REF-MS-5
+├── SECTION-G_GOVERNING_BODY/               REF-MS-6(i)…6(viii) — Constitution, Powers & Duties, and all 6 office-bearer duties
+├── SECTION-H_FUNDS/                        REF-MS-7(i)/(ii)/(iii) — Comprising/Maintenance/Utilisation, 3 documents mirroring NSS's own Funds-section split
+├── SECTION-I_LEGAL_REPRESENTATION/         REF-MS-8
+├── SECTION-J_AUDIT/                        REF-MS-9
+├── SECTION-K_DISPUTE_SETTLEMENT/           REF-MS-10
+├── SECTION-L_POWER_TO_AMEND/               REF-MS-11
+└── SECTION-M_DISSOLUTION/                  REF-MS-12
+```
+
+22 documents total, all verified against source with clause numbering (numerals/letters/roman
+numerals) preserved exactly as printed, including source quirks (no labeled "b)" sub-item in
+Clause 6(ii); Clause 8 has no heading title at all — title assigned editorially). Note: several
+REF-MS documents' "Related Governance" sections cite `AUTH-001` as the source defining the
+`REF-MS` identifier family, but as of this pass `AUTH-001`'s own text does not yet contain a
+`REF-MS` definition — this is a documentation gap in AUTH-001, not verified further here since
+AUTH-001 corrections follow a separate controlled process (see `CLAUDE.md` §6).
 
 ### `database/` detail
 
@@ -331,3 +366,8 @@ design docs as the target and the current Django model as a stand-in to be repla
   Resolutions under an invented `docs/01_Authoritative_References/NSS/SECTION-J_RESOLUTIONS/`
   folder (no "Section J" exists in the source Bye-Law). This has been corrected — see the
   `01_Authoritative_References/NSS/` detail above.
+- **AUTH-001 doesn't yet define the `REF-MS` identifier family.** The newly-added
+  `MAHILA_SANGHA/` REF corpus (see detail above) cross-references `AUTH-001` as the document
+  that establishes `REF-MS-XXX` as a family distinct from NSS's `REF-00X`, but `AUTH-001`'s
+  current text has no such definition. Needs a future AUTH-001 update — not resolved in this
+  pass since AUTH-001 changes follow their own controlled review process.

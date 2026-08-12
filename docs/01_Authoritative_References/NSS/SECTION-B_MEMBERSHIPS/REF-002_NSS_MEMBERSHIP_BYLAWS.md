@@ -7,7 +7,7 @@
 **Title:** NSS Membership By-Laws
 
 **Repository Path:**
-`docs/01_Authoritative_References/`
+`docs/01_Authoritative_References/NSS/SECTION-B_MEMBERSHIPS/`
 
 **Source Reference:** REF-SRC-002
 

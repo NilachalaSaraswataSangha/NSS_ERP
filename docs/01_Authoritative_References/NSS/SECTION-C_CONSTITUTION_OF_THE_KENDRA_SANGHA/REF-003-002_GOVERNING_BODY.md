@@ -7,7 +7,7 @@
 **Title:** Governing Body
 
 **Repository Path:**
-`docs/01_Authoritative_References/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 

@@ -105,25 +105,39 @@ flagged as an ERP implementation decision) · `GOV-DATA-001` (parent-child integ
 successors).
 
 ## 3. Live-Verified Repository State (as of 2026-08-12, updated same day — branch/working-tree
-refreshed during a `/document-project` pass)
+refreshed during a second `/document-project` pass, later in the day than the entry directly
+below in §12)
 
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
-- **Branch:** `feature/ref-documentation` (up to date with `pie/feature/ref-documentation`;
-  currently at the same commit as `develop`, `26dfed9`). This supersedes the earlier
-  `feature/ref-renaming` snapshot below, which has since been merged into `develop` and is no
-  longer the active branch.
-- **Working tree:** **not clean** — the REF corpus rewrite described below (SECTION-J removal,
-  the two 1975 Resolution documents, the Section F three-way split, and full clause-numbering
-  correction) is sitting as uncommitted modifications/untracked files on this branch, not yet
-  committed. Also untracked: a new top-level `BY-LAW/` folder holding the source PDF/docx files
-  the REF transcriptions are checked against (now has its own `README.md`). Run `git status`
-  before assuming any of this is merged elsewhere.
-- **Recent commits (newest first):** AUTH-001 minor corrections → GDR-001 added → GOV-005
-  added → GOV-004 added → GOV-003 added → GOV-002 added → GOV-001 added → AUTH-001 added
-  (replacing an older AUTH-001) → merge of `feature/ref-documentation` into `develop` →
-  authoritative reference repository standard added.
+- **Branch:** `feature/ref-documentation`, now **1 commit ahead** of `pie/feature/ref-documentation`
+  (local commit `a9cd4bc "docs(ref): complete REF corpus source-verification pass, add BY-LAW
+  originals"`, not yet pushed). This supersedes the earlier `feature/ref-renaming` snapshot
+  further below, which has since been merged into `develop` and is no longer the active branch.
+- **Working tree:** **not clean** — modified: small "Repository Path" metadata corrections in
+  `REF-001`, `REF-002`, `REF-003-001`, `REF-003-002`, and an update to
+  `docs/01_Authoritative_References/MAHILA_SANGHA/README.md` (from "reserved, nothing added" to
+  documenting the now-complete 22-document `REF-MS-XXX` corpus). Untracked: the 12
+  `MAHILA_SANGHA/SECTION-*` folders themselves (each holding its `REF-MS-*` document — see
+  bullet below). Run `git status` before assuming any of this is committed/merged elsewhere.
+- **Recent commits (newest first):** `a9cd4bc` (REF corpus source-verification pass + BY-LAW
+  originals, uncommitted as of this writing — see Working tree above) → AUTH-001 minor
+  corrections → GDR-001 added → GOV-005 added → GOV-004 added → GOV-003 added → GOV-002 added
+  → GOV-001 added → AUTH-001 added (replacing an older AUTH-001) → merge of
+  `feature/ref-documentation` into `develop` → authoritative reference repository standard
+  added.
+- **Mahila Sangha REF corpus — new, complete as of this pass:**
+  `docs/01_Authoritative_References/MAHILA_SANGHA/` is a **sibling** folder to `.../NSS/` (not
+  nested under it) and now holds 22 documents across Sections A–M
+  (`SECTION-A_MEMORANDUM_AND_REGISTRATION` … `SECTION-M_DISSOLUTION`), transcribed from
+  `BY-LAW/NSS - Mahila Sangha/NSS Mahila Sangha By-Law.pdf` (docx-cross-checked). Uses its own
+  `REF-MS-XXX` identifier family, distinct from NSS's `REF-00X` family — see
+  `docs/PROJECT_DOCUMENTATION.md` → `docs/01_Authoritative_References/MAHILA_SANGHA/` detail for
+  the full section/document map. **Known gap surfaced during this pass:** several `REF-MS-*`
+  documents cite `AUTH-001` as defining the `REF-MS` family, but `AUTH-001`'s current text has
+  no such definition yet — flagged in `docs/PROJECT_DOCUMENTATION.md` Open questions, not fixed
+  here (AUTH-001 edits follow the controlled process in §6).
 - **AUTH-001 status:** further along than some handoff notes suggest — already has a
   correction commit (`5ec61c0 "docs(auth): Some Minor Changes to AUTH-001 File"`). Verify
   actual current content before assuming it's still mid-correction.
@@ -167,10 +181,12 @@ refreshed during a `/document-project` pass)
     containing its REF file(s) — folders are navigation only, identity lives in the filename.
 - **Governance docs present:** `AUTH-001`, `GOV-001..005`, `GDR-001` — all exist under
   `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.
-- **Module docs present:** `docs/modules/organization/` and `docs/modules/person/`, each with
-  `01_design`, `02_erd`, `03_business_rules`, `04_table_design` (+ person has a `README.md`).
-- **Standards docs present:** `docs/standards/01_project_standards.md` … `05_security_standards.md`.
-- **Releases present:** `v0.1.0` through `v0.5.1` under `docs/releases/`.
+- **Module docs present:** `docs/03_Solution/modules/organization/` and
+  `docs/03_Solution/modules/person/`, each with `01_design`, `02_erd`, `03_business_rules`,
+  `04_table_design` (+ person has a `README.md`).
+- **Standards docs present:** `docs/00_Project_Governance/STD/01_project_standards.md` …
+  `05_security_standards.md`.
+- **Releases present:** `v0.1.0` through `v0.5.1` under `docs/05_Releases/`.
 - **Other branches that exist but are NOT current:** `develop`, `main`,
   `feature/admin-setup`, `feature/founder-heritage`, `feature/membership-design`,
   `feature/person-ddl`, `feature/person-management`, `feature/ref-documentation`. Notably
@@ -196,7 +212,8 @@ invitation to reopen it.**
 docs/
 ├── PROJECT_DOCUMENTATION.md
 ├── 00_Project_Governance/{AUTH, GOV, GDR, STD}/
-├── 01_Authoritative_References/NSS/SECTION-A..J/ (+ MAHILA_SANGHA/, RESOLUTIONS/, CIRCULARS/, NOTIFICATIONS/ planned)
+├── 01_Authoritative_References/NSS/SECTION-A..I/ (+ MAHILA_SANGHA/SECTION-A..M/ complete;
+│   RESOLUTIONS/, CIRCULARS/, NOTIFICATIONS/ still planned)
 ├── 02_Requirements/ (scaffolded, empty)
 ├── 03_Solution/modules/{organization, person, ...}/ (+ api/architecture/database/infrastructure/security/ui scaffolding)
 ├── 04_Testing/ (scaffolded, empty)
@@ -383,6 +400,35 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 
 <!-- Newest entries at the top. -->
 
+### 2026-08-12 — Mahila Sangha REF corpus drift check, re-ran document-project (Claude Code)
+- Context: User ran `/document-project` again. Live `git status` showed the working tree had
+  moved since the last pass: commit `a9cd4bc` added the full `MAHILA_SANGHA/` REF corpus (22
+  `REF-MS-XXX` documents, Sections A–M) and small "Repository Path" metadata fixes to
+  `REF-001`/`REF-002`/`REF-003-001`/`REF-003-002`, still sitting as uncommitted/untracked
+  changes on `feature/ref-documentation` (1 commit ahead of `pie/feature/ref-documentation`).
+  Backend/database code was untouched (`git diff --stat` confirmed changes were scoped to
+  `docs/01_Authoritative_References/`) — no backend-facing drift to check this round.
+- Decision/Outcome: Updated stale "planned"/"not yet added" claims about `MAHILA_SANGHA/` in
+  `docs/01_Authoritative_References/NSS/README.md` and `BY-LAW/README.md` (both had said it
+  wasn't added yet — it now is, 22 documents). Added a full `MAHILA_SANGHA/` detail subsection
+  to `docs/PROJECT_DOCUMENTATION.md` (mirroring the existing `NSS/` detail subsection) and fixed
+  its directory-structure tree to show `MAHILA_SANGHA/` as a sibling of `NSS/`, not nested under
+  it. Refreshed this file's §3 (branch/commit state, module-docs/standards-docs/releases paths
+  that had gone stale after the earlier `docs/modules/` → `docs/03_Solution/modules/` etc. move
+  but were never corrected in §3 itself, and the `SECTION-A..J` typo in §5's tree — NSS's own
+  corpus only runs A–I, no Section J).
+- Key finding worth carrying forward: **`AUTH-001` doesn't yet define the `REF-MS` identifier
+  family.** Every `REF-MS-*` document's "Related Governance" section cites `AUTH-001` as the
+  source of the `REF-MS-XXX` naming scheme, but `AUTH-001`'s current text has no such
+  definition — flagged in `docs/PROJECT_DOCUMENTATION.md` Open questions and §13 below, not
+  fixed here since `AUTH-001` changes go through the controlled process in §6, and this was a
+  documentation-refresh pass, not a governance-doc edit.
+- Follow-up: (1) Decide whether/when to commit the still-uncommitted `MAHILA_SANGHA/` corpus
+  and REF metadata fixes from the prior session, plus this pass's own documentation edits
+  (README/`PROJECT_DOCUMENTATION.md`/`CLAUDE.md` updates) — none of it is committed yet. (2) Add
+  a `REF-MS` family definition to `AUTH-001` in a future governance-doc session. (3) Push
+  `feature/ref-documentation` to `pie/` once ready — currently 1 commit ahead, unpushed.
+
 ### 2026-08-12 — Merged feature/ref-renaming + feature/founder-heritage into develop; synced most other branches; re-ran document-project (Claude Code)
 - Context: User asked to push `feature/ref-renaming` into `develop` and sync every other
   branch to latest `develop`.
@@ -500,3 +546,6 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   verification (§7).
 - Final conceptual schema table count — genuinely open, ranges 88–130+ depending on
   unresolved operational modules (§8, §10).
+- `AUTH-001` has no definition of the `REF-MS-XXX` identifier family, despite every
+  `MAHILA_SANGHA/REF-MS-*` document citing it as that family's source — needs a future AUTH-001
+  update via the controlled process in §6 (§3).

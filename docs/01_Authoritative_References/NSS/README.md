@@ -23,4 +23,6 @@ Information" → **Source File(s) in Repository** field.
 
 No standalone "Section J" exists in the source Bye-Law; the two 1975 Resolutions are constitutional amendments to Section C and are filed there (see row above), not as a separate section.
 
-`MAHILA_SANGHA/`, `RESOLUTIONS/`, `CIRCULARS/`, `NOTIFICATIONS/` are planned but not yet present.
+`MAHILA_SANGHA/` (sibling folder under `docs/01_Authoritative_References/`) is now present — see
+`docs/01_Authoritative_References/MAHILA_SANGHA/README.md`. `RESOLUTIONS/`, `CIRCULARS/`,
+`NOTIFICATIONS/` are still planned but not yet present.

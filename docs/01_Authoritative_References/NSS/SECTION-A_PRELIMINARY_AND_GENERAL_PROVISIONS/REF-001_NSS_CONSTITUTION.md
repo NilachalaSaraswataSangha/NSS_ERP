@@ -7,7 +7,7 @@
 **Title:** NSS Constitution
 
 **Repository Path:**
-`docs/01_Authoritative_References/`
+`docs/01_Authoritative_References/NSS/SECTION-A_PRELIMINARY_AND_GENERAL_PROVISIONS/`
 
 **Source Reference:** REF-SRC-001
 
