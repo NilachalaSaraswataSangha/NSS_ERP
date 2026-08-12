@@ -1,13 +1,59 @@
-# AI Collaboration Context — NSS ERP
+# CLAUDE.md
 
-> **Purpose:** Shared memory between the AI assistants working on this repository — **Claude**
-> (in VS Code) and **Enchanté**. Both read this file at session start and append to it after
-> any meaningful decision or context shift. This is an **operational aid**, not a governance
-> artifact — it does not replace or override `docs/00_Project_Governance/GDR-001` or any
-> approved governance document. Formal governance decisions belong in the Governance Decision
-> Register once ratified. Where this file and live repo state disagree, **live repo state wins**
-> — always verify with `git status` / `git log` / `git branch --show-current` before acting on
-> anything written here (this is itself a project rule — see §11).
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this
+repository.
+
+> **Also serves as:** shared memory between the AI assistants working on this repository —
+> **Claude** (in VS Code) and **Enchanté**. Both read this file at session start and append to
+> it after any meaningful decision or context shift. This is an **operational aid**, not a
+> governance artifact — it does not replace or override `docs/00_Project_Governance/GDR-001` or
+> any approved governance document. Formal governance decisions belong in the Governance
+> Decision Register once ratified. Where this file and live repo state disagree, **live repo
+> state wins** — always verify with `git status` / `git log` / `git branch --show-current`
+> before acting on anything written here (this is itself a project rule — see §11).
+
+---
+
+## 0. Commands & Architecture Quick Reference
+
+**Setup (from repo root):**
+```
+pip install -r requirements.txt
+```
+Create `backend/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` — read with
+no defaults at `backend/config/settings.py`, so the app won't start without them.
+
+**Database:** provision PostgreSQL with the `pgcrypto` extension, then run the hand-written DDL
+under `database/ddl/` in numeric folder order (`01_foundation` → `02_organization` [currently
+all 0-byte placeholders, nothing to run] → `03_person`), then `database/seed/` in the same
+order. This raw-SQL track is **not** consumed by the Django app below — see the architecture
+note.
+
+**Run the Django app (from `backend/`):**
+```
+python manage.py migrate
+python manage.py createsuperuser   # for /admin/
+python manage.py runserver
+```
+Visit `/` → redirects to `/login/` → on success, `/dashboard/`.
+
+**Tests:** `python manage.py test` — but every app's `tests.py` is currently the default empty
+stub; there are no real tests in the repo yet. When adding one, run a single test the standard
+Django way: `python manage.py test <app>.tests.<TestClass>.<test_method>`.
+
+**Lint/format:** none configured (no flake8/black/ruff config, no pre-commit). Don't invent one
+unilaterally — raise it as an open question if it's blocking.
+
+**The one architectural fact that isn't obvious from any single file:** there are two parallel,
+*unreconciled* representations of core entities. Django ORM models (`foundation.Person`,
+`foundation.Organization`, auto-increment PKs, e.g. a plain `gender` CharField) are what the
+running app actually uses; the hand-written SQL DDL under `database/ddl/` (UUID `_pk` columns,
+`person_code`/business-`_code` identifiers, `gender_pk` FK to `gender_master`) is the "real"
+intended schema per the standards docs but is not read from or written to by any Django code.
+Don't assume a change to one is reflected in the other. Full detail, plus the current
+directory-by-directory breakdown of `backend/`, `database/`, and `docs/`, lives in
+`docs/PROJECT_DOCUMENTATION.md` — read that before proposing schema or module-layout changes,
+rather than rediscovering structure from scratch.
 
 ---
 
@@ -58,13 +104,22 @@ flagged as an ERP implementation decision) · `GOV-DATA-001` (parent-child integ
 `GOV-LIFE-002` (immutable rule identifiers; deprecated rules keep their ID and point to
 successors).
 
-## 3. Live-Verified Repository State (as of 2026-08-11 ~20:00 IST)
+## 3. Live-Verified Repository State (as of 2026-08-12, updated same day — branch/working-tree
+refreshed during a `/document-project` pass)
 
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
-- **Branch:** `feature/ref-renaming` (up to date with `pie/feature/ref-renaming`)
-- **Working tree:** clean (only this session's new `CLAUDE.md` untracked)
+- **Branch:** `feature/ref-documentation` (up to date with `pie/feature/ref-documentation`;
+  currently at the same commit as `develop`, `26dfed9`). This supersedes the earlier
+  `feature/ref-renaming` snapshot below, which has since been merged into `develop` and is no
+  longer the active branch.
+- **Working tree:** **not clean** — the REF corpus rewrite described below (SECTION-J removal,
+  the two 1975 Resolution documents, the Section F three-way split, and full clause-numbering
+  correction) is sitting as uncommitted modifications/untracked files on this branch, not yet
+  committed. Also untracked: a new top-level `BY-LAW/` folder holding the source PDF/docx files
+  the REF transcriptions are checked against (now has its own `README.md`). Run `git status`
+  before assuming any of this is merged elsewhere.
 - **Recent commits (newest first):** AUTH-001 minor corrections → GDR-001 added → GOV-005
   added → GOV-004 added → GOV-003 added → GOV-002 added → GOV-001 added → AUTH-001 added
   (replacing an older AUTH-001) → merge of `feature/ref-documentation` into `develop` →
@@ -72,18 +127,43 @@ successors).
 - **AUTH-001 status:** further along than some handoff notes suggest — already has a
   correction commit (`5ec61c0 "docs(auth): Some Minor Changes to AUTH-001 File"`). Verify
   actual current content before assuming it's still mid-correction.
-- **REF corpus on disk — further along than handoff docs describe:**
-  - `REF-001` (Section A, NSS Constitution) — present
-  - `REF-002` (Section B, Membership Bye-Laws) — present
-  - `REF-003-001` … `REF-003-017` — present, spanning **Section C through Section J**:
-    Constitution of Kendra Sangha, Governing Body, Functions of Governing Body, duties of
-    President/Vice-President/Secretary/Assistant Secretary/Treasurer/Parichalak, Advisory
-    Board (Sec D), General Body (Sec E), Funds of Kendra Sangha + Utilization (Sec F), Audit
-    (Sec G), Power to Amend (Sec H), Dissolution (Sec I), Additional Resolutions 1975 (Sec J).
-    **This is materially more complete than Phase 2/3 handoff docs assumed** — those describe
-    work stopping at Advisory Board (Sec D). Treat the REF-003 series as substantially done
-    through Sec J unless a fresher check says otherwise.
-  - Repository is organized by section folder (`SECTION-A_...` … `SECTION-J_...`), each
+- **REF corpus on disk — fully corrected and verified against both source PDF and docx (as of 2026-08-12):**
+  - `REF-001` (Section A, NSS Constitution) — present, fully restructured to match confirmed
+    source sequence: Name → Registered Office → "Special Features : PREAMBLE" (repositioned
+    here, not at the top) → short "3. Objects of the Society" intro paragraph → Memorandum
+    of Association ("6." — no heading text in source) with founding-members table (9 names +
+    addresses, cross-referenced from REF-003-002 where not printed directly), witnesses
+    table, and full certification/registration chain → second "3. OBJECTS OF THE SOCIETY:"
+    heading with "Bye-law Of Nilachala Saraswata Sangha" sub-heading + full numbered list
+    (1-20). Confirmed: no heading numbered 4 or 5 exists in the source (3 jumps to 6).
+  - `REF-002` (Section B, Membership Bye-Laws) — present, correct (a)-(d) lettering with
+    (i)-(v) sub-items matching source exactly.
+  - `REF-003-001` … `REF-003-016` — present, spanning **Section C through Section I only**.
+    **There is no "Section J" in the source** — this was a confirmed error in earlier
+    project assumptions (including an earlier version of this file) and has been corrected.
+    The former `REF-003-017` (which combined two 1975 Resolutions under an invented
+    "Section J") has been deleted from the repository. The two 1975 Resolutions are
+    constitutional amendments to **Section C** and are now filed as separate documents
+    adjacent to the clauses they amend: `REF-003-C(i)(2)-1975-01` (amends REF-003-003,
+    Functions of the Governing Body) and `REF-003-C(i)(8)-1975-02` (amends REF-003-006 and
+    REF-003-009, Duties of the Secretary and Parichalak). Each carries the source's actual
+    letterhead/attestation content (founding letterhead on Resolution No.1; 3-member
+    Executive Body signature block on Resolution No.2).
+  - Funds of the Kendra Sangha (Section F) is split into **three** documents per explicit
+    instruction, mirroring the source's F[A]/[b]/[c] structure: `REF-003-012` (Funds, i-ix),
+    `REF-003-013` (Maintenance, single statement), `REF-003-F[c]_Utilisation_of_the_Funds`
+    (Utilisation, i-vi) — the third file is new, not a rename of an existing one.
+  - Dissolution (`REF-003-016`, Section I) now includes its own certification/signature
+    block (President/Secretary-Parichalak/Vice-President + registration table + Registrar
+    countersignature), distinct from the Memorandum's certification and the Resolutions'
+    Executive Body attestation — three separate certification instances in the source,
+    preserved separately, not merged.
+  - All clause-level numbering across Sections A-I now matches the source's actual markers
+    (numerals, letters, roman numerals) exactly — replacing an earlier pass that had used
+    generic sequential "Clause N" labels throughout. One confirmed correction along the way:
+    Advisory Board's cross-reference to the Governing Body's budget clause is **(xiii)**,
+    not (xii) — the PDF's OCR misread (xii); the clean-text docx (xiii) was confirmed correct.
+  - Repository is organized by section folder (`SECTION-A_...` … `SECTION-I_...`), each
     containing its REF file(s) — folders are navigation only, identity lives in the filename.
 - **Governance docs present:** `AUTH-001`, `GOV-001..005`, `GDR-001` — all exist under
   `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.

@@ -7,7 +7,7 @@
 **Title:** Duties of the President of the Governing Body
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -95,27 +99,17 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
+**(3) Duties of the President of the Governing Body:**
 
 In addition to different functions of the President mentioned in different paragraphs of the Articles, his further functions shall be as under:
 
----
+(a) The President shall ordinarily preside over all the meeting of the Governing Body and the combined meetings of the Governing Body and Advisory Board.
 
-#### Clause 2
+(b) The President shall have powers of general superintendence over the offices of the Kendra Sangha and their activities.
 
-The President shall ordinarily preside over all the meetings of the Governing Body and the combined meetings of the Governing Body and Advisory Board.
+(c) The President shall have powers to inspect as far as practicable the daily seva pujas of Shri Shri Thakur at Puri for the smooth functioning of the affairs of the Kendra Sangha.
 
----
-
-#### Clause 3
-
-The President shall have powers of general superintendence over the offices of the Kendra Sangha and their activities.
-
----
-
-#### Clause 4
-
-The President shall have powers to inspect as far as practicable the daily seva pujas of Shri Shri Thakur at Puri for the smooth functioning of the affairs of the Kendra Sangha.
+The above provisions are preserved in the source under the heading "(3) Duties of the President of the Governing Body," with an unlettered introductory statement followed by sub-items lettered (a) through (c), exactly as they appear in the official Bye-Law.
 
 ---
 

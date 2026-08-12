@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -77,8 +81,6 @@ It preserves the official Governance Bye-Laws without introducing ERP interpreta
 
 Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
-Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
-
 ---
 
 # REF-003-001 — Constitution of the Kendra Sangha
@@ -97,15 +99,15 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
-
-The Kendra Sangha shall mainly consist of three organs:
+**(c) Constitution of the Kendra Sangha:** The Kendra Sangha shall mainly consist of three organs:
 
 (i) a Governing Body
 
-(ii) an Advisory Board
+(ii) an Advisory Board and
 
-(iii) a General Body.
+(iii) a General Body
+
+The above provision is preserved in the source under the heading "(c) Constitution of the Kendra Sangha" with the three organs listed as (i), (ii) and (iii), not further subdivided in the official Bye-Law at this introductory level.
 
 ---
 

@@ -7,7 +7,7 @@
 **Title:** Duties of the Secretary
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -95,45 +99,23 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
+**(5) Duties of the Secretary:**
 
 In addition to various functions of the Secretary mentioned in different paragraphs of the Article, the further functions of the Secretary shall be as under:
 
----
+(a) The Secretary shall prepare agenda for the meeting of the Governing Body and the General Body and issue notices for convening the meetings in consultation with the President of the Governing Body.
 
-#### Clause 2
+(b) The Secretary shall maintain all the records, the accounts and documents of the Kendra Sangha.
 
-The Secretary shall prepare agenda for the meeting of the Governing Body and the General Body and issue notices for convening the meetings in consultation with the President of the Governing Body.
+(c) The secretary shall arrange to send copies of all the resolutions and proceedings of all the meetings of the Governing Body and those of the General Body to all the concerned members.
 
----
+(d) The Secretary shall ensure implementation of all the decisions taken by the Governing Body and the General Body.
 
-#### Clause 3
+(e) The Secretary shall arrange for the preparation of the Draft Annual Budget of the Kendra Sangha for the consideration of the Governing Body.
 
-The Secretary shall maintain all the records, the accounts and documents of the Kendra Sangha.
+(f) The Secretary shall arrange to prepare an Annual Report of the activities of the Kendra sangha and other organisations run/controlled by it.
 
----
-
-#### Clause 4
-
-The Secretary shall arrange to send copies of all the resolutions and proceedings of all the meetings of the Governing Body and those of the General Body to all the concerned members.
-
----
-
-#### Clause 5
-
-The Secretary shall ensure implementation of all the decisions taken by the Governing Body and the General Body.
-
----
-
-#### Clause 6
-
-The Secretary shall arrange for the preparation of the Draft Annual Budget of the Kendra Sangha for the consideration of the Governing Body.
-
----
-
-#### Clause 7
-
-The Secretary shall arrange to prepare an Annual Report of the activities of the Kendra Sangha and other organisations run/controlled by it.
+The above provisions are preserved in the source under the heading "(5) Duties of the Secretary," with an unlettered introductory statement followed by sub-items lettered (a) through (f), exactly as they appear in the official Bye-Law.
 
 ---
 

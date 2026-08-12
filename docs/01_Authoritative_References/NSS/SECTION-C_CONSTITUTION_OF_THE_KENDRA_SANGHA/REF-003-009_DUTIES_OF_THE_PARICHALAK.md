@@ -7,7 +7,7 @@
 **Title:** Duties of the Parichalak
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -95,45 +99,23 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
+**(8) Duties of the Parichalak:**
 
 In addition to the various functions of the Parichalak mentioned in different paragraphs in this Article, further functions of the Parichalak shall be as under:
 
----
+(i) The Parichalak of the Kendra Sangha shall function as the Chief Organiser of the Kendra Sangha and its different branches, including Mahila Sanghas and Sikshya Kendras.
 
-#### Clause 2
+(ii) The Parichalak shall have power to inspect and supervise all the branches affiliated to the Kendra Sangha and take disciplinary measures against any Sakha Sanghas including Mahila Sanghas or any individual member in the manner prescribed by the Governing Body.
 
-The Parichalak of the Kendra Sangha shall function as the Chief Organiser of the Kendra Sangha and its different branches, including Mahila Sanghas and Sikshya Kendras.
+(iii) The Parichalak shall arrange to distribute the annual 'Parichaya Patra' (Identity Cards) and 'Anumati Patra' to all the members of the Kendra Sangha including Mahila Sanghas at the appropriate time in the conventional manner.
 
----
+(iv) The Parichalak shall impart 'Satsikshya' to the members of the Kendra and the Sakha Sanghas including Mahila Sanghas both in theory and practice and shall address the members of the Sangha in congregation for 'Jnanalochana' and 'Bhava Binimaya'.
 
-#### Clause 3
+(v) The Parichalak is competent to accord permission to start a "Patha Chakra" at any place after due enquiry in the prescribed manner.
 
-The Parichalak shall have power to inspect and supervise all the branches affiliated to the Kendra Sangha and take disciplinary measures against any Sakha Sanghas including Mahila Sanghas or any individual member in the manner prescribed by the Governing Body.
+(vi) He shall also discharge any other function as would be entrusted to him by the Governing Body from time to time.
 
----
-
-#### Clause 4
-
-The Parichalak shall arrange to distribute the annual 'Parichaya Patra' (Identity Cards) and 'Anumati Patra' to all the members of the Kendra Sangha including Mahila Sanghas at the appropriate time in the conventional manner.
-
----
-
-#### Clause 5
-
-The Parichalak shall impart 'Satsikshya' to the members of the Kendra and the Sakha Sanghas including Mahila Sanghas both in theory and practice and shall address the members of the Sangha in congregation for 'Jnanalochana' and 'Bhava Binimaya'.
-
----
-
-#### Clause 6
-
-The Parichalak is competent to accord permission to start a 'Patha Chakra' at any place after due enquiry in the prescribed manner.
-
----
-
-#### Clause 7
-
-He shall also discharge any other function as would be entrusted to him by the Governing Body from time to time.
+The above provisions are preserved in the source under the heading "(8) Duties of the Parichalak," with an unlettered introductory statement followed by sub-items numbered (i) through (vi), exactly as they appear in the official Bye-Law.
 
 ---
 

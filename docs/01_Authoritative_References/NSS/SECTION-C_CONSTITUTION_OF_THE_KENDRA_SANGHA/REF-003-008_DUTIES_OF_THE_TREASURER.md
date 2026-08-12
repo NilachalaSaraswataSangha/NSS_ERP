@@ -7,7 +7,7 @@
 **Title:** Duties of the Treasurer
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -95,21 +99,15 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
+**(7) Duties of the Treasurer:**
 
 In addition to various functions of the Treasurer mentioned in different paragraphs of the Articles, the further functions of the Treasurer shall be as under:
 
----
+(a) The Treasurer shall be in charge of the funds of Kendra Sangha and maintain proper accounts of the Sangha funds both cash and bank accounts as regards all receipts and disbursements.
 
-#### Clause 2
+(b) The Treasurer shall have powers to disburse any amount from the funds of Kendra Sangha only on the written orders of the President for execution of any scheme apporved by the Governing Body.
 
-The Treasurer shall be in charge of the funds of Kendra Sangha and maintain proper accounts of the Sangha funds both cash and bank accounts as regards all receipts and disbursements.
-
----
-
-#### Clause 3
-
-The Treasurer shall have powers to disburse any amount from the funds of Kendra Sangha only on the written orders of the President for execution of any scheme approved by the Governing Body.
+The above provisions are preserved in the source under the heading "(7) Duties of the Treasurer," with an unlettered introductory statement followed by sub-items lettered (a) through (b), exactly as they appear in the official Bye-Law.
 
 ---
 

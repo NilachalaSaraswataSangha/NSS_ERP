@@ -81,11 +81,12 @@ NSS_ERP/
 ├── docs/
 │   ├── PROJECT_DOCUMENTATION.md This file
 │   ├── 00_Project_Governance/   AUTH/ GOV/ GDR/ STD/ — governance framework + engineering standards
-│   ├── 01_Authoritative_References/NSS/  Source-faithful transcription of NSS's Constitution & Bye-Laws
+│   ├── 01_Authoritative_References/NSS/  Source-faithful transcription of NSS's Constitution & Bye-Laws (see detail below)
 │   ├── 02_Requirements/         Scaffolded only — business/functional/non_functional/traceability subfolders, no content yet
 │   ├── 03_Solution/             Per-module design docs (organization, person) + api/architecture/database/infrastructure/security/ui scaffolding
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
+├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source `docs/01_Authoritative_References/NSS/` is transcribed from
 ├── requirements.txt              Python dependencies (pip, not pinned to a venv tool)
 ├── CLAUDE.md                     AI-agent operating memory/context (terse, instruction-oriented)
 └── README.md                     Project pitch / high-level status
@@ -112,6 +113,41 @@ backend/
 Modules referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishore`, `sevak`,
 `publications`, `upbs`, `reports`, `administration`) **do not exist yet** as Django apps — they
 are planned, not scaffolded.
+
+### `docs/01_Authoritative_References/NSS/` detail
+
+Source-faithful transcription of the official NSS Bye-Law (`BY-LAW/NSS/NSS BYE-LAW.pdf`,
+cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`), organized by legal section:
+
+```
+NSS/
+├── SECTION-A_PRELIMINARY_AND_GENERAL_PROVISIONS/   REF-001 — Name, Registered Office, Preamble, Objects, Memorandum of Association
+├── SECTION-B_MEMBERSHIPS/                          REF-002 — Probationary/Regular/Associate Members, Cessation
+├── SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/    REF-003-001…009 — Governing Body, its Functions, and all 6 office-bearer duties;
+│                                                    plus the two 1975 amendment Resolutions (REF-003-C(i)(2)-1975-01,
+│                                                    REF-003-C(i)(8)-1975-02), filed adjacent to the clauses they amend
+├── SECTION-D_ADVISORY_BOARD/                       REF-003-010
+├── SECTION-E_GENERAL_BODY/                         REF-003-011
+├── SECTION-F_FUNDS_OF_THE_KENDRA_SANGHA/           REF-003-012 (Funds), REF-003-013 (Maintenance), REF-003-F[c] (Utilisation) — 3 documents
+├── SECTION-G_ACCOUNTS_AND_AUDIT/                   REF-003-014
+├── SECTION-H_POWER_TO_AMEND/                       REF-003-015
+└── SECTION-I_DISSOLUTION/                          REF-003-016
+```
+
+**No "Section J" exists in the source Bye-Law.** The Bye-Law's constitutional sections end at
+Section I (Dissolution); the two 1975 Resolutions that follow in the source text are explicit
+amendments to Section C (inserting sub-clauses into Functions of the Governing Body and Duties
+of the Secretary/Parichalak), not a standalone section. An earlier repository pass had
+transcribed them under an invented `SECTION-J_RESOLUTIONS/REF-003-017` — that file/folder has
+been deleted, and the content re-filed as the two Section C amendment documents above.
+
+Each REF document's clause-level numbering (numerals, letters, roman numerals) has been
+verified against the source and matches it exactly — replacing an earlier pass that had used
+generic sequential "Clause N" labels throughout regardless of the source's actual markers.
+`REF-001` additionally preserves the Memorandum of Association's founding-members table (9
+names + addresses), witnesses table, and the source's three distinct certification/signature
+blocks (Memorandum, post-Dissolution, and post-Resolution) as separate, non-deduplicated
+content, since all three appear separately in the source.
 
 ### `database/` detail
 
@@ -291,3 +327,7 @@ design docs as the target and the current Django model as a stand-in to be repla
 - **`docs/02_Requirements/` and `docs/04_Testing/` are empty scaffolding** — folder structure
   exists (per `AUTH-001`/`GOV-003` repository architecture) but no actual requirements or test
   documentation has been written yet.
+- **Historical note, resolved:** an earlier pass had transcribed the two 1975 amendment
+  Resolutions under an invented `docs/01_Authoritative_References/NSS/SECTION-J_RESOLUTIONS/`
+  folder (no "Section J" exists in the source Bye-Law). This has been corrected — see the
+  `01_Authoritative_References/NSS/` detail above.

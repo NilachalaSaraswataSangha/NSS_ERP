@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -95,49 +99,19 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
+**(1) Constitution:**
 
-The Governing Body shall consist of 9 members who shall be elected in the combined meeting of the existing members of the Governing Body and the members of the Advisory Board to be convened by the Secretary of the Kendra Sangha for this purpose.
+(a) The Governing Body shall consist of 9 members who shall be elected in the combined meeting of the existing members of the Governing Body and the members of the Advisory Board to be convened by the Secretary of the Kendra Sangha for this purpose.
 
----
+(b) The Governing Body shall elect from amongst its members:
 
-#### Clause 2
+(i) a President (ii) a Vice-President (iii) a Parichalak (iv) a Secretary (v) an Assistant Secretary and (vi) a Treasurer.
 
-The Governing Body shall elect from amongst its members:
+(c) The terms for the members of the Governing Body except the life members shall be 3 years from the date they assume office.
 
-(i) a President
+(d) In case of any vacancy arising out of death, resignation or removal of any member of the Governing Body, it will be filled up by a person or persons elected in the manner prescribed in para (a) above.
 
-(ii) a Vice-President
-
-(iii) a Parichalak
-
-(iv) a Secretary
-
-(v) an Assistant Secretary
-
-(vi) a Treasurer.
-
----
-
-#### Clause 3
-
-The terms for the members of the Governing Body except the life members shall be 3 years from the date they assume office.
-
----
-
-#### Clause 4
-
-The Governing Body shall meet at least four times in a year to discuss about the management of the affairs of the Kendra Sangha at places to be decided by the President for the purpose. The quorum for a meeting of the Governing Body shall be 5 members.
-
----
-
-#### Clause 5
-
-In case of any vacancy arising out of death, resignation or removal of any member of the Governing Body, it will be filled up by a person or persons elected in the manner prescribed in para (a) above.
-
----
-
-#### Clause 6
+(e) The Governing Body shall meet atleast four times in a year to discuss about the management of the affairs of the Kendra Sangha at places to be decided by the President for the purpose. The quorum for a meeting of the Governing Body shall be 5 members.
 
 At present the Governing Body consists of:
 
@@ -159,23 +133,11 @@ At present the Governing Body consists of:
 
 9. Shri Padmanabh Samal — Rtd. Executive Engineer, Jobra, Cuttack — Member.
 
----
-
-#### Clause 7
-
-The present Governing Body shall continue to function as such for a period of three years from the date of registration of the Kendra Sangha.
-
----
-
-#### Clause 8
-
-On the retirement or non-existence of any one or all the three life members mentioned above, the combined meeting of the Governing Body and the Advisory Board may fill up the vacancy thus created by unanimously selecting a person or persons as the case may be.
-
----
-
-#### Clause 9
+The present Governing Body shall continue to function as such for a period of three years from the date of registration of the Kendra Sangha. On the retirement or non-existence of any one or all the three life members mentioned above, the combined meeting of the Governing Body and the Advisory Board may fill up the vacancy thus created by unanimously selecting a person or persons as the case may be.
 
 The members of the Governing Body shall behave themselves as humble servants of the Sangha which is considered as the very manifestation of Shri Shri Thakur (Sangha Sevi) and maintain uniformity in their conception, expression and action.
+
+The above provisions are preserved in the source under the heading "(1) Constitution" (within "(i) The Governing Body") with sub-items lettered (a) through (e), followed by the historical roster (numbered 1-9, not lettered) and two closing unlettered narrative paragraphs, exactly as they appear in the official Bye-Law.
 
 ---
 

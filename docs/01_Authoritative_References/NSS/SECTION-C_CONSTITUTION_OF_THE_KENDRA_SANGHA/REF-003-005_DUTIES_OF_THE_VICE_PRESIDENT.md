@@ -7,7 +7,7 @@
 **Title:** Duties of the Vice-President
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -95,9 +99,9 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
+**(4) Duties of the Vice-President:** The Vice-President shall preside over all the meeting of the Governing Body and the combined meeting of the Governing Body and Advisory Board during the absence of the President.
 
-The Vice-President shall preside over all the meetings of the Governing Body and the combined meeting of the Governing Body and Advisory Board during the absence of the President.
+The above provision is preserved in the source under the heading "(4) Duties of the Vice-President" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
 
 ---
 

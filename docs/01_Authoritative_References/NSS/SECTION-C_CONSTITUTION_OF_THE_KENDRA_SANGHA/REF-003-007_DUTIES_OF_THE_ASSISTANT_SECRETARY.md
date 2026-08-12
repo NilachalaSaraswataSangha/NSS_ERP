@@ -7,7 +7,7 @@
 **Title:** Duties of the Assistant Secretary
 
 **Repository Path:**
-`docs/01_Authoritative_References/REF-003_GOVERNANCE_BYLAWS/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -57,6 +57,10 @@ Official Governing Source
 
 REF-SRC-003
 
+**Source File(s) in Repository**
+
+`BY-LAW/NSS/NSS BYE-LAW.pdf` (cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`)
+
 ---
 
 # Introduction
@@ -95,9 +99,9 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-#### Clause 1
+**(6) Duties of the Assistant Secretary:** The Assistant Secretary shall assist the Secretary in discharging his duties, as enumerated above.
 
-The Assistant Secretary shall assist the Secretary in discharging his duties, as enumerated above.
+The above provision is preserved in the source under the heading "(6) Duties of the Assistant Secretary" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
 
 ---
 
