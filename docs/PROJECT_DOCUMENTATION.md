@@ -103,14 +103,15 @@ backend/
 ├── membership/        MembershipType, MembershipStatus, SanghaSevi models; wired into INSTALLED_APPS; NO urls.py — unreachable via HTTP
 ├── governance/        Stub only — empty models.py/views.py, no urls.py, not in INSTALLED_APPS
 ├── attendance/        Stub only — empty models.py/views.py, no urls.py, not in INSTALLED_APPS
+├── heritage/          Founder singleton model (one-record-only, undeletable); wired into INSTALLED_APPS; NO urls.py — admin-only
 ├── static/            css/app.css (NSS color theme), js/app.js (empty placeholder)
 ├── templates/         base/ (base.html, login_base.html, navbar.html, sidebar.html), auth/, dashboard/, foundation/
 └── manage.py
 ```
 
 Modules referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishore`, `sevak`,
-`heritage`, `publications`, `upbs`, `reports`, `administration`) **do not exist yet** as Django
-apps — they are planned, not scaffolded.
+`publications`, `upbs`, `reports`, `administration`) **do not exist yet** as Django apps — they
+are planned, not scaffolded.
 
 ### `database/` detail
 
@@ -245,7 +246,8 @@ design docs as the target and the current Django model as a stand-in to be repla
   includes its urlconf directly and it has no models to register; `governance`/`attendance` have
   no URLs at all and are pure stubs (empty `models.py`/`views.py`, no `urls.py`).
   `family`/`membership` have real models but no `urls.py` — reachable only via `/admin/` (and
-  only `membership`'s admin is registered).
+  only `membership`'s admin is registered). `heritage` is in the same boat: real model
+  (`Founder`), admin-registered, but no `urls.py`.
 - **Dead links in the UI.** `backend/templates/base/sidebar.html` links "Members" and
   "Families" to `href="#"` — no URL exists for either yet, consistent with the missing
   `urls.py` files above.
@@ -275,8 +277,8 @@ design docs as the target and the current Django model as a stand-in to be repla
   (`docs/03_Solution/modules/organization/`) are ready; the DDL files are empty placeholders.
 - **Implement the `id_sequence_master` increment/formatting logic** (no function, trigger, or
   Django code currently does this — see Key Workflow #3).
-- **Wire up `family` and `membership` URLs/views** — models exist, nothing is reachable over
-  HTTP yet.
+- **Wire up `family`, `membership`, and `heritage` URLs/views** — models exist, nothing is
+  reachable over HTTP yet.
 - **Decide the fate of `governance` and `attendance` apps** — currently pure stubs, not even in
   `INSTALLED_APPS`.
 - **Add `family` to Django admin** — currently the only real-model app not registered.

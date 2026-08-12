@@ -235,15 +235,17 @@ authority. Attendance Enforcement + Attendance Review are frozen.
 | Security | UUID internal PKs, separate business IDs, RBAC, RLS, immutable audit, soft delete |
 | Deployment (earlier direction) | Ubuntu, Docker, Nginx, PostgreSQL |
 
-**Django app structure — corrected against actual code (2026-08-12):** apps live directly under
-`backend/` (no `apps/` subdirectory): `backend/{authentication, foundation, family, membership,
-dashboard, governance, attendance, config}`. Of these, only `authentication`, `foundation`, and
-`membership`/`family` have real models; `dashboard`/`governance`/`attendance` are stubs (empty
-`models.py`, no `urls.py` for governance/attendance). Only `authentication`, `dashboard`, and
-`foundation` are in `INSTALLED_APPS` and wired into `config/urls.py`. `mahila`, `kumari`,
-`kishore`, `sevak`, `heritage`, `publications`, `upbs`, `reports`, `administration` are **not
-yet scaffolded at all** — planned only. Full detail: `docs/PROJECT_DOCUMENTATION.md` §Directory
-structure / §Gotchas. Do not casually redesign this structure.
+**Django app structure — corrected against actual code (2026-08-12, updated same day —
+`heritage` merged into `develop`):** apps live directly under `backend/` (no `apps/`
+subdirectory): `backend/{authentication, foundation, family, membership, heritage, dashboard,
+governance, attendance, config}`. Of these, `authentication`, `foundation`, `membership`,
+`family`, and `heritage` (singleton `Founder` model) have real models; `dashboard`/
+`governance`/`attendance` are stubs (empty `models.py`, no `urls.py` for governance/attendance).
+Only `authentication`, `dashboard`, and `foundation` are wired into `config/urls.py`; `family`,
+`membership`, `heritage` have models but no `urls.py` — admin-only. `mahila`, `kumari`,
+`kishore`, `sevak`, `publications`, `upbs`, `reports`, `administration` are **not yet scaffolded
+at all** — planned only. Full detail: `docs/PROJECT_DOCUMENTATION.md` §Directory structure /
+§Gotchas. Do not casually redesign this structure.
 
 **DB naming standards:** tables `snake_case` (e.g. `family_group`); internal PK suffix
 `_pk` (e.g. `person_pk`); FKs reference internal PKs, never business IDs; audit columns:
@@ -300,6 +302,35 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-12 — Merged feature/ref-renaming + feature/founder-heritage into develop; synced most other branches; re-ran document-project (Claude Code)
+- Context: User asked to push `feature/ref-renaming` into `develop` and sync every other
+  branch to latest `develop`.
+- Decision/Outcome: Merged `feature/ref-renaming` into `develop` (one real conflict —
+  `docs/PROJECT_DOCUMENTATION.md`, existed independently on both branches; kept this session's
+  rewrite after confirming via `git log`/`git merge-base` that it was a deliberate, newer
+  supersession of the `feature/ref-documentation` version, not lost work — same pattern
+  confirmed separately for the old flat-path `AUTH-001` file, which `develop` still had
+  untouched from 2026-07-19 while `feature/ref-renaming`'s lineage had deliberately rewritten
+  and moved it on 2026-07-25). Fast-forwarded `feature/admin-setup`, `feature/person-ddl`,
+  `feature/person-management`, `feature/ref-documentation` to `develop` (lossless, already
+  fully merged). Merged `develop` into `feature/founder-heritage` (2 unique commits) and
+  `feature/membership-design` (1 unique commit) to preserve their work while catching them up.
+  Left `main` untouched (advances only via the documented tag+release process). User then asked
+  specifically about merging `feature/founder-heritage` (real `Founder` singleton model, no
+  views/URLs yet) and `feature/membership-design` (a single DRAFT overview doc, not yet at the
+  ERD/business-rules/table-design maturity `organization`/`person` reached) into `develop` —
+  approved `founder-heritage`, held back `membership-design` as not yet "complete & verified"
+  per the branch policy in §4. Fast-forwarded `develop` to include `heritage`, added the missing
+  `backend/heritage/` + `backend/heritage/migrations/` READMEs, fixed stale "heritage doesn't
+  exist yet" claims in `backend/README.md` and `docs/03_Solution/modules/heritage/README.md`,
+  then re-ran `/document-project` on `develop` to catch remaining drift (this entry + the
+  `heritage` corrections in `docs/PROJECT_DOCUMENTATION.md` and §8 above).
+- Follow-up: `feature/membership-design` still needs proper module design docs
+  (`01_design`/`02_erd`/`03_business_rules`/`04_table_design`) before it's mergeable per the
+  project's own module-maturity pattern. `backend/heritage/` has no `urls.py`/views yet, and the
+  module's Biography/Philosophy/Teachings/Publications scope beyond the `Founder` singleton is
+  still undesigned.
 
 ### 2026-08-12 — document-project skill updated to auto-create per-folder READMEs, re-run (Claude Code)
 - Context: Previous doc-refresh pass (below) only flagged folders missing a `README.md`
