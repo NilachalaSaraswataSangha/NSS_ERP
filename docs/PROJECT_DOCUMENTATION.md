@@ -366,8 +366,8 @@ design docs as the target and the current Django model as a stand-in to be repla
   Resolutions under an invented `docs/01_Authoritative_References/NSS/SECTION-J_RESOLUTIONS/`
   folder (no "Section J" exists in the source Bye-Law). This has been corrected — see the
   `01_Authoritative_References/NSS/` detail above.
-- **AUTH-001 doesn't yet define the `REF-MS` identifier family.** The newly-added
-  `MAHILA_SANGHA/` REF corpus (see detail above) cross-references `AUTH-001` as the document
-  that establishes `REF-MS-XXX` as a family distinct from NSS's `REF-00X`, but `AUTH-001`'s
-  current text has no such definition. Needs a future AUTH-001 update — not resolved in this
-  pass since AUTH-001 changes follow their own controlled review process.
+- **Resolved:** `AUTH-001` now defines the `REF-MS` identifier family via `AUTH-ID-002A — New
+  REF Family Creation` (general rule: a distinct, separately-registered governing entity gets
+  its own dedicated REF family rather than extending `REF-00X`) plus a `REF-MS` row in
+  Appendix B, backed by `GDR-002` (Approved 2026-08-12). This closes the gap an earlier pass
+  had flagged here.

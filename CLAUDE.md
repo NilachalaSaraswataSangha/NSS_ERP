@@ -403,6 +403,22 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 
 <!-- Newest entries at the top. -->
 
+### 2026-08-13 — Verified AUTH-001 REF-MS gap already closed; corrected stale memory (Claude Code)
+- Context: User asked to address "the AUTH-001 REF-MS family gap" flagged in §3/§13 (AUTH-001
+  allegedly had no definition of the `REF-MS-XXX` family despite every `REF-MS-*` doc citing it).
+  Before proposing any AUTH-001 edit, read the live file per the §6 working rule and per this
+  file's own instruction (live repo state wins over what's written here).
+- Decision/Outcome: The gap was **already resolved** — commit `5a81f99 "docs(auth,gdr):
+  establish REF-MS authoritative reference family"` (already merged into `develop` via the
+  `a37c2b8` merge, prior to this session) added `AUTH-ID-002A — New REF Family Creation` to
+  AUTH-001 §7 (general rule: a distinct, separately-registered governing entity gets its own
+  dedicated REF family rather than extending `REF-00X`) plus a `REF-MS` row in Appendix B, both
+  backed by a new `GDR-002` decision record (background/rationale/alternatives/impact
+  assessment, Approved 2026-08-12). No AUTH-001 edit was needed this session — just verification
+  that the fix landed and correction of this file's now-stale open-item flags (§3, §13).
+- Follow-up: none outstanding on this item. §13's `AUTH-001`/`REF-MS` bullet marked resolved
+  with a pointer to this entry.
+
 ### 2026-08-12 — Committed, pushed, and merged the Mahila Sangha REF corpus + doc refresh into develop (Claude Code)
 - Context: Follow-on from the drift-check entry directly below. User asked to commit and push,
   then to merge `feature/ref-documentation` into `develop`.
@@ -560,6 +576,5 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   verification (§7).
 - Final conceptual schema table count — genuinely open, ranges 88–130+ depending on
   unresolved operational modules (§8, §10).
-- `AUTH-001` has no definition of the `REF-MS-XXX` identifier family, despite every
-  `MAHILA_SANGHA/REF-MS-*` document citing it as that family's source — needs a future AUTH-001
-  update via the controlled process in §6 (§3).
+- ~~`AUTH-001` has no definition of the `REF-MS-XXX` identifier family~~ — **resolved**, see §12
+  2026-08-13 entry: `AUTH-ID-002A` + Appendix B row added, backed by `GDR-002`.
