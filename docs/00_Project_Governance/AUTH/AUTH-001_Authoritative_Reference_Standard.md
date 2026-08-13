@@ -384,6 +384,27 @@ The mapping between REF families and governing document sections is permanent.
 
 ---
 
+### AUTH-ID-002A — New REF Family Creation
+
+**Status:** Frozen
+
+The numbered `REF-00X` family (REF-001 through REF-010, or as extended within that numbering scheme) is reserved exclusively for sections of the Nilachala Saraswata Sangha's own official governing document (the Kendra Sangha Bye-Law).
+
+A **separate, dedicated REF family** shall be created — rather than extending the `REF-00X` numbering — whenever authoritative reference material originates from a **distinct, separately registered governing entity** with its own official governing document, rather than from a section of the NSS Bye-Law itself.
+
+Each such dedicated family shall:
+
+- Use a short, stable alphabetic family code reflecting the governing entity (e.g. `REF-MS` for the Nilachala Saraswata Mahila Sangha);
+- Be documented in Appendix B of this standard at the time of creation;
+- Follow the same identification, metadata, cross-reference, traceability, and verification standards defined elsewhere in this document as any other REF family;
+- Preserve the source document's own clause numbering as its composite locator (see AUTH-ID-003), exactly as required for the `REF-00X` family.
+
+Creation of a new REF family is a normative change to this standard and shall follow the Governance Decision Register (GDR) process defined in AUTH-GOV-002.
+
+Example: `REF-MS` was created for the Constitution & Bye-Laws of the Nilachala Saraswata Mahila Sangha — a registered entity operating under, and subordinate to, the Nilachala Saraswata Sangha, but governed by its own separate Bye-Law rather than by a section of the NSS Bye-Law. See GDR-002.
+
+---
+
 ### AUTH-ID-003 — Composite Document Identifier
 
 **Status:** Frozen
@@ -1037,9 +1058,13 @@ The normative repository architecture is defined by AUTH-ORG-001.
 | REF-009 | Section I |
 | REF-010 | Section J |
 
+| REF Family | Governing Entity | Governing Document |
+|------------|-------------------|---------------------|
+| REF-MS | Nilachala Saraswata Mahila Sangha | Bye-Law of Nilachala Saraswata Mahila Sangha (separately registered entity, subordinate to NSS; not a section of the NSS Bye-Law) |
+
 This appendix is informative.
 
-The normative document identification rules are defined in Section 7.
+The normative document identification rules are defined in Section 7 (including AUTH-ID-002A, governing creation of new REF families such as REF-MS).
 
 ---
 
