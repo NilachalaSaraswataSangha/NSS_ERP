@@ -303,10 +303,13 @@ to Dola Purnima, **no grace period**. Full rule set lives in `04_MEMBERSHIP_BUSI
 (if not yet in repo, treat as pending creation) — REQ/SOLUTION work must not contradict it.
 
 **Organization:** Root = NSS; no independent organizational roots for subordinate bodies.
-`ANCHALIKA` and `ZILLA` = administrative units; `SAKHA` = physical Sangha location. Prior
-design leaned toward one organization → one address (on the `organization` table directly,
-not a separate `organization_address` table) — **do not reopen without checking current
-governance baseline first; Organization Module is frozen.**
+`ANCHALIKA` and `ZILLA` = administrative units; `SAKHA` = physical Sangha location, existing
+under `ANCHALIKA` or `ZILLA`; `PATHA_CHAKRA` = an organization type sitting directly under
+`KENDRA` (not under `ANCHALIKA`/`ZILLA`), may operate within India or internationally (root
+`README.md` § Organization Hierarchy). Prior design leaned toward one organization → one
+address (on the `organization` table directly, not a separate `organization_address` table) —
+**do not reopen without checking current governance baseline first; Organization Module is
+frozen.**
 
 **Mahila Sangha:** Registered entity under NSS constitutional framework, own Constitution &
 Bye-Laws, but subordinate to NSS. **No separate membership system** — Mahila members use the
