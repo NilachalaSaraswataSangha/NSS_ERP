@@ -241,21 +241,22 @@ History / Table of Contents` → `## N. Section` → `### Rule/Subsection` → `
 nesting. Capitalize first word of sections/subsections/headings; ordinary bullets use sentence
 case.
 
-**Confirmed corrections (apply, don't re-litigate):**
-1. AUTH-001 — structural/TOC/formatting fixes only; **preserve all substantive wording, rule
-   IDs, examples**; do not rewrite content beyond approved structural changes; every replacement
-   file must be delivered complete (`# AUTH-001 —...` through `# End of Document`), never
-   truncated or "continued from here."
-2. GOV-001 — fix GDR hierarchy placement (cross-cutting, not a lifecycle layer — see §2).
-3. GOV-002 — remove orphan `GOV-DATA-005 — Governance Enforcement by Design` from Appendix B
-   (no corresponding §8.5 rule exists; don't invent one just to fill the sequence). Note: an
-   earlier blank `GOV-002_Governance_Roles_and_Responsibilities.md` was created and then
-   deleted as unnecessary — do not recreate it.
-4. GOV-005 — standardize terminology on **"Impact Assessment"** (not "Impact Analysis").
-5. GDR-001 — standardize on **"Decision Identifier"** in normative prose (table columns may
-   keep "Decision ID" as a label only). Clarify `GDR-DEC-004` (decision-level accountability)
-   vs `GDR-DATA-005` (register/data-level accountability preservation) as distinct, not
-   duplicate.
+**Corrections — all applied and verified live as of 2026-08-13** (previously tracked here as
+pending; each now has a real fix commit and was spot-checked against current file content —
+do not redo this work):
+1. AUTH-001 — structural/TOC/formatting fixes applied (`a3198b3`, `5ec61c0`); substantive
+   wording/rule IDs/examples preserved.
+2. GOV-001 — GDR hierarchy fixed to cross-cutting, not a lifecycle layer (`46b5c5c`); confirmed
+   in GOV-ORG-002, Appendix A, and Appendix B text.
+3. GOV-002 — orphan `GOV-DATA-005` removed from Appendix B (`bfba73c`); confirmed absent from
+   current file.
+4. GOV-003 — front-matter formatting fixed (`e0d554a`).
+5. GOV-004 — front-matter fixed, stray mid-document `End of Document` removed (`c40a3c9`).
+6. GOV-005 — terminology standardized on **"Impact Assessment"** (`11517a5`); confirmed no
+   "Impact Analysis" remains in current file.
+7. GDR-001 — standardized on **"Decision Identifier"** in normative prose, "Decision ID" kept
+   only as a table column label (`4e13b8b`); confirmed `GDR-DEC-004` (decision-level) vs
+   `GDR-DATA-005` (register-level) are explicitly distinguished, not duplicated, in current file.
 
 **Open governance decisions — NOT yet resolved, do not invent an answer:**
 - Exact relationship between Governance Authority / Decision Authority / Approving Authority /
@@ -267,11 +268,13 @@ case.
   Compliance / Governance Non-Compliance," avoid introducing "non-conformity" unless an
   authoritative source defines it distinctly.
 
-**Working rule for every governance-doc edit:** retrieve actual current source → preserve
-substantive content → apply only approved structural corrections → deliver the *complete*
-replacement file → user swaps it in → `git diff --check` + `git diff` review → commit only
-after verification → move to next document. Order: AUTH-001 → GOV-001 → GOV-002 → GOV-003 →
-GOV-004 → GOV-005 → GDR-001.
+**Working rule for every governance-doc edit (still applies to any *future* correction):**
+retrieve actual current source → preserve substantive content → apply only approved structural
+corrections → deliver the *complete* replacement file → user swaps it in → `git diff --check` +
+`git diff` review → commit only after verification → move to next document. The
+AUTH-001 → GOV-001 → GOV-002 → GOV-003 → GOV-004 → GOV-005 → GDR-001 sequence itself is now
+fully done (see corrections list above) — this rule remains for whatever governance edit comes
+next, not a resumption of that sequence.
 
 **Terminology note:** In this project, **"AUTH-001" always means the Authoritative Reference
 Standard governance document** — never "Authentication UI-001." An earlier session conflated
@@ -402,6 +405,26 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-13 — Verified entire six-doc governance correction sequence already applied (Claude Code)
+- Context: User asked to work on "the governance-doc correction sequence (GOV-001)" next,
+  following §6's documented order. Before editing GOV-001, checked its live git history and
+  content per the §6 working rule and the project's live-state-wins principle — same pattern
+  that had just caught the AUTH-001/REF-MS memory drift in the entry directly below.
+- Decision/Outcome: Found that **all seven documents in the sequence already have real fix
+  commits applied**, not just GOV-001: `AUTH-001` (`a3198b3`, `5ec61c0`), `GOV-001` (`46b5c5c`
+  — GDR hierarchy fixed to cross-cutting), `GOV-002` (`bfba73c` — orphan `GOV-DATA-005`
+  removed), `GOV-003` (`e0d554a`), `GOV-004` (`c40a3c9`), `GOV-005` (`11517a5` — "Impact
+  Assessment" terminology), `GDR-001` (`4e13b8b` — "Decision Identifier" terminology,
+  `GDR-DEC-004`/`GDR-DATA-005` distinction). Spot-checked file content (not just commit
+  messages) for GOV-002, GOV-005, and GDR-001 to confirm the actual text matches what each
+  correction required — all confirmed correct. Rewrote §6's "Confirmed corrections" list from a
+  pending-task framing into a done/verified list with commit hashes, and reframed the "Working
+  rule" as applying to future governance edits rather than a sequence still in progress.
+- Follow-up: the sequence itself needs no further work. The three "Open governance decisions"
+  items in §6 (authority-role relationships, doc status lifecycle, non-compliance terminology)
+  remain genuinely unresolved and are the natural next governance-doc work if the user wants to
+  continue in this area.
 
 ### 2026-08-13 — Verified AUTH-001 REF-MS gap already closed; corrected stale memory (Claude Code)
 - Context: User asked to address "the AUTH-001 REF-MS family gap" flagged in §3/§13 (AUTH-001
