@@ -261,12 +261,18 @@ do not redo this work):
 **Open governance decisions — NOT yet resolved, do not invent an answer:**
 - Exact relationship between Governance Authority / Decision Authority / Approving Authority /
   Approver / Project Owner / Project Steering Committee.
-- Governance document status lifecycle (`Draft → Review → Approved → Frozen → Superseded/
-  Retired`) — plausible but not formally adopted; documents currently show inconsistent mixes
-  of Draft/Approved/Frozen labels across AUTH-001 vs individual GOV docs.
 - Governance/Non-Compliance vs "Non-Conformity" terminology — lean toward "Governance
   Compliance / Governance Non-Compliance," avoid introducing "non-conformity" unless an
   authoritative source defines it distinctly.
+
+**Resolved (2026-08-13, see §12 and GDR-003):** Governance document status lifecycle. Adopted
+`Draft → Review → Approved → Superseded/Retired` as `GOV-LIFE-006` in `GOV-001` — deliberately
+4 states, no document-level `Frozen` (that term already means the Governance Baseline as a
+whole and, separately, per-rule maturity). The per-rule field that used to share the name
+`Status` was renamed to `Rule Maturity` (44 occurrences in `AUTH-001`, 20 in `GOV-001`) to
+eliminate the contradiction of a `Draft` document containing `Frozen` rules. `AUTH-001` and
+`GOV-001` were both advanced from Status `Draft` to `Approved` (now v1.1.0) to match how they
+are actually used project-wide.
 
 **Working rule for every governance-doc edit (still applies to any *future* correction):**
 retrieve actual current source → preserve substantive content → apply only approved structural
@@ -408,6 +414,35 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-13 — Resolved governance document status lifecycle open question; added GDR-003 (Claude Code)
+- Context: User asked to tackle the "governance document status lifecycle" open item from §6.
+  Investigation found the actual problem was sharper than "no lifecycle exists": the metadata
+  field name "Status" was already being used for two unrelated concepts — document-level
+  approval state (only ever `Draft`/`Approved` in practice) and per-rule maturity (every rule
+  in `AUTH-001`, 44 occurrences, and `GOV-001`, 20 occurrences, marked `**Status:** Frozen`) —
+  producing a live contradiction: both documents showed document-Status `Draft` while every
+  rule inside them was `Frozen` and already cited project-wide as binding. Presented this
+  finding plus three concrete decision points to the user via AskUserQuestion (separate the two
+  "Status" concepts vs. unify them; 4-state vs. 5-state document lifecycle; whether to bump
+  AUTH-001/GOV-001 to Approved now) rather than inventing an answer, per §6's explicit
+  instruction not to resolve open governance decisions unilaterally.
+- Decision/Outcome: User chose the recommended option on all three. Implemented as `GDR-003`:
+  (1) renamed the per-rule field from `Status` to `Rule Maturity` in `AUTH-001` (44 occurrences)
+  and `GOV-001` (20 occurrences), no value/content change; (2) added `GOV-LIFE-006 — Governance
+  Document Status Lifecycle` to `GOV-001` §5, defining `Draft → Review → Approved →
+  Superseded/Retired` (4 states — deliberately no document-level `Frozen`, since that term
+  already means the whole Governance Baseline and, now, Rule Maturity); (3) added `Document
+  Status` and `Rule Maturity` definitions to `GOV-001` §3 and a matching `Rule Maturity`
+  definition to `AUTH-001` §3, cross-referencing GDR-001's separate "Decision Status" and
+  AUTH-001's separate REF-document Status (AUTH-META-002) so all four "status"-shaped concepts
+  in the project are now distinguishable; (4) advanced `AUTH-001` and `GOV-001` document-level
+  Status from `Draft` to `Approved` (both bumped to v1.1.0 with revision-history entries).
+  Updated `docs/00_Project_Governance/GDR/README.md` with the new `GDR-003` entry, and this
+  file's §6/§13 to mark the open question resolved.
+- Follow-up: none outstanding on this item. The two remaining "Open governance decisions" in §6
+  (authority-role relationships; Non-Compliance vs "Non-Conformity" terminology) are unchanged
+  and still need an explicit human decision before being written into any doc.
 
 ### 2026-08-13 — Verified entire six-doc governance correction sequence already applied (Claude Code)
 - Context: User asked to work on "the governance-doc correction sequence (GOV-001)" next,
@@ -596,8 +631,7 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 
 - Governance Authority vs Decision Authority vs Approving Authority vs Project Owner vs
   Project Steering Committee — relationship not yet formally decided (§6).
-- Governance document status lifecycle (Draft/Review/Approved/Frozen/Superseded) — not
-  formally adopted (§6).
+- ~~Governance document status lifecycle~~ — **resolved 2026-08-13**, see §6/§12/GDR-003.
 - Mahila Parichalana Mandali exact composition/election/term — needs authoritative-source
   verification (§7).
 - Final conceptual schema table count — genuinely open, ranges 88–130+ depending on

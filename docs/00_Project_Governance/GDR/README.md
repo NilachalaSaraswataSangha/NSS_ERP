@@ -9,3 +9,7 @@ approving, recording, monitoring, and retiring individual governance decisions.
   decision using the GDR-001 process: approves creation of the `REF-MS` REF family
   (Nilachala Saraswata Mahila Sangha's Bye-Law) and the general `AUTH-ID-002A` rule in
   `AUTH-001` for creating future REF families.
+- `GDR-003_Governance_Document_Status_Lifecycle_and_Rule_Maturity_Separation.md` — separates
+  document-level `Status` from per-rule `Rule Maturity`, adds `GOV-LIFE-006` (Draft → Review →
+  Approved → Superseded/Retired) to `GOV-001`, and advances `AUTH-001`/`GOV-001` from Draft to
+  Approved.

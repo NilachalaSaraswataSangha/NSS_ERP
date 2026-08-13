@@ -178,11 +178,10 @@ MAHILA_SANGHA/
 
 22 documents total, all verified against source with clause numbering (numerals/letters/roman
 numerals) preserved exactly as printed, including source quirks (no labeled "b)" sub-item in
-Clause 6(ii); Clause 8 has no heading title at all — title assigned editorially). Note: several
-REF-MS documents' "Related Governance" sections cite `AUTH-001` as the source defining the
-`REF-MS` identifier family, but as of this pass `AUTH-001`'s own text does not yet contain a
-`REF-MS` definition — this is a documentation gap in AUTH-001, not verified further here since
-AUTH-001 corrections follow a separate controlled process (see `CLAUDE.md` §6).
+Clause 6(ii); Clause 8 has no heading title at all — title assigned editorially). Every
+REF-MS document's "Related Governance" section cites `AUTH-001` as the source defining the
+`REF-MS` identifier family — `AUTH-001` now does, via `AUTH-ID-002A` and the Appendix B family
+mapping, backed by `GDR-002` (resolved 2026-08-13; an earlier pass had flagged this as a gap).
 
 ### `database/` detail
 
