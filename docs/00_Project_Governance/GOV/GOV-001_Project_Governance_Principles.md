@@ -472,7 +472,7 @@ Responsibility for governance may be delegated; however, accountability for gove
 
 **Rule Maturity:** Frozen
 
-Final decision authority for governance decisions recorded in the Governance Decision Register (GDR-001) rests with the NSS Governing Body — the constitutional governing body of Nilachala Saraswata Sangha (REF-003-002) — exercised through its President (REF-003-004) and/or Parichalak (REF-003-009) in accordance with the Official NSS Constitution and Bye-Laws.
+Final decision authority for governance decisions recorded in the Governance Decision Register (GDR-001) rests with the NSS Governing Body — the constitutional governing body of Nilachala Saraswata Sangha (REF-003-C(i)(1)) — exercised through its President (REF-003-C(i)(3)) and/or Parichalak (REF-003-C(i)(8)) in accordance with the Official NSS Constitution and Bye-Laws.
 
 This is distinct from the Governance Authority (GOV-ROLE-002), which maintains and reviews the governance framework day-to-day but does not hold final decision authority over individual governance decisions. The Decision Authority field defined in GDR-001 shall, for this project, be recorded as the NSS Governing Body unless a specific decision is explicitly and formally delegated otherwise.
 

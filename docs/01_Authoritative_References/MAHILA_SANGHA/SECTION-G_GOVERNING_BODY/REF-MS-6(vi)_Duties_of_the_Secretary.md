@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (vi) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-006 (Duties of the Secretary) in the NSS Bye-Law.
+This document serves as the authoritative reference register for sub-clause (vi) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-C(i)(5) (Duties of the Secretary) in the NSS Bye-Law.
 
 ---
 
@@ -109,7 +109,7 @@ Pending
 
 REF-MS-6(vii) (Duties of Joint Secretary — assists the Secretary)
 
-REF-003-006 (NSS Duties of the Secretary — comparable structure)
+REF-003-C(i)(5) (NSS Duties of the Secretary — comparable structure)
 
 ---
 
@@ -141,7 +141,7 @@ None
 
 - REF-MS-6(i) — Constitution of the Governing Body
 - REF-MS-6(vii) — Duties of Joint Secretary
-- REF-003-006 — Duties of the Secretary (NSS)
+- REF-003-C(i)(5) — Duties of the Secretary (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

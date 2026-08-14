@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (viii) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-008 (Duties of the Treasurer) in the NSS Bye-Law.
+This document serves as the authoritative reference register for sub-clause (viii) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-C(i)(7) (Duties of the Treasurer) in the NSS Bye-Law.
 
 ---
 
@@ -107,7 +107,7 @@ Pending
 
 REF-MS-7(i) (Funds — receipts and disbursements)
 
-REF-003-008 (NSS Duties of the Treasurer — comparable structure)
+REF-003-C(i)(7) (NSS Duties of the Treasurer — comparable structure)
 
 ---
 
@@ -139,7 +139,7 @@ None
 
 - REF-MS-6(i) — Constitution of the Governing Body
 - REF-MS-7(i) — Funds Comprising
-- REF-003-008 — Duties of the Treasurer (NSS)
+- REF-003-C(i)(7) — Duties of the Treasurer (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

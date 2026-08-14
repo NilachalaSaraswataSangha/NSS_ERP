@@ -125,15 +125,15 @@ cross-checked against `BY-LAW/NSS/NSS_Bye_Law.docx`), organized by legal section
 NSS/
 ├── SECTION-A_PRELIMINARY_AND_GENERAL_PROVISIONS/   REF-001 — Name, Registered Office, Preamble, Objects, Memorandum of Association
 ├── SECTION-B_MEMBERSHIPS/                          REF-002 — Probationary/Regular/Associate Members, Cessation
-├── SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/    REF-003-001…009 — Governing Body, its Functions, and all 6 office-bearer duties;
+├── SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/    REF-003-C…009 — Governing Body, its Functions, and all 6 office-bearer duties;
 │                                                    plus the two 1975 amendment Resolutions (REF-003-C(i)(2)-1975-01,
 │                                                    REF-003-C(i)(8)-1975-02), filed adjacent to the clauses they amend
-├── SECTION-D_ADVISORY_BOARD/                       REF-003-010
-├── SECTION-E_GENERAL_BODY/                         REF-003-011
-├── SECTION-F_FUNDS_OF_THE_KENDRA_SANGHA/           REF-003-012 (Funds), REF-003-013 (Maintenance), REF-003-F[c] (Utilisation) — 3 documents
-├── SECTION-G_ACCOUNTS_AND_AUDIT/                   REF-003-014
-├── SECTION-H_POWER_TO_AMEND/                       REF-003-015
-└── SECTION-I_DISSOLUTION/                          REF-003-016
+├── SECTION-D_ADVISORY_BOARD/                       REF-003-D
+├── SECTION-E_GENERAL_BODY/                         REF-003-E
+├── SECTION-F_FUNDS_OF_THE_KENDRA_SANGHA/           REF-003-F[A] (Funds), REF-003-F[b] (Maintenance), REF-003-F[c] (Utilisation) — 3 documents
+├── SECTION-G_ACCOUNTS_AND_AUDIT/                   REF-003-G
+├── SECTION-H_POWER_TO_AMEND/                       REF-003-H
+└── SECTION-I_DISSOLUTION/                          REF-003-I
 ```
 
 **No "Section J" exists in the source Bye-Law.** The Bye-Law's constitutional sections end at

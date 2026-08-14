@@ -27,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-08-11 | Created as a new document, splitting the "Utilisation of the Funds" content out of the former combined REF-003-013 ("Utilization and Management of Funds") document, per explicit project instruction to represent Funds of the Kendra Sangha as three separate documents (F[A] Funds, F[b] Maintenance, F[c] Utilisation) mirroring the three-part structure of the official Bye-Law. No existing filenames were changed as part of this split; REF-003-013 was edited to remove this content and retitled to "Maintenance of the Funds" only. |
+| 1.0 | 2026-08-11 | Created as a new document, splitting the "Utilisation of the Funds" content out of the former combined REF-003-F[b] ("Utilization and Management of Funds") document, per explicit project instruction to represent Funds of the Kendra Sangha as three separate documents (F[A] Funds, F[b] Maintenance, F[c] Utilisation) mirroring the three-part structure of the official Bye-Law. No existing filenames were changed as part of this split; REF-003-F[b] was edited to remove this content and retitled to "Maintenance of the Funds" only. |
 
 ---
 
@@ -71,7 +71,7 @@ It preserves the original Governance Bye-Law provisions in a structured referenc
 
 Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
-This document is a companion document to REF-003-012 (Funds of the Kendra Sangha, F[A]) and REF-003-013 (Maintenance of the Funds, F[b]), together representing the complete three-part "F" section of the official Bye-Law.
+This document is a companion document to REF-003-F[A] (Funds of the Kendra Sangha, F[A]) and REF-003-F[b] (Maintenance of the Funds, F[b]), together representing the complete three-part "F" section of the official Bye-Law.
 
 ---
 
@@ -139,11 +139,11 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-012
+REF-003-F[A]
 
-REF-003-013
+REF-003-F[b]
 
 **Related ERP Documents**
 
@@ -187,7 +187,7 @@ REF-SRC-003
 
 **Remarks**
 
-This document was created as a new file, splitting the Utilisation of the Funds content out of the former combined REF-003-013 document, per explicit project instruction. No existing filenames were changed; REF-003-013 itself was edited (not renamed) to retain only the Maintenance of the Funds content.
+This document was created as a new file, splitting the Utilisation of the Funds content out of the former combined REF-003-F[b] document, per explicit project instruction. No existing filenames were changed; REF-003-F[b] itself was edited (not renamed) to retain only the Maintenance of the Funds content.
 
 ---
 
@@ -195,9 +195,9 @@ This document was created as a new file, splitting the Utilisation of the Funds 
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-012 — Funds of the Kendra Sangha
-- REF-003-013 — Maintenance of the Funds
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-F[A] — Funds of the Kendra Sangha
+- REF-003-F[b] — Maintenance of the Funds
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

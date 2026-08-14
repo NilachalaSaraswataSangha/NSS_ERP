@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for the Settlement of Disputes clause of the Bye-Law of Nilachala Saraswata Mahila Sangha. There is no directly equivalent standalone clause in the NSS Bye-Law itself (dispute resolution there is embedded within the Parichalak's disciplinary powers, see REF-003-009).
+This document serves as the authoritative reference register for the Settlement of Disputes clause of the Bye-Law of Nilachala Saraswata Mahila Sangha. There is no directly equivalent standalone clause in the NSS Bye-Law itself (dispute resolution there is embedded within the Parichalak's disciplinary powers, see REF-003-C(i)(8)).
 
 ---
 
@@ -107,7 +107,7 @@ Pending
 
 REF-MS-6(iv) (Functions of the Parichalak)
 
-REF-003-009 (NSS Duties of the Parichalak — comparable disciplinary authority)
+REF-003-C(i)(8) (NSS Duties of the Parichalak — comparable disciplinary authority)
 
 ---
 
@@ -138,7 +138,7 @@ None
 # Related Governance
 
 - REF-MS-6(iv) — Functions of the Parichalak
-- REF-003-009 — Duties of the Parichalak (NSS)
+- REF-003-C(i)(8) — Duties of the Parichalak (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

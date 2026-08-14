@@ -9,9 +9,9 @@
 **Repository Path:**
 `docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
-**Parent References:** REF-003-006 (Duties of the Secretary), REF-003-009 (Duties of the Parichalak)
+**Parent References:** REF-003-C(i)(5) (Duties of the Secretary), REF-003-C(i)(8) (Duties of the Parichalak)
 
-**Amends Clauses:** REF-003-006 (Sub-Chapter 5, Sub-Section I); REF-003-009 (Sub-Chapter 5, Section 6)
+**Amends Clauses:** REF-003-C(i)(5) (Sub-Chapter 5, Sub-Section I); REF-003-C(i)(8) (Sub-Chapter 5, Section 6)
 
 **Source Reference:** REF-SRC-003
 
@@ -29,7 +29,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-08-11 | Created as a new document, filed adjacent to the clauses it amends (REF-003-006, REF-003-009), per explicit project instruction to represent amendment resolutions alongside the constitutional clauses they modify. |
+| 1.0 | 2026-08-11 | Created as a new document, filed adjacent to the clauses it amends (REF-003-C(i)(5), REF-003-C(i)(8)), per explicit project instruction to represent amendment resolutions alongside the constitutional clauses they modify. |
 | 1.1 | 2026-08-11 | Removed references to REF-003-017 (Additional Resolutions 1975), which was deleted from the repository; corrected constitutional provision numbering to match the source's actual A/B/Clause-VIII lettering instead of generic sequential clause numbering. |
 
 ---
@@ -68,9 +68,9 @@ REF-SRC-003
 
 # Introduction
 
-This document preserves Resolution No. 2, dated 21-10-1975, which amends provisions of Section C of the Bye-Law of the Nilachala Saraswata Sangha relating to the Secretary (see REF-003-006) and the Parichalak (see REF-003-009), by inserting new clauses into Sub-Chapter 5 of Chapter C.
+This document preserves Resolution No. 2, dated 21-10-1975, which amends provisions of Section C of the Bye-Law of the Nilachala Saraswata Sangha relating to the Secretary (see REF-003-C(i)(5)) and the Parichalak (see REF-003-C(i)(8)), by inserting new clauses into Sub-Chapter 5 of Chapter C.
 
-This document is filed adjacent to the clauses it amends to preserve direct traceability between the original constitutional provisions and the amendment affecting them. It does not replace, restate, or supersede REF-003-006 or REF-003-009; the original clauses remain authoritative and unmodified in their own documents, and this Resolution is an addition to them.
+This document is filed adjacent to the clauses it amends to preserve direct traceability between the original constitutional provisions and the amendment affecting them. It does not replace, restate, or supersede REF-003-C(i)(5) or REF-003-C(i)(8); the original clauses remain authoritative and unmodified in their own documents, and this Resolution is an addition to them.
 
 ---
 
@@ -134,9 +134,9 @@ The above provisions are preserved in the source under the heading "Copy of the 
 
 **Parent References**
 
-REF-003-006 (Duties of the Secretary — amended by Clause 2)
+REF-003-C(i)(5) (Duties of the Secretary — amended by Clause 2)
 
-REF-003-009 (Duties of the Parichalak — amended by Clauses 3-4)
+REF-003-C(i)(8) (Duties of the Parichalak — amended by Clauses 3-4)
 
 **Source Reference**
 
@@ -152,11 +152,11 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-006
+REF-003-C(i)(5)
 
-REF-003-009
+REF-003-C(i)(8)
 
 **Related ERP Documents**
 
@@ -200,7 +200,7 @@ REF-SRC-003
 
 **Remarks**
 
-This clause spans two duty areas (Secretary and Parichalak) within a single Resolution text and is therefore filed once, cross-referenced to both amended clauses, rather than split further. This document was created as a new file alongside the existing REF-003-006 and REF-003-009 files. No existing filenames or folder structures were changed as part of creating this document, per project branch scope. The filename `REF-003-C(i)(8)-1975-02_Resolution_Amending_Duties_of_the_Parichalak_and_Secretary.md` was chosen per explicit project instruction, combining the composite clause-locator prefix `REF-003-C(i)(8)` with the requested `1975-02_Resolution_Amending_...` naming; this document is a new file, not a rename of any existing file. The named individual (Shri Durga Charan Mohanty) referenced in the source text is preserved exactly as it appears in the original Resolution text. This document previously referenced a combined record, REF-003-017 (Additional Resolutions 1975); that file has since been deleted from the repository, and all references to it have been removed from this document. The constitutional provision numbering was also corrected from generic sequential "Clause N" labels to the source's actual A/B/Clause-VIII lettering.
+This clause spans two duty areas (Secretary and Parichalak) within a single Resolution text and is therefore filed once, cross-referenced to both amended clauses, rather than split further. This document was created as a new file alongside the existing REF-003-C(i)(5) and REF-003-C(i)(8) files. No existing filenames or folder structures were changed as part of creating this document, per project branch scope. The filename `REF-003-C(i)(8)-1975-02_Resolution_Amending_Duties_of_the_Parichalak_and_Secretary.md` was chosen per explicit project instruction, combining the composite clause-locator prefix `REF-003-C(i)(8)` with the requested `1975-02_Resolution_Amending_...` naming; this document is a new file, not a rename of any existing file. The named individual (Shri Durga Charan Mohanty) referenced in the source text is preserved exactly as it appears in the original Resolution text. This document previously referenced a combined record, REF-003-017 (Additional Resolutions 1975); that file has since been deleted from the repository, and all references to it have been removed from this document. The constitutional provision numbering was also corrected from generic sequential "Clause N" labels to the source's actual A/B/Clause-VIII lettering.
 
 ---
 
@@ -208,9 +208,9 @@ This clause spans two duty areas (Secretary and Parichalak) within a single Reso
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-006 — Duties of the Secretary (amended clause)
-- REF-003-009 — Duties of the Parichalak (amended clause)
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(5) — Duties of the Secretary (amended clause)
+- REF-003-C(i)(8) — Duties of the Parichalak (amended clause)
 - AUTH-001 — Authoritative Reference Standard
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture

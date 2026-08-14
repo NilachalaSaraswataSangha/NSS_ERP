@@ -1,13 +1,13 @@
-# REF-003-015 — Power to Amend
+# REF-003-C(i)(6) — Duties of the Assistant Secretary
 
 **Document Family:** REF
 
-**Document ID:** REF-003-015
+**Document ID:** REF-003-C(i)(6)
 
-**Title:** Power to Amend
+**Title:** Duties of the Assistant Secretary
 
 **Repository Path:**
-`docs/01_Authoritative_References/NSS/SECTION-H_POWER_TO_AMEND/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -27,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-08-11 | Initial Governance By-Law Reference Register |
+| 1.0 | 2026-07-13 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## Covered Sections
 
-- Power to Amend
+- Duties of the Assistant Secretary
 
 ---
 
@@ -65,17 +65,17 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the constitutional provisions relating to the Power to Amend the Bye-Law of the Nilachala Saraswata Sangha.
+This document serves as the authoritative reference register for the provisions relating to the Duties of the Assistant Secretary of the Nilachala Saraswata Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
-Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
 # Authority
 
-REF-003-015 is an Authoritative Reference document.
+REF-003-C(i)(6) is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,11 +83,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-015 — Power to Amend
+# REF-003-C(i)(6) — Duties of the Assistant Secretary
 
 ## Subject
 
-Power to Amend
+Duties of the Assistant Secretary
 
 ---
 
@@ -99,9 +99,9 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**H. Power To Amend:** Whenever any difficulty arises in giving effect to the provision of this Bye-law or whenever, it is felt that due to the absence of a particular provision in the Bye-Law something essential and in conformity with the ideology of Shri Shri Thakur can not be done, the combined meeting of the Governing Body and the Advisory Board can change, amend, substitute or delete any portion of the Bye-law by passing a resolution for the purpose of achieving the aims and objects of the Sangha. In case of difficulty for any member representative from any Sakha Sangha to attend this meeting, the concerned Sakha Sangha can send any other suitable member for this purpose as a substitute. If any provision in the Bye-law of any Sakha Sangha comes into conflict with any provision of this Bye-law of the Kendra Sangha, the former shall be deemed to have been superseded.
+**(6) Duties of the Assistant Secretary:** The Assistant Secretary shall assist the Secretary in discharging his duties, as enumerated above.
 
-The above provision is preserved in the source under the heading "H. Power To Amend" as a single continuous paragraph, not subdivided into numbered or lettered clauses in the official Bye-Law. An earlier version of this document incorrectly split this single paragraph into three separate numbered clauses; that structure has been corrected to match the source.
+The above provision is preserved in the source under the heading "(6) Duties of the Assistant Secretary" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
 
 ---
 
@@ -125,11 +125,17 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-002
+REF-003-C(i)(1)
 
-REF-003-010
+REF-003-C(i)(2)
+
+REF-003-C(i)(3)
+
+REF-003-C(i)(4)
+
+REF-003-C(i)(5)
 
 **Related ERP Documents**
 
@@ -169,7 +175,7 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-08-11
+2026-07-13
 
 **Remarks**
 
@@ -181,9 +187,12 @@ None
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
-- REF-003-010 — Advisory Board
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
+- REF-003-C(i)(2) — Functions of the Governing Body
+- REF-003-C(i)(3) — Duties of the President
+- REF-003-C(i)(4) — Duties of the Vice-President
+- REF-003-C(i)(5) — Duties of the Secretary
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

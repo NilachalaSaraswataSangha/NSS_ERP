@@ -1,13 +1,13 @@
-# REF-003-014 — Audit
+# REF-003-E — General Body
 
 **Document Family:** REF
 
-**Document ID:** REF-003-014
+**Document ID:** REF-003-E
 
-**Title:** Audit
+**Title:** General Body
 
 **Repository Path:**
-`docs/01_Authoritative_References/NSS/SECTION-G_ACCOUNTS_AND_AUDIT/`
+`docs/01_Authoritative_References/NSS/SECTION-E_GENERAL_BODY/`
 
 **Parent Reference:** REF-003
 
@@ -35,7 +35,8 @@
 
 ## Covered Sections
 
-- Audit
+- Constitution of the General Body
+- Duties and Functions of the General Body
 
 ---
 
@@ -65,7 +66,7 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the constitutional provisions relating to the Audit of the accounts of the Nilachala Saraswata Sangha.
+This document serves as the authoritative reference register for the constitutional provisions relating to the General Body of the Nilachala Saraswata Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
@@ -75,7 +76,7 @@ Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 # Authority
 
-REF-003-014 is an Authoritative Reference document.
+REF-003-E is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,11 +84,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-014 — Audit
+# REF-003-E — General Body
 
 ## Subject
 
-Audit
+Constitution of the General Body
 
 ---
 
@@ -99,9 +100,33 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**G. Audit:** The Accounts of the Kendra Sangha shall be audited every year by appointing a qualified Auditor by the Governing Body and the Audit Report shall be placed first before the Governing Body and then in the combined meeting of the Governing Body and the Advisory Board for their approval only after which the same will be placed before the General Body of the Kendra Sangha by the Secretary.
+**(E) [a] General Body:** All regular and associate members of the Kendra Sangha and its Sakha Sangha including Mahila Sanghas holding 'Parichaya Patra' issued by the Kendra Sangha and valid for the year will constitute the General Body of the Kendra Sangha.
 
-The above provision is preserved in the source under the heading "G. Audit" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
+The above provision is preserved in the source under the heading "(E) [a] General Body" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
+
+---
+
+## Subject
+
+Duties and Functions of the General Body
+
+---
+
+### Source Reference
+
+REF-SRC-003
+
+---
+
+### Constitutional Provision
+
+**[b] Duties and Functions of the General Body:**
+
+The General Body shall meet at least once in a year at the time of Utkal Pradeshik Bhakta Sammilani under the Presidentship of the Governing Body of the Kendra Sangha. The Annual Report about the activities of the Kendra Sangha shall be read out in the General Body for information of all members.
+
+Any member of the General Body is competent to send any resolution relating to the affairs of the Kendra Sangha to President of the Governing Body for consideration of the General Body, one month ahead of the session of the General Body. The President of the Governing Body on receipt of such resolutions shall refer these to a Subject Committee, to be formed by the Governing Body taking any five members from the General Body. The 'Subject Committee' in its turn will recommend to the President of the Governing Body at least one week before the session of the General Body only those resolutions for consideration of the General Body which are vital to the interests of the Kendra Sangha after proper scrutiny. Such resolution will form a part of the agenda of the General Body meeting of the Kendra Sangha with permission of the Parichalak.
+
+The above provisions are preserved in the source under the heading "[b] Duties and Functions of the General Body" as two unlettered narrative paragraphs, not subdivided into further clauses in the official Bye-Law.
 
 ---
 
@@ -125,17 +150,13 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-002
+REF-003-C(i)(1)
 
-REF-003-010
+REF-003-C(i)(2)
 
-REF-003-011
-
-REF-003-012
-
-REF-003-013
+REF-003-D
 
 **Related ERP Documents**
 
@@ -187,13 +208,10 @@ None
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
-- REF-003-010 — Advisory Board
-- REF-003-011 — General Body
-- REF-003-012 — Funds of the Kendra Sangha
-- REF-003-013 — Maintenance of the Funds
-- REF-003-F[c]_Utilisation_of_the_Funds — Utilisation of the Funds
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
+- REF-003-C(i)(2) — Functions of the Governing Body
+- REF-003-D — Advisory Board
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

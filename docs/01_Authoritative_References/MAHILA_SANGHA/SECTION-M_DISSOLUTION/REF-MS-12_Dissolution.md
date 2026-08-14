@@ -58,7 +58,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for the Dissolution clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-016 (Dissolution) in the NSS Bye-Law — and the final certification block that concludes the Bye-Law document as a whole, analogous to the certification block that follows NSS's own Dissolution section (see REF-003-016's second subject).
+This document serves as the authoritative reference register for the Dissolution clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-I (Dissolution) in the NSS Bye-Law — and the final certification block that concludes the Bye-Law document as a whole, analogous to the certification block that follows NSS's own Dissolution section (see REF-003-I's second subject).
 
 ---
 
@@ -114,7 +114,7 @@ Sd/- Durgacharan Mohanty — Parichalak
 
 Sd/- Hemalata Dash — Secretary
 
-The above certification block is preserved verbatim from the source, appearing at the very end of the Bye-Law document, following the Dissolution clause. This is the Mahila Sangha Bye-Law's equivalent of the certification block that follows NSS's own Dissolution section in REF-003-016 — both certify the document as a whole, signed by the three principal office-bearers (President, Parichalak, Secretary), though the Mahila Sangha's version does not include a separate Registrar countersignature or registration-particulars table as NSS's does.
+The above certification block is preserved verbatim from the source, appearing at the very end of the Bye-Law document, following the Dissolution clause. This is the Mahila Sangha Bye-Law's equivalent of the certification block that follows NSS's own Dissolution section in REF-003-I — both certify the document as a whole, signed by the three principal office-bearers (President, Parichalak, Secretary), though the Mahila Sangha's version does not include a separate Registrar countersignature or registration-particulars table as NSS's does.
 
 ---
 
@@ -138,7 +138,7 @@ REF-MS-MOA (cross-referenced "Article 3 of the memorandum")
 
 REF-MS-1 (Aims and Objects — fuller Bye-law restatement, distinct from the Memorandum's Article 3)
 
-REF-003-016 (NSS Dissolution — comparable structure, including its own post-Dissolution certification block)
+REF-003-I (NSS Dissolution — comparable structure, including its own post-Dissolution certification block)
 
 GOV-ORG-001 (Mahila Sangha subordinate to NSS; dissolution vesting reflects this)
 
@@ -172,7 +172,7 @@ Confirmed the Dissolution clause's cross-reference is to the Memorandum's Articl
 
 - REF-MS-MOA — Memorandum and Registration
 - REF-MS-1 — Aims and Objects
-- REF-003-016 — Dissolution (NSS)
+- REF-003-I — Dissolution (NSS)
 - GOV-ORG-001 — Apex Organizational Governance Principle
 - AUTH-001 — Authoritative Reference Standard
 

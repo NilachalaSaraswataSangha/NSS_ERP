@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (iv) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-009 (Duties of the Parichalak) in the NSS Bye-Law.
+This document serves as the authoritative reference register for sub-clause (iv) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-C(i)(8) (Duties of the Parichalak) in the NSS Bye-Law.
 
 ---
 
@@ -119,7 +119,7 @@ REF-MS-3 (Enrolment Procedure — Parichalak's enrolment power)
 
 REF-MS-4 (Cessation of Membership — Parichalak's ordering power)
 
-REF-003-009 (NSS Duties of the Parichalak — comparable structure)
+REF-003-C(i)(8) (NSS Duties of the Parichalak — comparable structure)
 
 ---
 
@@ -150,7 +150,7 @@ None
 # Related Governance
 
 - REF-MS-6(i) — Constitution of the Governing Body
-- REF-003-009 — Duties of the Parichalak (NSS)
+- REF-003-C(i)(8) — Duties of the Parichalak (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

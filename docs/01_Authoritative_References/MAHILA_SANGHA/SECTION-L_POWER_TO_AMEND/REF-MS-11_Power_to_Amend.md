@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for the Power to Amend clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-015 (Power to Amend) in the NSS Bye-Law.
+This document serves as the authoritative reference register for the Power to Amend clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-H (Power to Amend) in the NSS Bye-Law.
 
 ---
 
@@ -87,7 +87,7 @@ REF-SRC-MS
 
 The above provision is preserved in the source under the heading "11. Powers to amend." as a single continuous paragraph, not subdivided into numbered or lettered clauses.
 
-**Important distinction from the NSS provision:** amendment authority here rests with the **Mahila Sangha's own Governing Body** (not a combined Governing Body/Advisory Board meeting, as in NSS's REF-003-015), but is conditioned on prior consultation with the **President of Nilachala Saraswata Sangha (Kendra Sangha)** as a pre-condition — reflecting the Mahila Sangha's subordinate status under the Kendra Sangha's constitutional authority (GOV-ORG-001, GOV-ORG-002).
+**Important distinction from the NSS provision:** amendment authority here rests with the **Mahila Sangha's own Governing Body** (not a combined Governing Body/Advisory Board meeting, as in NSS's REF-003-H), but is conditioned on prior consultation with the **President of Nilachala Saraswata Sangha (Kendra Sangha)** as a pre-condition — reflecting the Mahila Sangha's subordinate status under the Kendra Sangha's constitutional authority (GOV-ORG-001, GOV-ORG-002).
 
 ---
 
@@ -109,7 +109,7 @@ Pending
 
 REF-MS-6(i) (Constitution of the Governing Body)
 
-REF-003-015 (NSS Power to Amend — comparable structure, note the differing amendment authority)
+REF-003-H (NSS Power to Amend — comparable structure, note the differing amendment authority)
 
 GOV-ORG-001, GOV-ORG-002 (Mahila Sangha subordinate to NSS constitutional authority)
 
@@ -142,7 +142,7 @@ Flagged the distinction between this clause's amendment authority (Mahila Sangha
 # Related Governance
 
 - REF-MS-6(i) — Constitution of the Governing Body
-- REF-003-015 — Power to Amend (NSS)
+- REF-003-H — Power to Amend (NSS)
 - GOV-ORG-001 — Apex Organizational Governance Principle
 - GOV-ORG-002 — Constitutional Authority Precedence
 - AUTH-001 — Authoritative Reference Standard

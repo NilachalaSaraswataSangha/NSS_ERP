@@ -1,13 +1,13 @@
-# REF-003-004 — Duties of the President of the Governing Body
+# REF-003-F[A] — Funds of the Kendra Sangha
 
 **Document Family:** REF
 
-**Document ID:** REF-003-004
+**Document ID:** REF-003-F[A]
 
-**Title:** Duties of the President of the Governing Body
+**Title:** Funds of the Kendra Sangha
 
 **Repository Path:**
-`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
+`docs/01_Authoritative_References/NSS/SECTION-F_FUNDS_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -27,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-11 | Initial Governance By-Law Reference Register |
+| 1.0 | 2026-08-11 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## Covered Sections
 
-- Duties of the President of the Governing Body
+- Funds of the Kendra Sangha
 
 ---
 
@@ -65,17 +65,17 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the provisions relating to the Duties of the President of the Governing Body of the Nilachala Saraswata Sangha.
+This document serves as the authoritative reference register for the constitutional provisions relating to the Funds of the Kendra Sangha of the Nilachala Saraswata Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
-Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
+Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 ---
 
 # Authority
 
-REF-003-004 is an Authoritative Reference document.
+REF-003-F[A] is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,11 +83,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-004 — Duties of the President of the Governing Body
+# REF-003-F[A] — Funds of the Kendra Sangha
 
 ## Subject
 
-Duties of the President of the Governing Body
+Funds of the Kendra Sangha
 
 ---
 
@@ -99,17 +99,29 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**(3) Duties of the President of the Governing Body:**
+**F. [A] Funds of the Kendra Sangha:**
 
-In addition to different functions of the President mentioned in different paragraphs of the Articles, his further functions shall be as under:
+The funds of the Kendra Sangha shall comprise the following:
 
-(a) The President shall ordinarily preside over all the meeting of the Governing Body and the combined meetings of the Governing Body and Advisory Board.
+(i) Monthly subscriptions and other subscriptions of special nature realised from its members.
 
-(b) The President shall have powers of general superintendence over the offices of the Kendra Sangha and their activities.
+(ii) Annual 'Pranamis' of all kinds of all Sakha Sanghas including Mahila Sanghas.
 
-(c) The President shall have powers to inspect as far as practicable the daily seva pujas of Shri Shri Thakur at Puri for the smooth functioning of the affairs of the Kendra Sangha.
+(iii) Special Pranamis of all Sakha Sanghas for opening a Sinking fund in the name of the respective Sakha Sanghas under the control of Kendra Sangha.
 
-The above provisions are preserved in the source under the heading "(3) Duties of the President of the Governing Body," with an unlettered introductory statement followed by sub-items lettered (a) through (c), exactly as they appear in the official Bye-Law.
+(iv) Donations or pranamis of various kinds from devotees.
+
+(v) Grants from Government, Semi-Government and official bodies.
+
+(vi) Sale Proceeds of the books / journals etc. published by the Kendra Sangha. Any amount received from this head should be shown in separate account and the funds so collected would only be spent in "Satsikshya Bistar"; in consultation with the Parichalak. Necessary allotments from this head should also be made for meeting personal expenditure of the Parichalak as mentioned in Paras 16 and 17 above (of the Aims and Objects of the Sangha).
+
+(vii) Donations or Pranamis from devotees for specific purposes.
+
+(viii) Income from all immovable properties of the Kendra Sangha.
+
+(ix) Miscellaneous income, if any.
+
+The above provisions are preserved in the source under the heading "F. [A] Funds of the Kendra Sangha" with sub-items numbered (i) through (ix), exactly as they appear in the official Bye-Law.
 
 ---
 
@@ -133,11 +145,11 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-002
+REF-003-F[b]
 
-REF-003-003
+REF-003-F[c]_Utilisation_of_the_Funds
 
 **Related ERP Documents**
 
@@ -177,11 +189,11 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-07-11
+2026-08-11
 
 **Remarks**
 
-None
+Clause 1(vi) cross-references "Paras 16 and 17" of the Objects of the Society, preserved in REF-001-004 (Objects of the Society), Clauses 16-17. This cross-reference is preserved verbatim from the official Bye-Law and shall not be reinterpreted.
 
 ---
 
@@ -189,9 +201,9 @@ None
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
-- REF-003-003 — Functions of the Governing Body
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-F[b] — Maintenance of the Funds
+- REF-003-F[c]_Utilisation_of_the_Funds — Utilisation of the Funds
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

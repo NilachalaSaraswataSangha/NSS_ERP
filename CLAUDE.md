@@ -120,7 +120,7 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
   corpus, refresh docs to match"` → `a9cd4bc "docs(ref): complete REF corpus source-verification
   pass, add BY-LAW originals"`.
 - **Prior working-tree state (now resolved, committed as `a2e6a6a`):** small "Repository Path"
-  metadata corrections in `REF-001`, `REF-002`, `REF-003-001`, `REF-003-002`, and an update to
+  metadata corrections in `REF-001`, `REF-002`, `REF-003-C`, `REF-003-C(i)(1)`, and an update to
   `docs/01_Authoritative_References/MAHILA_SANGHA/README.md` (from "reserved, nothing added" to
   documenting the now-complete 22-document `REF-MS-XXX` corpus), plus the 12
   `MAHILA_SANGHA/SECTION-*` folders themselves (each holding its `REF-MS-*` document — see
@@ -149,28 +149,28 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
     source sequence: Name → Registered Office → "Special Features : PREAMBLE" (repositioned
     here, not at the top) → short "3. Objects of the Society" intro paragraph → Memorandum
     of Association ("6." — no heading text in source) with founding-members table (9 names +
-    addresses, cross-referenced from REF-003-002 where not printed directly), witnesses
+    addresses, cross-referenced from REF-003-C(i)(1) where not printed directly), witnesses
     table, and full certification/registration chain → second "3. OBJECTS OF THE SOCIETY:"
     heading with "Bye-law Of Nilachala Saraswata Sangha" sub-heading + full numbered list
     (1-20). Confirmed: no heading numbered 4 or 5 exists in the source (3 jumps to 6).
   - `REF-002` (Section B, Membership Bye-Laws) — present, correct (a)-(d) lettering with
     (i)-(v) sub-items matching source exactly.
-  - `REF-003-001` … `REF-003-016` — present, spanning **Section C through Section I only**.
+  - `REF-003-C` … `REF-003-I` — present, spanning **Section C through Section I only**.
     **There is no "Section J" in the source** — this was a confirmed error in earlier
     project assumptions (including an earlier version of this file) and has been corrected.
     The former `REF-003-017` (which combined two 1975 Resolutions under an invented
     "Section J") has been deleted from the repository. The two 1975 Resolutions are
     constitutional amendments to **Section C** and are now filed as separate documents
-    adjacent to the clauses they amend: `REF-003-C(i)(2)-1975-01` (amends REF-003-003,
-    Functions of the Governing Body) and `REF-003-C(i)(8)-1975-02` (amends REF-003-006 and
-    REF-003-009, Duties of the Secretary and Parichalak). Each carries the source's actual
+    adjacent to the clauses they amend: `REF-003-C(i)(2)-1975-01` (amends REF-003-C(i)(2),
+    Functions of the Governing Body) and `REF-003-C(i)(8)-1975-02` (amends REF-003-C(i)(5) and
+    REF-003-C(i)(8), Duties of the Secretary and Parichalak). Each carries the source's actual
     letterhead/attestation content (founding letterhead on Resolution No.1; 3-member
     Executive Body signature block on Resolution No.2).
   - Funds of the Kendra Sangha (Section F) is split into **three** documents per explicit
-    instruction, mirroring the source's F[A]/[b]/[c] structure: `REF-003-012` (Funds, i-ix),
-    `REF-003-013` (Maintenance, single statement), `REF-003-F[c]_Utilisation_of_the_Funds`
+    instruction, mirroring the source's F[A]/[b]/[c] structure: `REF-003-F[A]` (Funds, i-ix),
+    `REF-003-F[b]` (Maintenance, single statement), `REF-003-F[c]_Utilisation_of_the_Funds`
     (Utilisation, i-vi) — the third file is new, not a rename of an existing one.
-  - Dissolution (`REF-003-016`, Section I) now includes its own certification/signature
+  - Dissolution (`REF-003-I`, Section I) now includes its own certification/signature
     block (President/Secretary-Parichalak/Vice-President + registration table + Registrar
     countersignature), distinct from the Memorandum's certification and the Resolutions'
     Executive Body attestation — three separate certification instances in the source,
@@ -267,8 +267,8 @@ Approving Authority / Approver / Project Owner / Project Steering Committee rela
 `Project Owner` = Nilachala Saraswata Sangha (NSS) itself. `Governance Authority` (`GOV-ROLE-002`)
 = `Project Steering Committee` — same body, not two; this is the body recorded as `Owner` and
 `Approver` in AUTH/GOV/GDR document metadata. Final decision authority for governance decisions
-recorded in the GDR rests with the `NSS Governing Body` (constitutional body, REF-003-002),
-exercised through its President (REF-003-004) and/or Parichalak (REF-003-009) — not the
+recorded in the GDR rests with the `NSS Governing Body` (constitutional body, REF-003-C(i)(1)),
+exercised through its President (REF-003-C(i)(3)) and/or Parichalak (REF-003-C(i)(8)) — not the
 Governance Authority/Project Steering Committee — per new rule `GOV-ROLE-006` in `GOV-001`.
 `Approving Authority` was retired as a phantom term (never used anywhere in the corpus, same
 pattern as the `"Non-Conformity"` resolution below). The already-approved `GDR-002`/`GDR-003`
@@ -455,8 +455,8 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 - Decision/Outcome: Recorded as `GDR-004`. `GOV-001` gained: an explicit "Project Owner = NSS
   itself" clarification on `GOV-ROLE-001`; an explicit "Governance Authority = Project Steering
   Committee (same body)" clarification on `GOV-ROLE-002`; and a new rule `GOV-ROLE-006 — Final
-  Decision Authority`, naming the `NSS Governing Body` (REF-003-002, via President
-  REF-003-004/Parichalak REF-003-009) as final authority over GDR decisions, distinct from the
+  Decision Authority`, naming the `NSS Governing Body` (REF-003-C(i)(1), via President
+  REF-003-C(i)(3)/Parichalak REF-003-C(i)(8)) as final authority over GDR decisions, distinct from the
   Governance Authority's day-to-day framework-maintenance role. Version 1.1.0 → 1.2.0. Corrected
   the `Owner` field in `GOV-002` through `GOV-005` and `GDR-001` from `NSS ERP Governance
   Committee` to `Project Steering Committee` (5 files). Corrected the `Decision Authority` field
@@ -571,7 +571,7 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 - Context: User ran `/document-project` again. Live `git status` showed the working tree had
   moved since the last pass: commit `a9cd4bc` added the full `MAHILA_SANGHA/` REF corpus (22
   `REF-MS-XXX` documents, Sections A–M) and small "Repository Path" metadata fixes to
-  `REF-001`/`REF-002`/`REF-003-001`/`REF-003-002`, still sitting as uncommitted/untracked
+  `REF-001`/`REF-002`/`REF-003-C`/`REF-003-C(i)(1)`, still sitting as uncommitted/untracked
   changes on `feature/ref-documentation` (1 commit ahead of `pie/feature/ref-documentation`).
   Backend/database code was untouched (`git diff --stat` confirmed changes were scoped to
   `docs/01_Authoritative_References/`) — no backend-facing drift to check this round.

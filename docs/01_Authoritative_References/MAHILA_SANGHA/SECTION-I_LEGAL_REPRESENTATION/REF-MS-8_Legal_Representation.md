@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for Clause 8 of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to the closing provision of REF-003-013 (Utilization and Management of Funds) in the NSS Bye-Law, which addresses legal representation via the Secretary/Assistant Secretary.
+This document serves as the authoritative reference register for Clause 8 of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to the closing provision of REF-003-F[b] (Utilization and Management of Funds) in the NSS Bye-Law, which addresses legal representation via the Secretary/Assistant Secretary.
 
 **Important — this clause has no heading title in the source.** Unlike every other numbered clause in the Bye-Law (each of which carries a descriptive title, e.g. "9. Audit," "10. Settlement of disputes, if any"), Clause 8 in the source consists only of the bare numeral "8." followed directly by its paragraph text, with no title at all. This document's title ("Legal Representation") has been assigned editorially, based on the clause's actual content, for repository navigability — it is not printed in the source and should not be mistaken for source text.
 
@@ -113,7 +113,7 @@ REF-MS-6(vi) (Duties of the Secretary)
 
 REF-MS-6(vii) (Duties of Joint Secretary)
 
-REF-003-013 (NSS — comparable legal-representation clause, Secretary/Assistant Secretary)
+REF-003-F[b] (NSS — comparable legal-representation clause, Secretary/Assistant Secretary)
 
 ---
 

@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for the Audit clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-014 (Audit) in the NSS Bye-Law.
+This document serves as the authoritative reference register for the Audit clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-G (Audit) in the NSS Bye-Law.
 
 ---
 
@@ -107,7 +107,7 @@ Pending
 
 REF-MS-6(vi) (Duties of the Secretary)
 
-REF-003-014 (NSS Audit — comparable structure)
+REF-003-G (NSS Audit — comparable structure)
 
 ---
 
@@ -138,7 +138,7 @@ None
 # Related Governance
 
 - REF-MS-6(vi) — Duties of the Secretary
-- REF-003-014 — Audit (NSS)
+- REF-003-G — Audit (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

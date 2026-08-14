@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (v) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-005 (Duties of the Vice-President) in the NSS Bye-Law.
+This document serves as the authoritative reference register for sub-clause (v) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-C(i)(4) (Duties of the Vice-President) in the NSS Bye-Law.
 
 ---
 
@@ -107,7 +107,7 @@ Pending
 
 REF-MS-6(iii) (Duties of the President — cross-referenced as "paragraphs-6(iii)")
 
-REF-003-005 (NSS Duties of the Vice-President — comparable structure)
+REF-003-C(i)(4) (NSS Duties of the Vice-President — comparable structure)
 
 ---
 
@@ -139,7 +139,7 @@ None
 
 - REF-MS-6(i) — Constitution of the Governing Body
 - REF-MS-6(iii) — Duties of the President
-- REF-003-005 — Duties of the Vice-President (NSS)
+- REF-003-C(i)(4) — Duties of the Vice-President (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

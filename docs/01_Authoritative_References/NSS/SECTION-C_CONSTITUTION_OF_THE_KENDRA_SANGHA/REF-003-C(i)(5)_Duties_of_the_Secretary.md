@@ -1,13 +1,13 @@
-# REF-003-013 — Maintenance of the Funds
+# REF-003-C(i)(5) — Duties of the Secretary
 
 **Document Family:** REF
 
-**Document ID:** REF-003-013
+**Document ID:** REF-003-C(i)(5)
 
-**Title:** Maintenance of the Funds
+**Title:** Duties of the Secretary
 
 **Repository Path:**
-`docs/01_Authoritative_References/NSS/SECTION-F_FUNDS_OF_THE_KENDRA_SANGHA/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -27,8 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-08-11 | Initial Governance By-Law Reference Register |
-| 1.1 | 2026-08-11 | Split into three documents per Funds of the Kendra Sangha (F[A], REF-003-012), Maintenance of the Funds (F[b], this document), and Utilisation of the Funds (F[c], new document) to mirror the three-part structure of the official Bye-Law. Utilisation content moved to a new companion document. |
+| 1.0 | 2026-07-13 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -36,7 +35,7 @@
 
 ## Covered Sections
 
-- Maintenance of the Funds
+- Duties of the Secretary
 
 ---
 
@@ -66,17 +65,17 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the constitutional provisions relating to the Maintenance of the Funds of the Kendra Sangha of the Nilachala Saraswata Sangha.
+This document serves as the authoritative reference register for the provisions relating to the Duties of the Secretary of the Nilachala Saraswata Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
-Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
 # Authority
 
-REF-003-013 is an Authoritative Reference document.
+REF-003-C(i)(5) is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -84,11 +83,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-013 — Maintenance of the Funds
+# REF-003-C(i)(5) — Duties of the Secretary
 
 ## Subject
 
-Maintenance of the Funds
+Duties of the Secretary
 
 ---
 
@@ -100,9 +99,23 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**[b] Maintenance of the Funds:** The funds so collected will be kept either in the Post Office Savings Bank or in any nationalised Commercial Bank in Current, Fixed or Savings Bank Accounts or in both the Banks and Post office in the name of Nilachala Saraswata Sangha, to be operated upon jointly by the Secretary and the Treasurer of the Kendra Sangha.
+**(5) Duties of the Secretary:**
 
-The above provision is preserved in the source under the heading "[b] Maintenance of the Funds" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
+In addition to various functions of the Secretary mentioned in different paragraphs of the Article, the further functions of the Secretary shall be as under:
+
+(a) The Secretary shall prepare agenda for the meeting of the Governing Body and the General Body and issue notices for convening the meetings in consultation with the President of the Governing Body.
+
+(b) The Secretary shall maintain all the records, the accounts and documents of the Kendra Sangha.
+
+(c) The secretary shall arrange to send copies of all the resolutions and proceedings of all the meetings of the Governing Body and those of the General Body to all the concerned members.
+
+(d) The Secretary shall ensure implementation of all the decisions taken by the Governing Body and the General Body.
+
+(e) The Secretary shall arrange for the preparation of the Draft Annual Budget of the Kendra Sangha for the consideration of the Governing Body.
+
+(f) The Secretary shall arrange to prepare an Annual Report of the activities of the Kendra sangha and other organisations run/controlled by it.
+
+The above provisions are preserved in the source under the heading "(5) Duties of the Secretary," with an unlettered introductory statement followed by sub-items lettered (a) through (f), exactly as they appear in the official Bye-Law.
 
 ---
 
@@ -126,11 +139,15 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-012
+REF-003-C(i)(1)
 
-REF-003-F[c]_Utilisation_of_the_Funds
+REF-003-C(i)(2)
+
+REF-003-C(i)(3)
+
+REF-003-C(i)(4)
 
 **Related ERP Documents**
 
@@ -170,11 +187,11 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-08-11
+2026-07-13
 
 **Remarks**
 
-This document was split from a combined "Maintenance and Utilisation of Funds" document into a document covering only F[b] Maintenance of the Funds, per explicit project instruction to represent Funds as three separate documents mirroring the source's F[A]/[b]/[c] structure. See the new companion document `REF-003-F[c]_Utilisation_of_the_Funds.md` for F[c] Utilisation of the Funds.
+None
 
 ---
 
@@ -182,9 +199,11 @@ This document was split from a combined "Maintenance and Utilisation of Funds" d
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-012 — Funds of the Kendra Sangha
-- REF-003-F[c]_Utilisation_of_the_Funds — Utilisation of the Funds (companion document)
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
+- REF-003-C(i)(2) — Functions of the Governing Body
+- REF-003-C(i)(3) — Duties of the President
+- REF-003-C(i)(4) — Duties of the Vice-President
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

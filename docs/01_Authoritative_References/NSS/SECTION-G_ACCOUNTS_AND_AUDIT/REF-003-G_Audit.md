@@ -1,13 +1,13 @@
-# REF-003-001 — Constitution of the Kendra Sangha
+# REF-003-G — Audit
 
 **Document Family:** REF
 
-**Document ID:** REF-003-001
+**Document ID:** REF-003-G
 
-**Title:** Constitution of the Kendra Sangha
+**Title:** Audit
 
 **Repository Path:**
-`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
+`docs/01_Authoritative_References/NSS/SECTION-G_ACCOUNTS_AND_AUDIT/`
 
 **Parent Reference:** REF-003
 
@@ -27,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-10 | Initial Governance By-Law Reference Register |
+| 1.0 | 2026-08-11 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## Covered Sections
 
-- Constitution of the Kendra Sangha
+- Audit
 
 ---
 
@@ -65,7 +65,7 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the constitutional provisions relating to the Constitution of the Kendra Sangha.
+This document serves as the authoritative reference register for the constitutional provisions relating to the Audit of the accounts of the Nilachala Saraswata Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
@@ -75,7 +75,7 @@ Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 # Authority
 
-REF-003-001 is an Authoritative Reference document.
+REF-003-G is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,11 +83,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-001 — Constitution of the Kendra Sangha
+# REF-003-G — Audit
 
 ## Subject
 
-Constitution of the Kendra Sangha
+Audit
 
 ---
 
@@ -99,15 +99,9 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**(c) Constitution of the Kendra Sangha:** The Kendra Sangha shall mainly consist of three organs:
+**G. Audit:** The Accounts of the Kendra Sangha shall be audited every year by appointing a qualified Auditor by the Governing Body and the Audit Report shall be placed first before the Governing Body and then in the combined meeting of the Governing Body and the Advisory Board for their approval only after which the same will be placed before the General Body of the Kendra Sangha by the Secretary.
 
-(i) a Governing Body
-
-(ii) an Advisory Board and
-
-(iii) a General Body
-
-The above provision is preserved in the source under the heading "(c) Constitution of the Kendra Sangha" with the three organs listed as (i), (ii) and (iii), not further subdivided in the official Bye-Law at this introductory level.
+The above provision is preserved in the source under the heading "G. Audit" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
 
 ---
 
@@ -130,6 +124,18 @@ Pending
 REF-001
 
 REF-002
+
+REF-003-C
+
+REF-003-C(i)(1)
+
+REF-003-D
+
+REF-003-E
+
+REF-003-F[A]
+
+REF-003-F[b]
 
 **Related ERP Documents**
 
@@ -169,7 +175,7 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-07-10
+2026-08-11
 
 **Remarks**
 
@@ -181,6 +187,13 @@ None
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
+- REF-003-D — Advisory Board
+- REF-003-E — General Body
+- REF-003-F[A] — Funds of the Kendra Sangha
+- REF-003-F[b] — Maintenance of the Funds
+- REF-003-F[c]_Utilisation_of_the_Funds — Utilisation of the Funds
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

@@ -1,8 +1,8 @@
-# REF-003-003 — Functions of the Governing Body
+# REF-003-C(i)(2) — Functions of the Governing Body
 
 **Document Family:** REF
 
-**Document ID:** REF-003-003
+**Document ID:** REF-003-C(i)(2)
 
 **Title:** Functions of the Governing Body
 
@@ -75,7 +75,7 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 # Authority
 
-REF-003-003 is an Authoritative Reference document.
+REF-003-C(i)(2) is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,7 +83,7 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-003 — Functions of the Governing Body
+# REF-003-C(i)(2) — Functions of the Governing Body
 
 ## Subject
 
@@ -163,9 +163,9 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-002
+REF-003-C(i)(1)
 
 **Related ERP Documents**
 
@@ -217,8 +217,8 @@ None
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

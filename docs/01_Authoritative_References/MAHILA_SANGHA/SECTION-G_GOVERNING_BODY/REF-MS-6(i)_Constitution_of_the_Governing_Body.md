@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (i) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha, establishing the Governing Body's composition, founder/permanent office-holders, nomination, term, and vacancy rules — analogous to REF-003-002 in the NSS Bye-Law.
+This document serves as the authoritative reference register for sub-clause (i) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha, establishing the Governing Body's composition, founder/permanent office-holders, nomination, term, and vacancy rules — analogous to REF-003-C(i)(1) in the NSS Bye-Law.
 
 ---
 
@@ -127,7 +127,7 @@ REF-MS-6(ii) (Powers and Duties of the Governing Body)
 
 REF-MS-6(iii) through REF-MS-6(viii) (individual office-bearer duties)
 
-REF-003-002 (NSS Governing Body — comparable structure)
+REF-003-C(i)(1) (NSS Governing Body — comparable structure)
 
 REF-MS-MOA (naming of Smt. Surabala Devi and Smt. Narayani Devi as founding office-holders)
 
@@ -161,7 +161,7 @@ None
 
 - REF-MS-5 — Constitution of the Sangha
 - REF-MS-6(ii) — Powers and Duties of the Governing Body
-- REF-003-002 — Governing Body (NSS)
+- REF-003-C(i)(1) — Governing Body (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

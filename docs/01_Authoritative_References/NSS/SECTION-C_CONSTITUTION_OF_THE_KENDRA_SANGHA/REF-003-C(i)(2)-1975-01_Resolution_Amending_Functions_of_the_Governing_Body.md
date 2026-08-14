@@ -9,9 +9,9 @@
 **Repository Path:**
 `docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
-**Parent Reference:** REF-003-003 (Functions of the Governing Body)
+**Parent Reference:** REF-003-C(i)(2) (Functions of the Governing Body)
 
-**Amends Clause:** REF-003-003, Sub-Chapter "Functions of the Governing Body", Sub-Section VI
+**Amends Clause:** REF-003-C(i)(2), Sub-Chapter "Functions of the Governing Body", Sub-Section VI
 
 **Source Reference:** REF-SRC-003
 
@@ -29,7 +29,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-08-11 | Created as a new document, filed adjacent to the clause it amends (REF-003-003), per explicit project instruction to represent amendment resolutions alongside the constitutional clauses they modify. |
+| 1.0 | 2026-08-11 | Created as a new document, filed adjacent to the clause it amends (REF-003-C(i)(2)), per explicit project instruction to represent amendment resolutions alongside the constitutional clauses they modify. |
 | 1.1 | 2026-08-11 | Removed references to REF-003-017 (Additional Resolutions 1975), which was deleted from the repository; corrected constitutional provision numbering to match the source's actual VI(A)/VI(B) lettering instead of generic sequential clause numbering. |
 
 ---
@@ -68,9 +68,9 @@ REF-SRC-003
 
 # Introduction
 
-This document preserves Resolution No. 1, dated 21-10-1975, which amends the "Functions of the Governing Body" provisions of Section C of the Bye-Law of the Nilachala Saraswata Sangha (see REF-003-003) by inserting two new sub-sections after the existing Sub-Section VI.
+This document preserves Resolution No. 1, dated 21-10-1975, which amends the "Functions of the Governing Body" provisions of Section C of the Bye-Law of the Nilachala Saraswata Sangha (see REF-003-C(i)(2)) by inserting two new sub-sections after the existing Sub-Section VI.
 
-This document is filed adjacent to the clause it amends (REF-003-003) to preserve direct traceability between the original constitutional provision and the amendment affecting it. It does not replace, restate, or supersede REF-003-003; the original clause remains authoritative and unmodified in its own document, and this Resolution is an addition to it.
+This document is filed adjacent to the clause it amends (REF-003-C(i)(2)) to preserve direct traceability between the original constitutional provision and the amendment affecting it. It does not replace, restate, or supersede REF-003-C(i)(2); the original clause remains authoritative and unmodified in its own document, and this Resolution is an addition to it.
 
 ---
 
@@ -124,7 +124,7 @@ The above provisions are preserved in the source under the heading "Copy of the 
 
 **Parent Reference**
 
-REF-003-003 (Functions of the Governing Body — amended clause)
+REF-003-C(i)(2) (Functions of the Governing Body — amended clause)
 
 **Source Reference**
 
@@ -140,9 +140,9 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-003
+REF-003-C(i)(2)
 
 **Related ERP Documents**
 
@@ -186,7 +186,7 @@ REF-SRC-003
 
 **Remarks**
 
-This document was created as a new file alongside the existing REF-003-003 file. No existing filenames or folder structures were changed as part of creating this document, per project branch scope. The filename `REF-003-C(i)(2)-1975-01_Resolution_Amending_Functions_of_the_Governing_Body.md` was chosen per explicit project instruction, combining the composite clause-locator prefix `REF-003-C(i)(2)` with the requested `1975-01_Resolution_Amending_...` naming; this document is a new file, not a rename of any existing file. This document previously referenced a combined record, REF-003-017 (Additional Resolutions 1975); that file has since been deleted from the repository, and all references to it have been removed from this document. The constitutional provision numbering was also corrected from generic sequential "Clause N" labels to the source's actual VI(A)/VI(B) lettering.
+This document was created as a new file alongside the existing REF-003-C(i)(2) file. No existing filenames or folder structures were changed as part of creating this document, per project branch scope. The filename `REF-003-C(i)(2)-1975-01_Resolution_Amending_Functions_of_the_Governing_Body.md` was chosen per explicit project instruction, combining the composite clause-locator prefix `REF-003-C(i)(2)` with the requested `1975-01_Resolution_Amending_...` naming; this document is a new file, not a rename of any existing file. This document previously referenced a combined record, REF-003-017 (Additional Resolutions 1975); that file has since been deleted from the repository, and all references to it have been removed from this document. The constitutional provision numbering was also corrected from generic sequential "Clause N" labels to the source's actual VI(A)/VI(B) lettering.
 
 ---
 
@@ -194,8 +194,8 @@ This document was created as a new file alongside the existing REF-003-003 file.
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-003 — Functions of the Governing Body (amended clause)
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(2) — Functions of the Governing Body (amended clause)
 - AUTH-001 — Authoritative Reference Standard
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture

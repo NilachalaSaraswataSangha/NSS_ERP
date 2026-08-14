@@ -1,13 +1,13 @@
-# REF-003-012 — Funds of the Kendra Sangha
+# REF-003-C(i)(7) — Duties of the Treasurer
 
 **Document Family:** REF
 
-**Document ID:** REF-003-012
+**Document ID:** REF-003-C(i)(7)
 
-**Title:** Funds of the Kendra Sangha
+**Title:** Duties of the Treasurer
 
 **Repository Path:**
-`docs/01_Authoritative_References/NSS/SECTION-F_FUNDS_OF_THE_KENDRA_SANGHA/`
+`docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
 
 **Parent Reference:** REF-003
 
@@ -27,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-08-11 | Initial Governance By-Law Reference Register |
+| 1.0 | 2026-07-13 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## Covered Sections
 
-- Funds of the Kendra Sangha
+- Duties of the Treasurer
 
 ---
 
@@ -65,17 +65,17 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the constitutional provisions relating to the Funds of the Kendra Sangha of the Nilachala Saraswata Sangha.
+This document serves as the authoritative reference register for the provisions relating to the Duties of the Treasurer of the Nilachala Saraswata Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
-Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
+Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
 
 ---
 
 # Authority
 
-REF-003-012 is an Authoritative Reference document.
+REF-003-C(i)(7) is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,11 +83,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-012 — Funds of the Kendra Sangha
+# REF-003-C(i)(7) — Duties of the Treasurer
 
 ## Subject
 
-Funds of the Kendra Sangha
+Duties of the Treasurer
 
 ---
 
@@ -99,29 +99,15 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**F. [A] Funds of the Kendra Sangha:**
+**(7) Duties of the Treasurer:**
 
-The funds of the Kendra Sangha shall comprise the following:
+In addition to various functions of the Treasurer mentioned in different paragraphs of the Articles, the further functions of the Treasurer shall be as under:
 
-(i) Monthly subscriptions and other subscriptions of special nature realised from its members.
+(a) The Treasurer shall be in charge of the funds of Kendra Sangha and maintain proper accounts of the Sangha funds both cash and bank accounts as regards all receipts and disbursements.
 
-(ii) Annual 'Pranamis' of all kinds of all Sakha Sanghas including Mahila Sanghas.
+(b) The Treasurer shall have powers to disburse any amount from the funds of Kendra Sangha only on the written orders of the President for execution of any scheme apporved by the Governing Body.
 
-(iii) Special Pranamis of all Sakha Sanghas for opening a Sinking fund in the name of the respective Sakha Sanghas under the control of Kendra Sangha.
-
-(iv) Donations or pranamis of various kinds from devotees.
-
-(v) Grants from Government, Semi-Government and official bodies.
-
-(vi) Sale Proceeds of the books / journals etc. published by the Kendra Sangha. Any amount received from this head should be shown in separate account and the funds so collected would only be spent in "Satsikshya Bistar"; in consultation with the Parichalak. Necessary allotments from this head should also be made for meeting personal expenditure of the Parichalak as mentioned in Paras 16 and 17 above (of the Aims and Objects of the Sangha).
-
-(vii) Donations or Pranamis from devotees for specific purposes.
-
-(viii) Income from all immovable properties of the Kendra Sangha.
-
-(ix) Miscellaneous income, if any.
-
-The above provisions are preserved in the source under the heading "F. [A] Funds of the Kendra Sangha" with sub-items numbered (i) through (ix), exactly as they appear in the official Bye-Law.
+The above provisions are preserved in the source under the heading "(7) Duties of the Treasurer," with an unlettered introductory statement followed by sub-items lettered (a) through (b), exactly as they appear in the official Bye-Law.
 
 ---
 
@@ -145,11 +131,19 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-013
+REF-003-C(i)(1)
 
-REF-003-F[c]_Utilisation_of_the_Funds
+REF-003-C(i)(2)
+
+REF-003-C(i)(3)
+
+REF-003-C(i)(4)
+
+REF-003-C(i)(5)
+
+REF-003-C(i)(6)
 
 **Related ERP Documents**
 
@@ -189,11 +183,11 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-08-11
+2026-07-13
 
 **Remarks**
 
-Clause 1(vi) cross-references "Paras 16 and 17" of the Objects of the Society, preserved in REF-001-004 (Objects of the Society), Clauses 16-17. This cross-reference is preserved verbatim from the official Bye-Law and shall not be reinterpreted.
+None
 
 ---
 
@@ -201,9 +195,13 @@ Clause 1(vi) cross-references "Paras 16 and 17" of the Objects of the Society, p
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-013 — Maintenance of the Funds
-- REF-003-F[c]_Utilisation_of_the_Funds — Utilisation of the Funds
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
+- REF-003-C(i)(2) — Functions of the Governing Body
+- REF-003-C(i)(3) — Duties of the President
+- REF-003-C(i)(4) — Duties of the Vice-President
+- REF-003-C(i)(5) — Duties of the Secretary
+- REF-003-C(i)(6) — Duties of the Assistant Secretary
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

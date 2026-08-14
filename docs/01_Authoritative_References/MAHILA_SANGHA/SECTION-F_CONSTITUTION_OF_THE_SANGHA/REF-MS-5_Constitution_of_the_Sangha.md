@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for the Constitution of the Sangha clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — establishing the Sangha's Governing Body composition and General Body, analogous to REF-003-001 in the NSS Bye-Law.
+This document serves as the authoritative reference register for the Constitution of the Sangha clause of the Bye-Law of Nilachala Saraswata Mahila Sangha — establishing the Sangha's Governing Body composition and General Body, analogous to REF-003-C in the NSS Bye-Law.
 
 ---
 
@@ -118,7 +118,7 @@ Pending
 
 REF-MS-6(i) (Constitution of the Governing Body — elaborates on this clause)
 
-REF-003-001 (NSS Constitution of the Kendra Sangha — comparable structure)
+REF-003-C (NSS Constitution of the Kendra Sangha — comparable structure)
 
 ---
 
@@ -149,7 +149,7 @@ None
 # Related Governance
 
 - REF-MS-6(i) — Constitution of the Governing Body
-- REF-003-001 — Constitution of the Kendra Sangha
+- REF-003-C — Constitution of the Kendra Sangha
 - AUTH-001 — Authoritative Reference Standard
 
 ---

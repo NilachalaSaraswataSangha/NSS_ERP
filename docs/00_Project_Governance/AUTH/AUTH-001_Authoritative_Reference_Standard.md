@@ -373,19 +373,11 @@ Deprecation of a document shall not invalidate or recycle its identifier.
 
 Each REF document shall belong to exactly one REF family.
 
-REF families correspond to officially recognized governing document sections.
+A REF family corresponds to one or more officially recognized governing document sections grouped under a single family identifier. A REF family may cover a single section (e.g. `REF-001` for Section A) or multiple contiguous sections of the same governing document (e.g. `REF-003`, which covers Sections C through I of the NSS Bye-Law), provided the composite document identifier (AUTH-ID-003) preserves the official section lettering needed to uniquely distinguish every document within that family.
 
-Example:
+The current REF family assignments for the NSS Bye-Law are recorded in Appendix B.
 
-| REF Family | Governing Section |
-|------------|-------------------|
-| REF-001 | Section A |
-| REF-002 | Section B |
-| REF-003 | Section C |
-| ... | ... |
-| REF-010 | Section J |
-
-The mapping between REF families and governing document sections is permanent.
+The mapping between a REF family and its governing document section(s), once assigned, is permanent. See AUTH-ID-002A for the process governing creation of new REF families for other governing entities.
 
 ---
 
@@ -422,11 +414,11 @@ Each REF document identifier shall consist of:
 Example:
 
 ```text
-REF-003-C(2)
+REF-001-A
 
-REF-006-F(a)
+REF-003-C(i)(2)
 
-REF-010-J
+REF-003-F[A]
 ```
 
 The official constitutional reference shall preserve the official numbering, lettering, punctuation, and hierarchy exactly as published in the governing document.
@@ -451,9 +443,9 @@ General format:
 Example:
 
 ```text
-REF-003-C(2)_Functions_of_the_Governing_Body.md
+REF-003-C(i)(2)_Functions_of_the_Governing_Body.md
 
-REF-006-F(c)_Utilisation_of_the_Funds.md
+REF-003-F[b]_Maintenance_of_the_Funds.md
 ```
 
 The filename exists for repository readability.
@@ -1050,18 +1042,11 @@ The normative repository architecture is defined by AUTH-ORG-001.
 
 ## Appendix B — REF Family Mapping
 
-| REF Family | Official Constitutional Section |
-|------------|---------------------------------|
-| REF-001 | Section A |
-| REF-002 | Section B |
-| REF-003 | Section C |
-| REF-004 | Section D |
-| REF-005 | Section E |
-| REF-006 | Section F |
-| REF-007 | Section G |
-| REF-008 | Section H |
-| REF-009 | Section I |
-| REF-010 | Section J |
+| REF Family | Governing Section(s) | Notes |
+|------------|-----------------------|-------|
+| REF-001 | Section A | Single section |
+| REF-002 | Section B | Single section |
+| REF-003 | Sections C through I | Composite locator (AUTH-ID-003) distinguishes documents within Sections C–I: `C(i)(1)`–`C(i)(8)` for the Governing Body sub-clauses, `D`, `E`, `F[A]`, `F[b]`, `F[c]`, `G`, `H`, `I` |
 
 | REF Family | Governing Entity | Governing Document |
 |------------|-------------------|---------------------|
@@ -1075,27 +1060,41 @@ The normative document identification rules are defined in Section 7 (including 
 
 ## Appendix C — File Naming Examples
 
-Examples:
+Examples (actual repository filenames):
 
 ```text
-REF-001-A_NSS_Constitution.md
+REF-001_NSS_CONSTITUTION.md
 
-REF-002-B_Membership.md
+REF-002_NSS_MEMBERSHIP_BYLAWS.md
 
-REF-003-C(1)_Governing_Body.md
+REF-003-C_Constitution_of_the_Kendra_Sangha.md
 
-REF-003-C(2)_Functions_of_the_Governing_Body.md
+REF-003-C(i)(1)_Constitution_of_the_Governing_Body.md
 
-REF-006-F(a)_Funds_of_the_Kendra_Sangha.md
+REF-003-C(i)(2)_Functions_of_the_Governing_Body.md
 
-REF-006-F(c)_Utilisation_of_the_Funds.md
+REF-003-C(i)(3)_Duties_of_the_President.md
 
-REF-010-J_Resolutions.md
+REF-003-D_Advisory_Board.md
+
+REF-003-E_General_Body.md
+
+REF-003-F[A]_Funds_of_the_Kendra_Sangha.md
+
+REF-003-F[b]_Maintenance_of_the_Funds.md
+
+REF-003-F[c]_Utilisation_of_the_Funds.md
+
+REF-003-G_Audit.md
+
+REF-003-H_Power_to_Amend.md
+
+REF-003-I_Dissolution.md
 ```
 
 These examples illustrate the naming convention.
 
-The normative naming rules are defined in Section 7.
+The normative naming rules are defined in Section 7 (AUTH-ID-004).
 
 ---
 

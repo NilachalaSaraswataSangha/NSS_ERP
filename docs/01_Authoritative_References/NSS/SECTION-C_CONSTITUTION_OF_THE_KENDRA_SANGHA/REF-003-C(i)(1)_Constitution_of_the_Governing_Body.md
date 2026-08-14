@@ -1,8 +1,8 @@
-# REF-003-002 — Governing Body
+# REF-003-C(i)(1) — Governing Body
 
 **Document Family:** REF
 
-**Document ID:** REF-003-002
+**Document ID:** REF-003-C(i)(1)
 
 **Title:** Governing Body
 
@@ -75,7 +75,7 @@ Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 # Authority
 
-REF-003-002 is an Authoritative Reference document.
+REF-003-C(i)(1) is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,7 +83,7 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-002 — Governing Body
+# REF-003-C(i)(1) — Governing Body
 
 ## Subject
 
@@ -161,7 +161,7 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
 **Related ERP Documents**
 
@@ -217,7 +217,7 @@ The current Governing Body is maintained separately through the applicable gover
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
+- REF-003-C — Constitution of the Kendra Sangha
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

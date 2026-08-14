@@ -1,8 +1,8 @@
-# REF-003-010 — Advisory Board
+# REF-003-D — Advisory Board
 
 **Document Family:** REF
 
-**Document ID:** REF-003-010
+**Document ID:** REF-003-D
 
 **Title:** Advisory Board
 
@@ -78,7 +78,7 @@ Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 # Authority
 
-REF-003-010 is an Authoritative Reference document.
+REF-003-D is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -86,7 +86,7 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-010 — Advisory Board
+# REF-003-D — Advisory Board
 
 ## Subject
 
@@ -208,23 +208,23 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-002
+REF-003-C(i)(1)
 
-REF-003-003
+REF-003-C(i)(2)
 
-REF-003-004
+REF-003-C(i)(3)
 
-REF-003-005
+REF-003-C(i)(4)
 
-REF-003-006
+REF-003-C(i)(5)
 
-REF-003-007
+REF-003-C(i)(6)
 
-REF-003-008
+REF-003-C(i)(7)
 
-REF-003-009
+REF-003-C(i)(8)
 
 **Related ERP Documents**
 
@@ -268,7 +268,7 @@ REF-SRC-003
 
 **Remarks**
 
-The cross-reference to "Para (C)(2)(xiii)" in the Duties of the Advisory Board refers to the annual budget provision in REF-003-003 (Functions of the Governing Body, Clause (xiii)), which requires draft budgets and financially significant draft resolutions to be referred to the Advisory Board for considered views before final Governing Body consideration. This cross-reference is preserved verbatim from the official Bye-Law and shall not be reinterpreted, and has been confirmed against both the source PDF and the source docx.
+The cross-reference to "Para (C)(2)(xiii)" in the Duties of the Advisory Board refers to the annual budget provision in REF-003-C(i)(2) (Functions of the Governing Body, Clause (xiii)), which requires draft budgets and financially significant draft resolutions to be referred to the Advisory Board for considered views before final Governing Body consideration. This cross-reference is preserved verbatim from the official Bye-Law and shall not be reinterpreted, and has been confirmed against both the source PDF and the source docx.
 
 ---
 
@@ -276,15 +276,15 @@ The cross-reference to "Para (C)(2)(xiii)" in the Duties of the Advisory Board r
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
-- REF-003-003 — Functions of the Governing Body
-- REF-003-004 — Duties of the President
-- REF-003-005 — Duties of the Vice-President
-- REF-003-006 — Duties of the Secretary
-- REF-003-007 — Duties of the Assistant Secretary
-- REF-003-008 — Duties of the Treasurer
-- REF-003-009 — Duties of the Parichalak
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
+- REF-003-C(i)(2) — Functions of the Governing Body
+- REF-003-C(i)(3) — Duties of the President
+- REF-003-C(i)(4) — Duties of the Vice-President
+- REF-003-C(i)(5) — Duties of the Secretary
+- REF-003-C(i)(6) — Duties of the Assistant Secretary
+- REF-003-C(i)(7) — Duties of the Treasurer
+- REF-003-C(i)(8) — Duties of the Parichalak
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

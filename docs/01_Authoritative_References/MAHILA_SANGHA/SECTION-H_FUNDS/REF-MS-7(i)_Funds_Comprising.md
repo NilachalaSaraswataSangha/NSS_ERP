@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (i) of Clause 7 ("Funds") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-012 (Funds of the Kendra Sangha) in the NSS Bye-Law. Per explicit project instruction, Clause 7 is documented as three separate documents (7(i), 7(ii), 7(iii)) mirroring the three-part treatment applied to the NSS Funds section.
+This document serves as the authoritative reference register for sub-clause (i) of Clause 7 ("Funds") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-F[A] (Funds of the Kendra Sangha) in the NSS Bye-Law. Per explicit project instruction, Clause 7 is documented as three separate documents (7(i), 7(ii), 7(iii)) mirroring the three-part treatment applied to the NSS Funds section.
 
 ---
 
@@ -127,7 +127,7 @@ REF-MS-7(iii) (Utilisation of funds)
 
 REF-MS-6(viii) (Duties of Treasurer)
 
-REF-003-012 (NSS Funds of the Kendra Sangha — comparable structure)
+REF-003-F[A] (NSS Funds of the Kendra Sangha — comparable structure)
 
 ---
 
@@ -159,7 +159,7 @@ None
 
 - REF-MS-7(ii) — Maintenance of Funds
 - REF-MS-7(iii) — Utilisation of Funds
-- REF-003-012 — Funds of the Kendra Sangha (NSS)
+- REF-003-F[A] — Funds of the Kendra Sangha (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

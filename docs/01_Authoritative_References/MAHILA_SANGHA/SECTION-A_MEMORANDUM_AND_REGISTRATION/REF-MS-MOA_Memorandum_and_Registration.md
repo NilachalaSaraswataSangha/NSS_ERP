@@ -308,7 +308,7 @@ Sd/- Hemlata Das, Secretary
 
 Sd/- Illegible
 
-The above roster and certification are preserved verbatim from the source, following the same treatment as NSS's own historical Governing Body roster embedded in REF-003-002.
+The above roster and certification are preserved verbatim from the source, following the same treatment as NSS's own historical Governing Body roster embedded in REF-003-C(i)(1).
 
 ---
 
@@ -387,7 +387,7 @@ Source content confirmed by the project as already validated docx-against-PDF (s
 - GOV-ORG-001 — Apex Organizational Governance Principle (Mahila Sangha subordinate to NSS)
 - GOV-ORG-002 — Constitutional Authority Precedence
 - REF-001 — NSS Constitution
-- REF-003-001 — Constitution of the Kendra Sangha
+- REF-003-C — Constitution of the Kendra Sangha
 - AUTH-001 — Authoritative Reference Standard (REF-MS family; new dedicated identifier scheme distinct from the REF-00X family used for NSS's own Bye-law sections)
 
 ---

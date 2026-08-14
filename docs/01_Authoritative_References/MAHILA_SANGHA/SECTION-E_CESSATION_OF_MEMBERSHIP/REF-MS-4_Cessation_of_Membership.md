@@ -113,7 +113,7 @@ REF-MS-2 (Membership)
 
 REF-MS-6(iv) (Functions of the Parichalak)
 
-REF-003-002-d (NSS Governing Body — Cessation of Membership provision, comparable structure)
+REF-003-C(i)(1)-d (NSS Governing Body — Cessation of Membership provision, comparable structure)
 
 ---
 

@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (vii) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha. There is no directly equivalent office in the NSS Bye-Law (NSS has an "Assistant Secretary," see REF-003-007).
+This document serves as the authoritative reference register for sub-clause (vii) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha. There is no directly equivalent office in the NSS Bye-Law (NSS has an "Assistant Secretary," see REF-003-C(i)(6)).
 
 ---
 
@@ -107,7 +107,7 @@ Pending
 
 REF-MS-6(vi) (Duties of the Secretary, cross-referenced as "para 6(vi)")
 
-REF-003-007 (NSS Duties of the Assistant Secretary — closest comparable office, though titled differently)
+REF-003-C(i)(6) (NSS Duties of the Assistant Secretary — closest comparable office, though titled differently)
 
 ---
 
@@ -139,7 +139,7 @@ The Mahila Sangha's office is titled "Joint Secretary," not "Assistant Secretary
 
 - REF-MS-6(i) — Constitution of the Governing Body
 - REF-MS-6(vi) — Duties of the Secretary
-- REF-003-007 — Duties of the Assistant Secretary (NSS, comparable office)
+- REF-003-C(i)(6) — Duties of the Assistant Secretary (NSS, comparable office)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

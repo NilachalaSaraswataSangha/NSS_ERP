@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (ii) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-003 (Functions of the Governing Body) in the NSS Bye-Law.
+This document serves as the authoritative reference register for sub-clause (ii) of Clause 6 ("Governing Body") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-C(i)(2) (Functions of the Governing Body) in the NSS Bye-Law.
 
 ---
 
@@ -105,7 +105,7 @@ They shall frame rules and regulations from time to time for regulating the gene
 
 **J)** All possible steps should be taken for proper preservation of all articles attached with the sacred memory of Sri Sri Thakur handed over to the Nilachala Saraswata Sangha by the President vide the list furnished with her letter to the said Sangha and also published in Arya Darpan of Bhadra issue of 1369 Sal.
 
-The above provisions are preserved in the source under the heading "ii) Powers and duties of the Governing Body" with sub-items lettered a), then an unlabeled paragraph, then c) through i), and a final item printed as "J)" (capital J, as in the source) rather than lowercase "j)". **This is confirmed as the actual structure of the source: there is no labeled sub-item "b)" — the source's own printed text moves directly from "a)" to an unlabeled paragraph and then to "c)".** This gap and the capitalisation of the final "J)" have been preserved exactly as printed, not corrected or relettered, consistent with the project's source-fidelity rule (see the equivalent treatment applied to NSS's Advisory Board clause, REF-003-010).
+The above provisions are preserved in the source under the heading "ii) Powers and duties of the Governing Body" with sub-items lettered a), then an unlabeled paragraph, then c) through i), and a final item printed as "J)" (capital J, as in the source) rather than lowercase "j)". **This is confirmed as the actual structure of the source: there is no labeled sub-item "b)" — the source's own printed text moves directly from "a)" to an unlabeled paragraph and then to "c)".** This gap and the capitalisation of the final "J)" have been preserved exactly as printed, not corrected or relettered, consistent with the project's source-fidelity rule (see the equivalent treatment applied to NSS's Advisory Board clause, REF-003-D).
 
 ---
 
@@ -131,7 +131,7 @@ REF-MS-7(i) (Funds — referenced via receipts/disbursements duties)
 
 REF-MS-MOA (naming of Smt. Surabala Devi, Smt. Narayani Devi, and the Taradapada property)
 
-REF-003-003 (NSS Functions of the Governing Body — comparable structure)
+REF-003-C(i)(2) (NSS Functions of the Governing Body — comparable structure)
 
 ---
 
@@ -162,7 +162,7 @@ Confirmed gap in source lettering: no "b)" sub-item exists between "a)" and the 
 # Related Governance
 
 - REF-MS-6(i) — Constitution of the Governing Body
-- REF-003-003 — Functions of the Governing Body (NSS)
+- REF-003-C(i)(2) — Functions of the Governing Body (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

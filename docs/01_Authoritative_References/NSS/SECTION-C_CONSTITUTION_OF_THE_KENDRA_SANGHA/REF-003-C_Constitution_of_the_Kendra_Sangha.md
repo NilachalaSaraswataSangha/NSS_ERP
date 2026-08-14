@@ -1,10 +1,10 @@
-# REF-003-006 — Duties of the Secretary
+# REF-003-C — Constitution of the Kendra Sangha
 
 **Document Family:** REF
 
-**Document ID:** REF-003-006
+**Document ID:** REF-003-C
 
-**Title:** Duties of the Secretary
+**Title:** Constitution of the Kendra Sangha
 
 **Repository Path:**
 `docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
@@ -27,7 +27,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-13 | Initial Governance By-Law Reference Register |
+| 1.0 | 2026-07-10 | Initial Governance By-Law Reference Register |
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## Covered Sections
 
-- Duties of the Secretary
+- Constitution of the Kendra Sangha
 
 ---
 
@@ -65,17 +65,17 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the provisions relating to the Duties of the Secretary of the Nilachala Saraswata Sangha.
+This document serves as the authoritative reference register for the constitutional provisions relating to the Constitution of the Kendra Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
-Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall prevail.
+Where ambiguity or inconsistency exists, the official Bye-Law shall prevail.
 
 ---
 
 # Authority
 
-REF-003-006 is an Authoritative Reference document.
+REF-003-C is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,11 +83,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-006 — Duties of the Secretary
+# REF-003-C — Constitution of the Kendra Sangha
 
 ## Subject
 
-Duties of the Secretary
+Constitution of the Kendra Sangha
 
 ---
 
@@ -99,23 +99,15 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**(5) Duties of the Secretary:**
+**(c) Constitution of the Kendra Sangha:** The Kendra Sangha shall mainly consist of three organs:
 
-In addition to various functions of the Secretary mentioned in different paragraphs of the Article, the further functions of the Secretary shall be as under:
+(i) a Governing Body
 
-(a) The Secretary shall prepare agenda for the meeting of the Governing Body and the General Body and issue notices for convening the meetings in consultation with the President of the Governing Body.
+(ii) an Advisory Board and
 
-(b) The Secretary shall maintain all the records, the accounts and documents of the Kendra Sangha.
+(iii) a General Body
 
-(c) The secretary shall arrange to send copies of all the resolutions and proceedings of all the meetings of the Governing Body and those of the General Body to all the concerned members.
-
-(d) The Secretary shall ensure implementation of all the decisions taken by the Governing Body and the General Body.
-
-(e) The Secretary shall arrange for the preparation of the Draft Annual Budget of the Kendra Sangha for the consideration of the Governing Body.
-
-(f) The Secretary shall arrange to prepare an Annual Report of the activities of the Kendra sangha and other organisations run/controlled by it.
-
-The above provisions are preserved in the source under the heading "(5) Duties of the Secretary," with an unlettered introductory statement followed by sub-items lettered (a) through (f), exactly as they appear in the official Bye-Law.
+The above provision is preserved in the source under the heading "(c) Constitution of the Kendra Sangha" with the three organs listed as (i), (ii) and (iii), not further subdivided in the official Bye-Law at this introductory level.
 
 ---
 
@@ -138,16 +130,6 @@ Pending
 REF-001
 
 REF-002
-
-REF-003-001
-
-REF-003-002
-
-REF-003-003
-
-REF-003-004
-
-REF-003-005
 
 **Related ERP Documents**
 
@@ -187,7 +169,7 @@ REF-SRC-003
 
 **Last Verified**
 
-2026-07-13
+2026-07-10
 
 **Remarks**
 
@@ -199,11 +181,6 @@ None
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
-- REF-003-003 — Functions of the Governing Body
-- REF-003-004 — Duties of the President
-- REF-003-005 — Duties of the Vice-President
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard

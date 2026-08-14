@@ -341,7 +341,7 @@ REF-SRC-001
 | 8 | Satyapriya Mohanty | Kancha Lane, Bhubaneswar |
 | 9 | Padmanabha Samal | Rtd. Executive Engineer, Jobra, Cuttack |
 
-*(Note: for Chaitanya Ch. Das and Raghunath Pati, the addresses shown are those specifically printed alongside their names in the Memorandum's own signatory list in the source. For the remaining 7 signatories, addresses are cross-referenced from the "At present the Governing Body consists of..." roster in REF-003-002 (Section C(i)(1), Constitution of the Governing Body), which lists the same 9 individuals — since the founding Memorandum signatories and the initial Governing Body membership are the same group of people; the Memorandum's own printed source did not separately list addresses for those 7. Minor spelling variants between listings (e.g. "Damodar Das" here vs. "Damodar Dash" in the Governing Body roster; "Baman Ch. Parida" vs. "Baman Charan Parida"; "Jagannath Samantara" vs. "Jagannath Samantray") have been preserved as printed in each respective source, not normalized to match.)*
+*(Note: for Chaitanya Ch. Das and Raghunath Pati, the addresses shown are those specifically printed alongside their names in the Memorandum's own signatory list in the source. For the remaining 7 signatories, addresses are cross-referenced from the "At present the Governing Body consists of..." roster in REF-003-C(i)(1) (Section C(i)(1), Constitution of the Governing Body), which lists the same 9 individuals — since the founding Memorandum signatories and the initial Governing Body membership are the same group of people; the Memorandum's own printed source did not separately list addresses for those 7. Minor spelling variants between listings (e.g. "Damodar Das" here vs. "Damodar Dash" in the Governing Body roster; "Baman Ch. Parida" vs. "Baman Charan Parida"; "Jagannath Samantara" vs. "Jagannath Samantray") have been preserved as printed in each respective source, not normalized to match.)*
 
 **Name, Signature and Addresses of Witnesses:**
 
@@ -378,7 +378,7 @@ For Registrar of Societies, Orissa
 
 The above provisions are preserved in the source as a single narrative registration record (the signed declaration, founding-members list, witnesses list, attestation, registration particulars, and the Registrar's certification) and is not subdivided into numbered or lettered clauses in the official Bye-Law, apart from the declaration's own "6." numbering. There is no separate heading (e.g. "Founding Members" or "Memorandum of Association") preceding the declaration sentence in the source — the number "6." is attached directly to it, continuing the top-level numbering from "3. Objects of the Society" (REF-001-004) above. This content sits between that short introductory "3. Objects of the Society" paragraph and the fuller, second "3. OBJECTS OF THE SOCIETY:" heading with the numbered 1-20 list (REF-001-004-B) below.
 
-**Important — distinct from other certification blocks in the source:** this certification/registration chain (attested by P. Panda, countersigned by P.C. Patnaik, "Certified to be a True Copy") is specific to the Memorandum of Association and is separate from two other certification instances appearing elsewhere in the Bye-Law: (a) the certification block appearing immediately after the Dissolution section (see REF-003-016, Section I), signed by Chaitanya Ch. Das (President), Durga Charan Mohanty (Secretary and Parichalak), and Gunanidhi Patnaik (Vice-President), with its own registration particulars and P.C. Patnaik countersignature; and (b) the Executive Body attestation appearing after the 1975 Resolutions (see `REF-003-C(i)(8)-1975-02`), signed by Chaitanya Charan Das (President), Durga Charan Mohanty (Secretary), and Raghunath Pati (Asst. Secretary). All three are preserved separately, as they appear in three distinct locations in the source, and are not merged or deduplicated.
+**Important — distinct from other certification blocks in the source:** this certification/registration chain (attested by P. Panda, countersigned by P.C. Patnaik, "Certified to be a True Copy") is specific to the Memorandum of Association and is separate from two other certification instances appearing elsewhere in the Bye-Law: (a) the certification block appearing immediately after the Dissolution section (see REF-003-I, Section I), signed by Chaitanya Ch. Das (President), Durga Charan Mohanty (Secretary and Parichalak), and Gunanidhi Patnaik (Vice-President), with its own registration particulars and P.C. Patnaik countersignature; and (b) the Executive Body attestation appearing after the 1975 Resolutions (see `REF-003-C(i)(8)-1975-02`), signed by Chaitanya Charan Das (President), Durga Charan Mohanty (Secretary), and Raghunath Pati (Asst. Secretary). All three are preserved separately, as they appear in three distinct locations in the source, and are not merged or deduplicated.
 
 ---
 
@@ -410,7 +410,7 @@ REF-SRC-001
 
 **Remarks**
 
-Cross-references REF-003-002 (Governing Body roster, for addresses of 7 of the 9 founding members), REF-003-016 (Dissolution certification block), and `REF-003-C(i)(8)-1975-02` (Executive Body attestation) — see distinctions noted above.
+Cross-references REF-003-C(i)(1) (Governing Body roster, for addresses of 7 of the 9 founding members), REF-003-I (Dissolution certification block), and `REF-003-C(i)(8)-1975-02` (Executive Body attestation) — see distinctions noted above.
 
 ---
 
@@ -521,9 +521,9 @@ This section's identifier (REF-001-004-B) distinguishes it from the short introd
 - GOV-002 — Requirement Traceability Standard
 - ERP-001 — Identity Model
 - ERP-003 — Governance Model
-- REF-003-002 — Governing Body (address cross-reference for founding members)
-- REF-003-016 — Dissolution (separate certification block)
-- REF-003-003 — Functions of the Governing Body (cross-referenced from Advisory Board clause via REF-003-010)
+- REF-003-C(i)(1) — Governing Body (address cross-reference for founding members)
+- REF-003-I — Dissolution (separate certification block)
+- REF-003-C(i)(2) — Functions of the Governing Body (cross-referenced from Advisory Board clause via REF-003-D)
 
 ---
 

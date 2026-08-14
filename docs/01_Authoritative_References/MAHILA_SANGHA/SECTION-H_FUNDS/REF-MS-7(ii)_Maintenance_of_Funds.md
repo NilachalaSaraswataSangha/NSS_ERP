@@ -57,7 +57,7 @@ REF-SRC-MS
 
 # Introduction
 
-This document serves as the authoritative reference register for sub-clause (ii) of Clause 7 ("Funds") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-013 (Maintenance of the Funds) in the NSS Bye-Law.
+This document serves as the authoritative reference register for sub-clause (ii) of Clause 7 ("Funds") of the Bye-Law of Nilachala Saraswata Mahila Sangha — analogous to REF-003-F[b] (Maintenance of the Funds) in the NSS Bye-Law.
 
 ---
 
@@ -115,7 +115,7 @@ REF-MS-6(vi) (Duties of the Secretary)
 
 REF-MS-6(viii) (Duties of Treasurer)
 
-REF-003-013 (NSS Maintenance of the Funds — comparable structure)
+REF-003-F[b] (NSS Maintenance of the Funds — comparable structure)
 
 ---
 
@@ -147,7 +147,7 @@ Flagged wording ambiguity in source ("State Bank or of India") — preserved ver
 
 - REF-MS-7(i) — Funds Comprising
 - REF-MS-7(iii) — Utilisation of Funds
-- REF-003-013 — Maintenance of the Funds (NSS)
+- REF-003-F[b] — Maintenance of the Funds (NSS)
 - AUTH-001 — Authoritative Reference Standard
 
 ---

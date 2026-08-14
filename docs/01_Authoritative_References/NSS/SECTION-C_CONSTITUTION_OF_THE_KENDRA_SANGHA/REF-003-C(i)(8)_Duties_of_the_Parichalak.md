@@ -1,10 +1,10 @@
-# REF-003-007 — Duties of the Assistant Secretary
+# REF-003-C(i)(8) — Duties of the Parichalak
 
 **Document Family:** REF
 
-**Document ID:** REF-003-007
+**Document ID:** REF-003-C(i)(8)
 
-**Title:** Duties of the Assistant Secretary
+**Title:** Duties of the Parichalak
 
 **Repository Path:**
 `docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/`
@@ -35,7 +35,7 @@
 
 ## Covered Sections
 
-- Duties of the Assistant Secretary
+- Duties of the Parichalak
 
 ---
 
@@ -65,7 +65,7 @@ REF-SRC-003
 
 # Introduction
 
-This document serves as the authoritative reference register for the provisions relating to the Duties of the Assistant Secretary of the Nilachala Saraswata Sangha.
+This document serves as the authoritative reference register for the provisions relating to the Duties of the Parichalak of the Nilachala Saraswata Sangha.
 
 It preserves the original Governance Bye-Law provisions in a structured reference format without interpretation, modification or ERP implementation guidance.
 
@@ -75,7 +75,7 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 # Authority
 
-REF-003-007 is an Authoritative Reference document.
+REF-003-C(i)(8) is an Authoritative Reference document.
 
 It preserves the official Governance Bye-Laws without introducing ERP interpretation, implementation guidance or business rules.
 
@@ -83,11 +83,11 @@ Where ambiguity, inconsistency, or conflict exists, the official Bye-Law shall p
 
 ---
 
-# REF-003-007 — Duties of the Assistant Secretary
+# REF-003-C(i)(8) — Duties of the Parichalak
 
 ## Subject
 
-Duties of the Assistant Secretary
+Duties of the Parichalak
 
 ---
 
@@ -99,9 +99,23 @@ REF-SRC-003
 
 ### Constitutional Provision
 
-**(6) Duties of the Assistant Secretary:** The Assistant Secretary shall assist the Secretary in discharging his duties, as enumerated above.
+**(8) Duties of the Parichalak:**
 
-The above provision is preserved in the source under the heading "(6) Duties of the Assistant Secretary" as a single unlettered statement, not subdivided into further clauses in the official Bye-Law.
+In addition to the various functions of the Parichalak mentioned in different paragraphs in this Article, further functions of the Parichalak shall be as under:
+
+(i) The Parichalak of the Kendra Sangha shall function as the Chief Organiser of the Kendra Sangha and its different branches, including Mahila Sanghas and Sikshya Kendras.
+
+(ii) The Parichalak shall have power to inspect and supervise all the branches affiliated to the Kendra Sangha and take disciplinary measures against any Sakha Sanghas including Mahila Sanghas or any individual member in the manner prescribed by the Governing Body.
+
+(iii) The Parichalak shall arrange to distribute the annual 'Parichaya Patra' (Identity Cards) and 'Anumati Patra' to all the members of the Kendra Sangha including Mahila Sanghas at the appropriate time in the conventional manner.
+
+(iv) The Parichalak shall impart 'Satsikshya' to the members of the Kendra and the Sakha Sanghas including Mahila Sanghas both in theory and practice and shall address the members of the Sangha in congregation for 'Jnanalochana' and 'Bhava Binimaya'.
+
+(v) The Parichalak is competent to accord permission to start a "Patha Chakra" at any place after due enquiry in the prescribed manner.
+
+(vi) He shall also discharge any other function as would be entrusted to him by the Governing Body from time to time.
+
+The above provisions are preserved in the source under the heading "(8) Duties of the Parichalak," with an unlettered introductory statement followed by sub-items numbered (i) through (vi), exactly as they appear in the official Bye-Law.
 
 ---
 
@@ -125,17 +139,21 @@ REF-001
 
 REF-002
 
-REF-003-001
+REF-003-C
 
-REF-003-002
+REF-003-C(i)(1)
 
-REF-003-003
+REF-003-C(i)(2)
 
-REF-003-004
+REF-003-C(i)(3)
 
-REF-003-005
+REF-003-C(i)(4)
 
-REF-003-006
+REF-003-C(i)(5)
+
+REF-003-C(i)(6)
+
+REF-003-C(i)(7)
 
 **Related ERP Documents**
 
@@ -187,12 +205,14 @@ None
 
 - REF-001 — NSS Constitution
 - REF-002 — NSS Membership By-Laws
-- REF-003-001 — Constitution of the Kendra Sangha
-- REF-003-002 — Governing Body
-- REF-003-003 — Functions of the Governing Body
-- REF-003-004 — Duties of the President
-- REF-003-005 — Duties of the Vice-President
-- REF-003-006 — Duties of the Secretary
+- REF-003-C — Constitution of the Kendra Sangha
+- REF-003-C(i)(1) — Governing Body
+- REF-003-C(i)(2) — Functions of the Governing Body
+- REF-003-C(i)(3) — Duties of the President
+- REF-003-C(i)(4) — Duties of the Vice-President
+- REF-003-C(i)(5) — Duties of the Secretary
+- REF-003-C(i)(6) — Duties of the Assistant Secretary
+- REF-003-C(i)(7) — Duties of the Treasurer
 - GOV-000 — Enterprise Governance Framework
 - GOV-001 — Repository Governance & Documentation Architecture
 - GOV-002 — Requirement Traceability Standard
