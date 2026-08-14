@@ -338,12 +338,16 @@ address (on the `organization` table directly, not a separate `organization_addr
 **do not reopen without checking current governance baseline first; Organization Module is
 frozen.**
 
-**Mahila Sangha:** Registered entity under NSS constitutional framework, own Constitution &
-Bye-Laws, but subordinate to NSS. **No separate membership system** — Mahila members use the
-same Probationary/Regular/Associate framework as everyone else; supervised by the central
-**Mahila Parichalana Mandali** over branch Mahila Sanghas. Exact Mandali size/election
-method/term/office-bearer positions still need authoritative-source verification — don't
-invent.
+**Mahila Sangha:** Every Sakha Sangha (branch) has its own local Mahila Sangha (women's wing),
+per `REF-001` Clause 12 ("To organise 'Mahila Sanghas' in different 'Sakha Sanghas'... which
+will function as a part of the concerned Sakha Sangha and the Kendra Sangha"). All of these
+local Mahila Sanghas are governed centrally by **one Mahila Parichalana Mandali**. The 22
+`REF-MS-*` documents transcribed from `NSS_Mahila_Sangha_Bye_Law.docx` are the **central
+Mandali's own Bye-Law** — its `REF-MS-6(i)` through `REF-MS-6(viii)` clauses (President,
+Vice-President, Secretary, Joint Secretary, Treasurer, Parichalak) define the Mandali's own
+governing structure, not a single local branch's. **No separate membership system** — Mahila
+members use the same Probationary/Regular/Associate framework as everyone else. Confirmed
+2026-08-14 by project owner; see §12.
 
 **Kumari Sangha / Kishore Puja:** Each has its own ID distinct from Sangha Sevi ID
 (`Kumari ID ≠ Sangha Sevi ID`, `Kishore ID ≠ Sangha Sevi ID`) — not treated as ordinary
@@ -445,6 +449,25 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-14 — Clarified Mahila Parichalana Mandali structure: central body governing all Sakha Sangha-level Mahila Sanghas (Enchanté)
+- Context: An earlier §13 open question stated the Mandali's composition/election/term needed
+  source verification. Exhaustive search of both Bye-Law PDFs/docx files found zero mentions of
+  "Mahila Parichalana Mandali" anywhere in the source text, prompting a check-in with the
+  project owner rather than guessing. Owner corrected an intermediate (also wrong) framing in
+  two steps: (1) confirmed `REF-001` Clause 12 already establishes that every Sakha Sangha has
+  its own local Mahila Sangha, functioning as part of that Sakha Sangha and the Kendra Sangha;
+  (2) confirmed all of these local Mahila Sanghas are governed centrally by **one** Mahila
+  Parichalana Mandali, and that the 22 `REF-MS-*` documents (transcribed from
+  `NSS_Mahila_Sangha_Bye_Law.docx`) are that **central Mandali's own Bye-Law** — its
+  `REF-MS-6(i)`–`REF-MS-6(viii)` clauses define the Mandali's own governing structure, not one
+  local branch's.
+- Decision/Outcome: Corrected §7 and §13 of this file, and
+  `docs/03_Solution/modules/mahila/README.md`, to state the Mandali is a single central
+  Governing Body spanning all Sakha Sangha-level Mahila Sanghas — not a separate unverified
+  layer, and not scoped to one local branch. §13's open item is now resolved and struck through.
+- Follow-up: None outstanding on this specific question. The only remaining genuinely open item
+  in §13 is the final conceptual schema table count.
 
 ### 2026-08-14 — Renamed Sections C-I to composite clause locators; corrected AUTH-001's fictional examples (Enchanté)
 - Context: User asked to rename "the bylaw files." Investigation on `feature/ref-renaming`
@@ -744,8 +767,11 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 - ~~Governance Authority vs Decision Authority vs Approving Authority vs Project Owner vs
   Project Steering Committee~~ — **resolved 2026-08-14**, see §6/§12/GDR-004.
 - ~~Governance document status lifecycle~~ — **resolved 2026-08-13**, see §6/§12/GDR-003.
-- Mahila Parichalana Mandali exact composition/election/term — needs authoritative-source
-  verification (§7).
+- ~~Mahila Parichalana Mandali exact composition/election/term~~ — **resolved 2026-08-14**:
+  confirmed by project owner that every Sakha Sangha has its own local Mahila Sangha
+  (per `REF-001` Clause 12), and all of these are governed centrally by one Mahila Parichalana
+  Mandali. The `REF-MS-*` corpus is that central Mandali's own Bye-Law — `REF-MS-6(i)`–
+  `REF-MS-6(viii)` define the Mandali's own governing structure. See §7/§12.
 - Final conceptual schema table count — genuinely open, ranges 88–130+ depending on
   unresolved operational modules (§8, §10).
 - ~~`AUTH-001` has no definition of the `REF-MS-XXX` identifier family~~ — **resolved**, see §12
