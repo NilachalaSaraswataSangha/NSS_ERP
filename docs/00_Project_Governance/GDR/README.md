@@ -13,3 +13,8 @@ approving, recording, monitoring, and retiring individual governance decisions.
   document-level `Status` from per-rule `Rule Maturity`, adds `GOV-LIFE-006` (Draft → Review →
   Approved → Superseded/Retired) to `GOV-001`, and advances `AUTH-001`/`GOV-001` from Draft to
   Approved.
+- `GDR-004_Governance_Authority_Structure_Clarification.md` — establishes that Project Owner =
+  NSS itself, Governance Authority = Project Steering Committee (same body), and final Decision
+  Authority = NSS Governing Body (via President/Parichalak). Adds `GOV-ROLE-006` to `GOV-001`;
+  corrects the `Owner` field in `GOV-002..005`/`GDR-001` and the `Decision Authority` field in
+  `GDR-002`/`GDR-003` (via preserved correction notes) to match.

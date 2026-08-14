@@ -8,7 +8,7 @@
 | Decision Title | Governance Document Status Lifecycle and Rule Maturity Separation |
 | Decision Type | Governance Decision Record |
 | Register | Governance Decision Register (GDR-001) |
-| Decision Authority | NSS ERP Governance Committee |
+| Decision Authority | NSS Governing Body |
 | Approver | Project Steering Committee |
 | Decision Status | Approved |
 | Effective Date | 2026-08-13 |
@@ -62,6 +62,12 @@ This produced a real contradiction: both AUTH-001 and GOV-001 showed document-le
 ## 6. Approval
 
 Approved as a normative addition to GOV-001 (new rule) and an editorial correction to GOV-001/AUTH-001 (field rename, Status advancement) under the Governance Change Control process (GOV-LIFE-002) and the Governance Decision Register process (GDR-001, AUTH-GOV-002).
+
+---
+
+## Correction Note (2026-08-14, per GDR-004)
+
+The `Decision Authority` field originally read `NSS ERP Governance Committee`. Following the governance authority structure clarification in GDR-004, this is corrected to `NSS Governing Body` — the project's actual final decision authority (GOV-ROLE-006). The substance of this decision (the governance document status lifecycle, GOV-LIFE-006) is unaffected by this correction; only the recorded Decision Authority attribution is updated. Preserved here per GDR-DATA-003 (Complete Decision History).
 
 ---
 

@@ -8,13 +8,13 @@
 | Document ID | GOV-001 |
 | Domain | GOV |
 | Repository Path | docs/00_Project_Governance/GOV/GOV-001_Project_Governance_Principles.md |
-| Version | 1.1.0 |
+| Version | 1.2.0 |
 | Status | Approved |
 | Governance Baseline | v1.0 |
 | Authority | NSS ERP Governance Framework |
 | Owner | NSS ERP Project |
 | Effective Date | TBD |
-| Last Updated | 2026-08-13 |
+| Last Updated | 2026-08-14 |
 
 ## Revision History
 
@@ -22,6 +22,7 @@
 |----------|------|--------|-------------|
 | 1.0.0 | YYYY-MM-DD | NSS ERP Project | Initial version |
 | 1.1.0 | 2026-08-13 | NSS ERP Project | Added GOV-LIFE-006 (Governance Document Status Lifecycle); renamed per-rule `Status` field to `Rule Maturity`; Status advanced from Draft to Approved to reflect actual governance use. See GDR-003. |
+| 1.2.0 | 2026-08-14 | NSS ERP Project | Added GOV-ROLE-006 (Final Decision Authority = NSS Governing Body); clarified Project Owner = NSS and Governance Authority = Project Steering Committee. See GDR-004. |
 
 ## Table of Contents
 
@@ -393,6 +394,8 @@ Responsibilities include:
 
 The Project Owner serves as the highest authority for project governance, subject to the Official NSS Constitution and Bye-Laws.
 
+The Project Owner is Nilachala Saraswata Sangha (NSS) itself — the ERP project exists to serve NSS, and NSS holds ultimate ownership of its governance, subject to the Official NSS Constitution and Bye-Laws. See GDR-004.
+
 ---
 
 ### GOV-ROLE-002 — Governance Authority
@@ -411,6 +414,8 @@ Responsibilities include:
 - monitoring compliance with approved governance standards.
 
 The Governance Authority shall ensure that governance documentation remains accurate, complete, and internally consistent.
+
+The Governance Authority role is exercised by the Project Steering Committee. This is the body recorded as "Owner" and "Approver" in the metadata of AUTH/GOV/GDR domain documents. See GDR-004.
 
 ---
 
@@ -460,6 +465,18 @@ Governance responsibilities shall be clearly assigned and maintained throughout 
 Each governance activity shall have an identified responsible authority.
 
 Responsibility for governance may be delegated; however, accountability for governance decisions remains with the approving authority.
+
+---
+
+### GOV-ROLE-006 — Final Decision Authority
+
+**Rule Maturity:** Frozen
+
+Final decision authority for governance decisions recorded in the Governance Decision Register (GDR-001) rests with the NSS Governing Body — the constitutional governing body of Nilachala Saraswata Sangha (REF-003-002) — exercised through its President (REF-003-004) and/or Parichalak (REF-003-009) in accordance with the Official NSS Constitution and Bye-Laws.
+
+This is distinct from the Governance Authority (GOV-ROLE-002), which maintains and reviews the governance framework day-to-day but does not hold final decision authority over individual governance decisions. The Decision Authority field defined in GDR-001 shall, for this project, be recorded as the NSS Governing Body unless a specific decision is explicitly and formally delegated otherwise.
+
+See GDR-004.
 
 ## 7. Governance Compliance
 

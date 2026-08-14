@@ -258,9 +258,24 @@ do not redo this work):
    only as a table column label (`4e13b8b`); confirmed `GDR-DEC-004` (decision-level) vs
    `GDR-DATA-005` (register-level) are explicitly distinguished, not duplicated, in current file.
 
-**Open governance decisions — NOT yet resolved, do not invent an answer:**
-- Exact relationship between Governance Authority / Decision Authority / Approving Authority /
-  Approver / Project Owner / Project Steering Committee.
+**Open governance decisions:** none remaining as of 2026-08-14 — see the three resolved entries
+below. If a new one surfaces, add it here and do not invent an answer to it without an
+explicit human decision.
+
+**Resolved (2026-08-14, see §12 and GDR-004):** Governance Authority / Decision Authority /
+Approving Authority / Approver / Project Owner / Project Steering Committee relationship.
+`Project Owner` = Nilachala Saraswata Sangha (NSS) itself. `Governance Authority` (`GOV-ROLE-002`)
+= `Project Steering Committee` — same body, not two; this is the body recorded as `Owner` and
+`Approver` in AUTH/GOV/GDR document metadata. Final decision authority for governance decisions
+recorded in the GDR rests with the `NSS Governing Body` (constitutional body, REF-003-002),
+exercised through its President (REF-003-004) and/or Parichalak (REF-003-009) — not the
+Governance Authority/Project Steering Committee — per new rule `GOV-ROLE-006` in `GOV-001`.
+`Approving Authority` was retired as a phantom term (never used anywhere in the corpus, same
+pattern as the `"Non-Conformity"` resolution below). The already-approved `GDR-002`/`GDR-003`
+had their `Decision Authority` field corrected from `NSS ERP Governance Committee` to
+`NSS Governing Body` via a preserved Correction Note (not a silent rewrite); `GOV-002..005` and
+`GDR-001` had their `Owner` field corrected from `NSS ERP Governance Committee` to
+`Project Steering Committee` to match.
 
 **Resolved (2026-08-13, no document changes needed):** Governance/Non-Compliance vs
 "Non-Conformity" terminology. Checked every governance doc (`AUTH-001`, `GOV-001..005`,
@@ -419,6 +434,41 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-14 — Resolved final open governance decision (authority-role relationships); added GDR-004 (Claude Code)
+- Context: User asked to tackle the last open governance decision from §6: the relationship
+  between Governance Authority, Decision Authority, Approving Authority, Approver, Project
+  Owner, and Project Steering Committee. Investigation found `Project Owner` and `Governance
+  Authority` are formally defined roles in `GOV-001` (`GOV-ROLE-001`/`002`) but never tied to a
+  named body, while `Project Steering Committee` and `NSS ERP Governance Committee` are used
+  as concrete values across `GOV-002..005`/`GDR-001` metadata (and `NSS ERP Governance
+  Committee` as `Decision Authority` in the already-approved `GDR-002`/`GDR-003`) without ever
+  being formally defined as roles. `Approving Authority` turned out to be a phantom term, never
+  used anywhere in the corpus — same pattern as the `"Non-Conformity"` resolution. Presented
+  this mapping via AskUserQuestion; the user rejected the initial multi-choice framing wanting
+  to clarify in their own words first, then answered directly across two follow-up exchanges:
+  "Project Owner is NSS. Project Steering Committee handles the project. NSS Governing Body is
+  final decision authority," then, on the remaining ambiguity, "Project Steering Committee: —
+  maintains the governance framework, reviews proposals, evaluates GDR entries, monitors
+  compliance. All decision related things will be handled by NSS Governing Body/NSS
+  President/NSS Parichalak."
+- Decision/Outcome: Recorded as `GDR-004`. `GOV-001` gained: an explicit "Project Owner = NSS
+  itself" clarification on `GOV-ROLE-001`; an explicit "Governance Authority = Project Steering
+  Committee (same body)" clarification on `GOV-ROLE-002`; and a new rule `GOV-ROLE-006 — Final
+  Decision Authority`, naming the `NSS Governing Body` (REF-003-002, via President
+  REF-003-004/Parichalak REF-003-009) as final authority over GDR decisions, distinct from the
+  Governance Authority's day-to-day framework-maintenance role. Version 1.1.0 → 1.2.0. Corrected
+  the `Owner` field in `GOV-002` through `GOV-005` and `GDR-001` from `NSS ERP Governance
+  Committee` to `Project Steering Committee` (5 files). Corrected the `Decision Authority` field
+  in the already-approved `GDR-002`/`GDR-003` from `NSS ERP Governance Committee` to `NSS
+  Governing Body` — not a silent rewrite: added a "Correction Note" section to each preserving
+  the original attribution per `GDR-DATA-003` (Complete Decision History), since both are
+  `Approved` decision records. Updated `GDR/README.md` and `GOV/README.md`. Updated this file's
+  §6/§13: **all three** governance decisions originally flagged as open in §6 are now resolved
+  — none remain outstanding.
+- Follow-up: none outstanding on governance terminology/structure. Remaining genuinely open
+  items in the project are domain-specific (Mahila Parichalana Mandali composition; final
+  schema table count) — see §13.
 
 ### 2026-08-13 — Closed Non-Compliance vs "Non-Conformity" terminology question; no document changes needed (Claude Code)
 - Context: User asked to tackle the last remaining open governance decision from §6 (besides
@@ -652,8 +702,8 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 
 ## 13. Open Questions
 
-- Governance Authority vs Decision Authority vs Approving Authority vs Project Owner vs
-  Project Steering Committee — relationship not yet formally decided (§6).
+- ~~Governance Authority vs Decision Authority vs Approving Authority vs Project Owner vs
+  Project Steering Committee~~ — **resolved 2026-08-14**, see §6/§12/GDR-004.
 - ~~Governance document status lifecycle~~ — **resolved 2026-08-13**, see §6/§12/GDR-003.
 - Mahila Parichalana Mandali exact composition/election/term — needs authoritative-source
   verification (§7).

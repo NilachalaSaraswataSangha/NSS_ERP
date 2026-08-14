@@ -8,7 +8,7 @@
 | Decision Title | Creation of the REF-MS Authoritative Reference Family |
 | Decision Type | Governance Decision Record |
 | Register | Governance Decision Register (GDR-001) |
-| Decision Authority | NSS ERP Governance Committee |
+| Decision Authority | NSS Governing Body |
 | Approver | Project Steering Committee |
 | Decision Status | Approved |
 | Effective Date | 2026-08-12 |
@@ -52,6 +52,12 @@ AUTH-001 is amended to:
 ## 6. Approval
 
 Approved as a normative addition to AUTH-001 under the Governance Change Control process (GOV-005) and the Governance Decision Register process (GDR-001, AUTH-GOV-002).
+
+---
+
+## Correction Note (2026-08-14, per GDR-004)
+
+The `Decision Authority` field originally read `NSS ERP Governance Committee`. Following the governance authority structure clarification in GDR-004, this is corrected to `NSS Governing Body` — the project's actual final decision authority (GOV-ROLE-006). The substance of this decision (creation of the `REF-MS` REF family) is unaffected by this correction; only the recorded Decision Authority attribution is updated. Preserved here per GDR-DATA-003 (Complete Decision History).
 
 ---
 
