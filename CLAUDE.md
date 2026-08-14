@@ -261,9 +261,14 @@ do not redo this work):
 **Open governance decisions — NOT yet resolved, do not invent an answer:**
 - Exact relationship between Governance Authority / Decision Authority / Approving Authority /
   Approver / Project Owner / Project Steering Committee.
-- Governance/Non-Compliance vs "Non-Conformity" terminology — lean toward "Governance
-  Compliance / Governance Non-Compliance," avoid introducing "non-conformity" unless an
-  authoritative source defines it distinctly.
+
+**Resolved (2026-08-13, no document changes needed):** Governance/Non-Compliance vs
+"Non-Conformity" terminology. Checked every governance doc (`AUTH-001`, `GOV-001..005`,
+`GDR-001`) — `Compliance`/`Non-Compliance` is already used consistently everywhere (same
+hyphenation and capitalization convention throughout, including rule IDs `GOV-COMP-001..005`);
+`"Non-Conformity"` was never introduced anywhere in the corpus — it only existed as the
+term-to-avoid in this file's own description of the question. Nothing to fix; closing the
+question as already settled in practice.
 
 **Resolved (2026-08-13, see §12 and GDR-003):** Governance document status lifecycle. Adopted
 `Draft → Review → Approved → Superseded/Retired` as `GOV-LIFE-006` in `GOV-001` — deliberately
@@ -414,6 +419,24 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-13 — Closed Non-Compliance vs "Non-Conformity" terminology question; no document changes needed (Claude Code)
+- Context: User asked to tackle the last remaining open governance decision from §6 (besides
+  the authority-role-relationship question): whether to standardize on "Governance
+  Compliance/Non-Compliance" or "Non-Conformity" terminology.
+- Decision/Outcome: Searched every governance document (`AUTH-001`, `GOV-001` through
+  `GOV-005`, `GDR-001`) for both terms before proposing anything. Found `Compliance`/
+  `Non-Compliance` already used consistently everywhere — same hyphenation and capitalization
+  convention throughout, including the `GOV-COMP-001` through `GOV-COMP-005` rule IDs in
+  `GOV-001` and dedicated "Non-Compliance Management" sections in `GOV-004`, `GOV-005`, and
+  `GDR-001`. `"Non-Conformity"` was never introduced anywhere in the actual corpus — it only
+  ever existed as the term-to-avoid inside this file's own description of the open question.
+  Asked the user how to close a question that requires no document edits (quiet CLAUDE.md
+  closure vs. a formal GDR-004 record anyway); user chose the quiet closure. Updated §6/§13
+  accordingly — no AUTH/GOV/GDR document was touched.
+- Follow-up: none outstanding on this item. The one remaining "Open governance decision" in §6
+  is the Governance Authority / Decision Authority / Approving Authority / Project Owner /
+  Project Steering Committee relationship question — still needs an explicit human decision.
 
 ### 2026-08-13 — Resolved governance document status lifecycle open question; added GDR-003 (Claude Code)
 - Context: User asked to tackle the "governance document status lifecycle" open item from §6.
