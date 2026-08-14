@@ -110,14 +110,13 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
-- **Branch (superseded — see §12 2026-08-14 entries for current state):** as of 2026-08-14,
-  active branch is `feature/ref-renaming` again, now 1 commit ahead of `develop` (`4b81c31
-  "docs(auth,ref): rename Sections C-I to composite clause locators"`), which itself has
-  advanced well past the `a2e6a6a` snapshot below (`develop` is at `7e5e972`, including the
-  GDR-003/GDR-004 and PATHA_CHAKRA work — see §12). Working tree clean, nothing uncommitted, in
-  sync with `pie/feature/ref-renaming`. The `develop`/`a2e6a6a` state described in the rest of
-  this bullet and the two below is a historical snapshot from 2026-08-12 — kept for the commit
-  narrative, not current branch/HEAD state.
+- **Branch (updated 2026-08-14, later same day):** `feature/ref-renaming` has since been merged/
+  fast-forwarded into `develop` — both now identical at `c27af10 "docs: fix leftover rename
+  references and drift found in /document-project + /init pass"`, and both in sync with their
+  `pie/` remotes. Active branch is `develop`. Working tree clean, nothing uncommitted. The
+  `feature/ref-renaming`-at-`4b81c31` state described just below, and the `develop`/`a2e6a6a`
+  state in the two bullets after that, are both historical snapshots superseded by this one —
+  kept for the commit narrative, not current branch/HEAD state.
 - **Latest 2 commits (both now on `develop`):** `a2e6a6a "docs(ref): add Mahila Sangha REF-MS
   corpus, refresh docs to match"` → `a9cd4bc "docs(ref): complete REF corpus source-verification
   pass, add BY-LAW originals"`.
