@@ -225,8 +225,8 @@ are reconstructed directly from `backend/config/settings.py` and `requirements.t
    DB_HOST=...
    DB_PORT=...
    ```
-   These four (`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`) are read with no
-   defaults (`backend/config/settings.py:91-95`), so the app will fail to start without them.
+   These five (`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`) are read with no
+   defaults (`backend/config/settings.py:92-96`), so the app will fail to start without them.
    Note Django's own DB connection here is separate from any manual `psql` connection you'd use
    to run the DDL files in step 2 — they can point at the same or different databases today
    since nothing links them.
@@ -240,7 +240,7 @@ are reconstructed directly from `backend/config/settings.py` and `requirements.t
 
 5. **Log in:** visit `/`, which redirects to `/login/` (`backend/config/urls.py:24-26`,
    `backend/authentication/urls.py`). After login you land on `/dashboard/`
-   (`LOGIN_REDIRECT_URL` in `backend/config/settings.py:137`).
+   (`LOGIN_REDIRECT_URL` in `backend/config/settings.py:138`).
 
 There is no test runner configured beyond Django's default (`manage.py test`); every app's
 `tests.py` is an empty stub — **no tests exist in the repo today.**
@@ -249,11 +249,11 @@ There is no test runner configured beyond Django's default (`manage.py test`); e
 
 | Setting | Source | Notes |
 |---|---|---|
-| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | `backend/.env` (not committed, no `.env.example`) | Required, no defaults — `backend/config/settings.py:88-97` |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | `backend/.env` (not committed, no `.env.example`) | Required, no defaults — `backend/config/settings.py:89-98` |
 | `SECRET_KEY` | Hardcoded in `backend/config/settings.py:29` | Dev-only insecure key, not read from env — needs fixing before any real deployment |
 | `DEBUG` | Hardcoded `True` — `settings.py` | No environment-based toggle yet |
 | `ALLOWED_HOSTS` | Hardcoded `[]` — `settings.py` | Fine for local dev only |
-| `LOGIN_URL` / `LOGIN_REDIRECT_URL` / `LOGOUT_REDIRECT_URL` | `settings.py:136-138` | `/login/`, `/dashboard/`, `/login/` |
+| `LOGIN_URL` / `LOGIN_REDIRECT_URL` / `LOGOUT_REDIRECT_URL` | `settings.py:137-139` | `/login/`, `/dashboard/`, `/login/` |
 | `TIME_ZONE` | `settings.py` | `UTC`, `USE_TZ = True` |
 
 No other configuration surface (feature flags, external service credentials, etc.) exists in

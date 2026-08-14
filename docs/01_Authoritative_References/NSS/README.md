@@ -13,7 +13,7 @@ Information" → **Source File(s) in Repository** field.
 |---|---|
 | `SECTION-A_PRELIMINARY_AND_GENERAL_PROVISIONS/` | REF-001 — NSS Constitution |
 | `SECTION-B_MEMBERSHIPS/` | REF-002 — Membership Bye-Laws |
-| `SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/` | REF-003-C…009 — Kendra Sangha constitution, Governing Body & its functions, duties of President/VP/Secretary/Asst. Secretary/Treasurer/Parichalak; plus `REF-003-C(i)(2)-1975-01` and `REF-003-C(i)(8)-1975-02` — the two 1975 amendment Resolutions, filed adjacent to the Section C clauses they amend |
+| `SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/` | REF-003-C, REF-003-C(i)(1)–REF-003-C(i)(8) — Kendra Sangha constitution, Governing Body & its functions, duties of President/VP/Secretary/Asst. Secretary/Treasurer/Parichalak; plus `REF-003-C(i)(2)-1975-01` and `REF-003-C(i)(8)-1975-02` — the two 1975 amendment Resolutions, filed adjacent to the Section C clauses they amend |
 | `SECTION-D_ADVISORY_BOARD/` | REF-003-D |
 | `SECTION-E_GENERAL_BODY/` | REF-003-E |
 | `SECTION-F_FUNDS_OF_THE_KENDRA_SANGHA/` | REF-003-F[A] (Funds), REF-003-F[b] (Maintenance of the Funds), `REF-003-F[c]_Utilisation_of_the_Funds` (Utilisation of the Funds) — split into three documents mirroring the source's F[A]/[b]/[c] structure |

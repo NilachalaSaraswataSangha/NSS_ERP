@@ -110,12 +110,14 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
-- **Branch:** currently on `develop`, which is now at `a2e6a6a` — **fast-forwarded from**
-  `feature/ref-documentation` (no conflicts; `develop` had no commits of its own past the common
-  ancestor `26dfed9`). Both `develop` and `feature/ref-documentation` and their `pie/` remotes
-  are identical at `a2e6a6a` as of this writing; working tree is clean, nothing uncommitted.
-  This supersedes the earlier `feature/ref-renaming` snapshot further below, which has since
-  been merged into `develop` and is no longer the active branch.
+- **Branch (superseded — see §12 2026-08-14 entries for current state):** as of 2026-08-14,
+  active branch is `feature/ref-renaming` again, now 1 commit ahead of `develop` (`4b81c31
+  "docs(auth,ref): rename Sections C-I to composite clause locators"`), which itself has
+  advanced well past the `a2e6a6a` snapshot below (`develop` is at `7e5e972`, including the
+  GDR-003/GDR-004 and PATHA_CHAKRA work — see §12). Working tree clean, nothing uncommitted, in
+  sync with `pie/feature/ref-renaming`. The `develop`/`a2e6a6a` state described in the rest of
+  this bullet and the two below is a historical snapshot from 2026-08-12 — kept for the commit
+  narrative, not current branch/HEAD state.
 - **Latest 2 commits (both now on `develop`):** `a2e6a6a "docs(ref): add Mahila Sangha REF-MS
   corpus, refresh docs to match"` → `a9cd4bc "docs(ref): complete REF corpus source-verification
   pass, add BY-LAW originals"`.
@@ -182,8 +184,8 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
     not (xii) — the PDF's OCR misread (xii); the clean-text docx (xiii) was confirmed correct.
   - Repository is organized by section folder (`SECTION-A_...` … `SECTION-I_...`), each
     containing its REF file(s) — folders are navigation only, identity lives in the filename.
-- **Governance docs present:** `AUTH-001`, `GOV-001..005`, `GDR-001` — all exist under
-  `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.
+- **Governance docs present (updated 2026-08-14):** `AUTH-001`, `GOV-001..005`,
+  `GDR-001..004` — all exist under `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.
 - **Module docs present:** `docs/03_Solution/modules/organization/` and
   `docs/03_Solution/modules/person/`, each with `01_design`, `02_erd`, `03_business_rules`,
   `04_table_design` (+ person has a `README.md`).
@@ -378,6 +380,16 @@ Only `authentication`, `dashboard`, and `foundation` are wired into `config/urls
 `kishore`, `sevak`, `publications`, `upbs`, `reports`, `administration` are **not yet scaffolded
 at all** — planned only. Full detail: `docs/PROJECT_DOCUMENTATION.md` §Directory structure /
 §Gotchas. Do not casually redesign this structure.
+
+**Cross-app model dependency (not obvious without reading multiple `models.py` files):**
+`foundation.Person`/`foundation.Organization` are the hub models every other app's real
+models hang off — `membership.SanghaSevi` and `family.FamilyMembership` both FK directly to
+`foundation.Person` (`backend/membership/models.py`, `backend/family/models.py`); `membership`
+also FKs to `foundation.Organization`. `authentication` and `heritage` are the exceptions —
+`authentication` FKs only to Django's built-in `auth.User`, and `heritage.Founder` is a
+standalone singleton with no FK to `foundation` at all. Migrating or altering `foundation.Person`
+therefore has ripple effects across `membership` and `family`, but never `authentication` or
+`heritage`.
 
 **DB naming standards:** tables `snake_case` (e.g. `family_group`); internal PK suffix
 `_pk` (e.g. `person_pk`); FKs reference internal PKs, never business IDs; audit columns:
