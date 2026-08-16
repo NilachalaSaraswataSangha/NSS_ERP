@@ -70,6 +70,19 @@ PostgreSQL
   (`docs/01_Authoritative_References/`) that define the rules the eventual system must follow.
   This layer is far more mature than the code.
 
+**Approved future direction (SOLUTION layer, not yet implemented in code):**
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` (added 2026-08-16) is now the
+authoritative technology decision record and **supersedes the diagram above once code catches
+up** — it replaces Bootstrap 5 with Tailwind CSS + DaisyUI + Alpine.js (HTMX retained), commits
+to actually wiring up FastAPI (currently pinned-but-unused, see Gotchas), pins exact versions
+(Django 6.0.6, FastAPI 0.136.3), and adds a hosting plan (Neon.dev for PostgreSQL, Render.com
+for the app, PWA + IndexedDB/Service-Worker offline strategy for on-site event registration).
+`docs/03_Solution/architecture/DEVELOPER_REFERENCE_GUIDE.md` (same commit) is a companion
+per-module "which doc to read before coding" matrix across the REF→AUTH→GOV→REQ→SOLUTION→CODE
+chain. Until `backend/` is actually migrated, treat everything in this "Architecture" section
+above as the current CODE-layer reality and the Tech Stack Decisions doc as the approved target
+— don't assume one from the other.
+
 ## Directory structure
 
 ```
@@ -85,7 +98,7 @@ NSS_ERP/
 │   │   ├── NSS/            Source-faithful transcription of NSS's Constitution & Bye-Laws (see detail below)
 │   │   └── MAHILA_SANGHA/  Source-faithful transcription of Mahila Sangha's own Bye-Law (see detail below)
 │   ├── 02_Requirements/         Scaffolded only — business/functional/non_functional/traceability subfolders, no content yet
-│   ├── 03_Solution/             Per-module design docs (organization, person) + api/architecture/database/infrastructure/security/ui scaffolding
+│   ├── 03_Solution/             Per-module design docs (organization, person, attendance) + architecture/ui content now populated (see detail below); api/database/infrastructure/security still scaffolding
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
@@ -195,6 +208,32 @@ database/
     ├── 01_foundation/    id_sequence_master seed (4 rows: PERSON/SANGHA_SEVI/ORGANIZATION/FAMILY), location seed (5 countries)
     └── 03_person/        gender/marital_status/address_type seed rows
 ```
+
+### `docs/03_Solution/` detail
+
+```
+03_Solution/
+├── modules/
+│   ├── organization/     01_design/02_erd/03_business_rules/04_table_design — fully designed, no SQL (see Gotchas)
+│   ├── person/            same 4-doc pattern + README.md — design matches implemented SQL closely
+│   └── attendance/        README.md (status: not started) + DARSHAK_BUSINESS_RULE.md (added 2026-08-16, see below)
+├── architecture/
+│   ├── README.md
+│   ├── TECH_STACK_DECISIONS.md        Added 2026-08-16 — approved SOLUTION-layer tech decision (see Architecture section above)
+│   └── DEVELOPER_REFERENCE_GUIDE.md   Added 2026-08-16 — per-module "which doc to read before coding" matrix
+├── ui/
+│   ├── README.md
+│   └── mockups/           Added 2026-08-16 — 13 static HTML screens (Tailwind CSS + DaisyUI via CDN, no build step) + README.md; visual targets for Phase 4, not functional prototypes
+└── (api/, database/, infrastructure/, security/ still empty scaffolding)
+```
+
+`docs/03_Solution/modules/attendance/DARSHAK_BUSINESS_RULE.md` records an ERP implementation
+decision (not derived from the Bye-Law): an earlier project Rule Book used "Darshak" as an
+informal membership tier, but the actual Bye-Law (`REF-002`) has no such category — only
+Probationary/Regular/Associate. "Darshak" is corrected to mean, operationally, either a
+Probationary Member or a Regular Member visiting from another Sakha; it may appear as a UI
+display label (dashboards, attendance screens) but must never be a `membership_type_master`
+value in the database.
 
 ## Setup & running
 
@@ -338,6 +377,14 @@ design docs as the target and the current Django model as a stand-in to be repla
   design is fully written but has no SQL at all — don't confuse "documented" with "built" for
   that module.
 - **No tests.** Every Django app's `tests.py` is the default empty stub.
+- **Git remotes changed since the tech-stack decision was written.** `git remote -v` shows only
+  one remote, `personal` (`github.com/sandeeppanda22/NSS_ERP`) — the `pie` remote referenced
+  throughout `CLAUDE.md`'s session log (and still listed as a "Legacy remote" in
+  `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` §6) was removed in an earlier session
+  (2026-08-15) along with switching to a repo-local git identity. Not fixed here since
+  `TECH_STACK_DECISIONS.md` is an Approved solution-decision record, not something this pass
+  should silently rewrite — flagging for a human decision on whether §6's remote table still
+  needs correcting.
 
 ## Open questions / TODOs
 
@@ -354,8 +401,14 @@ design docs as the target and the current Django model as a stand-in to be repla
 - **Add `family` to Django admin** — currently the only real-model app not registered.
 - **Record login attempts** — `authentication.LoginAudit` model exists but `login_view` never
   writes to it.
-- **Remove or start using** the unused `fastapi`/`starlette`/`uvicorn`/`django-htmx`/`pillow`
-  dependencies.
+- **Wire up the unused `fastapi`/`starlette`/`uvicorn`/`django-htmx`/`pillow` dependencies** —
+  no longer an open either/or as of `TECH_STACK_DECISIONS.md` (2026-08-16): FastAPI is decided
+  to be actually used for JSON APIs/sync endpoints, served via Uvicorn alongside Django. Still
+  not implemented in code as of this writing.
+- **Migrate frontend from Bootstrap 5 to Tailwind CSS + DaisyUI + Alpine.js** per the same
+  decision doc — `backend/templates/` still use Bootstrap 5 (see Architecture above); the 13
+  new mockups under `docs/03_Solution/ui/mockups/` are the visual target, not yet built into
+  Django templates.
 - **No `.env.example`** — new contributors have to reverse-engineer required env vars from
   `settings.py`; consider adding one.
 - **`docs/02_Requirements/` and `docs/04_Testing/` are empty scaffolding** — folder structure
