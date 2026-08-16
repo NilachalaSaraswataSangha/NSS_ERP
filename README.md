@@ -42,6 +42,11 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 # Technology Stack
 
+> **Note:** `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` (added 2026-08-16) is the
+> Approved forward-looking decision record — it replaces Bootstrap 5 with Tailwind CSS +
+> DaisyUI + Alpine.js, commits to actually wiring up FastAPI, and adds a hosting/offline plan.
+> None of that is implemented in code yet; the stack below reflects the current codebase.
+
 ## Frontend
 
 * Django Templates

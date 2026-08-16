@@ -20,6 +20,8 @@ repository.
 ```
 pip install -r requirements.txt
 ```
+`requirements.txt` is UTF-16LE with CRLF line endings (Windows-migration artifact, not UTF-8)
+— if a tool errors reading it, re-save as UTF-8 rather than assuming the file is corrupt.
 Create `backend/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` — read with
 no defaults at `backend/config/settings.py`, so the app won't start without them.
 
@@ -110,6 +112,15 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
+- **Branch (updated 2026-08-16 — supersedes the 2026-08-14 bullet below for current branch/
+  HEAD):** Active branch is `feature/ref-documentation`, one commit ahead of `develop`
+  (`6768b1b "docs(solution): add Tech Stack Decisions and Developer Reference Guide"`, on top
+  of the same `a7d9557` both branches share). Working tree also has two untracked additions not
+  yet committed: `docs/03_Solution/modules/attendance/DARSHAK_BUSINESS_RULE.md` and
+  `docs/03_Solution/ui/mockups/` (13 HTML mockups + README). Only one git remote exists now,
+  `personal` — the `pie` remote named throughout the historical bullets/session-log entries
+  below was removed 2026-08-15; treat every `pie/`-remote reference below as historical
+  narrative, not live state (see §8's Git remotes row).
 - **Branch (updated 2026-08-14, later same day):** `feature/ref-renaming` has since been merged/
   fast-forwarded into `develop` — both now identical at `c27af10 "docs: fix leftover rename
   references and drift found in /document-project + /init pass"`, and both in sync with their
@@ -362,15 +373,21 @@ authority. Attendance Enforcement + Attendance Review are frozen.
 
 ## 8. Technical Architecture
 
+**Approved decision record (2026-08-16):** `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`
++ companion `DEVELOPER_REFERENCE_GUIDE.md`. Table below reflects that decision — current code
+(`backend/`) still runs Bootstrap 5 with no FastAPI wiring; don't assume code has caught up.
+
 | Area | Choice |
 |---|---|
-| Backend web/admin | Django (Templates + Bootstrap 5 + HTMX), Django ORM |
-| API layer | FastAPI |
-| Database | PostgreSQL |
+| Backend web/admin | Django 6.0.6 (Templates + Tailwind CSS + DaisyUI + HTMX + Alpine.js — replaces Bootstrap 5), Django ORM |
+| API layer | FastAPI 0.136.3, served via Uvicorn (ASGI) alongside Django |
+| Database | PostgreSQL — Neon.dev (prod, free tier) / local PostgreSQL (dev) |
 | Frontend philosophy | Traditional/simple, NOT corporate/SAP-style |
+| Mobile/offline | PWA (installable, manifest + service worker); Generic Event Engine (IndexedDB + Background Sync) for offline on-site registration; Capacitor/Flutter only if PWA limits are hit |
 | Dev environment | VS Code, DBeaver, Git/GitHub |
 | Security | UUID internal PKs, separate business IDs, RBAC, RLS, immutable audit, soft delete |
-| Deployment (earlier direction) | Ubuntu, Docker, Nginx, PostgreSQL |
+| Deployment | Render.com (free tier), auto-deploy from org GitHub `main` on merge |
+| Git remotes | `personal` (github.com/sandeeppanda22/NSS_ERP, daily dev) → PR → org repo `main` (deploy source). Note: the `pie` remote referenced throughout §12's session log below was removed 2026-08-15; `git remote -v` shows only `personal` today — `TECH_STACK_DECISIONS.md` §6 still lists `pie` as a "Legacy remote," not yet reconciled with this. |
 
 **Django app structure — corrected against actual code (2026-08-12, updated same day —
 `heritage` merged into `develop`):** apps live directly under `backend/` (no `apps/`
@@ -449,6 +466,37 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-16 — /document-project pass: reconciled new Tech Stack Decisions, Developer Reference Guide, Darshak business rule, and UI mockups (Claude Code)
+- Context: User ran `/document-project`. Live `git status`/`git log` showed drift beyond what
+  §3 described: current branch is `feature/ref-documentation` (one commit ahead of `develop`),
+  not `develop` as §3's last-verified bullet claimed; a new commit `6768b1b` added
+  `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` and `DEVELOPER_REFERENCE_GUIDE.md`;
+  and two more files sat uncommitted/untracked: `docs/03_Solution/modules/attendance/
+  DARSHAK_BUSINESS_RULE.md` and `docs/03_Solution/ui/mockups/` (13 HTML mockups + README).
+  `backend/`/`database/` had zero changes since the last full pass (`c27af10`) — this was a
+  docs-only drift check. Also found, while checking git remotes, that the `pie` remote no
+  longer exists (`git remote -v` shows only `personal`) — a prior session (2026-08-15, logged
+  separately) had removed it, but nothing in this file reflected that until now.
+- Decision/Outcome: Updated §3 with a new dated bullet for current branch/HEAD/untracked-files
+  state and the `pie`-remote removal (old branch bullets kept below, now clearly historical).
+  Updated §8's Technical Architecture table to reflect `TECH_STACK_DECISIONS.md`'s approved
+  choices (Django 6.0.6 + Tailwind/DaisyUI/Alpine.js replacing Bootstrap 5, FastAPI 0.136.3 on
+  Uvicorn, Neon.dev/Render.com hosting, PWA+IndexedDB offline strategy, git remote/deploy flow)
+  with an explicit note that code hasn't caught up yet. Updated `docs/PROJECT_DOCUMENTATION.md`
+  (Architecture section cross-reference, new `docs/03_Solution/` detail subsection, two Gotchas/
+  Open-questions entries — one flagging `TECH_STACK_DECISIONS.md` §6 still lists `pie` as a
+  "Legacy remote" without reconciling the removal, left for a human decision since that file is
+  an Approved decision record this pass shouldn't silently rewrite). Updated `README.md`'s
+  Technology Stack section with a note pointing to the decision doc. Created/updated three
+  per-folder READMEs that were still saying "no content written yet":
+  `docs/03_Solution/architecture/README.md`, `docs/03_Solution/ui/README.md`,
+  `docs/03_Solution/modules/attendance/README.md` (now documents `DARSHAK_BUSINESS_RULE.md`).
+- Follow-up: the `pie`-remote-in-TECH_STACK_DECISIONS.md discrepancy is unresolved by design —
+  flagged in `docs/PROJECT_DOCUMENTATION.md` Gotchas, needs an explicit human call on whether to
+  edit that Approved doc. The DARSHAK_BUSINESS_RULE.md and ui/mockups/ additions are still
+  uncommitted as of this pass — not committed here per standing instruction to only commit when
+  asked.
 
 ### 2026-08-14 — Clarified Mahila Parichalana Mandali structure: central body governing all Sakha Sangha-level Mahila Sanghas (Enchanté)
 - Context: An earlier §13 open question stated the Mandali's composition/election/term needed
