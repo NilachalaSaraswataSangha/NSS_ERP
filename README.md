@@ -193,8 +193,11 @@ Notes:
 *The sections below describe the full planned module roadmap. As of this writing, only
 **Foundation, Membership, Family, Governance (stub), Attendance (stub), and Founder & Heritage**
 exist as Django apps under `backend/` — Mahila Sangha, Kumari Sangha, Kishore Puja, Sevak
-Sangha, UPBS, Reports & Analytics, and Administration have no app directory yet. See
-`docs/PROJECT_DOCUMENTATION.md` for the current, code-verified status of each.*
+Sangha, UPBS, Reports & Analytics, and Administration have no app directory yet. Solution-layer
+design documentation (overview/ERD/lifecycle/business-rules/table-design) is now complete for
+Membership, Family, Attendance, Kumari Sangha, Kishore Puja, and Mahila Sangha, and largely
+complete for Sevak Sangha — ahead of, and not yet reconciled with, any backend implementation.
+See `docs/PROJECT_DOCUMENTATION.md` for the current, code-verified status of each.*
 
 ## Foundation
 
@@ -495,14 +498,24 @@ Completed:
 
 * Foundation Architecture
 * Authentication Foundation
-* Organization Module
+* Organization Module Design
 * Person Module Design
 * Person Database Schema
 * Global Location Model
+* Membership Module Design
+* Family Module Design
+* Attendance Module Design (Review Workflow Frozen)
+* Kumari Sangha Module Design
+* Kishore Puja Module Design
+* Mahila Sangha Module Design (v2.1.0, Bye-Law-aligned governance model)
+* Sevak Sangha Module Design (partially frozen — table design only; see
+  `docs/PROJECT_DOCUMENTATION.md`)
 
 Current Focus:
 
-* Membership Module Design
+* Reconciling Solution-layer design docs with actual Django/SQL implementation across
+  membership, family, attendance, kumari, kishore, mahila, and sevak — all are documented but
+  none has corresponding backend code beyond membership/family's existing minimal models.
 
 Next Release Target:
 

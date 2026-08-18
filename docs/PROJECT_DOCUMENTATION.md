@@ -98,7 +98,10 @@ NSS_ERP/
 │   │   ├── NSS/            Source-faithful transcription of NSS's Constitution & Bye-Laws (see detail below)
 │   │   └── MAHILA_SANGHA/  Source-faithful transcription of Mahila Sangha's own Bye-Law (see detail below)
 │   ├── 02_Requirements/         Scaffolded only — business/functional/non_functional/traceability subfolders, no content yet
-│   ├── 03_Solution/             Per-module design docs (organization, person, attendance) + architecture/ui content now populated (see detail below); api/database/infrastructure/security still scaffolding
+│   ├── 03_Solution/             Per-module design docs (organization, person, membership, family,
+│   │                            attendance, kumari, kishore, mahila, sevak) + architecture/ui/
+│   │                            infrastructure/standards content now populated (see detail below);
+│   │                            api/database/security still scaffolding
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
@@ -216,15 +219,25 @@ database/
 ├── modules/
 │   ├── organization/     01_design/02_erd/03_business_rules/04_table_design — fully designed, no SQL (see Gotchas)
 │   ├── person/            same 4-doc pattern + README.md — design matches implemented SQL closely
-│   └── attendance/        README.md (status: not started) + DARSHAK_BUSINESS_RULE.md (added 2026-08-16, see below)
+│   ├── membership/         01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — richer than backend/membership/models.py (see Gotchas)
+│   ├── family/             01-04 overview/erd/business_rules/table_design, frozen 4-table design — richer than backend/family/models.py (see Gotchas)
+│   ├── attendance/         01-05 overview/erd/business_rules/table_design/review_workflow (review workflow FROZEN) + DARSHAK_BUSINESS_RULE.md (see below) — zero corresponding backend code
+│   ├── kumari/             01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — KM000001 ID format; no backend/kumari/ app
+│   ├── kishore/            01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — KH000001 ID format + frozen Guardian Model; no backend/kishore/ app
+│   ├── mahila/             01-05 overview/erd/lifecycle/business_rules/table_design, all v2.1.0 — v2.1.0 corrected a v2.0.0 error that had modeled Mahila Governing Body and Mahila Parichalana Mandali as two bodies; now explicitly one body, two names; no backend/mahila/ app
+│   └── sevak/              01-06 core sequence (only 06_table_design FROZEN, rest DRAFT/consolidation-in-progress) + sangha/, seva/, events/ subdocs; core SEV-001..040; no backend/sevak/ app
+├── standards/
+│   └── lifecycle/         SOL-LIFE-001 (PARTICIPATION_LIFECYCLE_RULES.md), SOL-LIFE-002 (PERSON_LIFECYCLE_RULES.md) — added 2026-08-18; a SOLUTION-layer standards path distinct from the governance-layer docs/00_Project_Governance/STD/, not yet cross-referenced from either README (see Gotchas)
 ├── architecture/
 │   ├── README.md
 │   ├── TECH_STACK_DECISIONS.md        Added 2026-08-16 — approved SOLUTION-layer tech decision (see Architecture section above)
 │   └── DEVELOPER_REFERENCE_GUIDE.md   Added 2026-08-16 — per-module "which doc to read before coding" matrix
+├── infrastructure/
+│   └── DEPLOYMENT_SYNC_PLAN.md        Added 2026-08-17 — deployment/repository-sync plan
 ├── ui/
 │   ├── README.md
 │   └── mockups/           Added 2026-08-16 — 13 static HTML screens (Tailwind CSS + DaisyUI via CDN, no build step) + README.md; visual targets for Phase 4, not functional prototypes
-└── (api/, database/, infrastructure/, security/ still empty scaffolding)
+└── (api/, database/, security/ still empty scaffolding)
 ```
 
 `docs/03_Solution/modules/attendance/DARSHAK_BUSINESS_RULE.md` records an ERP implementation
@@ -234,6 +247,15 @@ Probationary/Regular/Associate. "Darshak" is corrected to mean, operationally, e
 Probationary Member or a Regular Member visiting from another Sakha; it may appear as a UI
 display label (dashboards, attendance screens) but must never be a `membership_type_master`
 value in the database.
+
+**Doc/code gap widened, not just organization/person anymore.** The membership/family/
+attendance/kumari/kishore/mahila/sevak design docs added 2026-08-17/18 are all still DRAFT (only
+`attendance`'s review workflow and `sevak`'s table design are Frozen) and describe schemas far
+richer than what exists in code: `backend/membership/models.py` has 3 plain-PK models vs. ~10
+UUID-keyed tables in the design; `backend/family/models.py` has 2 models vs. a frozen 4-table
+design; `backend/attendance/` has no models at all despite a full 5-doc design; and
+`kumari`/`kishore`/`mahila`/`sevak` have no Django app at all. Same pattern as the pre-existing
+organization/person gap — don't assume any of these docs describe currently-running code.
 
 ## Setup & running
 
@@ -377,14 +399,22 @@ design docs as the target and the current Django model as a stand-in to be repla
   design is fully written but has no SQL at all — don't confuse "documented" with "built" for
   that module.
 - **No tests.** Every Django app's `tests.py` is the default empty stub.
-- **Git remotes changed since the tech-stack decision was written.** `git remote -v` shows only
-  one remote, `personal` (`github.com/sandeeppanda22/NSS_ERP`) — the `pie` remote referenced
-  throughout `CLAUDE.md`'s session log (and still listed as a "Legacy remote" in
-  `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` §6) was removed in an earlier session
-  (2026-08-15) along with switching to a repo-local git identity. Not fixed here since
-  `TECH_STACK_DECISIONS.md` is an Approved solution-decision record, not something this pass
-  should silently rewrite — flagging for a human decision on whether §6's remote table still
-  needs correcting.
+- **Git remotes changed again — a second remote now exists.** `git remote -v` now shows **two**
+  remotes: `personal` (`github.com/sandeeppanda22/NSS_ERP`, daily dev) and a new `org`
+  (`github.com/NilachalaSaraswataSangha/NSS_ERP`, the production/deploy target). This `org`
+  remote did not exist as of the last pass (which found only `personal`, after `pie` had been
+  removed 2026-08-15). `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` §6 still has not
+  been reconciled with either change — it still lists `pie` as a "Legacy remote" and never uses
+  the `org` alias, referencing the production repo only by its raw URL. Not fixed here since
+  `TECH_STACK_DECISIONS.md` is an Approved solution-decision record — flagging again for a human
+  decision on whether §6's remote table needs correcting.
+- **New second "standards" location.** `docs/03_Solution/standards/lifecycle/` (added
+  2026-08-18: `SOL-LIFE-001`/`PARTICIPATION_LIFECYCLE_RULES.md`,
+  `SOL-LIFE-002`/`PERSON_LIFECYCLE_RULES.md`) is a distinct path from the pre-existing
+  governance-layer `docs/00_Project_Governance/STD/`. Both are legitimately different layers
+  (SOLUTION vs. GOV per the lifecycle in `CLAUDE.md` §2), but neither `STD/README.md` nor any
+  top-level doc cross-references the other yet — a newcomer searching for "standards" could
+  easily find one and miss the other.
 
 ## Open questions / TODOs
 

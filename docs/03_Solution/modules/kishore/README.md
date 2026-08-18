@@ -1,9 +1,48 @@
 # NSS ERP Kishore Puja Module
 
-Status: NOT STARTED (Solution design). Reserved for the Kishore Puja module's Solution-level
-design documents (KH Identity, Registration, Guardian Assignment — see `README.md` § Module
-Structure), following the same `01_design` / `02_erd` / `03_business_rules` /
-`04_table_design` pattern used by `docs/03_Solution/modules/organization/` and
-`docs/03_Solution/modules/person/`. Kishore ID is distinct from Sangha Sevi ID (see
-`CLAUDE.md` §7). No content has been written yet, and there is no `backend/kishore/` Django
-app yet either.
+Status: DRAFT — full Solution design complete; there is still no `backend/kishore/` Django app.
+Kishore Puja is modeled as an annual event/activity for boys (not a permanent org unit like
+Kumari Sangha), reusing the existing Person/Family foundation.
+
+---
+
+## Documents
+
+01_kishore_module_overview.md — Version 1.0, DRAFT
+Purpose: High-level Kishore Puja module overview (KH Identity, Registration, Guardian
+Assignment).
+
+02_kishore_erd.md — Document ID `SOL-KIS-002`, DRAFT
+Purpose: Entity relationship design.
+
+03_kishore_lifecycle.md — Document ID `SOL-KIS-003`, DRAFT
+Purpose: Lifecycle — one permanent Kishore ID retained across multiple years' registrations,
+with optional transition to NSS Membership.
+
+04_kishore_business_rules.md — Document ID `SOL-KIS-004`, DRAFT
+Purpose: Business rules, including the Kishore ID format, registration sources, and the Guardian
+Model.
+
+05_kishore_table_design.md — Document ID `SOL-KIS-005`, DRAFT
+Purpose: Physical table design — `kishore_participant`, `kishore_event`,
+`kishore_event_registration`, `kishore_membership_transition`.
+
+---
+
+## Key facts
+
+- **Kishore ID format: `KH000001`** (KH + 6 digits) — unique, permanent, distinct from Sangha
+  Sevi ID (see `CLAUDE.md` §7); one ID spans many yearly `kishore_event_registration` rows.
+- **Guardian Model (Frozen):** every participant must have an assigned Guardian who is an NSS
+  Member of the participant's Sakha, assigned by the Sakha — not necessarily the parent.
+- Registration sources: Parent Nomination or Sakha Nomination.
+- Transition to NSS Membership follows the same non-automatic, history-preserving pattern as
+  Kumari Sangha (`KH000123 → SS000456`).
+
+---
+
+## Current Status
+
+Design Complete · ERD Complete · Lifecycle Documented · Business Rules Drafted (Guardian Model
+Frozen) · Table Design Drafted · SQL Implementation Not Started · `backend/kishore/` Django app
+does not exist yet
