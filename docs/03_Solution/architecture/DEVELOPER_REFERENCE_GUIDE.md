@@ -103,11 +103,12 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 | Organization hierarchy (Kendra, Anchalika, Zilla, Sakha, Patha Chakra) | 1. REF-001 (Constitution, Section A) | `docs/01_Authoritative_References/NSS/SECTION-A_PRELIMINARY_AND_GENERAL_PROVISIONS/` |
 | | 2. REF-003-C (Governance, Section C) | `docs/01_Authoritative_References/NSS/SECTION-C_CONSTITUTION_OF_THE_KENDRA_SANGHA/` |
 | | 3. GOV-ORG-001 to GOV-ORG-005 | `docs/00_Project_Governance/GOV/GOV-002_Organizational_Governance_Standard.md` |
-| | 4. Organization Design Doc | `docs/03_Solution/modules/organization/01_organization_design.md` |
+| | 4. Organization Module Overview | `docs/03_Solution/modules/organization/01_organization_module_overview.md` |
 | | 5. Organization ERD | `docs/03_Solution/modules/organization/02_organization_erd.md` |
-| | 6. Organization Business Rules | `docs/03_Solution/modules/organization/03_organization_business_rules.md` |
-| | 7. Organization Table Design | `docs/03_Solution/modules/organization/04_organization_table_design.md` |
-| | 8. DDL (currently 0-byte) | `database/ddl/02_organization/` |
+| | 6. Organization Lifecycle | `docs/03_Solution/modules/organization/03_organization_lifecycle.md` |
+| | 7. Organization Business Rules (v1.1.0, GOVERNANCE ALIGNED — type-to-type parent matrix explicitly left open, not frozen) | `docs/03_Solution/modules/organization/04_organization_business_rules.md` |
+| | 8. Organization Table Design (v1.1.0) | `docs/03_Solution/modules/organization/05_organization_table_design.md` |
+| | 9. DDL (currently 0-byte) | `database/ddl/02_organization/` |
 
 ---
 
@@ -181,13 +182,58 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 
 ---
 
+### Kumari Sangha
+
+| Work Item | Documents to Read (in order) | Path |
+|-----------|------------------------------|------|
+| KM identity, activities, training, transition to Membership | 1. Module Overview | `docs/03_Solution/modules/kumari/01_kumari_module_overview.md` |
+| | 2. ERD | `docs/03_Solution/modules/kumari/02_kumari_erd.md` |
+| | 3. Lifecycle | `docs/03_Solution/modules/kumari/03_kumari_lifecycle.md` |
+| | 4. Business Rules (v1.0.0, SOURCE ALIGNED, KUM-001–KUM-080) | `docs/03_Solution/modules/kumari/04_kumari_business_rules.md` |
+| | 5. Table Design (5 tables: kumari_sangha, kumari_membership, kumari_activity, kumari_activity_participant, kumari_membership_transition) | `docs/03_Solution/modules/kumari/05_kumari_table_design.md` |
+| | 6. Existing DDL | none — no `backend/kumari/` app yet |
+
+---
+
+### Kishore Puja
+
+| Work Item | Documents to Read (in order) | Path |
+|-----------|------------------------------|------|
+| KH identity, annual registration, Guardian assignment | 1. Module Overview | `docs/03_Solution/modules/kishore/01_kishore_module_overview.md` |
+| | 2. ERD | `docs/03_Solution/modules/kishore/02_kishore_erd.md` |
+| | 3. Lifecycle | `docs/03_Solution/modules/kishore/03_kishore_lifecycle.md` |
+| | 4. Business Rules (v1.0.0, SOURCE ALIGNED, KISH-001–KISH-100, Guardian Model frozen v2.1) | `docs/03_Solution/modules/kishore/04_kishore_business_rules.md` |
+| | 5. Table Design (4 tables: kishore_participant, kishore_event, kishore_event_registration, kishore_membership_transition) | `docs/03_Solution/modules/kishore/05_kishore_table_design.md` |
+| | 6. Existing DDL | none — no `backend/kishore/` app yet |
+
+---
+
+### Sevak Sangha
+
+| Work Item | Documents to Read (in order) | Path |
+|-----------|------------------------------|------|
+| Sevak executive structure, seva/session/event rules (SEV-001–SEV-040) | 1. Module Overview | `docs/03_Solution/modules/sevak/01_sevak_module_overview.md` |
+| | 2. ERD | `docs/03_Solution/modules/sevak/02_sevak_erd.md` |
+| | 3. Lifecycle | `docs/03_Solution/modules/sevak/03_sevak_lifecycle.md` |
+| | 4. Participation Rules | `docs/03_Solution/modules/sevak/04_sevak_participation_rules.md` |
+| | 5. Business Rules | `docs/03_Solution/modules/sevak/05_sevak_business_rules.md` |
+| | 6. Table Design (FROZEN — the only Frozen doc in this module) | `docs/03_Solution/modules/sevak/06_sevak_table_design.md` |
+| | 7. Sangha/Seva/Events subdocs | `docs/03_Solution/modules/sevak/{sangha,seva,events}/` |
+| | 8. Existing DDL | none — no `backend/sevak/` app yet |
+
+---
+
 ### Heritage and Founder
 
 | Work Item | Documents to Read (in order) | Path |
 |-----------|------------------------------|------|
-| Founder record (singleton) | 1. REF-001 (Preamble, founding) | `docs/01_Authoritative_References/NSS/SECTION-A_PRELIMINARY_AND_GENERAL_PROVISIONS/` |
-| | 2. Existing model | `backend/heritage/models.py` |
-| | 3. CLAUDE.md Section 8 (heritage app status) | `CLAUDE.md` |
+| Founder record (singleton), teachings, publications, historical office bearers | 1. Module Overview (v1.0.0, SOURCE ALIGNED) | `docs/03_Solution/modules/heritage/01_founder_heritage_module_overview.md` |
+| | 2. ERD | `docs/03_Solution/modules/heritage/02_founder_heritage_erd.md` |
+| | 3. Lifecycle | `docs/03_Solution/modules/heritage/03_founder_heritage_lifecycle.md` |
+| | 4. Business Rules (HER-001–HER-100) | `docs/03_Solution/modules/heritage/04_founder_heritage_business_rules.md` |
+| | 5. Table Design (8 tables — only `founder_master` implemented in backend) | `docs/03_Solution/modules/heritage/05_founder_heritage_table_design.md` |
+| | 6. Existing model (`founder_master` only) | `backend/heritage/models.py` |
+| | 7. CLAUDE.md Section 8 (heritage app status) | `CLAUDE.md` |
 
 ---
 
