@@ -1,527 +1,1422 @@
-# NSS ERP Person Table Design
+# NSS ERP — Person Table Design
 
-Version: 1.1
-
-Status: DRAFT
-
----
-
-# Purpose
-
-Defines the physical table structure for the Person Module.
-
-Business Rules and ERD must be approved before modifying this document.
+**Document ID:** SOL-PER-004  
+**Version:** 1.0.0  
+**Status:** DRAFT — SOURCE ALIGNED  
+**Module:** Person  
+**Parent System:** Nilachala Saraswata Sangha ERP
 
 ---
 
-# Design Principles
+# 1. Purpose
 
-* Person ≠ Member
-* Person Code is the primary business identifier
-* * Mobile Number + Country Phone Code must be unique
-* International mobile numbers supported
-* Email is not required to be unique
-* At least one contact method is mandatory
-* Date of Birth is optional for Person records
-* Date of Birth becomes mandatory before Membership approval
-* Multiple addresses supported
-* Soft delete enabled
-* Audit enabled
-* Master Data driven architecture
-* Photo and document storage deferred to Document Management Module
+This document defines the logical table design for the NSS ERP Person Module.
+
+It translates the Person:
+
+- Module Design
+- ERD
+- Business Rules
+- Common Database Standards
+
+into a table-level logical design.
+
+This document does not define:
+
+- PostgreSQL DDL
+- Django migrations
+- Physical indexes
+- Database triggers
+- API implementation
+- UI implementation
 
 ---
 
-# Table 1: gender_master
+# 2. Current Person Table Scope
+
+The current Person Module contains:
+
+```text
+person
+document_master
+```
+
+The project schema baseline identifies these two tables as the current Person
+Module tables.
+
+No additional Person table is introduced without an approved design change.
+
+---
+
+# 3. Core Design Principle
+
+The Person table represents:
+
+```text
+ONE INDIVIDUAL
+        ↓
+ONE PERSON IDENTITY
+```
+
+Membership, Family, Governance, Attendance, Mahila, Kumari, Kishori,
+Kishore, and Sevak records reference Person identity where applicable.
+
+The Person table is not the Membership table.
+
+---
+
+# 4. Database Naming Standards
+
+The Person design follows the project database conventions.
+
+## Internal Primary Key
+
+```text
+<table_name>_pk
+```
+
+Example:
+
+```text
+person_pk
+```
+
+## Business Identifier
+
+```text
+<table_name>_id
+```
+
+Example:
+
+```text
+person_id
+```
+
+## Foreign Key
+
+Foreign keys reference internal primary keys.
+
+Example:
+
+```text
+person_pk
+```
+
+rather than:
+
+```text
+person_id
+```
+
+The project database standard explicitly establishes UUID internal keys and
+human-readable business IDs.
+
+---
+
+# 5. Table 1 — `person`
 
 ## Purpose
 
-Stores supported genders.
+`person` is the authoritative identity table for an individual known to
+the NSS ERP.
+
+A Person may or may not have an NSS Membership.
 
 ---
 
-## Columns
+# 6. `person` — Logical Columns
 
-gender_pk UUID PRIMARY KEY
+| Column                      |    Required | Key    | Description                        |
+| --------------------------- | ----------: | ------ | ---------------------------------- |
+| `person_pk`                 |         Yes | PK     | Internal Person identity           |
+| `person_id`                 |         Yes | UNIQUE | Permanent human-readable Person ID |
+| `first_name`                |         Yes | —      | First name                         |
+| `middle_name`               |          No | —      | Middle name                        |
+| `last_name`                 |          No | —      | Last name                          |
+| `gender_pk`                 |          No | FK     | Gender master reference            |
+| `date_of_birth`             |          No | —      | Date of birth                      |
+| `date_of_death`             |          No | —      | Date of death                      |
+| `mobile_number`             | Conditional | UNIQUE | Mobile contact                     |
+| `email`                     | Conditional | —      | Email contact                      |
+| `is_active`                 |         Yes | —      | Person record operational state    |
+| `created_at`                |         Yes | —      | Creation timestamp                 |
+| `created_by_sangha_sevi_pk` |          No | FK     | Creating user/member reference     |
+| `updated_at`                |         Yes | —      | Last update timestamp              |
+| `updated_by_sangha_sevi_pk` |          No | FK     | Updating user/member reference     |
+| `deleted_at`                |          No | —      | Soft-delete timestamp              |
+| `deleted_by_sangha_sevi_pk` |          No | FK     | Deleting user/member reference     |
 
-gender_code VARCHAR(20) NOT NULL
-
-gender_name VARCHAR(50) NOT NULL
-
-display_order INTEGER NOT NULL
-
-created_at TIMESTAMPTZ NOT NULL
-
-is_active BOOLEAN NOT NULL DEFAULT TRUE
-
----
-
-## Seed Data
-
-MALE
-
-FEMALE
-
-OTHER
-
----
-
-## Unique Constraints
-
-gender_code
-
-gender_name
+The exact physical datatypes remain an implementation concern.
 
 ---
 
-## Indexes
+# 7. `person_pk`
 
-is_active
+`person_pk` is the internal primary key.
 
----
+Requirements:
 
-# Table 2: marital_status_master
+* UUID
+* Unique
+* Immutable
+* Used for relational references
+* Not the normal human-facing identifier
 
-## Purpose
-
-Stores marital status values.
-
----
-
-## Columns
-
-marital_status_pk UUID PRIMARY KEY
-
-marital_status_code VARCHAR(30) NOT NULL
-
-marital_status_name VARCHAR(100) NOT NULL
-
-display_order INTEGER NOT NULL
-
-created_at TIMESTAMPTZ NOT NULL
-
-is_active BOOLEAN NOT NULL DEFAULT TRUE
+The project database standard explicitly freezes UUIDs for internal primary
+keys.
 
 ---
 
-## Seed Data
+# 8. `person_id`
 
-UNMARRIED
+`person_id` is the permanent human-readable Person business identifier.
 
-MARRIED
+Illustrative values:
 
-WIDOWED
+```text
+P00000001
+P00000002
+P00000003
+```
 
-DIVORCED
-
-SEPARATED
-
----
-
-## Unique Constraints
-
-marital_status_code
-
-marital_status_name
+The project source establishes centralized ID generation using
+`id_sequence_master`.
 
 ---
 
-## Indexes
+# 9. Person ID Rules
 
-is_active
+`person_id` shall be:
 
----
+* Unique
+* System-generated
+* Permanent
+* Stable
+* Never reused
 
-# Table 3: address_type_master
-
-## Purpose
-
-Stores address classifications.
-
----
-
-## Columns
-
-address_type_pk UUID PRIMARY KEY
-
-address_type_code VARCHAR(30) NOT NULL
-
-address_type_name VARCHAR(100) NOT NULL
-
-display_order INTEGER NOT NULL
-
-created_at TIMESTAMPTZ NOT NULL
-
-is_active BOOLEAN NOT NULL DEFAULT TRUE
+It shall not be generated through application-local counters.
 
 ---
 
-## Seed Data
+# 10. `first_name`
 
-PERMANENT
+Stores the person's first/given name.
 
-CURRENT
-
-OFFICIAL
+This is a Person attribute and does not constitute identity.
 
 ---
 
-## Unique Constraints
+# 11. `middle_name`
 
-address_type_code
+Stores an optional middle name.
 
-address_type_name
-
----
-
-## Indexes
-
-is_active
+A Person may exist without a middle name.
 
 ---
 
-# Table 4: person
+# 12. `last_name`
 
-## Purpose
+Stores the person's family/last name where applicable.
 
-Stores every individual known to NSS.
-
-A Person may or may not be a Member.
+The project does not require that every Person have a conventional last name.
 
 ---
 
-## Columns
+# 13. Name and Identity
 
-person_pk UUID PRIMARY KEY
+Changing:
 
-person_code VARCHAR(20) NOT NULL
+```text
+first_name
+middle_name
+last_name
+```
 
-first_name VARCHAR(100) NOT NULL
+does not create a new Person.
 
-middle_name VARCHAR(100) NULL
+The permanent identity remains:
 
-last_name VARCHAR(100) NULL
-
-gender_pk UUID NOT NULL
-
-date_of_birth DATE NULL
-
-country_phone_code VARCHAR(10) NULL
-
-mobile_number VARCHAR(20) NULL
-
-email VARCHAR(255) NULL
-
-marital_status_pk UUID NULL
-
-remarks TEXT NULL
-
-created_at TIMESTAMPTZ NOT NULL
-
-updated_at TIMESTAMPTZ NULL
-
-deleted_at TIMESTAMPTZ NULL
-
-is_active BOOLEAN NOT NULL DEFAULT TRUE
+```text
+person_pk
+person_id
+```
 
 ---
 
-## Foreign Keys
+# 14. `gender_pk`
 
-gender_pk
-→ gender_master.gender_pk
+References the common gender master where gender is maintained through
+controlled master data.
 
-marital_status_pk
-→ marital_status_master.marital_status_pk
-
----
-
-## Unique Constraints
-
-person_code
-
-(country_phone_code, mobile_number)
+The Person Module does not own the global gender master.
 
 ---
 
-## Check Constraints
+# 15. Gender Boundary
 
-### Contact Information Rule
+The Person table stores the Person's gender reference.
 
-At least one contact method must exist.
+It does not use gender to determine:
 
-UNIQUE
-(
-country_phone_code,
+* Membership
+* Organization
+* Authentication
+* Governance position
+
+Those rules belong to their respective domains.
+
+---
+
+# 16. `date_of_birth`
+
+Stores the Person's date of birth where known.
+
+Date of birth is a Person-level demographic attribute.
+
+---
+
+# 17. Date of Birth and Membership
+
+Person creation does not automatically require the Membership-specific
+date-of-birth requirements.
+
+Where Membership approval requires DOB, Membership rules govern that
+requirement.
+
+---
+
+# 18. `date_of_death`
+
+Stores date of death where known.
+
+It preserves historical identity information.
+
+---
+
+# 19. Date of Death and Deletion
+
+Recording a date of death does not mean:
+
+```text
+DELETE PERSON
+```
+
+The Person remains historically identifiable.
+
+---
+
+# 20. `mobile_number`
+
+Stores the Person's mobile contact number.
+
+The current Person business rule establishes uniqueness when supplied.
+
+---
+
+# 21. Mobile Number Nullability
+
+`mobile_number` may be NULL if the Person has a valid email address.
+
+---
+
+# 22. Mobile Number Uniqueness
+
+When present:
+
+```text
 mobile_number
-)
+```
 
-CHECK
-(
+must identify at most one Person.
+
+The exact physical implementation of NULL-aware uniqueness belongs to
+PostgreSQL schema design.
+
+---
+
+# 23. `email`
+
+Stores the Person's email address where available.
+
+---
+
+# 24. Email Nullability
+
+Email may be NULL when mobile number is present.
+
+---
+
+# 25. Email Uniqueness
+
+Email is not globally unique.
+
+Multiple Person records may legitimately share an email address.
+
+---
+
+# 26. Contact Requirement
+
+The Person record must satisfy:
+
+```text
 mobile_number IS NOT NULL
 OR
 email IS NOT NULL
-)
+```
 
-CHECK
-(
-(
-country_phone_code IS NULL
-AND mobile_number IS NULL
-)
-OR
-(
-country_phone_code IS NOT NULL
-AND mobile_number IS NOT NULL
-)
-)
+Therefore:
 
+```text
+mobile_number IS NULL
+AND
+email IS NULL
+```
+
+is invalid.
+
+The physical PostgreSQL CHECK constraint will be defined later.
 
 ---
 
-## Indexes
+# 27. Contact Normalization
 
-person_code
+The final physical implementation should normalize mobile/email values
+according to the project's common data-quality and internationalization
+standards.
 
-first_name
-
-last_name
-
-mobile_number
-
-email
-
-gender_pk
-
-marital_status_pk
-
-is_active
+This document does not prescribe a specific normalization algorithm.
 
 ---
 
-## Business ID Examples
+# 28. `is_active`
 
-P00000001
+Represents the operational state of the Person record.
 
-P00000002
+It is distinct from:
 
-P00000003
-
-Generated through:
-
-id_sequence_master
-
----
-
-## Frozen Business Rules
-
-### Name Rules
-
-first_name NOT NULL
-
-middle_name NULL
-
-last_name NULL
+```text
+Membership Status
+Organization Status
+Authentication Status
+```
 
 ---
 
-### Gender Rule
+# 29. Person Status Boundary
 
-gender_pk NOT NULL
+`is_active` shall not be interpreted as:
 
----
+```text
+NSS Membership Active
+```
 
-### Date of Birth Rule
-
-date_of_birth NULL ALLOWED
-
-Date of Birth becomes mandatory before Membership approval.
-
----
-
-### Mobile Number Rule
-
-country_phone_code + mobile_number UNIQUE
-
-mobile_number NULL ALLOWED
-
-country_phone_code NULL ALLOWED
-
-Both values must be supplied together.
+A Person may remain active as a Person even when Membership is inactive or
+has ended.
 
 ---
 
-### Email Rule
+# 30. Audit Columns
 
-email NOT UNIQUE
+The project database standard establishes common audit fields including:
 
-email NULL ALLOWED
-
----
-
-### Contact Information Rule
-
-Both mobile_number and email cannot be NULL simultaneously.
-
----
-
-### Membership Rule
-
-Person records shall not store:
-
-* Sangha Sevi ID
-* Membership Type
-* Membership Status
-
-These belong to the Membership Module.
-
----
-
-### Photo Rule
-
-Photo storage is deferred to the Document Management Module.
-
-No photo column shall be stored in the Person table.
-
----
-
-### Audit Rule
-
-Audit foreign key ownership is deferred until Membership and Authentication modules are frozen.
-
-Current columns:
-
+```text
 created_at
+created_by_sangha_sevi_pk
 
 updated_at
+updated_by_sangha_sevi_pk
 
 deleted_at
+deleted_by_sangha_sevi_pk
+```
+
+and:
+
+```text
+is_active
+```
+
+for major transactional records.
+
+The Person table follows that standard.
 
 ---
 
-# Table 5: person_address
+# 31. `created_at`
+
+Records when the Person record was created.
+
+---
+
+# 32. `created_by_sangha_sevi_pk`
+
+Identifies the authorized NSS user/member responsible for creating the
+record where the common audit framework requires such attribution.
+
+The exact authentication/audit implementation belongs to the common
+Foundation/Security architecture.
+
+---
+
+# 33. `updated_at`
+
+Records the latest update timestamp.
+
+---
+
+# 34. `updated_by_sangha_sevi_pk`
+
+Identifies the authorized user/member responsible for the latest update
+where the common audit framework requires attribution.
+
+---
+
+# 35. `deleted_at`
+
+Records the timestamp of a soft-delete operation.
+
+---
+
+# 36. `deleted_by_sangha_sevi_pk`
+
+Identifies the authorized user/member responsible for the soft-delete
+operation where applicable.
+
+---
+
+# 37. Soft Delete
+
+The project standard prohibits ordinary physical deletion of major
+transactional records and uses soft-delete semantics.
+
+For Person:
+
+```text
+is_active = FALSE
+deleted_at = timestamp
+```
+
+may be used according to the common lifecycle/audit framework.
+
+---
+
+# 38. Historical Person Preservation
+
+A Person record should remain available when historical relationships require
+it.
+
+Examples:
+
+* Former Member
+* Historical office-bearer
+* Family history
+* Historical attendance
+* Historical participation
+
+---
+
+# 39. Person-to-Membership Relationship
+
+The Person table is referenced by Membership.
+
+Conceptually:
+
+```text
+person
+   1
+   │
+   │ 0..1
+   ▼
+sangha_sevi
+```
+
+The Membership Module owns the Membership record.
+
+---
+
+# 40. No `sangha_sevi_id` in Person
+
+The Person table shall not contain:
+
+```text
+sangha_sevi_id
+```
+
+as the Person's identity.
+
+Sangha Sevi ID belongs to Membership.
+
+---
+
+# 41. Person-to-Family Relationship
+
+Family tables reference:
+
+```text
+person_pk
+```
+
+The Person table does not contain family-group ownership fields unless
+explicitly established by the Family design.
+
+---
+
+# 42. Person-to-Organization Relationship
+
+The Person table does not own:
+
+```text
+organization_pk
+```
+
+as a permanent Person identity attribute.
+
+Organizational association belongs to the appropriate domain relationship.
+
+This prevents a Person from being incorrectly treated as belonging to only
+one Organization.
+
+---
+
+# 43. Person-to-Governance Relationship
+
+Governance tables reference Person identity.
+
+The Person table does not contain:
+
+```text
+position_pk
+governing_body_pk
+office_bearer_pk
+```
+
+Governance owns those relationships.
+
+---
+
+# 44. Person-to-Attendance Relationship
+
+Attendance records may reference:
+
+```text
+person_pk
+```
+
+The Person table does not store attendance history.
+
+Attendance owns attendance records.
+
+---
+
+# 45. Specialized Module Relationships
+
+The following modules may reference `person_pk`:
+
+```text
+Mahila
+Kumari
+Kishori
+Kishore
+Sevak
+```
+
+They shall not create duplicate Person master records.
+
+---
+
+# 46. No Specialized Person Identity
+
+The following concepts shall not become separate Person identities:
+
+```text
+Mahila Person
+Kumari Person
+Kishori Person
+Kishore Person
+Sevak Person
+```
+
+They are domain participation records associated with the same Person.
+
+---
+
+# 47. Person Address
+
+The current Person source establishes that address information belongs to
+the Person domain, but the exact final address-table structure is not
+sufficiently frozen in the available source.
+
+Therefore this document does not invent a final address table.
+
+---
+
+# 48. Address Design Boundary
+
+Current status:
+
+```text
+Person Address Concept
+    = REQUIRED
+
+Exact Physical Address Structure
+    = OPEN
+```
+
+The address model must be resolved before physical Person schema generation.
+
+---
+
+# 49. Aadhaar / Sensitive Identity Data
+
+Earlier project schema discussions considered fields such as:
+
+```text
+aadhaar_encrypted
+aadhaar_hash
+aadhaar_last4
+```
+
+as potential Person data.
+
+These are **not frozen as columns by this document** because the current
+source does not establish their final physical representation.
+
+If implemented, sensitive identity data must follow the project's security
+standards.
+
+---
+
+# 50. Photo
+
+Earlier schema planning also considered:
+
+```text
+photo_path
+```
+
+for Person.
+
+The current design prefers document/storage architecture rather than
+embedding binary data into the core identity table.
+
+The exact photo/document relationship remains subject to the Document
+Management design.
+
+---
+
+# 51. Emergency Contact
+
+Earlier schema planning mentioned:
+
+```text
+emergency_contact
+```
+
+This is not frozen as a final Person column by the current source.
+
+It should not be added to the physical schema until its business meaning,
+relationship, and ownership are formally defined.
+
+---
+
+# 52. Blood Group
+
+Earlier schema planning mentioned:
+
+```text
+blood_group
+```
+
+This is not frozen as a final Person column by the current source.
+
+It remains an open design consideration rather than a mandatory Person
+column.
+
+---
+
+# 53. Table 2 — `document_master`
 
 ## Purpose
 
-Stores addresses belonging to a Person.
+Stores document metadata associated with Person identity and the project's
+document-management framework.
 
-A Person may have multiple addresses.
-
----
-
-## Columns
-
-person_address_pk UUID PRIMARY KEY
-
-person_pk UUID NOT NULL
-
-address_type_pk UUID NOT NULL
-
-address_line_1 VARCHAR(200) NOT NULL
-
-address_line_2 VARCHAR(200) NULL
-
-landmark VARCHAR(255) NULL
-
-city_village_postal_code_map_pk UUID NOT NULL
-
-is_primary BOOLEAN NOT NULL DEFAULT FALSE
-
-created_at TIMESTAMPTZ NOT NULL
-
-updated_at TIMESTAMPTZ NULL
-
-deleted_at TIMESTAMPTZ NULL
-
-is_active BOOLEAN NOT NULL DEFAULT TRUE
+The document itself is not the Person identity.
 
 ---
 
-## Foreign Keys
+# 54. `document_master` — Logical Columns
 
+The current source establishes the document concept and metadata such as:
+
+* Document Type
+* Storage Path
+* Version
+* Checksum
+* Uploaded By
+
+The following logical design represents those concepts without claiming a
+final physical schema:
+
+| Column                       |    Required | Key | Description                     |
+| ---------------------------- | ----------: | --- | ------------------------------- |
+| `document_pk`                |         Yes | PK  | Internal document identity      |
+| `person_pk`                  | Conditional | FK  | Person associated with document |
+| `document_type_pk`           |         Yes | FK  | Controlled document type        |
+| `document_number`            |          No | —   | Document/reference number       |
+| `storage_path`               |         Yes | —   | Storage reference               |
+| `version`                    |         Yes | —   | Document version                |
+| `checksum`                   |          No | —   | File integrity checksum         |
+| `uploaded_at`                |         Yes | —   | Upload timestamp                |
+| `uploaded_by_sangha_sevi_pk` |          No | FK  | Uploading user/member           |
+| `is_active`                  |         Yes | —   | Current document state          |
+| `created_at`                 |         Yes | —   | Creation timestamp              |
+| `updated_at`                 |         Yes | —   | Last update timestamp           |
+
+Only the concepts supported by the current source are represented here.
+
+---
+
+# 55. `document_pk`
+
+Internal primary key for the document record.
+
+The project database convention uses UUID internal primary keys.
+
+---
+
+# 56. `person_pk` in `document_master`
+
+Where a document belongs to a Person, `person_pk` identifies the associated
+Person.
+
+The document references the Person's internal primary key, not:
+
+```text
+person_id
+```
+
+---
+
+# 57. Document Type
+
+`document_type_pk` references the common controlled document-type master.
+
+The Person Module does not independently maintain a duplicate document-type
+master.
+
+---
+
+# 58. `document_number`
+
+Optional document/reference number where applicable.
+
+Not all documents require an external document number.
+
+---
+
+# 59. `storage_path`
+
+Stores the logical reference to the physical document location.
+
+The Person Module does not prescribe whether storage is:
+
+* Local filesystem
+* Object storage
+* Another approved document repository
+
+---
+
+# 60. `version`
+
+Represents the document version where document versioning applies.
+
+Document versioning is separate from Person identity.
+
+---
+
+# 61. `checksum`
+
+May store a checksum used to verify document integrity.
+
+The exact algorithm is an implementation decision.
+
+---
+
+# 62. `uploaded_at`
+
+Records when the document was uploaded/registered.
+
+---
+
+# 63. `uploaded_by_sangha_sevi_pk`
+
+Identifies the authorized uploader where the common audit/security framework
+requires attribution.
+
+---
+
+# 64. Document Active State
+
+`is_active` identifies whether the document record is currently active.
+
+A superseded document may remain historically preserved.
+
+---
+
+# 65. Document History
+
+Document history shall not automatically delete the Person record.
+
+Replacing a document does not replace Person identity.
+
+---
+
+# 66. Person-to-Document Cardinality
+
+The logical relationship is:
+
+```text
+PERSON
+   1
+   │
+   │ 0..N
+   ▼
+DOCUMENT_MASTER
+```
+
+A Person may have no documents or multiple documents.
+
+---
+
+# 67. Document-to-Person Ownership
+
+A Person document is associated with a Person identity.
+
+A document does not create a new Person.
+
+---
+
+# 68. Common Master Dependencies
+
+The Person Module reuses common Foundation masters where applicable:
+
+```text
+Gender
+Document Type
+Country
+State/Province
+District
+City/Village
+Pincode
+```
+
+The exact common master names shall follow the final Foundation design.
+
+---
+
+# 69. Common ID Sequence Dependency
+
+Person business IDs depend on:
+
+```text
+id_sequence_master
+```
+
+The Person Module shall not maintain its own sequence mechanism.
+
+---
+
+# 70. Common Audit Dependency
+
+Person and document audit fields follow the common project audit standard.
+
+The Person Module shall not create a separate audit framework.
+
+---
+
+# 71. Security Dependency
+
+Person and document access follows the common:
+
+```text
+Authentication
+RBAC
+Authorization
+Audit
+```
+
+architecture.
+
+---
+
+# 72. Foreign Key Summary
+
+| Child Table       | Column                       | Parent                      |
+| ----------------- | ---------------------------- | --------------------------- |
+| `document_master` | `person_pk`                  | `person`                    |
+| `person`          | `gender_pk`                  | Common Gender Master        |
+| `person`          | `created_by_sangha_sevi_pk`  | Membership/User identity    |
+| `person`          | `updated_by_sangha_sevi_pk`  | Membership/User identity    |
+| `person`          | `deleted_by_sangha_sevi_pk`  | Membership/User identity    |
+| `document_master` | `document_type_pk`           | Common Document Type Master |
+| `document_master` | `uploaded_by_sangha_sevi_pk` | Membership/User identity    |
+
+The exact physical foreign-key targets shall follow the final common
+Foundation/Security schema.
+
+---
+
+# 73. Logical Relationship Model
+
+```mermaid
+erDiagram
+
+    PERSON ||--o{ DOCUMENT_MASTER : "has"
+
+    PERSON {
+        UUID person_pk PK
+        VARCHAR person_id UK
+        VARCHAR first_name
+        VARCHAR middle_name
+        VARCHAR last_name
+        UUID gender_pk FK
+        DATE date_of_birth
+        DATE date_of_death
+        VARCHAR mobile_number UK
+        VARCHAR email
+        BOOLEAN is_active
+
+        TIMESTAMP created_at
+        UUID created_by_sangha_sevi_pk FK
+        TIMESTAMP updated_at
+        UUID updated_by_sangha_sevi_pk FK
+        TIMESTAMP deleted_at
+        UUID deleted_by_sangha_sevi_pk FK
+    }
+
+    DOCUMENT_MASTER {
+        UUID document_pk PK
+        UUID person_pk FK
+        UUID document_type_pk FK
+        VARCHAR document_number
+        TEXT storage_path
+        INTEGER version
+        VARCHAR checksum
+        TIMESTAMP uploaded_at
+        UUID uploaded_by_sangha_sevi_pk FK
+        BOOLEAN is_active
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+```
+
+---
+
+# 74. Membership Relationship — External
+
+The Person Module does not own the Membership table.
+
+Logical relationship:
+
+```text
+PERSON
+  1
+  │
+  │ 0..1
+  ▼
+MEMBERSHIP
+```
+
+Membership is a separate module.
+
+---
+
+# 75. Family Relationship — External
+
+The Person Module does not own Family relationships.
+
+Logical relationship:
+
+```text
+PERSON
+  1
+  │
+  │ 0..N
+  ▼
+FAMILY RELATIONSHIPS
+```
+
+Family is a separate module.
+
+---
+
+# 76. Governance Relationship — External
+
+Governance references Person identity.
+
+The Person table does not contain governance assignment fields.
+
+---
+
+# 77. Attendance Relationship — External
+
+Attendance references Person identity where applicable.
+
+The Person table does not contain attendance records.
+
+---
+
+# 78. Specialized Module Relationship — External
+
+Mahila, Kumari, Kishori, Kishore, and Sevak may reference Person identity.
+
+No duplicate Person table is created in those modules.
+
+---
+
+# 79. Identity Integrity Requirements
+
+The logical design requires:
+
+```text
 person_pk
-→ person.person_pk
+    → unique
 
-address_type_pk
-→ address_type_master.address_type_pk
+person_id
+    → unique
 
-city_village_postal_code_map_pk
-→ city_village_postal_code_map.city_village_postal_code_map_pk
+mobile_number
+    → unique when supplied
 
----
+mobile_number OR email
+    → at least one required
 
-## Indexes
+document person_pk
+    → valid Person reference
 
-person_pk
-
-address_type_pk
-
-city_village_postal_code_map_pk
-
-is_active
+document type
+    → valid controlled reference
+```
 
 ---
 
-## Address Rules
+# 80. Historical Integrity
 
-A Person may designate one address as the Primary Address.
+The Person table must preserve identity across:
 
-At any point in time, only one address may be designated as the Primary Address.
-
-The Primary Address may be changed by an authorized user.
-
-When a new address is marked as Primary, the system shall automatically remove the Primary designation from the previous address.
-
-The database shall enforce that no Person can have more than one Primary Address simultaneously.
-
-Implementation:
-
-CREATE UNIQUE INDEX uq_person_primary_address
-ON person_address(person_pk)
-WHERE is_primary = TRUE;
+```text
+Name Change
+Address Change
+Contact Change
+Membership Change
+Organization Change
+Family Change
+Participation Change
+```
 
 ---
 
-# Deferred Features
+# 81. No Person Duplication
 
-The following items are intentionally excluded from Person Module v1:
+The physical database and application layer should work together to prevent
+creation of duplicate Person identities.
 
-* Person Photo
-* Aadhaar
-* Passport
-* Voter ID
-* Driving License
-* Educational Documents
-* Employment Documents
-* Contact History
-* Merge History
-
-These will be implemented through future modules.
+Potential duplicate detection is an application/business concern and is not
+reduced to a single database constraint.
 
 ---
 
-# Future Modules
+# 82. Person Merge
 
-## Document Management Module
+Person merge is not a simple table operation.
 
-Will support:
+If implemented later, the process must preserve all affected relationships
+and historical information.
 
-* Person Photo
-* Aadhaar
-* Passport
-* Voter ID
-* Other Attachments
+The merge workflow is outside the current table-design scope.
 
 ---
 
-## Future Tables
+# 83. Person Deletion
 
-person_document
+Physical deletion is not the normal Person lifecycle.
 
-person_contact_history
+Historical records shall remain available where required.
 
+---
+
+# 84. Auditability
+
+At minimum, the Person design supports:
+
+```text
+Created
+Updated
+Soft Deleted
+```
+
+with responsible-user attribution through the common audit framework.
+
+---
+
+# 85. Security
+
+Sensitive Person information and documents shall be protected by the
+common security framework.
+
+The Person table shall not expose sensitive values unnecessarily.
+
+---
+
+# 86. Person Table Summary
+
+```text
+person
+│
+├── person_pk
+├── person_id
+│
+├── first_name
+├── middle_name
+├── last_name
+├── gender_pk
+├── date_of_birth
+├── date_of_death
+│
+├── mobile_number
+├── email
+│
+├── is_active
+│
+├── created_at
+├── created_by_sangha_sevi_pk
+├── updated_at
+├── updated_by_sangha_sevi_pk
+├── deleted_at
+└── deleted_by_sangha_sevi_pk
+```
+
+---
+
+# 87. Document Master Summary
+
+```text
+document_master
+│
+├── document_pk
+├── person_pk
+├── document_type_pk
+├── document_number
+├── storage_path
+├── version
+├── checksum
+├── uploaded_at
+├── uploaded_by_sangha_sevi_pk
+├── is_active
+├── created_at
+└── updated_at
+```
+
+---
+
+# 88. Current Table Count
+
+```text
+Person Module
+────────────────────────────
+person                  1
+document_master         1
+────────────────────────────
+TOTAL                   2
+```
+
+This matches the current project schema baseline identifying two Person
+tables.
+
+---
+
+# 89. Explicitly Not Added
+
+The following are not added as frozen Person tables/columns without further
+approved design:
+
+```text
+person_address
+person_address_history
 person_merge_history
+person_status_master
+aadhaar_encrypted
+aadhaar_hash
+aadhaar_last4
+photo_path
+blood_group
+emergency_contact
+```
 
-person_photo_history
+Earlier project discussions mentioned some of these concepts, but the
+current Person solution baseline does not establish their final physical
+representation.
 
-These are outside the scope of Person Module v1.
+---
+
+# 90. Important Design Boundary
+
+This document intentionally distinguishes:
+
+```text
+SOURCE-SUPPORTED DESIGN
+        from
+IMPLEMENTATION ASSUMPTIONS
+```
+
+Only source-supported Person structures are treated as frozen.
+
+---
+
+# 91. Physical Schema Boundary
+
+This document does not define:
+
+```text
+CREATE TABLE
+ALTER TABLE
+CHECK CONSTRAINT SQL
+INDEX SQL
+TRIGGER SQL
+PostgreSQL datatype selection beyond established PK conventions
+Django models
+FastAPI endpoints
+UI
+```
+
+These belong to the implementation stage.
+
+---
+
+# 92. Person Module Final Logical Model
+
+```text
+                    PERSON
+                      │
+                      │
+             ┌────────┴────────┐
+             │                 │
+             ▼                 ▼
+       PERSON IDENTITY     DOCUMENT MASTER
+             │
+             │
+       ┌─────┼─────┬──────────┬──────────┐
+       ▼     ▼     ▼          ▼          ▼
+   FAMILY  MEMBER  GOV     ATTENDANCE  SPECIALIZED
+                               │
+                     ┌─────────┼─────────┐
+                     ▼         ▼         ▼
+                   Mahila    Kumari    Sevak
+```
+
+---
+
+# 93. Final Person Table Principles
+
+```text
+✓ Person is the core individual identity
+
+✓ Person ≠ Member
+
+✓ Person Module contains 2 current tables
+
+✓ person is the central Person table
+
+✓ document_master stores document metadata
+
+✓ person_pk is the internal UUID identity
+
+✓ person_id is the human-readable business identity
+
+✓ person_id is unique
+
+✓ person_id is permanent
+
+✓ person_id is centrally generated
+
+✓ person_id is never reused
+
+✓ Foreign keys reference person_pk
+
+✓ Mobile is unique when supplied
+
+✓ Email is not globally unique
+
+✓ At least one contact method is required
+
+✓ Person identity survives Membership changes
+
+✓ Person identity survives organizational changes
+
+✓ Person identity survives family changes
+
+✓ Person identity survives demographic corrections
+
+✓ Person records are historically preserved
+
+✓ Person documents reference Person identity
+
+✓ Person does not own Membership
+
+✓ Person does not own Family
+
+✓ Person does not own Organization
+
+✓ Person does not own Governance
+
+✓ Person does not own Attendance
+
+✓ Specialized modules reuse Person identity
+
+✓ Common audit framework is reused
+
+✓ Common security framework is reused
+
+✓ Common master-data framework is reused
+
+✓ No SQL is defined in this document
+```
+
+---
+
+# 94. Open Items Before Physical Person Schema
+
+The following must be resolved before PostgreSQL schema generation:
+
+| Item                          | Status         |
+| ----------------------------- | -------------- |
+| Person address structure      | OPEN           |
+| Sensitive identity storage    | OPEN           |
+| Photo/document implementation | OPEN           |
+| Blood group                   | OPEN           |
+| Emergency contact             | OPEN           |
+| Person status vocabulary      | OPEN           |
+| Person merge history          | OPEN           |
+| Exact document versioning     | OPEN           |
+| Physical constraints          | IMPLEMENTATION |
+| Physical indexes              | IMPLEMENTATION |
+
+These are deliberately not silently frozen.
+
+---
+
+# 95. Status
+
+```text
+DOCUMENT STATUS:
+DRAFT — SOURCE ALIGNED
+
+VERSION:
+1.0.0
+```
+
+---
+
+# End of Document
