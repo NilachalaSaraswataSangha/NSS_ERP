@@ -8,22 +8,23 @@ Kumari Sangha), reusing the existing Person/Family foundation.
 
 ## Documents
 
-01_kishore_module_overview.md — Version 1.0, DRAFT
+01_kishore_module_overview.md — Document ID `SOL-KISH-001`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: High-level Kishore Puja module overview (KH Identity, Registration, Guardian
 Assignment).
 
-02_kishore_erd.md — Document ID `SOL-KIS-002`, DRAFT
+02_kishore_erd.md — Document ID `SOL-KISH-002`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Entity relationship design.
 
-03_kishore_lifecycle.md — Document ID `SOL-KIS-003`, DRAFT
+03_kishore_lifecycle.md — Document ID `SOL-KISH-003`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Lifecycle — one permanent Kishore ID retained across multiple years' registrations,
 with optional transition to NSS Membership.
 
-04_kishore_business_rules.md — Document ID `SOL-KIS-004`, DRAFT
+04_kishore_business_rules.md — Document ID `SOL-KISH-004`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Business rules, including the Kishore ID format, registration sources, and the Guardian
-Model.
+Model (frozen v2.1 — Guardian must independently qualify as an NSS Member via `sangha_sevi`
+identity; being the legal guardian/parent does not itself satisfy the requirement, KISH-023).
 
-05_kishore_table_design.md — Document ID `SOL-KIS-005`, DRAFT
+05_kishore_table_design.md — Document ID `SOL-KISH-005`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Physical table design — `kishore_participant`, `kishore_event`,
 `kishore_event_registration`, `kishore_membership_transition`.
 

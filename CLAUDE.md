@@ -112,6 +112,20 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
+- **Branch/remotes (updated 2026-08-19 — supersedes the 2026-08-18 bullet below for current
+  branch/HEAD state; remotes unchanged):** Active branch is `feature/ref-documentation`,
+  working tree clean, 5 commits ahead of `personal/feature/ref-documentation` (not yet pushed):
+  `40a9f02` (doc-drift reconciliation) → `c88efd0` (kumari → v1.0.0 SOURCE ALIGNED) →
+  `f485aef` (kishore → v1.0.0 SOURCE ALIGNED) → `2f9b567` (**new** heritage module doc set,
+  v1.0.0 SOURCE ALIGNED, 5 files) → `cf1a085` (organization restructured 4-file→5-file pattern,
+  v1.1.0 GOVERNANCE ALIGNED, old files deleted) → `89aa2ec` (person expanded within its existing
+  4-file pattern, v1.0.0 SOURCE ALIGNED). Confirmed via `git diff --stat -- backend/ database/`:
+  **zero backend/database changes** — pure docs drift, same pattern as every prior pass. Two
+  real discrepancies surfaced by this pass, not previously flagged: (1) the new Person docs name
+  the business identifier `person_id`, conflicting with the implemented DDL's `person_code`;
+  (2) the new Organization v1.1.0 docs explicitly un-froze the ANCHALIKA/ZILLA/SAKHA/
+  PATHA_CHAKRA type-to-type parent matrix that root `README.md` still presents as settled. Both
+  added to §13; see §12's 2026-08-19 entry for full detail and the files corrected.
 - **Branch/remotes (updated 2026-08-18 — supersedes the 2026-08-16 bullet below for current
   branch/HEAD/remotes):** Active branch is `feature/ref-documentation`, working tree clean, 2
   commits ahead of `develop` (`632c32b`..`d174254`: mahila v2.0.0 module docs then a v2.1.0
@@ -215,15 +229,18 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
     containing its REF file(s) — folders are navigation only, identity lives in the filename.
 - **Governance docs present (updated 2026-08-14):** `AUTH-001`, `GOV-001..005`,
   `GDR-001..004` — all exist under `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.
-- **Module docs present (updated 2026-08-18):** `docs/03_Solution/modules/{organization, person,
-  membership, family, attendance, kumari, kishore, mahila, sevak}/` — organization/person use
-  the original `01_design`/`02_erd`/`03_business_rules`/`04_table_design` pattern; the six added
-  2026-08-17/18 use a `01_..._module_overview` / `02_..._erd` / `03_..._lifecycle` /
-  `04_..._business_rules` / `05_..._table_design` pattern instead (sevak has a `06_` table-design
-  file too, plus `sangha/`/`seva/`/`events/` subdocs) — don't assume the numbering scheme is
-  uniform across modules. All 9 module folders now have an accurate `README.md` (fixed this
-  pass — all 7 of the newer ones had been silently stale, still saying "NOT STARTED" despite
-  full doc sets).
+- **Module docs present (updated 2026-08-19):** `docs/03_Solution/modules/{heritage, organization,
+  person, membership, family, attendance, kumari, kishore, mahila, sevak}/` — **10** module
+  folders now (heritage added 2026-08-19). Person is the only one still on the original
+  `01_..._design`/`02_..._erd`/`03_..._business_rules`/`04_..._table_design` 4-file pattern;
+  organization was restructured 2026-08-19 off that same original pattern onto the newer
+  `01_..._module_overview` / `02_..._erd` / `03_..._lifecycle` / `04_..._business_rules` /
+  `05_..._table_design` 5-file pattern (deleting its old 4 files, not renaming them) — the same
+  pattern already used by heritage, membership, kumari, kishore, mahila (sevak has a `06_`
+  table-design file too, plus `sangha/`/`seva/`/`events/` subdocs). Don't assume the numbering
+  scheme is uniform across modules. All 10 module folders have an accurate `README.md` (heritage/
+  organization/person rewritten this pass to match their new v1.0.0/v1.1.0 content and to flag
+  new doc-vs-DDL discrepancies — see §7).
 - **Standards docs present:** `docs/00_Project_Governance/STD/01_project_standards.md` …
   `05_security_standards.md`.
 - **Releases present:** `v0.1.0` through `v0.5.1` under `docs/05_Releases/`.
@@ -255,8 +272,8 @@ docs/
 ├── 01_Authoritative_References/NSS/SECTION-A..I/ (+ MAHILA_SANGHA/SECTION-A..M/ complete;
 │   RESOLUTIONS/, CIRCULARS/, NOTIFICATIONS/ still planned)
 ├── 02_Requirements/ (scaffolded, empty)
-├── 03_Solution/modules/{organization, person, membership, family, attendance, kumari, kishore,
-│   mahila, sevak}/ (+ architecture/, ui/mockups/, infrastructure/DEPLOYMENT_SYNC_PLAN.md,
+├── 03_Solution/modules/{heritage, organization, person, membership, family, attendance, kumari,
+│   kishore, mahila, sevak}/ (+ architecture/, ui/mockups/, infrastructure/DEPLOYMENT_SYNC_PLAN.md,
 │   standards/lifecycle/ [SOL-LIFE-001/002] now populated; api/database/security still empty
 │   scaffolding)
 ├── 04_Testing/ (scaffolded, empty)
@@ -365,21 +382,43 @@ One Person = One Membership = One Sangha Sevi ID
 Contact rule: `mobile_number` UNIQUE+nullable, `email` NOT UNIQUE+nullable, but
 `mobile_number IS NOT NULL OR email IS NOT NULL` must always hold — enforce via DB CHECK
 constraint. DOB optional for Person, mandatory before Membership approval. Multiple addresses
-supported. Soft delete + audit enabled. Photo/doc storage deferred to Document Management.
+implemented in SQL (`database/ddl/03_person/03_person_address.sql`). Soft delete + audit
+enabled. Photo/doc storage deferred to Document Management.
+**Doc drift flagged (2026-08-19):** the newest module docs (`docs/03_Solution/modules/person/`,
+v1.0.0 SOURCE ALIGNED) explicitly mark the address/Aadhaar/photo/blood-group model as **OPEN,
+not frozen** — contradicting the "Multiple addresses supported" framing above, even though the
+SQL table already exists. Treat multi-address as implemented-but-not-formally-decided until
+reconciled. The same docs also name the business identifier `person_id`, not `person_code` as
+implemented in SQL and used everywhere else in this file — another unreconciled naming gap, see
+§13. Two tables in the design: `person`, `document_master` (the latter has no SQL yet).
 
 **Membership (frozen):** `Sangha Sevi ID` format `SS00000001` — system generated, unique,
 permanent, never reused. Categories: Probationary / Regular / Associate. Renewal deadline tied
 to Dola Purnima, **no grace period**. Full rule set lives in `04_MEMBERSHIP_BUSINESS_RULES.md`
 (if not yet in repo, treat as pending creation) — REQ/SOLUTION work must not contradict it.
 
-**Organization:** Root = NSS; no independent organizational roots for subordinate bodies.
-`ANCHALIKA` and `ZILLA` = administrative units; `SAKHA` = physical Sangha location, existing
-under `ANCHALIKA` or `ZILLA`; `PATHA_CHAKRA` = an organization type sitting directly under
-`KENDRA` (not under `ANCHALIKA`/`ZILLA`), may operate within India or internationally (root
-`README.md` § Organization Hierarchy). Prior design leaned toward one organization → one
-address (on the `organization` table directly, not a separate `organization_address` table) —
-**do not reopen without checking current governance baseline first; Organization Module is
-frozen.**
+**Organization:** Root = NSS; no independent organizational roots for subordinate bodies. The
+generic structure is frozen — single apex, self-referencing `parent_organization_pk`, exactly
+three tables (`organization_type_master`, `organization_status_master`, `organization`), address
+inline on `organization` (no separate `organization_address` table). **The specific
+type-to-type parent matrix is NOT frozen** — as of the 2026-08-19 v1.1.0 GOVERNANCE ALIGNED
+business-rules doc, the exact rules for which org type may parent which (e.g. whether
+`ANCHALIKA`/`ZILLA` sit under `KENDRA`, whether `SAKHA` sits under `ANCHALIKA`/`ZILLA`, whether
+`PATHA_CHAKRA` sits under `KENDRA` directly) were explicitly walked back to an open item, along
+with the exact `organization_type_master` seed values — the tree diagram in root `README.md` §
+Organization Hierarchy is the current working assumption, not a closed decision; see §13.
+**Do not reopen the generic structure above without checking current governance baseline first;
+Organization Module is frozen at that level.**
+
+**Founder & Heritage (docs v1.0.0, SOURCE ALIGNED — added 2026-08-19):**
+`docs/03_Solution/modules/heritage/` designs 8 tables: `founder_master` (single immutable
+record — Founder = Swami Nigamananda Paramahansa Dev), `founder_teaching`,
+`nss_objective_master`, `nss_historical_milestone`, `nss_publication` (v1.1 — mandatory
+language, free/donation/fixed-price models, physical+digital coexistence, multiple editions,
+digitization support), `historical_office_bearer`, `publication_type_master`,
+`publication_language_master`. `backend/heritage/` (already existed, see §8) implements only
+`founder_master`, via the `Founder` singleton model — the other 7 tables have zero backend
+representation. Future entities beyond this scope are explicitly excluded.
 
 **Mahila Sangha:** Every Sakha Sangha (branch) has its own local Mahila Sangha (women's wing),
 per `REF-001` Clause 12 ("To organise 'Mahila Sanghas' in different 'Sakha Sanghas'... which
@@ -401,13 +440,16 @@ already-settled model.
 
 **Kumari Sangha / Kishore Puja:** Each has its own ID distinct from Sangha Sevi ID
 (`Kumari ID ≠ Sangha Sevi ID`, `Kishore ID ≠ Sangha Sevi ID`) — not treated as ordinary
-membership. As of the 2026-08-18 module-doc pass, both now have concrete, documented formats:
-**Kumari ID = `KM000001`** (KM + 6 digits, permanent), **Kishore ID = `KH000001`** (KH + 6
-digits, permanent, one ID spans many yearly event registrations). Kishore Puja additionally has
-a frozen **Guardian Model**: every participant must have a Guardian who is an NSS Member of the
-participant's Sakha (assigned by the Sakha, not necessarily the parent). Both modules are fully
-designed (`docs/03_Solution/modules/kumari/`, `.../kishore/`) but still DRAFT, and neither has a
-`backend/` Django app yet.
+membership. Both now have concrete, documented formats: **Kumari ID = `KM000001`** (KM + 6
+digits, permanent), **Kishore ID = `KH000001`** (KH + 6 digits, permanent, one ID spans many
+yearly event registrations). Kishore Puja additionally has a frozen **Guardian Model v2.1**:
+every participant must have a Guardian who is an NSS Member (via `sangha_sevi` identity, not
+just being a legal guardian/parent) of the participant's Sakha, assigned by the Sakha, not
+necessarily the parent — a parent qualifies only if they independently satisfy the NSS-member/
+Sakha requirement (KISH-023). As of 2026-08-19 both module doc sets are version-locked at
+v1.0.0 SOURCE ALIGNED (a content-freeze tag, not a lifecycle promotion — document-level Status
+remains DRAFT). Both modules are fully designed (`docs/03_Solution/modules/kumari/`,
+`.../kishore/`) but neither has a `backend/` Django app yet.
 
 **Sevak Sangha:** Partially frozen only — foundation exists but executive structure,
 membership lifecycle, training hierarchy, governance model, and operational structure are
@@ -469,6 +511,10 @@ deleted_at/deleted_by_sangha_sevi_pk, is_active`.
 identifiers — `person_code`, `country_code`, `sequence_code`, etc. — never `_id`. The prior
 `sangha_sevi_id` example was a Django model field name (`backend/membership/models.py`), not a
 SQL/DDL convention; don't generalize from it. Follow `_code` for new DDL.
+**New conflicting example (2026-08-19):** `docs/03_Solution/modules/person/04_person_table_design.md`
+(v1.0.0 SOURCE ALIGNED) names its business identifier `person_id`, not `person_code` — this
+contradicts both this convention and the already-implemented DDL column. Unreconciled; see §7
+Person bullet and §13.
 
 **Schema scale:** conceptual table count has been estimated anywhere from ~88 to ~95+ to a
 projected 110–130 depending on remaining operational modules — **these are estimates, not a
@@ -516,6 +562,64 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-19 — /document-project pass: new heritage module doc set, organization restructure to v1.1.0, person/kumari/kishore promoted to v1.0.0 (Claude Code)
+- Context: User ran `/document-project` again. `git log develop..HEAD` showed 5 new commits
+  beyond the 2026-08-18 pass's last-verified state (`40a9f02` → `c88efd0` → `f485aef` →
+  `2f9b567` → `cf1a085` → `89aa2ec`), and `git diff --stat -- backend/ database/` confirmed
+  zero code changes — pure docs drift, 56 files / ~51k insertions across the diff vs. `develop`.
+  Five parallel Explore agents surveyed the new content: (1) a brand-new
+  `docs/03_Solution/modules/heritage/` 5-doc set (v1.0.0 SOURCE ALIGNED, 8 tables — only
+  `founder_master` has backend representation); (2) `docs/03_Solution/modules/organization/`
+  restructured from its original 4-file `01_design`/`02_erd`/`03_business_rules`/
+  `04_table_design` pattern to the newer 5-file `01_module_overview`/`02_erd`/`03_lifecycle`/
+  `04_business_rules`/`05_table_design` pattern (old files deleted, not renamed), reaching
+  v1.1.0 GOVERNANCE ALIGNED — and in the process **explicitly un-froze** the ANCHALIKA/ZILLA/
+  SAKHA/PATHA_CHAKRA type-to-type parent matrix that root `README.md` § Organization Hierarchy
+  and this file's §7 had been presenting as settled; only the generic apex + 3-table +
+  self-referencing structure remains frozen; (3) `docs/03_Solution/modules/person/` grew
+  substantially within its existing 4-file pattern to v1.0.0 SOURCE ALIGNED, surfacing two real
+  discrepancies: the docs name the business identifier `person_id` where the implemented DDL
+  uses `person_code`, and the docs mark the address/Aadhaar/photo/blood-group model OPEN even
+  though `person_address` is already implemented in SQL; (4) kumari and kishore were promoted
+  to v1.0.0 SOURCE ALIGNED (content-freeze tag, not a status promotion — document-level Status
+  remains DRAFT in both), with kishore's Guardian Model confirmed as specifically "frozen v2.1"
+  referencing `sangha_sevi` identity; (5) root `README.md` and `docs/PROJECT_DOCUMENTATION.md`
+  were both found stale against all of the above (missing heritage entirely, citing organization
+  filenames that no longer exist, asserting Person/SQL alignment that no longer holds).
+- Decision/Outcome: Rewrote `docs/03_Solution/modules/heritage/README.md` (was still "NOT
+  STARTED" despite a complete 5-doc set), `.../organization/README.md` (full rewrite — new file
+  list, the un-frozen type-matrix flag, still-empty DDL), and `.../person/README.md` (corrected
+  overstated "Frozen"/"Complete" claims to match the docs' own DRAFT — SOURCE ALIGNED status,
+  added the `person_id`/`person_code` and address-model discrepancy notes). Made small
+  version-string fixes to `.../kumari/README.md` and `.../kishore/README.md` (Version 1.0 →
+  1.0.0, DRAFT → DRAFT — SOURCE ALIGNED, plus a kishore Document ID typo fix `SOL-KIS-*` →
+  `SOL-KISH-*`). Updated `docs/PROJECT_DOCUMENTATION.md`: Overview (added Founder & Heritage to
+  the module list, 5 real Django apps not 4), the `03_Solution/` detail tree (added heritage,
+  corrected organization's file names/version, flagged person's discrepancies), Key Workflows
+  #3 (person_id vs person_code) and #4 (organization filenames + un-frozen type matrix), the
+  Conventions & Gotchas "Person module docs vs. Organization module docs" entry (was asserting
+  close SQL alignment for Person — no longer accurate), the doc/code-gap paragraph (added
+  heritage), and Open questions/TODOs (added the three new discrepancies as concrete action
+  items). Updated root `README.md`: Organization Hierarchy section (added a flag note that the
+  type-matrix is now open, not frozen), Module Structure intro (added Organization/Person/
+  Heritage to the "design complete" list), and Current Development Status (added Heritage to
+  Completed, version-tagged each entry, fixed a pre-existing self-contradiction where
+  "Next Release Target: v0.6.0 Membership Module Design" named a module already listed as
+  Completed — replaced with an honest "not yet decided" note since no `docs/05_Releases/v0.6.0.md`
+  exists). Updated this file's §3 (new dated bullet), §5 (heritage added to both module lists,
+  organization's pattern-migration noted), §7 (added a Heritage paragraph; rewrote the
+  Organization paragraph to separate the frozen generic structure from the now-open type matrix;
+  rewrote the Person paragraph to flag the two discrepancies; updated the Kumari/Kishore
+  paragraph with the v1.0.0 tags and the Guardian v2.1/`sangha_sevi` detail), §8 (added a
+  cross-reference note on the `person_id`/`person_code` conflict), and §13 (three new open
+  items).
+- Follow-up: none of the three new discrepancies (`person_id` vs `person_code`; Organization
+  type-matrix; Person address-model OPEN-vs-implemented) were resolved this pass — flagged only,
+  per the standing rule not to invent answers to design questions unilaterally. The pre-existing
+  `TECH_STACK_DECISIONS.md` §6 `pie`/`org` reconciliation remains unresolved (flagged again,
+  third session in a row). Commit `40a9f02` and the 5 commits above are still unpushed to
+  `personal` as of this pass — not pushed here since the user didn't ask for it.
 
 ### 2026-08-18 — /document-project pass: reconciled 7 new module doc sets, standards/infra additions, and a second git remote (Claude Code)
 - Context: User ran `/document-project` again. Live `git status`/`git log` showed the working
@@ -917,3 +1021,14 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   unresolved operational modules (§8, §10).
 - ~~`AUTH-001` has no definition of the `REF-MS-XXX` identifier family~~ — **resolved**, see §12
   2026-08-13 entry: `AUTH-ID-002A` + Appendix B row added, backed by `GDR-002`.
+- **New (2026-08-19): `person_id` (Person module design docs) vs. `person_code` (implemented
+  SQL DDL)** — the two disagree on the name of Person's business identifier column. Needs an
+  explicit decision on which name is authoritative before either is extended further. See §7/§8.
+- **New (2026-08-19): Organization type-to-type parent matrix** — the v1.1.0 GOVERNANCE ALIGNED
+  business rules doc explicitly un-froze the specific ANCHALIKA/ZILLA/SAKHA/PATHA_CHAKRA parent
+  rules shown in root `README.md` § Organization Hierarchy, leaving them open pending a future
+  decision. Only the generic apex + 3-table + self-referencing structure remains frozen. See §7.
+- **New (2026-08-19): Person address/Aadhaar/photo/blood-group model** — the v1.0.0 SOURCE
+  ALIGNED Person design docs mark this OPEN, but `database/ddl/03_person/03_person_address.sql`
+  already implements a multi-address table. Needs reconciliation: is the SQL a de facto
+  decision, or should it be revisited alongside the other open items? See §7.

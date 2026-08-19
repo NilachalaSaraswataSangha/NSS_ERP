@@ -186,6 +186,13 @@ Notes:
 * PATHA_CHAKRA may operate within India or internationally.
 * SAKHA exists under ANCHALIKA or ZILLA.
 
+> **Flag (2026-08-19):** the Organization module's business rules were revised to v1.1.0
+> (`docs/03_Solution/modules/organization/04_organization_business_rules.md`, GOVERNANCE
+> ALIGNED) and now explicitly leave the exact type-to-type parent compatibility matrix shown
+> above as an **open item**, not a frozen decision — only the generic apex + self-referencing
+> 3-table structure is frozen. Treat this diagram as the current working assumption, not a
+> closed design, until that open item is resolved.
+
 ---
 
 # Module Structure
@@ -195,9 +202,10 @@ Notes:
 exist as Django apps under `backend/` — Mahila Sangha, Kumari Sangha, Kishore Puja, Sevak
 Sangha, UPBS, Reports & Analytics, and Administration have no app directory yet. Solution-layer
 design documentation (overview/ERD/lifecycle/business-rules/table-design) is now complete for
-Membership, Family, Attendance, Kumari Sangha, Kishore Puja, and Mahila Sangha, and largely
-complete for Sevak Sangha — ahead of, and not yet reconciled with, any backend implementation.
-See `docs/PROJECT_DOCUMENTATION.md` for the current, code-verified status of each.*
+Membership, Family, Attendance, Organization, Person, Founder & Heritage, Kumari Sangha,
+Kishore Puja, and Mahila Sangha, and largely complete for Sevak Sangha — ahead of, and not yet
+reconciled with, any backend implementation. See `docs/PROJECT_DOCUMENTATION.md` for the
+current, code-verified status of each.*
 
 ## Foundation
 
@@ -498,15 +506,20 @@ Completed:
 
 * Foundation Architecture
 * Authentication Foundation
-* Organization Module Design
-* Person Module Design
-* Person Database Schema
+* Organization Module Design (v1.1.0, GOVERNANCE ALIGNED — restructured 2026-08-19; type-to-type
+  parent hierarchy left as an open item, not frozen)
+* Person Module Design (v1.0.0, SOURCE ALIGNED — 2 tables: person, document_master)
+* Person Database Schema (partial — `person`/`person_address` implemented; `document_master`
+  has no SQL counterpart yet, and the docs' `person_id` naming doesn't match the DDL's
+  `person_code`)
 * Global Location Model
 * Membership Module Design
 * Family Module Design
 * Attendance Module Design (Review Workflow Frozen)
-* Kumari Sangha Module Design
-* Kishore Puja Module Design
+* Founder & Heritage Module Design (v1.0.0, SOURCE ALIGNED — 8 tables designed; backend
+  implements only 1, `founder_master`)
+* Kumari Sangha Module Design (v1.0.0, SOURCE ALIGNED)
+* Kishore Puja Module Design (v1.0.0, SOURCE ALIGNED — Guardian Model frozen v2.1)
 * Mahila Sangha Module Design (v2.1.0, Bye-Law-aligned governance model)
 * Sevak Sangha Module Design (partially frozen — table design only; see
   `docs/PROJECT_DOCUMENTATION.md`)
@@ -514,14 +527,18 @@ Completed:
 Current Focus:
 
 * Reconciling Solution-layer design docs with actual Django/SQL implementation across
-  membership, family, attendance, kumari, kishore, mahila, and sevak — all are documented but
-  none has corresponding backend code beyond membership/family's existing minimal models.
+  organization, membership, family, attendance, heritage, kumari, kishore, mahila, and sevak —
+  all are documented but none has corresponding backend code beyond membership/family/heritage's
+  existing minimal models. No release doc has been created yet for the module-doc work landed
+  since v0.5.1 (heritage added; organization/person/kumari/kishore expanded or restructured).
 
 Next Release Target:
 
 ```text
-v0.6.0
-Membership Module Design
+Not yet decided — the module-documentation backlog (organization through sevak) is now largely
+complete at the design level; the next concrete milestone is backend implementation/
+reconciliation rather than another design-doc pass. See docs/PROJECT_DOCUMENTATION.md → Open
+questions / TODOs.
 ```
 
 ---

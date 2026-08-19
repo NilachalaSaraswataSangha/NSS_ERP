@@ -8,22 +8,22 @@ Membership, reusing the existing Person/Family foundation.
 
 ## Documents
 
-01_kumari_module_overview.md — Version 1.0, DRAFT
+01_kumari_module_overview.md — Document ID `SOL-KUM-001`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: High-level Kumari Sangha module overview (KM Identity, Activities, Training, Membership
 Transition).
 
-02_kumari_erd.md — Document ID `SOL-KUM-002`, DRAFT
+02_kumari_erd.md — Document ID `SOL-KUM-002`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Entity relationship design.
 
-03_kumari_lifecycle.md — Document ID `SOL-KUM-003`, DRAFT
+03_kumari_lifecycle.md — Document ID `SOL-KUM-003`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Lifecycle — Enrollment → Active → exit via transition to NSS Membership, marriage
 (`MARRIED_OUT`), withdrawal, or death (`ACTIVE, MARRIED_OUT, BECAME_NSS_MEMBER, WITHDRAWN,
 DECEASED`). History is never physically deleted.
 
-04_kumari_business_rules.md — Document ID `SOL-KUM-004`, DRAFT
+04_kumari_business_rules.md — Document ID `SOL-KUM-004`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Business rules, including the Kumari ID format and transition-to-Membership rule.
 
-05_kumari_table_design.md — Document ID `SOL-KUM-005`, DRAFT
+05_kumari_table_design.md — Document ID `SOL-KUM-005`, Version 1.0.0, DRAFT — SOURCE ALIGNED
 Purpose: Physical table design — `kumari_sangha`, `kumari_membership`, `kumari_activity`,
 `kumari_activity_participant`, `kumari_membership_transition`.
 

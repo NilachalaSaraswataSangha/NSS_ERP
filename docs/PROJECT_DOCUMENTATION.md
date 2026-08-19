@@ -14,7 +14,8 @@ NSS ERP is an in-development Enterprise Resource Planning system for **Nilachala
 Sangha (NSS)**, a religious/spiritual organization. It is not a generic corporate ERP — its
 data model is built around NSS's own constitutional structure (Kendra → Anchalika/Zilla →
 Sakha), its membership system (Sangha Sevi ID), and organizational concepts like Family,
-Governance, Attendance, Mahila Sangha, Kumari Sangha, Kishore Puja, and Sevak Sangha.
+Governance, Attendance, Mahila Sangha, Kumari Sangha, Kishore Puja, Sevak Sangha, and Founder &
+Heritage.
 
 The project follows a **Constitution First → Governance → Requirements → Solution →
 Implementation** philosophy, and for delivery, **Database First → API First → UI First**: raw
@@ -25,10 +26,12 @@ truth story, while the `organization` module has full design documentation but *
 implemented SQL.
 
 The codebase today is an early-stage skeleton: a working Django login + dashboard + person-list
-flow, four real Django data models (`foundation`, `authentication`, `family`, `membership`), a
-partially-implemented PostgreSQL schema (foundation/location + person are implemented,
-organization is not), and an extensive, mature governance/documentation corpus that is
-significantly ahead of the code.
+flow, five real Django data models (`foundation`, `authentication`, `family`, `membership`,
+`heritage`), a partially-implemented PostgreSQL schema (foundation/location + person are
+implemented, organization is not), and an extensive, mature governance/documentation corpus that
+is significantly ahead of the code — the gap widened further as of 2026-08-19, when Founder &
+Heritage, Organization, Person, Kumari, and Kishore all received substantial new/restructured
+design documentation with no matching code changes.
 
 ## Architecture
 
@@ -217,13 +220,14 @@ database/
 ```
 03_Solution/
 ├── modules/
-│   ├── organization/     01_design/02_erd/03_business_rules/04_table_design — fully designed, no SQL (see Gotchas)
-│   ├── person/            same 4-doc pattern + README.md — design matches implemented SQL closely
+│   ├── organization/     RESTRUCTURED 2026-08-19 from 01_design/02_erd/03_business_rules/04_table_design to 01_module_overview/02_erd/03_lifecycle/04_business_rules/05_table_design (v1.1.0, GOVERNANCE ALIGNED); v1.1.0 walked back the ANCHALIKA/ZILLA/SAKHA/PATHA_CHAKRA type-to-type parent matrix to an OPEN item — only the generic apex + self-referencing 3-table structure is frozen; still no SQL (see Gotchas)
+│   ├── person/            same 4-doc pattern + README.md, now v1.0.0 SOURCE ALIGNED — 2 tables (person, document_master); docs name the business identifier `person_id`, conflicting with the already-implemented DDL's `person_code` (see Gotchas); address/Aadhaar/photo/blood-group explicitly left OPEN despite `person_address` already existing in SQL
 │   ├── membership/         01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — richer than backend/membership/models.py (see Gotchas)
 │   ├── family/             01-04 overview/erd/business_rules/table_design, frozen 4-table design — richer than backend/family/models.py (see Gotchas)
 │   ├── attendance/         01-05 overview/erd/business_rules/table_design/review_workflow (review workflow FROZEN) + DARSHAK_BUSINESS_RULE.md (see below) — zero corresponding backend code
-│   ├── kumari/             01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — KM000001 ID format; no backend/kumari/ app
-│   ├── kishore/            01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — KH000001 ID format + frozen Guardian Model; no backend/kishore/ app
+│   ├── heritage/           NEW 2026-08-19 — 01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED — 8 tables designed (founder_master + teachings/objectives/milestones/publications/office-bearers + 2 lookup masters); `backend/heritage/` implements only founder_master, no urls.py
+│   ├── kumari/             01-05 overview/erd/lifecycle/business_rules/table_design, now v1.0.0 SOURCE ALIGNED (still document-Status DRAFT) — KM000001 ID format; no backend/kumari/ app
+│   ├── kishore/            01-05 overview/erd/lifecycle/business_rules/table_design, now v1.0.0 SOURCE ALIGNED (still document-Status DRAFT) — KH000001 ID format + frozen v2.1 Guardian Model (Guardian must independently qualify via `sangha_sevi` identity); no backend/kishore/ app
 │   ├── mahila/             01-05 overview/erd/lifecycle/business_rules/table_design, all v2.1.0 — v2.1.0 corrected a v2.0.0 error that had modeled Mahila Governing Body and Mahila Parichalana Mandali as two bodies; now explicitly one body, two names; no backend/mahila/ app
 │   └── sevak/              01-06 core sequence (only 06_table_design FROZEN, rest DRAFT/consolidation-in-progress) + sangha/, seva/, events/ subdocs; core SEV-001..040; no backend/sevak/ app
 ├── standards/
@@ -249,13 +253,16 @@ display label (dashboards, attendance screens) but must never be a `membership_t
 value in the database.
 
 **Doc/code gap widened, not just organization/person anymore.** The membership/family/
-attendance/kumari/kishore/mahila/sevak design docs added 2026-08-17/18 are all still DRAFT (only
-`attendance`'s review workflow and `sevak`'s table design are Frozen) and describe schemas far
-richer than what exists in code: `backend/membership/models.py` has 3 plain-PK models vs. ~10
-UUID-keyed tables in the design; `backend/family/models.py` has 2 models vs. a frozen 4-table
-design; `backend/attendance/` has no models at all despite a full 5-doc design; and
-`kumari`/`kishore`/`mahila`/`sevak` have no Django app at all. Same pattern as the pre-existing
-organization/person gap — don't assume any of these docs describe currently-running code.
+attendance/kumari/kishore/mahila/sevak design docs added 2026-08-17/18 (kumari/kishore now
+promoted to v1.0.0 SOURCE ALIGNED as of 2026-08-19, still document-Status DRAFT) describe
+schemas far richer than what exists in code: `backend/membership/models.py` has 3 plain-PK
+models vs. ~10 UUID-keyed tables in the design; `backend/family/models.py` has 2 models vs. a
+frozen 4-table design; `backend/attendance/` has no models at all despite a full 5-doc design;
+and `kumari`/`kishore`/`mahila`/`sevak` have no Django app at all. **Heritage now has the same
+gap too** — added 2026-08-19 with an 8-table v1.0.0 SOURCE ALIGNED design, but
+`backend/heritage/` implements only 1 of the 8 tables (`founder_master`). Same pattern as the
+pre-existing organization/person gap — don't assume any of these docs describe currently-running
+code.
 
 ## Setup & running
 
@@ -346,20 +353,30 @@ are two different, currently-unreconciled representations of "Person."
 `database/ddl/01_foundation/02_id_sequence_master.sql` defines an `id_sequence_master` table —
 a registry of `{sequence_code, prefix, current_value, padding_length}` rows, seeded with 4
 sequences (`PERSON`→`P`, `SANGHA_SEVI`→`SS`, `ORGANIZATION`→`ORG`, `FAMILY`→`F`, all starting at
-0 with 8-digit padding). Per `docs/03_Solution/modules/person/04_person_table_design.md`, this
-is meant to produce IDs like `P00000001` for the `person.person_code` column. **No SQL function
-or trigger and no Django code currently implements the increment/format logic** — this table is
-pure configuration waiting on an implementation.
+0 with 8-digit padding). This is meant to produce IDs like `P00000001` for the
+`person.person_code` column (`database/ddl/03_person/02_person.sql`) — **but** the current
+Person module design doc (`docs/03_Solution/modules/person/04_person_table_design.md`, v1.0.0
+SOURCE ALIGNED) names this same business identifier `person_id`, not `person_code`. The doc and
+the implemented DDL disagree on the column name; neither has been reconciled to the other yet.
+**No SQL function or trigger and no Django code currently implements the increment/format
+logic** — this table is pure configuration waiting on an implementation.
 
 ### 4. Organization hierarchy (designed, not implemented)
-`docs/03_Solution/modules/organization/01_organization_design.md` through
-`04_organization_table_design.md` fully specify a self-referencing `organization` table
-(Kendra → Anchalika/Zilla → Sakha → Patha_Chakra) plus `organization_type_master`,
-`organization_status_master`, and `organization_address`, including seed data and constraint
-names. None of it exists in `database/ddl/02_organization/` (all four files are 0 bytes) and
+`docs/03_Solution/modules/organization/01_organization_module_overview.md` through
+`05_organization_table_design.md` (v1.1.0, GOVERNANCE ALIGNED as of 2026-08-19 — restructured
+from the older 01_design/02_erd/03_business_rules/04_table_design 4-file set, which no longer
+exists) specify a self-referencing `organization` table plus `organization_type_master` and
+`organization_status_master` — three tables only, address inline on `organization` (no separate
+`organization_address` table, contradicting an earlier draft's ERD). **The specific
+Kendra → Anchalika/Zilla → Sakha → Patha_Chakra type-to-type parent matrix is explicitly NOT
+frozen** as of v1.1.0 — the business rules doc's §22 "Rules Explicitly Not Assumed" lists both
+the exact parent-compatibility matrix and the exact `organization_type_master` seed values as
+open items pending a future decision; only the generic apex + self-referencing structure is
+frozen. None of it exists in `database/ddl/02_organization/` (all four files are 0 bytes) and
 Django's `foundation.Organization` model is a much simpler placeholder (no hierarchy, no
 self-reference) that predates this design. Anyone picking up organization work should treat the
-design docs as the target and the current Django model as a stand-in to be replaced.
+design docs as the target and the current Django model as a stand-in to be replaced — but should
+not assume the type-hierarchy specifics are settled.
 
 ## Conventions & gotchas
 
@@ -394,10 +411,13 @@ design docs as the target and the current Django model as a stand-in to be repla
   columns, etc.) that the current `backend/` code does not yet implement — the built-in
   `auth.User` model and hardcoded dev settings are a long way from that target. Treat the STD
   docs as the destination, not the current state.
-- **Person module docs vs. Organization module docs.** Person module design is implemented in
-  SQL almost exactly as documented (see `docs/03_Solution/modules/person/`). Organization module
-  design is fully written but has no SQL at all — don't confuse "documented" with "built" for
-  that module.
+- **Person module docs vs. Organization module docs.** Both are designed but not implemented in
+  full — don't confuse "documented" with "built" for either. Person's design
+  (`docs/03_Solution/modules/person/`, v1.0.0 SOURCE ALIGNED) is *partially* implemented in SQL
+  (`database/ddl/03_person/` has `person` and `person_address`) but disagrees with the DDL on the
+  business-identifier column name (`person_id` in the docs vs. `person_code` in SQL — see Key
+  Workflow #3) and has no SQL counterpart at all for its second table, `document_master`.
+  Organization's design is fully written but has zero SQL — see Key Workflow #4.
 - **No tests.** Every Django app's `tests.py` is the default empty stub.
 - **Git remotes changed again — a second remote now exists.** `git remote -v` now shows **two**
   remotes: `personal` (`github.com/sandeeppanda22/NSS_ERP`, daily dev) and a new `org`
@@ -420,10 +440,28 @@ design docs as the target and the current Django model as a stand-in to be repla
 
 - **Reconcile Django ORM models with the SQL DDL schema** for `Person` and `Organization`
   (or decide the SQL DDL track supersedes the current Django models and plan a migration).
+- **Reconcile `person_id` (design docs) vs. `person_code` (implemented SQL)** — the Person
+  table design doc names the business identifier `person_id`; the actual DDL column is
+  `person_code`. New as of the 2026-08-19 Person v1.0.0 doc pass — see Key Workflow #3.
+- **Decide the Organization type-to-type parent matrix** (which org types may parent which —
+  e.g. does ANCHALIKA/ZILLA sit under KENDRA, does PATHA_CHAKRA sit under SAKHA or KENDRA) —
+  the v1.1.0 GOVERNANCE ALIGNED business rules doc explicitly left this open rather than
+  freezing it; do not treat any specific matrix as decided until this is resolved.
 - **Implement `database/ddl/02_organization/*.sql`** — the design docs
-  (`docs/03_Solution/modules/organization/`) are ready; the DDL files are empty placeholders.
+  (`docs/03_Solution/modules/organization/`) are ready for the generic structure; the DDL files
+  are empty placeholders.
+- **Implement `document_master` in SQL** — the Person module design's second table
+  (`docs/03_Solution/modules/person/04_person_table_design.md`) has no SQL counterpart in
+  `database/ddl/03_person/`.
+- **Decide the Person address/Aadhaar/photo/blood-group model** — the v1.0.0 SOURCE ALIGNED
+  Person docs explicitly leave these open, even though `database/ddl/03_person/03_person_address.sql`
+  already implements a multi-address `person_address` table. Don't treat the SQL as a de facto
+  frozen decision without reconciling it against the docs' "OPEN" framing.
 - **Implement the `id_sequence_master` increment/formatting logic** (no function, trigger, or
   Django code currently does this — see Key Workflow #3).
+- **Implement the Founder & Heritage schema beyond `founder_master`** — the new v1.0.0 design
+  (`docs/03_Solution/modules/heritage/`) specifies 8 tables; `backend/heritage/` only implements
+  1 (`founder_master`).
 - **Wire up `family`, `membership`, and `heritage` URLs/views** — models exist, nothing is
   reachable over HTTP yet.
 - **Decide the fate of `governance` and `attendance` apps** — currently pure stubs, not even in
