@@ -1,10 +1,17 @@
 # NSS ERP — Technology Stack and Decision Matrix
 
 **Document Type:** Solution Architecture Decision Record
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-08-16
 **Status:** Approved
 **Branch:** feature/ref-documentation
+
+**Revision History:**
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1.0 | 2026-08-16 | Initial approved decision record |
+| 1.1 | 2026-08-20 | §6 Deployment and Git reconciled to live remote state: removed `pie` (Apple-internal remote, removed from the repo 2026-08-15); `org` — github.com/NilachalaSaraswataSangha/NSS_ERP is now an actual configured git remote (added 2026-08-18), not just a description — the Production remote row and Flow row now use the `org` alias consistently. No other section changed. |
 
 ---
 
@@ -81,10 +88,9 @@
 | Parameter | Decision | Rationale |
 |-----------|----------|-----------|
 | Development remote | `personal` — github.com/sandeeppanda22/NSS_ERP | Daily pushes |
-| Legacy remote | `pie` — github.pie.apple.com/panda-sk/NSS_ERP | Apple internal backup |
-| Production remote | github.com/NilachalaSaraswataSangha/NSS_ERP | Org account, deployment source |
-| Deployment platform | Render.com | Connected to org repo main branch, auto-deploy on merge |
-| Flow | feature/* to develop (personal) to PR to org to main (org) to Render deploys |
+| Production remote | `org` — github.com/NilachalaSaraswataSangha/NSS_ERP | Org account, deployment source |
+| Deployment platform | Render.com | Connected to `org` repo main branch, auto-deploy on merge |
+| Flow | feature/* to develop (`personal`) to PR to `org` to main (`org`) to Render deploys |
 | Branch policy | Complete current branch, merge to develop, then create next |
 
 ---

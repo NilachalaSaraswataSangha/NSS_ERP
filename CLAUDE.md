@@ -112,6 +112,35 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
+- **Branch/remotes (updated 2026-08-20 — supersedes the 2026-08-19 bullet below for current
+  branch/HEAD/commit-count state; the `pie`/`org` remote reconciliation described in §12's
+  2026-08-20 "Created `project-documenter` agent" entry happened earlier the same day and is
+  unchanged by this bullet).** Active branch is still `feature/ref-documentation`. `git status`
+  shows two unstaged modifications (`CLAUDE.md`, `docs/03_Solution/architecture/
+  TECH_STACK_DECISIONS.md` — the pie/org reconciliation from earlier today) and the branch is
+  now 9 commits ahead of `personal/feature/ref-documentation` (not yet pushed) — 10 real docs
+  commits landed since the 2026-08-19 bullet below (`9dcc26c` doc-drift reconciliation →
+  `77f8bec` stale-reference fixup → `b43c1e1` publications → `b660e10` upbs → `34f4aea` audit →
+  `39346ee` backup_technical → `724ed06` administration → `fc299a1` authentication & security →
+  `8edeea1` foundation → `abfc2fd` governance → `bafffa7` reports). `git diff --stat
+  develop..HEAD -- backend/ database/` confirms **zero backend/database changes** — pure docs
+  drift again, ~95.7k insertions across 104 files vs. `develop`. Nine brand-new Solution-layer
+  module doc sets landed, all tagged `v1.0.0 DRAFT — SOURCE ALIGNED`: `administration` (6 RBAC
+  tables), `audit` (2 tables), `authentication` [Solution-layer] (7 tables), `backup_technical`
+  (2 tables), `foundation` [Solution-layer] (8 master-data/geography/sequence tables),
+  `governance` [Solution-layer] (9 tables, Unified Body Governance Model + Elections),
+  `publications` (7 files, zero new tables — reuses Heritage's), `reports` (5 metadata-only
+  tables), `upbs` (7 tables) — bringing total module folders under `docs/03_Solution/modules/`
+  to 19. Two real discrepancies surfaced, added to §13: (1) the new `foundation` and
+  `authentication` Solution-layer module folders share a name with, but describe an entirely
+  different schema from, the existing `backend/foundation/` and `backend/authentication/`
+  Django apps; (2) the new `governance` module's business rules freeze the Mahila Parichalana
+  Mandali term at **3 years** (GOV-BR-031), directly conflicting with the already-frozen
+  **2-year** term (MAH-040) in the `mahila` module's own business rules — neither module's own
+  review caught this. `audit`/`backup_technical` had no `README.md` at all;
+  `administration`/`authentication`/`foundation`/`governance`/`publications`/`reports`/`upbs`
+  had stale "NOT STARTED... no content written yet" placeholder READMEs despite full doc sets
+  — all 9 fixed this pass, plus the top-level `docs/03_Solution/modules/README.md` index.
 - **Branch/remotes (updated 2026-08-19 — supersedes the 2026-08-18 bullet below for current
   branch/HEAD state; remotes unchanged):** Active branch is `feature/ref-documentation`,
   working tree clean, 5 commits ahead of `personal/feature/ref-documentation` (not yet pushed):
@@ -229,18 +258,25 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
     containing its REF file(s) — folders are navigation only, identity lives in the filename.
 - **Governance docs present (updated 2026-08-14):** `AUTH-001`, `GOV-001..005`,
   `GDR-001..004` — all exist under `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.
-- **Module docs present (updated 2026-08-19):** `docs/03_Solution/modules/{heritage, organization,
-  person, membership, family, attendance, kumari, kishore, mahila, sevak}/` — **10** module
-  folders now (heritage added 2026-08-19). Person is the only one still on the original
-  `01_..._design`/`02_..._erd`/`03_..._business_rules`/`04_..._table_design` 4-file pattern;
-  organization was restructured 2026-08-19 off that same original pattern onto the newer
+- **Module docs present (updated 2026-08-20):** `docs/03_Solution/modules/{heritage,
+  organization, person, membership, family, attendance, kumari, kishore, mahila, sevak,
+  foundation, administration, authentication, governance, publications, reports, upbs, audit,
+  backup_technical}/` — **19** module folders now (`foundation`, `administration`,
+  `authentication`, `governance`, `publications`, `reports`, `upbs`, `audit`,
+  `backup_technical` added 2026-08-20). Person is the only one still on the original
+  `01_..._design`/`02_..._erd`/`03_..._business_rules`/`04_..._table_design` 4-file pattern
+  (matched by the new `administration`/`authentication`/`foundation`/`governance`/`audit`/
+  `backup_technical` sets too — they reuse this same simpler 4-file numbering, not the 5-file
+  one); organization was restructured 2026-08-19 off that same original pattern onto the newer
   `01_..._module_overview` / `02_..._erd` / `03_..._lifecycle` / `04_..._business_rules` /
   `05_..._table_design` 5-file pattern (deleting its old 4 files, not renaming them) — the same
   pattern already used by heritage, membership, kumari, kishore, mahila (sevak has a `06_`
-  table-design file too, plus `sangha/`/`seva/`/`events/` subdocs). Don't assume the numbering
-  scheme is uniform across modules. All 10 module folders have an accurate `README.md` (heritage/
-  organization/person rewritten this pass to match their new v1.0.0/v1.1.0 content and to flag
-  new doc-vs-DDL discrepancies — see §7).
+  table-design file too, plus `sangha/`/`seva/`/`events/` subdocs; publications has 7 files).
+  Don't assume the numbering scheme is uniform across modules. **`foundation` and
+  `authentication` here are Solution-layer module folders, not the same thing as the
+  `backend/foundation`/`backend/authentication` Django apps of the same name** — see §7/§8/§13.
+  All 19 module folders have an accurate `README.md` (the 9 new ones written/created
+  2026-08-20; `audit`/`backup_technical` had none before).
 - **Standards docs present:** `docs/00_Project_Governance/STD/01_project_standards.md` …
   `05_security_standards.md`.
 - **Releases present:** `v0.1.0` through `v0.5.1` under `docs/05_Releases/`.
@@ -273,20 +309,23 @@ docs/
 │   RESOLUTIONS/, CIRCULARS/, NOTIFICATIONS/ still planned)
 ├── 02_Requirements/ (scaffolded, empty)
 ├── 03_Solution/modules/{heritage, organization, person, membership, family, attendance, kumari,
-│   kishore, mahila, sevak}/ (+ architecture/, ui/mockups/, infrastructure/DEPLOYMENT_SYNC_PLAN.md,
-│   standards/lifecycle/ [SOL-LIFE-001/002] now populated; api/database/security still empty
-│   scaffolding)
+│   kishore, mahila, sevak, foundation, administration, authentication, governance,
+│   publications, reports, upbs, audit, backup_technical}/ (+ architecture/, ui/mockups/,
+│   infrastructure/DEPLOYMENT_SYNC_PLAN.md, standards/lifecycle/ [SOL-LIFE-001/002] now
+│   populated; api/database/security still empty scaffolding)
 ├── 04_Testing/ (scaffolded, empty)
 └── 05_Releases/
 ```
 `modules/` and `standards/` used to live directly under `docs/` — as of the 2026-08-12
 folder-consolidation pass (see Session Log) they were moved to `docs/03_Solution/modules/` and
 `docs/00_Project_Governance/STD/` respectively. If you see either old path referenced anywhere,
-it's stale. **Note (2026-08-18):** a second, separate `docs/03_Solution/standards/lifecycle/`
-path now also exists (`SOL-LIFE-001`/`PARTICIPATION_LIFECYCLE_RULES.md`,
-`SOL-LIFE-002`/`PERSON_LIFECYCLE_RULES.md`) — this is a genuinely distinct SOLUTION-layer
-standards location, not a stale duplicate of `STD/`, but the two aren't cross-referenced from
-either README yet.
+it's stale. **Note (2026-08-18, README added 2026-08-20):** a second, separate
+`docs/03_Solution/standards/lifecycle/` path now also exists (`SOL-LIFE-001`/
+`PARTICIPATION_LIFECYCLE_RULES.md`, `SOL-LIFE-002`/`PERSON_LIFECYCLE_RULES.md`, both FROZEN
+v1.0.0) — this is a genuinely distinct SOLUTION-layer standards location, not a stale duplicate
+of `STD/`, but the two still aren't cross-referenced from either README, and the Sevak/Mahila/
+Kumari module business-rules docs don't yet cite `SOL-LIFE-001` as its own text says they
+should.
 REF documents preserve **original authoritative wording** — no paraphrasing, no ERP
 interpretation injected into REF, no silently "correcting" the source, no merging unrelated
 provisions, no inventing missing clauses. Editorial notes allowed only if clearly marked as
@@ -463,6 +502,52 @@ renumbered).
 **Attendance:** Secretary = primary operational authority; President = oversight/appeal
 authority. Attendance Enforcement + Attendance Review are frozen.
 
+**Nine more Solution-layer module doc sets (v1.0.0 SOURCE ALIGNED, added 2026-08-20):**
+- **Foundation** (`docs/03_Solution/modules/foundation/`, distinct from the `backend/foundation/`
+  Django app — see §8): 8 tables — `master_category`, `master_data`, `system_setting`,
+  `id_sequence_master`, `country`, `state`, `district`, `city_village`. Master Data Driven,
+  Configuration Over Hardcoding, central ID sequencing, geographic hierarchy explicitly separate
+  from the NSS organizational hierarchy.
+- **Administration:** 6 tables — `user_account`, `role_master`, `permission_master`,
+  `role_permission`, `user_role`, `admin_scope`. Centralized RBAC + organizational scope;
+  `password_history` stays under Authentication. No module-specific permission architectures
+  permitted (e.g. Sevak delegates to this). Position ≠ Role, Membership ≠ Role.
+- **Authentication & Security** (distinct from the `backend/authentication/` Django app — see
+  §8): 7 tables — adds `user_account` + `password_history` to Administration's RBAC set. Argon2
+  password hashing, JWT, session management, encrypted sensitive data (incl. Aadhaar), RLS as
+  principles. No `login_history`/session_history`/MFA/password-reset/lockout tables frozen.
+- **Governance** (Solution-layer ERP module — not `docs/00_Project_Governance/`): 9 tables —
+  Unified Body Governance Model (`body_type_master`, `body_master`, `position_master`,
+  `body_member_assignment`, `acting_position_assignment`) + election entities (`election`,
+  `election_nomination`, `election_vote`, `election_result`). Supersedes old body-specific
+  tables (`governing_body_member`, `advisory_board_member`, `mahila_member`, `sevak_member`,
+  `committee_member`). Frozen positions: PRESIDENT, VICE_PRESIDENT, PARICHALAK, SECRETARY,
+  ASSISTANT_SECRETARY, TREASURER, MUKHYA_PUJAKA, MEMBER. **Freezes the Mahila Parichalana
+  Mandali term at 3 years (GOV-BR-031)** — conflicts with Mahila's own frozen 2-year term
+  (MAH-040, see the Mahila Sangha paragraph above); unreconciled, see §13.
+- **Publications:** 7 files, zero new tables — reuses Founder & Heritage's `nss_publication`/
+  `publication_type_master`/`publication_language_master`. Member-facing catalogue (year/
+  category/language browsing, Digital Library), new-book notifications, price display (free/
+  donation/fixed). Future Buy/Purchase workflow explicitly deferred.
+- **UPBS:** 7 tables — `upbs_event`, `upbs_registration`, `delegate_card`, `prasad_patra`,
+  `accommodation_allocation`, `camp_master`, `guest_reference`. Event sessions (ADHIBASA/DAY_1/
+  DAY_2/DAY_3); Delegate Package = Delegate Card + Prasad Patra; Prasad Only allowed, Delegate
+  Only prohibited; QR meal tracking; mandatory Reference Sangha Sevi. Day 1/2/3 ops + volunteer
+  structure still PENDING (matches §10's "still open" list).
+- **Reports & Analytics:** 5 metadata/configuration-only tables — `report_category_master`,
+  `report_definition`, `report_filter_definition`, `dashboard`, `dashboard_widget`. Consumes
+  authoritative data from Membership/Attendance/Family/Governance/Kumari-Kishore/UPBS without
+  duplicating it; no premature star schema/warehouse; report execution/snapshot/scheduling/
+  export persistence all PENDING/FUTURE.
+- **Audit:** 2 tables — `audit_master`, `system_event_log`. Cross-cutting traceability; no
+  assumed FK between the two; field-level audit/login-history/access-log/approval-history
+  explicitly not frozen.
+- **Backup & Technical:** 2 tables — `backup_master`, `restore_history`. Backup-to-restore
+  relationship documented as logical/pending, not a frozen FK; storage/schedule/retention/DR/
+  failover all open.
+
+None of these nine has any corresponding `backend/` Django app.
+
 ## 8. Technical Architecture
 
 **Approved decision record (2026-08-16):** `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`
@@ -479,7 +564,7 @@ authority. Attendance Enforcement + Attendance Review are frozen.
 | Dev environment | VS Code, DBeaver, Git/GitHub |
 | Security | UUID internal PKs, separate business IDs, RBAC, RLS, immutable audit, soft delete |
 | Deployment | Render.com (free tier), auto-deploy from org GitHub `main` on merge |
-| Git remotes | `personal` (github.com/sandeeppanda22/NSS_ERP, daily dev) → PR → `org` (github.com/NilachalaSaraswataSangha/NSS_ERP, deploy source — now an actual configured remote named `org`, not just a description, as of 2026-08-18). Note: the `pie` remote referenced throughout §12's session log below was removed 2026-08-15; `git remote -v` now shows `personal` + `org` — `TECH_STACK_DECISIONS.md` §6 still lists `pie` as a "Legacy remote" and never uses the `org` alias, not yet reconciled with either change. |
+| Git remotes | `personal` (github.com/sandeeppanda22/NSS_ERP, daily dev) → PR → `org` (github.com/NilachalaSaraswataSangha/NSS_ERP, deploy source — configured remote named `org` since 2026-08-18). The `pie` remote referenced throughout §12's session log below was removed 2026-08-15. **Reconciled 2026-08-20:** `TECH_STACK_DECISIONS.md` §6 (bumped v1.0→v1.1, revision note added, Approved status preserved) no longer lists `pie` and now uses the `org` alias consistently in its Production remote and Flow rows — this had been flagged unreconciled across the 2026-08-16 and 2026-08-18 passes; now closed. |
 
 **Django app structure — corrected against actual code (2026-08-12, updated same day —
 `heritage` merged into `develop`):** apps live directly under `backend/` (no `apps/`
@@ -515,6 +600,15 @@ SQL/DDL convention; don't generalize from it. Follow `_code` for new DDL.
 (v1.0.0 SOURCE ALIGNED) names its business identifier `person_id`, not `person_code` — this
 contradicts both this convention and the already-implemented DDL column. Unreconciled; see §7
 Person bullet and §13.
+
+**Naming collisions, not code drift (2026-08-20):** two new Solution-layer module folders
+share a name with an existing `backend/` Django app but describe a completely different
+scope/schema — don't confuse the two. `docs/03_Solution/modules/foundation/` (8 master-data/
+geography/sequence tables, matches `database/ddl/01_foundation/`) is not `backend/foundation/`
+(which implements Person/Organization/Address — those have their own `person/`/`organization/`
+Solution folders). `docs/03_Solution/modules/authentication/` (7-table security schema:
+`user_account`, `password_history`, RBAC tables) is not `backend/authentication/` (which
+implements the unrelated `Role`/`UserRole`/`LoginAudit` models). See §7/§13.
 
 **Schema scale:** conceptual table count has been estimated anywhere from ~88 to ~95+ to a
 projected 110–130 depending on remaining operational modules — **these are estimates, not a
@@ -562,6 +656,106 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-20 — /document-project pass: closed the last two open Gotchas (pie/org, standards/lifecycle README); confirmed zero backend/database drift (Claude Code)
+- Context: User ran `/document-project` directly, immediately after the `project-documenter`
+  agent's two-pass run (entry directly below) had already left 12 files updated/created but
+  unstaged. Rather than blindly re-running the same sweep, verified first whether anything was
+  actually missed: two parallel `Explore` agents checked (1) `backend/`/`database/` against
+  CLAUDE.md §8 and `docs/PROJECT_DOCUMENTATION.md` for any code drift not yet reflected in docs,
+  and (2) every folder in the repo for a missing `README.md` plus `docs/PROJECT_DOCUMENTATION.md`
+  for any of its 8 required sections being absent/stub-like.
+- Decision/Outcome: (1) confirmed **zero backend/database drift** — every claim in CLAUDE.md §8
+  and `PROJECT_DOCUMENTATION.md` about `INSTALLED_APPS`, `urls.py` wiring, per-app model line
+  counts, and `database/ddl/02_organization/` still being 0-byte placeholders matched current
+  code exactly. (2) found one genuine gap the prior pass hadn't covered:
+  `docs/03_Solution/standards/lifecycle/` (holding `SOL-LIFE-001`/`PARTICIPATION_LIFECYCLE_RULES.md`
+  and `SOL-LIFE-002`/`PERSON_LIFECYCLE_RULES.md`, both FROZEN v1.0.0, added 2026-08-18) had no
+  `README.md` at all. Read both documents and wrote one — explains the Person-death-triggers-
+  everything (`SOL-LIFE-002`) vs. Sevak/Mahila/Kumari-participation-consequences
+  (`SOL-LIFE-001`) relationship, and flags that Sevak/Mahila/Kumari module business-rules docs
+  don't yet cite `SOL-LIFE-001` even though its own text (§16) says they should reference it
+  rather than duplicate its rules. Updated the two stale Gotchas entries in
+  `docs/PROJECT_DOCUMENTATION.md` that this pass's findings directly closed (the `pie`/`org`
+  entry — already fixed earlier the same day, this pass just updated the Gotcha text to say so
+  — and the "second standards location" entry, now noting the README exists but the
+  cross-reference gap doesn't). Updated `PROJECT_DOCUMENTATION.md`'s directory-tree line and
+  this file's own `standards/lifecycle/` note (§5) to match.
+- Follow-up: the `SOL-LIFE-001` cross-reference gap (Sevak/Mahila/Kumari docs not citing it) is
+  flagged, not fixed — would mean editing three FROZEN-tagged module doc sets, out of scope for
+  a documentation-drift pass. The Mandali term-length conflict (governance 3yr vs. mahila 2yr,
+  flagged in the entry below) and the `foundation`/`authentication` naming collision remain
+  open from the prior pass, untouched here.
+
+### 2026-08-20 — Two-pass documentation refresh: 9 new module doc sets (administration through backup_technical) reconciled into CLAUDE.md/PROJECT_DOCUMENTATION.md/README.md; 9 stale/missing module READMEs fixed; Mandali term-length conflict and foundation/authentication naming collisions flagged (Claude Code)
+- Context: Ran the project's standard init-equivalent + full document-project two-pass refresh.
+  `git status`/`git log` showed the branch unchanged (`feature/ref-documentation`) but 10 new
+  docs commits since the 2026-08-19 pass's last-verified state, plus the still-unstaged
+  `CLAUDE.md`/`TECH_STACK_DECISIONS.md` pie/org reconciliation from earlier the same day (see
+  the entry directly below — left as-is, not re-done). `git diff --stat develop..HEAD --
+  backend/ database/` confirmed zero code changes — pure docs drift, ~95.7k insertions across
+  104 files. Nine brand-new Solution-layer module doc sets had landed, each v1.0.0 DRAFT —
+  SOURCE ALIGNED: `administration` (6 RBAC tables), `audit` (2 tables), `authentication`
+  [Solution-layer] (7 tables), `backup_technical` (2 tables), `foundation` [Solution-layer]
+  (8 tables), `governance` [Solution-layer] (9 tables), `publications` (7 files, 0 new tables),
+  `reports` (5 metadata tables), `upbs` (7 tables) — bringing total module folders under
+  `docs/03_Solution/modules/` to 19. Checking each module's own README against its actual
+  content found: `audit/` and `backup_technical/` had **no README at all**;
+  `administration/`, `authentication/`, `foundation/`, `governance/`, `publications/`,
+  `reports/`, `upbs/` still had stale "Status: NOT STARTED... No content has been written yet"
+  placeholder READMEs despite each having a complete doc set already committed. Cross-checking
+  module content against each other (not just against code) surfaced two real, previously
+  unflagged discrepancies: (1) the new `foundation` and `authentication` Solution-layer module
+  folders share a name with, but describe an entirely different scope/schema from, the existing
+  `backend/foundation/` and `backend/authentication/` Django apps; (2) `governance`'s business
+  rules freeze the Mahila Parichalana Mandali term at **3 years** (GOV-BR-031), directly
+  contradicting the already-frozen **2-year** term (MAH-040) in `mahila`'s own business rules —
+  confirmed by grepping both files directly, not just trusting commit messages.
+- Decision/Outcome: Created `docs/03_Solution/modules/audit/README.md` and
+  `.../backup_technical/README.md` (new). Rewrote the 7 stale READMEs
+  (`administration/`, `authentication/`, `foundation/`, `governance/`, `publications/`,
+  `reports/`, `upbs/`) to list real documents/tables/status, matching the existing
+  heritage/attendance README format, and added explicit naming-collision notes to
+  `foundation/README.md` and `authentication/README.md`, plus a term-length-conflict note to
+  `governance/README.md`. Rewrote the top-level `docs/03_Solution/modules/README.md` index
+  (was still describing only the original organization/person pattern) into a full 19-row
+  status table. Updated `docs/PROJECT_DOCUMENTATION.md`: Overview (gap-widening note),
+  Directory-structure tree, the full `03_Solution/` detail block (added all 9 new modules with
+  table names and the two flagged discrepancies), the doc/code-gap paragraph, Gotchas (naming
+  collisions + Mandali term conflict), and Open questions (three new items). Updated root
+  `README.md`'s Module Structure intro and Current Development Status (added all 9 new module
+  design completions, noted the two naming collisions). Updated this file's §3 (new dated
+  bullet), §5 (module list + doc-tree, now 19 folders), §7 (nine new condensed module
+  paragraphs, cross-referencing the Mandali conflict against the existing Mahila paragraph),
+  §8 (naming-collision cross-reference note), and §13 (Mandali term-length conflict,
+  foundation/authentication naming-collision decision — both new open items).
+- Follow-up: neither the Mandali term-length conflict nor the foundation/authentication naming
+  collision was resolved this pass — both are design/naming decisions flagged for an explicit
+  human call, per the standing rule not to invent answers to open design questions
+  unilaterally. The pie/org `TECH_STACK_DECISIONS.md` reconciliation and the 9-commits-unpushed
+  state from the entry below remain as they were — not touched by this pass.
+
+### 2026-08-20 — Created `project-documenter` agent; reconciled TECH_STACK_DECISIONS.md §6 pie/org drift (Claude Code)
+- Context: User asked for an agent that runs `document-project` and `/init` when invoked.
+  Since subagents cannot call the `Skill` tool themselves (same constraint already noted on the
+  `report-generator` agent), created `~/.claude/agents/project-documenter.md` — a user-level
+  agent with both procedures (init-style CLAUDE.md baseline check, then the full
+  document-project markdown sweep) written directly into its instructions rather than
+  delegated to the skills. A session-start hook then surfaced two standing flags from the
+  2026-08-16/2026-08-18 passes: `TECH_STACK_DECISIONS.md` §6 still listing the removed `pie`
+  remote without using the `org` alias, and an unpushed commit `40a9f02` on
+  `feature/ref-documentation`. User said "reconcile" (referring to the `pie`/`org` drift only).
+- Decision/Outcome: Verified live remotes via `git remote -v` — only `personal` and `org` exist,
+  confirming `pie` truly gone. Edited `TECH_STACK_DECISIONS.md` §6: removed the `pie` "Legacy
+  remote" row, changed the Production remote row to use the `org` alias, updated the Flow row
+  to name `personal`/`org` consistently. Since this is an Approved decision record, did not
+  silently rewrite it — bumped Version 1.0 → 1.1 and added a Revision History table entry
+  documenting exactly what changed and why, preserving the original content instead of erasing
+  it (same pattern as the GDR-002/GDR-003 Correction Note precedent in §12's 2026-08-14 entry).
+  Updated this file's §8 Git remotes row to reflect the reconciliation and mark it closed.
+- Follow-up: the unpushed `40a9f02` commit (and 8 more now ahead of it — `git status` shows 9
+  commits ahead of `personal/feature/ref-documentation`) was flagged but not pushed — user did
+  not ask for that in this pass.
 
 ### 2026-08-19 — /document-project pass: new heritage module doc set, organization restructure to v1.1.0, person/kumari/kishore promoted to v1.0.0 (Claude Code)
 - Context: User ran `/document-project` again. `git log develop..HEAD` showed 5 new commits
@@ -1032,3 +1226,14 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   ALIGNED Person design docs mark this OPEN, but `database/ddl/03_person/03_person_address.sql`
   already implements a multi-address table. Needs reconciliation: is the SQL a de facto
   decision, or should it be revisited alongside the other open items? See §7.
+- **New (2026-08-20): Mahila Parichalana Mandali term length — 3 years vs. 2 years, both
+  FROZEN.** `docs/03_Solution/modules/governance/03_governance_business_rules.md` (GOV-BR-031)
+  freezes the Mandali's term at 3 years; `docs/03_Solution/modules/mahila/
+  04_mahila_business_rules.md` (MAH-040) freezes it at 2 years. Direct contradiction between two
+  module docs that each label themselves FROZEN/settled. Needs an explicit decision on which is
+  authoritative (or a joint correction) before either is implemented — not resolved here.
+- **New (2026-08-20): `foundation`/`authentication` Solution-doc-folder vs. Django-app naming
+  collisions** — not a factual contradiction (the two "foundation"s and two "authentication"s
+  describe genuinely different, non-overlapping scopes), but confusing enough to warrant an
+  explicit decision on whether to rename one side (e.g. `foundation_platform`/`security_core`)
+  before more content accumulates under either name. See §7/§8.

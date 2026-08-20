@@ -200,12 +200,16 @@ Notes:
 *The sections below describe the full planned module roadmap. As of this writing, only
 **Foundation, Membership, Family, Governance (stub), Attendance (stub), and Founder & Heritage**
 exist as Django apps under `backend/` — Mahila Sangha, Kumari Sangha, Kishore Puja, Sevak
-Sangha, UPBS, Reports & Analytics, and Administration have no app directory yet. Solution-layer
-design documentation (overview/ERD/lifecycle/business-rules/table-design) is now complete for
-Membership, Family, Attendance, Organization, Person, Founder & Heritage, Kumari Sangha,
-Kishore Puja, and Mahila Sangha, and largely complete for Sevak Sangha — ahead of, and not yet
-reconciled with, any backend implementation. See `docs/PROJECT_DOCUMENTATION.md` for the
-current, code-verified status of each.*
+Sangha, UPBS, Reports & Analytics, Administration, Audit, and Backup & Technical have no app
+directory yet. Solution-layer design documentation (overview/ERD/lifecycle/business-rules/
+table-design) is now complete for essentially every module on this roadmap — Membership,
+Family, Attendance, Organization, Person, Founder & Heritage, Kumari Sangha, Kishore Puja,
+Mahila Sangha, Administration, Authentication & Security, Foundation, Governance, Publications,
+Reports & Analytics, UPBS, Audit, and Backup & Technical — and largely complete for Sevak
+Sangha — ahead of, and not yet reconciled with, any backend implementation. Two of these
+(Foundation, Authentication & Security) share a name with an existing `backend/` app but design
+an unrelated schema — see `docs/PROJECT_DOCUMENTATION.md` → Gotchas. See
+`docs/PROJECT_DOCUMENTATION.md` for the current, code-verified status of each.*
 
 ## Foundation
 
@@ -523,14 +527,30 @@ Completed:
 * Mahila Sangha Module Design (v2.1.0, Bye-Law-aligned governance model)
 * Sevak Sangha Module Design (partially frozen — table design only; see
   `docs/PROJECT_DOCUMENTATION.md`)
+* Foundation Module Design (v1.0.0, SOURCE ALIGNED — 8 master-data/geography/sequence tables;
+  same name, different scope from the `backend/foundation/` Django app)
+* Administration Module Design (v1.0.0, SOURCE ALIGNED — 6-table RBAC framework)
+* Authentication & Security Module Design (v1.0.0, SOURCE ALIGNED — 7-table security schema;
+  different schema from the real `backend/authentication/` app)
+* Governance Module Design (v1.0.0, SOURCE ALIGNED — Unified Body Governance Model + Elections,
+  9 tables; freezes the Mahila Parichalana Mandali term at 3 years, conflicting with the Mahila
+  module's own frozen 2-year term — unreconciled, see `docs/PROJECT_DOCUMENTATION.md`)
+* Publications Module Design (v1.0.0, SOURCE ALIGNED + USER REQUIREMENTS — zero new tables,
+  reuses Founder & Heritage's publication tables)
+* UPBS Module Design (v1.0.0, SOURCE ALIGNED — 7 tables)
+* Reports & Analytics Module Design (v1.0.0, SOURCE ALIGNED — 5 metadata/config-only tables)
+* Audit Module Design (v1.0.0, SOURCE ALIGNED — 2 tables)
+* Backup & Technical Module Design (v1.0.0, SOURCE ALIGNED — 2 tables)
 
 Current Focus:
 
-* Reconciling Solution-layer design docs with actual Django/SQL implementation across
-  organization, membership, family, attendance, heritage, kumari, kishore, mahila, and sevak —
-  all are documented but none has corresponding backend code beyond membership/family/heritage's
-  existing minimal models. No release doc has been created yet for the module-doc work landed
-  since v0.5.1 (heritage added; organization/person/kumari/kishore expanded or restructured).
+* Reconciling Solution-layer design docs with actual Django/SQL implementation across all 19
+  documented modules — every module now has a complete (or largely complete) design, but none
+  has corresponding backend code beyond membership/family/heritage/authentication's existing
+  minimal models. No release doc has been created yet for the module-doc work landed since
+  v0.5.1 (heritage added; organization/person/kumari/kishore expanded or restructured; then
+  foundation/administration/authentication/governance/publications/reports/upbs/audit/
+  backup_technical added).
 
 Next Release Target:
 
