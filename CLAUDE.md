@@ -112,14 +112,28 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
-- **Branch/remotes (updated 2026-08-21, later same day — supersedes the bullet directly below
-  for current branch/HEAD state; that bullet's content-level findings, e.g. the `SOL-DB-001`
-  `_id`/`_code` discrepancy, are unaffected and still tracked in §13. See §12's "Incident"
-  entry for the full story behind why this bullet exists.)** Active branch is
+- **Branch/remotes (updated 2026-08-21, later still — supersedes the bullet directly below for
+  current branch/HEAD state; that bullet's content-level findings, e.g. the `SOL-DB-001`
+  `_id`/`_code` discrepancy, are unaffected and still tracked in §13).** After the incident in
+  §12 was reverted (bullet below), the user explicitly asked to merge `feature/ref-
+  documentation` into `develop` — done manually this time (not by an agent), as a verified
+  `git merge --ff-only`, since `develop` had no unique commits `feature/ref-documentation`
+  lacked. **Active branch is now `develop`, at `2433c70`** (identical tip to `feature/ref-
+  documentation`, which still exists locally, fully merged — a cleanup candidate, not deleted
+  here since deletion wasn't asked for). `develop` is 24 commits ahead of `personal/develop`,
+  not yet pushed. `main` remains untouched at `3db5c37`, per the standing rule that `main`
+  advances only via the documented tag+release process — this merge did not touch it. A
+  `/document-project` pass immediately after (see §12) re-verified `backend/`/`database/`
+  against CLAUDE.md/PROJECT_DOCUMENTATION.md and found zero drift, confirming the merge (docs-
+  only, 118 files, 118 files touched are all under `docs/`/`CLAUDE.md`/`README.md`) didn't
+  silently carry any code change.
+- **Branch/remotes (updated 2026-08-21, later same day — historical, superseded by the bullet
+  above for current branch/HEAD state; kept for the incident narrative).** Active branch was
   `feature/ref-documentation` at `c9e4904` (adds a doc-count reconciliation commit on top of
   `7791cf1` below), working tree clean, in sync with `personal/feature/ref-documentation`.
-  `develop` is at `adde92a`, `main` is at `3db5c37` — **not** merged/advanced beyond that,
-  despite an unauthorized local merge chain briefly existing and then being reverted (§12).
+  `develop` was at `adde92a`, `main` was at `3db5c37` — **not yet** merged/advanced beyond that
+  at the time of this bullet, despite an unauthorized local merge chain briefly existing and
+  then being reverted (§12).
 - **Branch/remotes (updated 2026-08-21 — supersedes the 2026-08-20 bullet below for current
   branch/HEAD/commit-count state; nothing else in that bullet has changed).** Active branch is
   still `feature/ref-documentation`, working tree clean, now 2 commits ahead of
@@ -685,6 +699,35 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-21 — /document-project pass (run directly, not via project-documenter agent): verified merge into develop carried zero code drift; updated branch-state bullet (Claude Code)
+- Context: Ran `/document-project` directly right after manually fast-forward-merging
+  `feature/ref-documentation` into `develop` (per user request, in the turn preceding this one).
+  Rather than re-run the full skill from scratch given how recently (same session) two prior
+  passes had each independently confirmed zero backend/database drift, scoped this pass to what
+  had actually changed since: (1) the branch pointer move itself, (2) whether the merge's ~98k
+  insertions were purely additive docs content already reviewed on `feature/ref-documentation`
+  or hid any code change, (3) a handful of items neither prior pass had explicitly touched. Grep
+  across all `*.md` files for stale `"Active branch is..."` / `feature/ref-documentation`
+  references found four hits: `CLAUDE.md` (real drift, now fixed below) and three architecture
+  docs (`TECH_STACK_DECISIONS.md`, `DEVELOPER_REFERENCE_GUIDE.md`, `DEPLOYMENT_SYNC_PLAN.md`)
+  whose `**Branch:** feature/ref-documentation` front-matter field is historical authorship
+  metadata (which branch the doc was written on), not a current-state claim — left untouched,
+  not drift. Root `README.md`'s "Branch Strategy" section is generic workflow documentation,
+  not a state claim — also untouched. Spawned one `Explore` agent (read-only, reports only,
+  no edits) to independently re-verify: `settings.py` env-var/`INSTALLED_APPS` claims,
+  `urls.py` wiring, `database/ddl/02_organization/` still 0-byte, 3 randomly-sampled module
+  READMEs (audit/upbs/sevak) against their actual files, root README/PROJECT_DOCUMENTATION.md
+  staleness, and a repo-wide TODO/FIXME search — all 6 checks came back PASS, zero drift.
+- Decision/Outcome: Updated `CLAUDE.md` §3 only — added a new dated branch/remotes bullet
+  recording `develop` (now at `2433c70`) as the active branch post-merge, `feature/ref-
+  documentation` as a fully-merged cleanup candidate (not deleted — deletion wasn't requested),
+  and `main` explicitly untouched by this merge. No other `.md` file needed a change — the
+  Explore agent's PASS results confirmed `docs/PROJECT_DOCUMENTATION.md`, root `README.md`, and
+  all module READMEs already matched current repo state coming out of the prior two passes.
+- Follow-up: `feature/ref-documentation` (and the other fully-merged branches noted in earlier
+  entries) remain as local cleanup candidates — not deleted since no one asked for that.
+  `develop`/24-commits-ahead-of-`personal/develop` is still unpushed, same open item as before.
 
 ### 2026-08-21 — Incident: `project-documenter` agent merged `feature/ref-documentation` → `develop` → `main` without authorization; reverted; agent restricted to read-only git (Claude Code)
 - Context: Committed `c9e4904` (doc-count reconciliation) on `feature/ref-documentation`, then
