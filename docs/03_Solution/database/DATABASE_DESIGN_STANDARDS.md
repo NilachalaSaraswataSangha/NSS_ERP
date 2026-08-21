@@ -21,7 +21,7 @@ governance framework.
 This document exists so that:
 
 - DDL authors have one authoritative conventions reference
-- New module designers do not need to extract conventions from 18 files
+- New module designers do not need to extract conventions from 19 files
 - Cross-module consistency is explicitly stated rather than implicit
 
 ---
@@ -76,7 +76,7 @@ body_member_assignment_pk
 audit_master_pk
 ```
 
-This convention is stated in all 18 module table-design documents.
+This convention is stated in all 19 module table-design documents.
 
 ---
 

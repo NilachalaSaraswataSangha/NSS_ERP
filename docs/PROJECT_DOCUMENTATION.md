@@ -38,7 +38,14 @@ layer], `backup_technical`, `foundation` [Solution-layer], `governance` [Solutio
 module on the project roadmap, still with **zero** corresponding backend/SQL work beyond the
 five apps and partial DDL already noted above. Two of the new Solution-layer modules
 (`foundation`, `authentication`) share a name with an existing `backend/` Django app but
-describe an **entirely different scope/schema** — see Conventions & gotchas.
+describe an **entirely different scope/schema** — see Conventions & gotchas. As of 2026-08-21,
+two cross-module consolidation documents closed the last placeholder gaps under
+`docs/03_Solution/`: `database/DATABASE_DESIGN_STANDARDS.md` (`SOL-DB-001`) and
+`security/SECURITY_ARCHITECTURE.md` (`SOL-SEC-001`) — see the `03_Solution/` detail below. The
+consolidation pass also introduced a new, previously-unflagged discrepancy: `SOL-DB-001` itself
+uses `_id` (e.g. `person_id`, `organization_id`, `sangha_sevi_id`) as its stated business-
+identifier naming convention, contradicting the project's already-frozen `_code`-only
+convention (see Conventions & gotchas).
 
 ## Architecture
 
@@ -113,8 +120,8 @@ NSS_ERP/
 │   │                            kishore, mahila, sevak, foundation, administration,
 │   │                            authentication, governance, publications, reports, upbs,
 │   │                            audit, backup_technical) + architecture/ui/infrastructure/
-│   │                            standards content now populated (see detail below); api/
-│   │                            database/security still scaffolding
+│   │                            standards/database/security content now populated (see detail
+│   │                            below); only api/ remains empty scaffolding
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
@@ -255,12 +262,16 @@ database/
 │   ├── README.md
 │   ├── TECH_STACK_DECISIONS.md        Added 2026-08-16 — approved SOLUTION-layer tech decision (see Architecture section above)
 │   └── DEVELOPER_REFERENCE_GUIDE.md   Added 2026-08-16 — per-module "which doc to read before coding" matrix
+├── database/
+│   └── DATABASE_DESIGN_STANDARDS.md   Added 2026-08-21 (`SOL-DB-001`, DRAFT — SOURCE ALIGNED Consolidation) — cross-module DB conventions consolidated from all 19 module table-design docs: `_pk` UUID PK convention, audit columns, soft-delete, master-data architecture (generic `master_category`/`master_data` vs domain masters), module ownership boundaries (§26 — one owning module per table), cross-module FK principles, DDL build order sketch. **States a `_id` business-identifier convention (`person_id`, `organization_id`, `sangha_sevi_id`) that contradicts the project's already-frozen `_code`-only convention** (`database/ddl/`, this doc's own Gotchas below, `CLAUDE.md` §8) — see Gotchas/Open questions
+├── security/
+│   └── SECURITY_ARCHITECTURE.md       Added 2026-08-21 (`SOL-SEC-001`, DRAFT — SOURCE ALIGNED Cross-Reference) — routing map only, no new rules: STD-05 (policy) → Authentication (identity/credentials) → Administration (RBAC) → Audit (logging) → per-module business rules (column-level sensitive-data handling); explicitly does not duplicate any rule already defined elsewhere
 ├── infrastructure/
 │   └── DEPLOYMENT_SYNC_PLAN.md        Added 2026-08-17 — deployment/repository-sync plan
 ├── ui/
 │   ├── README.md
 │   └── mockups/           Added 2026-08-16 — 13 static HTML screens (Tailwind CSS + DaisyUI via CDN, no build step) + README.md; visual targets for Phase 4, not functional prototypes
-└── (api/, database/, security/ still empty scaffolding)
+└── (api/ still empty scaffolding — no FastAPI code exists in backend/ either)
 ```
 
 `docs/03_Solution/modules/attendance/DARSHAK_BUSINESS_RULE.md` records an ERP implementation
@@ -475,6 +486,19 @@ not assume the type-hierarchy specifics are settled.
   freezes it at **2 years**. Both are marked FROZEN in their own module. This was not caught by
   either module's own review — flagged here, not resolved, since picking a winner is a design
   decision this pass shouldn't make unilaterally.
+- **`DATABASE_DESIGN_STANDARDS.md` states a business-identifier convention that contradicts the
+  project's own frozen convention (new 2026-08-21).** §6/§15/§21 of
+  `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md` (`SOL-DB-001`) define `_id` as the
+  suffix for "sequential business identifiers" (`person_id`, `organization_id`,
+  `sangha_sevi_id`), reserving `_code` for "stable classification codes" only. This directly
+  contradicts the actual implemented SQL (`database/ddl/03_person/02_person.sql` uses
+  `person_code`, not `person_id`) and the correction already recorded in `CLAUDE.md` §8
+  ("the actual SQL DDL uses `_code` (not `_id`) for business identifiers... Follow `_code` for
+  new DDL"). The document's own §36 lists all 19 module table-design docs as its source, so this
+  looks like it absorbed the newer module docs' inconsistent `_id` usage (the same
+  `person_id`/`person_code` conflict already tracked below for the Person module) rather than
+  the actual frozen DDL convention — worth a human decision on which document is wrong before
+  any new DDL is authored against `SOL-DB-001`'s stated convention.
 
 ## Open questions / TODOs
 
@@ -547,3 +571,9 @@ not assume the type-hierarchy specifics are settled.
   `publications`, `reports`, `upbs`. No action item beyond the existing "reconcile docs vs.
   code" pattern already tracked above for organization/person/membership/family/etc. — noting
   scope, not proposing new work.
+- **New (2026-08-21): decide which document is authoritative for the business-identifier
+  suffix — `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md` (`_id`) or the implemented
+  SQL DDL + `CLAUDE.md` §8 (`_code`).** The new cross-module consolidation document states the
+  opposite of the convention actually implemented in `database/ddl/`. Needs an explicit
+  correction to `SOL-DB-001` (or a project-wide convention change, which seems unlikely given
+  how much existing SQL/documentation already uses `_code`) — not resolved here.

@@ -112,6 +112,26 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
+- **Branch/remotes (updated 2026-08-21 — supersedes the 2026-08-20 bullet below for current
+  branch/HEAD/commit-count state; nothing else in that bullet has changed).** Active branch is
+  still `feature/ref-documentation`, working tree clean, now 2 commits ahead of
+  `personal/feature/ref-documentation` (not yet pushed): `e6f435b` (pie/org reconciliation +
+  9 missing/stale module READMEs — this is the commit that landed the uncommitted changes the
+  2026-08-20 bullet below described) → `de8cd7a` (new cross-module
+  `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md`, `SOL-DB-001`, and
+  `docs/03_Solution/security/SECURITY_ARCHITECTURE.md`, `SOL-SEC-001` — closing the last two
+  placeholder gaps under `docs/03_Solution/`) → `7791cf1` (updated the 3 READMEs that referenced
+  those folders as empty: `docs/03_Solution/database/README.md`, `.../security/README.md`,
+  `docs/README.md`). `git diff --stat develop..HEAD -- backend/ database/` still shows **zero**
+  backend/database changes. A full CLAUDE.md/PROJECT_DOCUMENTATION.md/README.md verification
+  pass on 2026-08-21 (see §12) found the backend/database claims throughout this file still
+  accurate (re-verified `INSTALLED_APPS`, `urls.py` wiring, `settings.py` env-var handling,
+  `requirements.txt` encoding, `database/ddl/02_organization/` still 0-byte) and found one
+  additional stale doc (`docs/03_Solution/README.md`, an index page that had never been updated
+  past "Reserved — no content yet" for nearly every subfolder) plus a **new** discrepancy: the
+  new `DATABASE_DESIGN_STANDARDS.md` states a `_id` business-identifier suffix convention
+  (`person_id`, `organization_id`, `sangha_sevi_id`) that contradicts this file's own §8
+  correction and the actual implemented DDL's `_code` convention — added to §13.
 - **Branch/remotes (updated 2026-08-20 — supersedes the 2026-08-19 bullet below for current
   branch/HEAD/commit-count state; the `pie`/`org` remote reconciliation described in §12's
   2026-08-20 "Created `project-documenter` agent" entry happened earlier the same day and is
@@ -312,7 +332,8 @@ docs/
 │   kishore, mahila, sevak, foundation, administration, authentication, governance,
 │   publications, reports, upbs, audit, backup_technical}/ (+ architecture/, ui/mockups/,
 │   infrastructure/DEPLOYMENT_SYNC_PLAN.md, standards/lifecycle/ [SOL-LIFE-001/002] now
-│   populated; api/database/security still empty scaffolding)
+│   populated; database/security populated 2026-08-21 with cross-module consolidation docs
+│   [DATABASE_DESIGN_STANDARDS.md, SECURITY_ARCHITECTURE.md] — only api/ still empty)
 ├── 04_Testing/ (scaffolded, empty)
 └── 05_Releases/
 ```
@@ -656,6 +677,50 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-21 — Two-pass documentation refresh: verified zero backend/database drift; reconciled DATABASE_DESIGN_STANDARDS.md/SECURITY_ARCHITECTURE.md into PROJECT_DOCUMENTATION.md; fixed a long-stale docs/03_Solution/README.md index; flagged a new `_id`/`_code` convention conflict (Claude Code)
+- Context: Ran the project's standard init-equivalent + full document-project two-pass refresh.
+  `git log`/`git status` showed the branch unchanged (`feature/ref-documentation`, clean working
+  tree) but 2 commits ahead of `personal/feature/ref-documentation`: `de8cd7a` (new cross-module
+  `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md` and
+  `docs/03_Solution/security/SECURITY_ARCHITECTURE.md`, closing the `database/`/`security/`
+  placeholder gaps) and `7791cf1` (updated the 3 READMEs referencing those folders as empty).
+  Re-verified every backend/database claim in this file and `docs/PROJECT_DOCUMENTATION.md`
+  directly against code (`INSTALLED_APPS`, `config/urls.py` + per-app `urls.py` wiring,
+  `settings.py` DB env-var handling with no defaults, `requirements.txt` UTF-16LE/CRLF
+  encoding, `database/ddl/02_organization/` still 4×0-byte files, all `models.py`/FK
+  relationships) — confirmed **zero drift**, nothing needed correcting in §0/§7/§8. Checked
+  every one of the 19 `docs/03_Solution/modules/*/README.md` files against their actual
+  directory listing — all already accurate (no stale "NOT STARTED" placeholders remain
+  anywhere in `docs/03_Solution/modules/`, confirmed by grep). Reading `docs/03_Solution/
+  database/DATABASE_DESIGN_STANDARDS.md` and `.../security/SECURITY_ARCHITECTURE.md` in full
+  surfaced two issues neither prior pass had caught: (1) `docs/03_Solution/README.md` (the
+  top-level index for the whole `03_Solution/` folder) had never been updated past its original
+  "Reserved — no content yet" table for `architecture/`, `database/`, `infrastructure/`,
+  `security/`, `ui/`, and still described `modules/` as "organization/, person/ implemented;
+  rest reserved" — badly stale against the now-19-module, fully-populated reality; (2)
+  `DATABASE_DESIGN_STANDARDS.md` §6/§15/§21 state `_id` (e.g. `person_id`, `organization_id`,
+  `sangha_sevi_id`) as the project's business-identifier suffix convention — the exact opposite
+  of the already-frozen `_code` convention this file corrected in §8 back on 2026-08-12 and that
+  the actual implemented DDL (`database/ddl/03_person/02_person.sql`) uses. Also found two minor
+  stale counts: `docs/README.md` and `DATABASE_DESIGN_STANDARDS.md` itself both said "18 module[s]"
+  where 19 now exist (confirmed by counting `docs/03_Solution/modules/*/` and the document's own
+  §36 source list, which already lists 19).
+- Decision/Outcome: Rewrote `docs/03_Solution/README.md` with an accurate per-folder status
+  table. Fixed the "18"→"19" count in `docs/README.md` and `DATABASE_DESIGN_STANDARDS.md` (pure
+  factual corrections, not a design decision). Updated `docs/PROJECT_DOCUMENTATION.md`: Overview
+  (new note on the database/security gap closure + the `_id`/`_code` conflict), the
+  `03_Solution/` detail tree (added `database/`/`security/` entries, fixed the directory-
+  structure summary line), a new Gotchas entry and a new Open-questions entry for the
+  `_id`/`_code` conflict. Updated this file's §3 (new dated bullet), §5 (doc-tree note), and this
+  §12 entry. Did **not** edit `DATABASE_DESIGN_STANDARDS.md`'s stated `_id` convention itself —
+  flagged only, per the standing rule not to invent answers to design/naming questions
+  unilaterally (same pattern as the pre-existing `person_id`/`person_code` and Mandali
+  term-length conflicts already tracked in §13).
+- Follow-up: the `_id`/`_code` conflict in `SOL-DB-001` needs an explicit human decision (fix
+  the new consolidation doc to match the frozen `_code` convention, almost certainly — but not
+  this pass's call to make). All other previously-open items in §13 remain as they were; none
+  resolved or newly invalidated by this pass.
 
 ### 2026-08-20 — /document-project pass: closed the last two open Gotchas (pie/org, standards/lifecycle README); confirmed zero backend/database drift (Claude Code)
 - Context: User ran `/document-project` directly, immediately after the `project-documenter`
@@ -1237,3 +1302,12 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   describe genuinely different, non-overlapping scopes), but confusing enough to warrant an
   explicit decision on whether to rename one side (e.g. `foundation_platform`/`security_core`)
   before more content accumulates under either name. See §7/§8.
+- **New (2026-08-21): `DATABASE_DESIGN_STANDARDS.md` (`SOL-DB-001`) states `_id` as the
+  business-identifier suffix convention, contradicting the frozen `_code` convention.**
+  `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md` §6/§15/§21 (added 2026-08-21) name
+  the convention `person_id`/`organization_id`/`sangha_sevi_id` — the opposite of §8's own
+  2026-08-12 correction and the actual implemented DDL (`person_code` in
+  `database/ddl/03_person/02_person.sql`). Almost certainly an error in the new consolidation
+  doc (it likely absorbed the same `_id` usage already flagged in the Person module docs above)
+  rather than a considered convention change, but needs an explicit correction, not an assumed
+  one. See §12's 2026-08-21 entry.
