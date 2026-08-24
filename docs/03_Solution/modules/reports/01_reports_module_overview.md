@@ -119,7 +119,7 @@ Governance Report
     → Governance
 
 Youth Report
-    → Kumari / Kishore / relevant Youth source
+    → Kumari / Kishor / relevant Youth source
 
 UPBS Report
     → UPBS
@@ -234,7 +234,7 @@ Youth reporting may cover:
 
 ```
 Kumari Sangha
-Kishore Puja
+Kishor Puja
 Youth Participation
 Youth Activities
 Youth Membership Transitions
@@ -767,7 +767,7 @@ Family reporting shall use the authoritative Family model.
 
 # 52. Youth Identity
 
-Youth reporting shall use the authoritative Kumari/Kishore models as
+Youth reporting shall use the authoritative Kumari/Kishor models as
 applicable.
 
 ---

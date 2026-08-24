@@ -818,16 +818,16 @@ unless approved requirements define them.
 
 ---
 
-# 58. KUM-056 — Kumari vs Kishore
+# 58. KUM-056 — Kumari vs Kishor
 
-Kumari Sangha and Kishore Puja are separate business modules.
+Kumari Sangha and Kishor Puja are separate business modules.
 
 ```text
 Kumari Sangha
 =
 Continuous Development Program
 
-Kishore Puja
+Kishor Puja
 =
 Annual Event-Based Program
 ```

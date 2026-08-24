@@ -28,7 +28,7 @@ Examples of Persons without Membership:
 
 * Family Members
 * Kumari Participants
-* Kishore Participants
+* Kishor Participants
 * Guardians
 * Guests
 * Historical Persons
@@ -111,7 +111,7 @@ Membership may originate through:
 
 * Direct Application
 * Kumari Transition
-* Kishore Transition
+* Kishor Transition
 * Administrative Entry
 * Historical Data Migration
 

@@ -1233,7 +1233,7 @@ The following require additional authoritative operational documentation if they
 * Detailed Mahila reporting workflow.
 * Detailed operational relationship between Mahila organizational levels.
 
-No unsupported constitutional rule shall be invented for these areas.
+No unsupported statutory rule shall be invented for these areas.
 
 ---
 
@@ -1503,7 +1503,7 @@ DRAFT — BYE-LAW ALIGNED
 
 The Mahila Governing Body / Mahila Parichalana Mandali is treated as **one body** throughout this document.
 
-The verified Bye-Law remains the authoritative constitutional source.
+The verified Bye-Law remains the authoritative statutory source.
 
 ---
 

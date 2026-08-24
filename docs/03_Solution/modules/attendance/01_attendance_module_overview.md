@@ -132,7 +132,7 @@ The applicable exception approval shall be preserved.
 
 The Attendance Module shall monitor consecutive Weekly Sangha Puja absences.
 
-The constitutional rule recognizes three consecutive weekly Sangha Puja absences as a ground for Membership review.
+The statutory rule recognizes three consecutive weekly Sangha Puja absences as a ground for Membership review.
 
 The ERP shall therefore detect:
 

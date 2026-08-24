@@ -945,15 +945,15 @@ Sevak status does not itself make a person a registered UPBS Volunteer.
 
 ---
 
-# 38. Kishore Relationship
+# 38. Kishor Relationship
 
-A possible Kishore → Sevak pathway may exist.
+A possible Kishor → Sevak pathway may exist.
 
 However, it is not automatic.
 
 The transition must follow:
 
-* Applicable Kishore rules
+* Applicable Kishor rules
 * NSS Membership rules
 * Sevak eligibility
 * Authorized enrollment
@@ -961,7 +961,7 @@ The transition must follow:
 Therefore:
 
 ```text
-Kishore
+Kishor
    ↓
 Possible Future Transition
    ↓
@@ -1530,7 +1530,7 @@ Selection / Election Model
 Term Duration
 Formal Training Hierarchy
 Certification / Recognition
-Detailed Kishore → Sevak Transition
+Detailed Kishor → Sevak Transition
 ```
 
 These must be explicitly approved before being converted into frozen business rules.

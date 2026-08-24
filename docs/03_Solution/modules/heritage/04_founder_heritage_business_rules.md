@@ -822,11 +822,11 @@ Where authoritative NSS source material exists, it takes precedence over:
 
 ---
 
-# 78. HER-076 — No Constitutional Reinterpretation
+# 78. HER-076 — No Statutory Reinterpretation
 
 Founder & Heritage shall preserve and present authoritative content.
 
-It shall not reinterpret constitutional or bye-law provisions as new constitutional rules.
+It shall not reinterpret statutory or bye-law provisions as new statutory rules.
 
 ---
 

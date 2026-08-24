@@ -1,20 +1,20 @@
-# NSS ERP — Kishore Puja Module Overview
+# NSS ERP — Kishor Puja Module Overview
 
 **Document ID:** SOL-KISH-001  
 **Version:** 1.0.0  
 **Status:** DRAFT — SOURCE ALIGNED  
-**Module:** Kishore Puja  
+**Module:** Kishor Puja  
 **Parent System:** Nilachala Saraswata Sangha ERP
 
 ---
 
 # 1. Purpose
 
-The Kishore Puja Module manages the NSS Kishore Puja program as an annual, event-based youth participation program for boys.
+The Kishor Puja Module manages the NSS Kishor Puja program as an annual, event-based youth participation program for boys.
 
 The module provides structured management of:
 
-- Kishore identity
+- Kishor identity
 - Event registration
 - Year-wise participation
 - Sakha association
@@ -23,28 +23,28 @@ The module provides structured management of:
 - Family visibility
 - Future transition to NSS Membership
 
-Kishore Puja is intentionally modeled differently from Kumari Sangha.
+Kishor Puja is intentionally modeled differently from Kumari Sangha.
 
 ---
 
 # 2. Institutional Position
 
-Kishore Puja is not modeled as a permanent organizational unit equivalent to Kumari Sangha.
+Kishor Puja is not modeled as a permanent organizational unit equivalent to Kumari Sangha.
 
 The frozen project position is:
 
 ```text
-Kishore Puja
+Kishor Puja
 =
 Annual Event / Activity
 for Boys
 ```
 
-Participants may come from different Sanghas and participate through the annual Kishore Puja event model.
+Participants may come from different Sanghas and participate through the annual Kishor Puja event model.
 
 ---
 
-# 3. Kishore vs Kumari
+# 3. Kishor vs Kumari
 
 The two youth programs have different business models.
 
@@ -66,7 +66,7 @@ Niyam Panchak
 Dasa Sheela
 ```
 
-## Kishore Puja
+## Kishor Puja
 
 ```text
 Annual Event
@@ -88,22 +88,22 @@ This distinction is frozen in the NSS V2 baseline.
 
 # 4. Target Participants
 
-The frozen Kishore model identifies the intended participants as boys, including:
+The frozen Kishor model identifies the intended participants as boys, including:
 
 * Boys from NSS families
 * Sons of NSS members
 * Boys nominated by parents
 * Boys nominated by Sangha
 
-Eligibility shall follow the approved Kishore rules.
+Eligibility shall follow the approved Kishor rules.
 
 The module shall not assume that every participant must already be an NSS member.
 
 ---
 
-# 5. Kishore Identity
+# 5. Kishor Identity
 
-Every Kishore participant receives a dedicated Kishore ID.
+Every Kishor participant receives a dedicated Kishor ID.
 
 Example:
 
@@ -113,25 +113,25 @@ KH000002
 KH000003
 ```
 
-The Kishore ID is:
+The Kishor ID is:
 
 * Unique
 * Permanent
 * Never reused
 * Retained across years
 
-The same Kishore ID is used when the participant attends Kishore Puja in subsequent years.
+The same Kishor ID is used when the participant attends Kishor Puja in subsequent years.
 
 ---
 
-# 6. Kishore ID vs Sangha Sevi ID
+# 6. Kishor ID vs Sangha Sevi ID
 
-Kishore ID and NSS Sangha Sevi ID are separate identities.
+Kishor ID and NSS Sangha Sevi ID are separate identities.
 
 Example:
 
 ```text
-Kishore ID
+Kishor ID
 
 KH000123
 ```
@@ -146,23 +146,23 @@ SS000456
 
 The relationship is permanently preserved.
 
-A Kishore participant does not automatically receive an NSS Sangha Sevi ID.
+A Kishor participant does not automatically receive an NSS Sangha Sevi ID.
 
 ---
 
 # 7. Person Foundation
 
-Every Kishore participant shall be associated with the common Person foundation.
+Every Kishor participant shall be associated with the common Person foundation.
 
 Conceptually:
 
 ```text
 PERSON
    │
-   └── Kishore Participation
+   └── Kishor Participation
 ```
 
-The Kishore module shall not create a duplicate Person identity.
+The Kishor module shall not create a duplicate Person identity.
 
 The common principle remains:
 
@@ -174,7 +174,7 @@ Person ≠ Member
 
 # 8. Family Integration
 
-Kishore participants may be connected to their family through the common Family module.
+Kishor participants may be connected to their family through the common Family module.
 
 Conceptually:
 
@@ -184,7 +184,7 @@ Family
    └── Son
         │
         ▼
-   Kishore Participant
+   Kishor Participant
         │
         ▼
       KH000123
@@ -198,13 +198,13 @@ The Family module remains the owner of:
 * Marriage relationships
 * Family history
 
-Kishore does not duplicate these structures.
+Kishor does not duplicate these structures.
 
 ---
 
 # 9. Family Nomination
 
-The frozen Kishore model supports nomination through the Family Portal.
+The frozen Kishor model supports nomination through the Family Portal.
 
 Conceptually:
 
@@ -213,7 +213,7 @@ Parent
    ↓
 Nominate Son
    ↓
-Kishore Registration
+Kishor Registration
 ```
 
 This provides a family-driven registration path.
@@ -222,7 +222,7 @@ This provides a family-driven registration path.
 
 # 10. Sakha Nomination
 
-Kishore registration may also originate from the Sakha.
+Kishor registration may also originate from the Sakha.
 
 Conceptually:
 
@@ -231,7 +231,7 @@ Sakha
    ↓
 Nominate Boy
    ↓
-Kishore Registration
+Kishor Registration
 ```
 
 The Sakha association is retained for operational ownership and reporting.
@@ -240,9 +240,9 @@ The Sakha association is retained for operational ownership and reporting.
 
 # 11. Sakha Association
 
-Every Kishore registration shall be associated with a Sakha for operational ownership and reporting.
+Every Kishor registration shall be associated with a Sakha for operational ownership and reporting.
 
-This does not mean Kishore Puja itself becomes a permanent Sakha-level organization.
+This does not mean Kishor Puja itself becomes a permanent Sakha-level organization.
 
 The Sakha provides the participant's organizational context for the registration.
 
@@ -257,7 +257,7 @@ Therefore:
 ```text
 Participant's Home Sakha
         ≠
-Kishore Event Host
+Kishor Event Host
 ```
 
 where applicable.
@@ -268,16 +268,16 @@ Participation in an event does not automatically transfer the participant's Sakh
 
 # 13. Annual Event Model
 
-Kishore Puja operates on a year-wise event model.
+Kishor Puja operates on a year-wise event model.
 
 Example:
 
 ```text
 KH000123
 
-2026 Kishore Puja
-2027 Kishore Puja
-2028 Kishore Puja
+2026 Kishor Puja
+2027 Kishor Puja
+2028 Kishor Puja
 ```
 
 The participant retains:
@@ -294,12 +294,12 @@ Only event-specific participation changes.
 
 # 14. Event Identity
 
-Each Kishore Puja occurrence is represented as a distinct event.
+Each Kishor Puja occurrence is represented as a distinct event.
 
 Conceptually:
 
 ```text
-Kishore Event
+Kishor Event
       │
       ├── Year
       ├── Event Date
@@ -311,27 +311,27 @@ The event remains historically identifiable.
 
 ---
 
-# 15. Core Kishore Entities
+# 15. Core Kishor Entities
 
-The current frozen Kishore logical model identifies:
+The current frozen Kishor logical model identifies:
 
 ```text
-kishore_participant
+kishor_participant
 
-kishore_event
+kishor_event
 
-kishore_event_registration
+kishor_event_registration
 
-kishore_membership_transition
+kishor_membership_transition
 ```
 
-These form the Kishore-specific domain model.
+These form the Kishor-specific domain model.
 
 ---
 
-# 16. `kishore_participant`
+# 16. `kishor_participant`
 
-Represents the permanent Kishore participant identity.
+Represents the permanent Kishor participant identity.
 
 Conceptually:
 
@@ -339,42 +339,42 @@ Conceptually:
 PERSON
    │
    ▼
-KISHORE PARTICIPANT
+KISHOR PARTICIPANT
    │
    ▼
 KH000123
 ```
 
-The participant record persists across multiple Kishore Puja years.
+The participant record persists across multiple Kishor Puja years.
 
 ---
 
-# 17. `kishore_event`
+# 17. `kishor_event`
 
-Represents an annual Kishore Puja event.
+Represents an annual Kishor Puja event.
 
 Examples:
 
 ```text
-Kishore Puja 2026
-Kishore Puja 2027
-Kishore Puja 2028
+Kishor Puja 2026
+Kishor Puja 2027
+Kishor Puja 2028
 ```
 
 The event is the central unit of year-wise participation.
 
 ---
 
-# 18. `kishore_event_registration`
+# 18. `kishor_event_registration`
 
-Represents the registration of a Kishore participant for a particular Kishore event.
+Represents the registration of a Kishor participant for a particular Kishor event.
 
 Conceptually:
 
 ```text
 KH000123
     ↓
-Kishore Puja 2026
+Kishor Puja 2026
     ↓
 Registration
 ```
@@ -383,9 +383,9 @@ The same participant may have multiple registration records across different ann
 
 ---
 
-# 19. `kishore_membership_transition`
+# 19. `kishor_membership_transition`
 
-Represents the future transition from Kishore participation to NSS Membership.
+Represents the future transition from Kishor participation to NSS Membership.
 
 Conceptually:
 
@@ -405,7 +405,7 @@ The relationship remains permanently traceable.
 
 # 20. Guardian Model
 
-Every Kishore participant must have an assigned Guardian.
+Every Kishor participant must have an assigned Guardian.
 
 This is a frozen rule.
 
@@ -430,7 +430,7 @@ Guardian assignment is operationally performed by the Sakha.
 Conceptually:
 
 ```text
-Kishore Participant
+Kishor Participant
         ↓
 Guardian Required
         ↓
@@ -471,7 +471,7 @@ The assigned Guardian is responsible for:
 * Supervision
 * Participation monitoring
 * Communication with family
-* Support during Kishore Puja
+* Support during Kishor Puja
 * Support during related activities
 
 These responsibilities are part of the frozen Guardian Model.
@@ -482,14 +482,14 @@ These responsibilities are part of the frozen Guardian Model.
 
 The Family module identifies the participant's family/parents.
 
-The Kishore Guardian is an operational NSS role.
+The Kishor Guardian is an operational NSS role.
 
 Therefore:
 
 ```text
 Parent
    ≠
-Assigned Kishore Guardian
+Assigned Kishor Guardian
 ```
 
 unless the same person independently satisfies the Guardian rule.
@@ -524,7 +524,7 @@ The new Guardian must satisfy the current Guardian eligibility rule.
 Changing the Guardian shall not create:
 
 ```text
-New Kishore ID
+New Kishor ID
 ```
 
 or:
@@ -542,9 +542,9 @@ for the participant.
 Registration connects:
 
 ```text
-Kishore Participant
+Kishor Participant
         ↓
-Kishore Event
+Kishor Event
 ```
 
 The registration may also retain the participant's operational Sakha and Guardian context as required by the frozen design.
@@ -553,7 +553,7 @@ The registration may also retain the participant's operational Sakha and Guardia
 
 # 28. Year-wise Participation
 
-A participant may register in multiple annual Kishore Puja events.
+A participant may register in multiple annual Kishor Puja events.
 
 Example:
 
@@ -611,7 +611,7 @@ where applicable.
 
 # 31. Attendance Boundary
 
-Kishore registration and attendance are different concepts.
+Kishor registration and attendance are different concepts.
 
 ```text
 Registration
@@ -627,7 +627,7 @@ The common Attendance framework shall be reused where attendance tracking is req
 
 # 32. Event Participation Boundary
 
-Participation in one annual Kishore Puja does not automatically imply participation in the next year's event.
+Participation in one annual Kishor Puja does not automatically imply participation in the next year's event.
 
 Each annual event has its own registration/participation record.
 
@@ -635,7 +635,7 @@ Each annual event has its own registration/participation record.
 
 # 33. Event Host
 
-A Kishore event may be hosted/organized by the relevant NSS organizational authority.
+A Kishor event may be hosted/organized by the relevant NSS organizational authority.
 
 The host organization is part of the event context.
 
@@ -658,7 +658,7 @@ The participant does not become a member of the host Sakha merely by attending a
 
 # 35. Kendra Visibility
 
-Kendra-authorized users may view Kishore participants across all Sakhas.
+Kendra-authorized users may view Kishor participants across all Sakhas.
 
 This supports Kendra-wide monitoring and reporting.
 
@@ -666,7 +666,7 @@ This supports Kendra-wide monitoring and reporting.
 
 # 36. Sakha Visibility
 
-A Sakha-authorized user may view Kishore participants belonging to that Sakha.
+A Sakha-authorized user may view Kishor participants belonging to that Sakha.
 
 The frozen visibility rule is:
 
@@ -684,13 +684,13 @@ All boys across all Sakhas
 
 # 37. Guardian Visibility
 
-An assigned Guardian may view the Kishore participants assigned to that Guardian, subject to common RBAC and privacy rules.
+An assigned Guardian may view the Kishor participants assigned to that Guardian, subject to common RBAC and privacy rules.
 
 ---
 
 # 38. Family Visibility
 
-Family members may view authorized Kishore information for their own family.
+Family members may view authorized Kishor information for their own family.
 
 Potential information includes:
 
@@ -730,12 +730,12 @@ This is part of the frozen Family First visibility model.
 
 # 40. Future Membership Pipeline
 
-Kishore Puja provides a potential pathway toward future NSS Membership.
+Kishor Puja provides a potential pathway toward future NSS Membership.
 
 Conceptually:
 
 ```text
-Kishore
+Kishor
    ↓
 Participation
    ↓
@@ -754,11 +754,11 @@ This is a transition pathway, not automatic membership.
 
 # 41. NSS Membership Application
 
-A Kishore participant may later apply for NSS Membership where eligible.
+A Kishor participant may later apply for NSS Membership where eligible.
 
 The application is handled by the common Membership module.
 
-Kishore does not approve NSS Membership.
+Kishor does not approve NSS Membership.
 
 ---
 
@@ -786,13 +786,13 @@ The transition shall create a permanent historical link:
 KH000123
       │
       ▼
-kishore_membership_transition
+kishor_membership_transition
       │
       ▼
 SS000456
 ```
 
-The original Kishore history remains preserved.
+The original Kishor history remains preserved.
 
 ---
 
@@ -811,9 +811,9 @@ The Membership module remains authoritative for these types.
 
 ---
 
-# 45. Kishore History After Membership
+# 45. Kishor History After Membership
 
-Becoming an NSS member shall not delete the participant's Kishore history.
+Becoming an NSS member shall not delete the participant's Kishor history.
 
 The system shall preserve:
 
@@ -826,9 +826,9 @@ The system shall preserve:
 
 ---
 
-# 46. Kishore ID Permanence
+# 46. Kishor ID Permanence
 
-The KH ID remains permanently associated with the participant's Kishore history.
+The KH ID remains permanently associated with the participant's Kishor history.
 
 Example:
 
@@ -852,23 +852,23 @@ Transition to NSS Membership shall not create another Person.
 The same Person remains associated with:
 
 ```text
-Kishore History
+Kishor History
 +
 NSS Membership
 ```
 
 ---
 
-# 48. Kishore Status
+# 48. Kishor Status
 
-Kishore participant status is distinct from NSS Membership status.
+Kishor participant status is distinct from NSS Membership status.
 
 The exact final status master shall be defined in the Business Rules document.
 
 The module shall not conflate:
 
 ```text
-Kishore Participation Status
+Kishor Participation Status
 ```
 
 with:
@@ -881,7 +881,7 @@ NSS Membership Status
 
 # 49. Event Status
 
-Kishore events shall have their own event lifecycle.
+Kishor events shall have their own event lifecycle.
 
 The exact common Event status model shall be used where applicable.
 
@@ -891,17 +891,17 @@ The event lifecycle shall remain distinct from the participant lifecycle.
 
 # 50. Cancellation and Historical Integrity
 
-If an annual Kishore event is cancelled or otherwise changed, its historical identity shall remain preserved.
+If an annual Kishor event is cancelled or otherwise changed, its historical identity shall remain preserved.
 
 Participant registration history shall not be silently deleted.
 
-Detailed cancellation/rescheduling rules shall be finalized in the Kishore Business Rules document.
+Detailed cancellation/rescheduling rules shall be finalized in the Kishor Business Rules document.
 
 ---
 
 # 51. Common Module Integration
 
-Kishore integrates with:
+Kishor integrates with:
 
 ```text
 Person
@@ -916,21 +916,21 @@ Administration/RBAC
 Audit
 ```
 
-Kishore-specific functionality shall not duplicate common foundation capabilities.
+Kishor-specific functionality shall not duplicate common foundation capabilities.
 
 ---
 
 # 52. Governance Integration
 
-If Kishore event organization requires governance or committee assignments, the common Governance framework shall be reused.
+If Kishor event organization requires governance or committee assignments, the common Governance framework shall be reused.
 
-Kishore shall not create a separate governance architecture.
+Kishor shall not create a separate governance architecture.
 
 ---
 
 # 53. Security
 
-Kishore access shall use the common NSS RBAC framework.
+Kishor access shall use the common NSS RBAC framework.
 
 Authorization shall consider:
 
@@ -944,13 +944,13 @@ Organization Scope
 Permission
 ```
 
-No separate Kishore authentication system shall be created.
+No separate Kishor authentication system shall be created.
 
 ---
 
 # 54. Audit
 
-Kishore administrative actions shall use the common Audit framework.
+Kishor administrative actions shall use the common Audit framework.
 
 Auditable actions include:
 
@@ -968,7 +968,7 @@ Auditable actions include:
 
 # 55. Master Data
 
-Kishore shall use master data where appropriate for:
+Kishor shall use master data where appropriate for:
 
 ```text
 Event Type
@@ -985,10 +985,10 @@ The final Master Data Catalog remains authoritative.
 
 # 56. Reports
 
-The Kishore module shall support reporting such as:
+The Kishor module shall support reporting such as:
 
 ```text
-Total Kishore Participants
+Total Kishor Participants
 Annual Registrations
 Participation by Sakha
 Participation by Year
@@ -1002,14 +1002,14 @@ Reports shall respect RBAC and organizational scope.
 
 ---
 
-# 57. Kishore Puja Portal
+# 57. Kishor Puja Portal
 
-The UI baseline identifies a dedicated Kishore Puja portal.
+The UI baseline identifies a dedicated Kishor Puja portal.
 
 Conceptually:
 
 ```text
-Kishore Puja
+Kishor Puja
 
 Current Year Registrations
 
@@ -1024,7 +1024,7 @@ KH000103
 Participation History
 ```
 
-This is aligned with the annual-event Kishore model.
+This is aligned with the annual-event Kishor model.
 
 ---
 
@@ -1033,34 +1033,34 @@ This is aligned with the annual-event Kishore model.
 The Family Portal may provide:
 
 ```text
-Kishore Registration
+Kishor Registration
 Participation History
 Guardian Information
 Status
 Membership Transition
 ```
 
-for the family's own Kishore participants.
+for the family's own Kishor participants.
 
 ---
 
-# 59. No Permanent Kishore Sangha Requirement
+# 59. No Permanent Kishor Sangha Requirement
 
 The system shall not require creation of a permanent:
 
 ```text
-Kishore Sangha
+Kishor Sangha
 ```
 
-organizational unit merely to operate Kishore Puja.
+organizational unit merely to operate Kishor Puja.
 
-The frozen source explicitly distinguishes Kishore Puja from the continuous organizational model of Kumari Sangha.
+The frozen source explicitly distinguishes Kishor Puja from the continuous organizational model of Kumari Sangha.
 
 ---
 
 # 60. No Unified Youth Identity
 
-Kishore shall retain its own:
+Kishor shall retain its own:
 
 ```text
 KH ID
@@ -1076,7 +1076,7 @@ The project baseline explicitly preserves:
 
 ```text
 Kumari ID ≠ Sangha Sevi ID
-Kishore ID ≠ Sangha Sevi ID
+Kishor ID ≠ Sangha Sevi ID
 ```
 
 and keeps the two youth domains distinct.
@@ -1085,7 +1085,7 @@ and keeps the two youth domains distinct.
 
 # 61. No Unified Youth Event Model
 
-Kishore and Kumari may reuse common technical infrastructure, but their business models remain separate.
+Kishor and Kumari may reuse common technical infrastructure, but their business models remain separate.
 
 Kumari:
 
@@ -1093,7 +1093,7 @@ Kumari:
 Continuous Development
 ```
 
-Kishore:
+Kishor:
 
 ```text
 Annual Event
@@ -1103,17 +1103,17 @@ The Solution layer shall preserve this distinction.
 
 ---
 
-# 62. Core Kishore Architecture
+# 62. Core Kishor Architecture
 
 ```text
 PERSON
    │
    ▼
-KISHORE PARTICIPANT
+KISHOR PARTICIPANT
    │
    │ KH000123
    │
-   ├──────────────► KISHORE EVENT
+   ├──────────────► KISHOR EVENT
    │                     │
    │                     ▼
    │             EVENT REGISTRATION
@@ -1127,26 +1127,26 @@ KISHORE PARTICIPANT
                       SS000456
 ```
 
-Guardian and Sakha context are associated with the Kishore participation/registration model.
+Guardian and Sakha context are associated with the Kishor participation/registration model.
 
 ---
 
 # 63. Core Entity Summary
 
 ```text
-kishore_participant
+kishor_participant
     ↓
 Permanent KH identity
 
-kishore_event
+kishor_event
     ↓
-Annual Kishore Puja event
+Annual Kishor Puja event
 
-kishore_event_registration
+kishor_event_registration
     ↓
 Year-specific participation
 
-kishore_membership_transition
+kishor_membership_transition
     ↓
 KH → SS historical transition
 ```
@@ -1177,7 +1177,7 @@ These remain common NSS modules.
 The following distinctions are mandatory:
 
 ```text
-Kishore Participant
+Kishor Participant
         ≠
 NSS Member
 
@@ -1197,7 +1197,7 @@ Participant's Sakha
         ≠
 Event Host
 
-Kishore Puja
+Kishor Puja
         ≠
 Kumari Sangha
 ```
@@ -1206,7 +1206,7 @@ Kumari Sangha
 
 # 66. History Preservation
 
-The Kishore module follows:
+The Kishor module follows:
 
 ```text
 History Never Deleted
@@ -1226,7 +1226,7 @@ The system shall preserve:
 
 # 67. Future Expansion
 
-The architecture may later support additional Kishore-related activities/events without changing the permanent participant identity model.
+The architecture may later support additional Kishor-related activities/events without changing the permanent participant identity model.
 
 Possible future events may be added through the common Event framework where approved.
 
@@ -1236,7 +1236,7 @@ No future event shall automatically create a new KH ID.
 
 # 68. Out of Scope for This Overview
 
-The following require detailed rules in later Kishore documents:
+The following require detailed rules in later Kishor documents:
 
 * Exact age eligibility
 * Detailed registration approval workflow
@@ -1257,16 +1257,16 @@ These shall not be invented in this overview.
 
 # 69. Related Documents
 
-The Kishore Solution documentation set is:
+The Kishor Solution documentation set is:
 
 ```text
-docs/03_Solution/modules/kishore/
+docs/03_Solution/modules/kishor/
 
-├── 01_kishore_module_overview.md
-├── 02_kishore_erd.md
-├── 03_kishore_lifecycle.md
-├── 04_kishore_business_rules.md
-└── 05_kishore_table_design.md
+├── 01_kishor_module_overview.md
+├── 02_kishor_erd.md
+├── 03_kishor_lifecycle.md
+├── 04_kishor_business_rules.md
+└── 05_kishor_table_design.md
 ```
 
 ---
@@ -1276,8 +1276,8 @@ docs/03_Solution/modules/kishore/
 The following decisions are already frozen in the project source:
 
 ```text
-✓ Kishore is annual/event-based
-✓ Kishore is for boys
+✓ Kishor is annual/event-based
+✓ Kishor is for boys
 ✓ KH identity
 ✓ KH ID is permanent
 ✓ KH ID retained across years
@@ -1292,7 +1292,7 @@ The following decisions are already frozen in the project source:
 ✓ Sakha-scoped visibility
 ✓ Future KH → NSS Membership transition
 ✓ Permanent KH → SS relationship
-✓ Kishore remains separate from Kumari
+✓ Kishor remains separate from Kumari
 ```
 
 ---
@@ -1307,13 +1307,13 @@ VERSION:
 1.0.0
 ```
 
-The Kishore Module Overview establishes the following fundamental model:
+The Kishor Module Overview establishes the following fundamental model:
 
 ```text
                   PERSON
                     │
                     ▼
-             KISHORE PARTICIPANT
+             KISHOR PARTICIPANT
                     │
                   KH ID
                     │

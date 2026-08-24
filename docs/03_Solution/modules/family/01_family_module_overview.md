@@ -215,7 +215,7 @@ Examples:
 * Child
 * Guardian
 * Kumari Participant
-* Kishore Participant
+* Kishor Participant
 * Future Applicant
 * Historical Person
 
@@ -236,7 +236,7 @@ The Family Module shall support visibility of:
 ```text
 Kumari Sangha
 
-Kishore Puja
+Kishor Puja
 
 Future Youth Programs
 ```
@@ -280,7 +280,7 @@ and:
 Family Members
 Membership Summary
 Kumari Participation
-Kishore Participation
+Kishor Participation
 Family Activities
 Family Tree
 Transition History
@@ -319,13 +319,13 @@ A Kumari Participant does not automatically become an NSS Member.
 
 ---
 
-# 18. Relationship With Kishore Module
+# 18. Relationship With Kishor Module
 
-Kishore participation is maintained by the Kishore Module.
+Kishor participation is maintained by the Kishor Module.
 
 The Family Module provides family context.
 
-Guardian assignment is maintained by the Kishore Module.
+Guardian assignment is maintained by the Kishor Module.
 
 ---
 
@@ -384,7 +384,7 @@ Person
 Family
     +-- Membership
     +-- Kumari
-    +-- Kishore
+    +-- Kishor
     +-- Mahila
     +-- Governance / Activities
 ```

@@ -32,16 +32,16 @@ The lifecycle is derived from GOV-002 — Organizational Governance Standard.
 
 The Organization lifecycle is governed by:
 
-- NSS Constitution
+- NSS Bye-Law
 - Approved authoritative references
 - GOV-002 — Organizational Governance Standard
 - GOV-005 — Governance Change Control Standard
 - Applicable Governance Decision Register decisions
 
-The NSS Constitution remains the supreme authority for organizational
+The NSS Bye-Law remains the supreme authority for organizational
 structure.
 
-Where a conflict exists, the authoritative constitutional source prevails.
+Where a conflict exists, the authoritative statutory source prevails.
 
 ---
 
@@ -135,7 +135,7 @@ A proposed organization is not yet an active organizational authority.
 Where the solution records a proposed organization, its identity shall
 remain distinguishable from approved organizational entities.
 
-The proposal shall not be treated as an active constitutional organization
+The proposal shall not be treated as an active statutory organization
 before the required approval.
 
 ---
@@ -143,7 +143,7 @@ before the required approval.
 # 9. Proposed Organization Hierarchy
 
 A proposed organization shall not be allowed to establish an operational
-organizational hierarchy that contradicts the constitutional structure.
+organizational hierarchy that contradicts the statutory structure.
 
 Its intended parent must be consistent with the applicable authoritative
 organizational model.
@@ -152,7 +152,7 @@ organizational model.
 
 # 10. Proposed Organization Authority
 
-A proposed organization shall not exercise operational or constitutional
+A proposed organization shall not exercise operational or statutory
 authority merely because a record exists in the ERP.
 
 Authority begins only after the applicable approval.
@@ -196,7 +196,7 @@ Approval does not create a replacement organization.
 # 14. Approved Organization Hierarchy
 
 The approved organization's parent-child relationship shall comply with the
-constitutional organizational hierarchy.
+statutory organizational hierarchy.
 
 The organization must ultimately trace to the single apex organization.
 
@@ -225,10 +225,10 @@ to the permissions and rules of the relevant modules.
 # 17. Active Organization Authority
 
 An active organization may exercise only the authority granted through the
-constitutional and governance framework.
+statutory and governance framework.
 
 Being `ACTIVE` does not grant authority beyond the organization's
-constitutionally defined scope.
+statutorily defined scope.
 
 ---
 
@@ -237,7 +237,7 @@ constitutionally defined scope.
 An active organization must:
 
 * Have a valid parent unless it is the apex.
-* Remain within the constitutional hierarchy.
+* Remain within the statutory hierarchy.
 * Maintain valid organizational identity.
 * Remain traceable to the apex.
 
@@ -257,7 +257,7 @@ Sevak
 Mahila
 Kumari
 Kishori
-Kishore
+Kishor
 Reports
 Administration
 ```
@@ -514,7 +514,7 @@ Attendance belongs to the Attendance Module.
 
 # 40. Parent Relationship During Lifecycle
 
-The parent-child relationship is a constitutional organizational relationship.
+The parent-child relationship is a statutory organizational relationship.
 
 Lifecycle changes shall not be used to bypass parent-child integrity.
 
@@ -565,7 +565,7 @@ Parallel Unauthorized Roots
 
 # 45. Apex Lifecycle
 
-The apex organization is constitutionally special.
+The apex organization is statutorily special.
 
 There shall be exactly one apex organization in production.
 
@@ -587,8 +587,8 @@ Therefore no additional apex statuses are introduced here.
 The apex organization shall not be treated as an ordinary organizational
 record that can simply be deleted.
 
-Any change affecting the constitutional apex requires authoritative
-constitutional/governance action.
+Any change affecting the statutory apex requires authoritative
+statutory/governance action.
 
 ---
 
@@ -680,19 +680,19 @@ organizational operations.
 
 Delegation shall not:
 
-* Change constitutional ownership
+* Change statutory ownership
 * Create unauthorized hierarchy
 * Bypass approval requirements
 * Alter permanent identity
 
 GOV-002 explicitly states that delegated authority shall not modify
-constitutional reporting relationships or organizational ownership.
+statutory reporting relationships or organizational ownership.
 
 ---
 
 # 55. Organizational Independence
 
-An organization cannot become constitutionally independent merely because
+An organization cannot become statutorily independent merely because
 its ERP status changes.
 
 For example:
@@ -703,7 +703,7 @@ ACTIVE
 INACTIVE
 ```
 
-does not remove the organization's constitutional lineage.
+does not remove the organization's statutory lineage.
 
 ---
 
@@ -753,7 +753,7 @@ Sevak
 Mahila
 Kumari
 Kishori
-Kishore
+Kishor
 Reports
 ```
 
@@ -792,7 +792,7 @@ assignments.
 
 # 63. Specialized Module Impact Boundary
 
-Sevak, Mahila, Kumari, Kishori, and Kishore modules may have their own
+Sevak, Mahila, Kumari, Kishori, and Kishor modules may have their own
 organizational consequences.
 
 Those consequences must be documented in their respective business-rule
@@ -891,7 +891,7 @@ Meaning:
 Currently operational organizational unit.
 
 Authority:
-Exercises only constitutionally granted authority.
+Exercises only statutorily granted authority.
 
 History:
 Identity remains permanent.
@@ -1162,7 +1162,7 @@ This document defines the Organization lifecycle.
 
 It does not define:
 
-* Constitutional organizational levels
+* Statutory organizational levels
 * Detailed governance election procedures
 * RBAC permission matrix
 * Membership lifecycle

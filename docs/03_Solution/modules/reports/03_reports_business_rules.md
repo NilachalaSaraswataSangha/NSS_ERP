@@ -182,7 +182,7 @@ Reports shall support reporting on Youth-related modules.
 This may include:
 
     Kumari Sangha
-    Kishore Puja
+    Kishor Puja
     Youth Participation
     Youth Activities
     Youth-to-Membership Transition
@@ -263,7 +263,7 @@ Governance model.
 Reports shall consume Youth records from the applicable Youth modules.
 
 Reports shall not merge or redefine the business identity of Kumari and
-Kishore merely for reporting convenience.
+Kishor merely for reporting convenience.
 
 ---
 
@@ -1189,7 +1189,7 @@ when stable IDs exist.
 
 Reports shall respect the authoritative organizational hierarchy.
 
-The project organizational standard establishes a single constitutional
+The project organizational standard establishes a single statutory
 organizational root and requires traceable parent-child relationships.
 
 ---
@@ -1414,7 +1414,7 @@ UPBS
 ```
 
 The project organizational governance standard establishes that
-organizational structures must remain constitutionally governed and
+organizational structures must remain statutorily governed and
 traceable through the approved hierarchy. Reports must therefore consume,
 rather than redefine, that hierarchy.
 

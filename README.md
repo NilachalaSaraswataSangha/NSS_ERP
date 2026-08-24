@@ -8,7 +8,7 @@ Nilachala Saraswata Sangha Enterprise Resource Planning (NSS ERP)
 
 NSS ERP is a comprehensive web-based management platform being developed for Nilachala Saraswata Sangha.
 
-The system is designed to support membership management, family management, governance, attendance tracking, Kumari Sangha, Kishore Puja, Founder & Heritage records, UPBS operations, reporting, and future NSS operational activities.
+The system is designed to support membership management, family management, governance, attendance tracking, Kumari Sangha, Kishor Puja, Founder & Heritage records, UPBS operations, reporting, and future NSS operational activities.
 
 The project follows a:
 
@@ -30,7 +30,7 @@ design philosophy, ensuring that business rules are frozen before implementation
 * Family-first relationship tracking
 * Governance and committee management
 * Attendance and review workflows
-* Kumari Sangha and Kishore Puja management
+* Kumari Sangha and Kishor Puja management
 * Founder & Heritage preservation
 * UPBS operational support
 * Historical record preservation
@@ -126,7 +126,7 @@ Examples:
 
 * Family Member
 * Kumari Participant
-* Kishore Participant
+* Kishor Participant
 * Future Applicant
 * Historical Person
 
@@ -199,11 +199,11 @@ Notes:
 
 *The sections below describe the full planned module roadmap. As of this writing, only
 **Foundation, Membership, Family, Governance (stub), Attendance (stub), and Founder & Heritage**
-exist as Django apps under `backend/` — Mahila Sangha, Kumari Sangha, Kishore Puja, Sevak
+exist as Django apps under `backend/` — Mahila Sangha, Kumari Sangha, Kishor Puja, Sevak
 Sangha, UPBS, Reports & Analytics, Administration, Audit, and Backup & Technical have no app
 directory yet. Solution-layer design documentation (overview/ERD/lifecycle/business-rules/
 table-design) is now complete for essentially every module on this roadmap — Membership,
-Family, Attendance, Organization, Person, Founder & Heritage, Kumari Sangha, Kishore Puja,
+Family, Attendance, Organization, Person, Founder & Heritage, Kumari Sangha, Kishor Puja,
 Mahila Sangha, Administration, Authentication & Security, Foundation, Governance, Publications,
 Reports & Analytics, UPBS, Audit, and Backup & Technical — and largely complete for Sevak
 Sangha — ahead of, and not yet reconciled with, any backend implementation. Two of these
@@ -277,7 +277,7 @@ an unrelated schema — see `docs/PROJECT_DOCUMENTATION.md` → Gotchas. See
 
 ---
 
-## Kishore Puja
+## Kishor Puja
 
 * KH Identity
 * Registration
@@ -523,7 +523,7 @@ Completed:
 * Founder & Heritage Module Design (v1.0.0, SOURCE ALIGNED — 8 tables designed; backend
   implements only 1, `founder_master`)
 * Kumari Sangha Module Design (v1.0.0, SOURCE ALIGNED)
-* Kishore Puja Module Design (v1.0.0, SOURCE ALIGNED — Guardian Model frozen v2.1)
+* Kishor Puja Module Design (v1.0.0, SOURCE ALIGNED — Guardian Model frozen v2.1)
 * Mahila Sangha Module Design (v2.1.0, Bye-Law-aligned governance model)
 * Sevak Sangha Module Design (partially frozen — table design only; see
   `docs/PROJECT_DOCUMENTATION.md`)
@@ -551,7 +551,7 @@ Current Focus:
   documented modules — every module now has a complete (or largely complete) design, but none
   has corresponding backend code beyond membership/family/heritage/authentication's existing
   minimal models. No release doc has been created yet for the module-doc work landed since
-  v0.5.1 (heritage added; organization/person/kumari/kishore expanded or restructured; then
+  v0.5.1 (heritage added; organization/person/kumari/kishor expanded or restructured; then
   foundation/administration/authentication/governance/publications/reports/upbs/audit/
   backup_technical added).
 

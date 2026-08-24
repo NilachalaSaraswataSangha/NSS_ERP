@@ -47,7 +47,7 @@ The conceptual model is derived from:
 ```text
 Approved Mahila Sangha Bye-Law
         ↓
-NSS Constitution / Bye-Laws
+NSS Bye-Law
         ↓
 Approved NSS Governance Framework
         ↓

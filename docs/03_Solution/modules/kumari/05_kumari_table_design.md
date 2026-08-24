@@ -1379,9 +1379,9 @@ The earlier unified-youth proposal is not treated as the current Kumari table de
 
 ---
 
-# 73. Kishore Boundary
+# 73. Kishor Boundary
 
-Kumari and Kishore Puja shall remain separate business domains.
+Kumari and Kishor Puja shall remain separate business domains.
 
 Kumari uses:
 
@@ -1393,7 +1393,7 @@ kumari_activity_participant
 kumari_membership_transition
 ```
 
-Kishore Puja has its own event-oriented model.
+Kishor Puja has its own event-oriented model.
 
 The two modules may reuse common foundation entities but shall not be merged merely because both are youth programs.
 

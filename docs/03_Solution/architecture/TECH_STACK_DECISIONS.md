@@ -216,7 +216,7 @@ Capacitor wrapper (only if App Store needed)
 This document is a SOLUTION-layer artifact per the frozen governance lifecycle:
 
 ```
-REF (Constitutional source)
+REF (Statutory source)
   AUTH (Reference management)
     GOV (Governance interpretation)
       REQ (Business requirements)

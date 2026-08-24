@@ -66,7 +66,7 @@ rather than rediscovering structure from scratch.
 - **Current repo location:** `/Users/sandeep.panda03/Documents/NSS_ERP` (macOS)
   - **Migrated from:** `D:\Important\NSS\NSS_ERP` (Windows + VS Code + PowerShell). User has
     fully moved to Mac; the Windows path is historical only — do not reference it as current.
-- **Not a generic corporate ERP.** Must reflect NSS's actual constitutional, spiritual,
+- **Not a generic corporate ERP.** Must reflect NSS's actual statutory, spiritual,
   organizational and family structure. UI philosophy: traditional, simple, mobile-friendly,
   accessible to elder members, low training requirement. Avoid SAP-style/corporate-dashboard
   complexity, deep nested menus, technical jargon.
@@ -99,8 +99,8 @@ design · CODE = implementation · TEST = validation · RELEASE = versioned publ
 GDR = authoritative decision history (cross-cutting).
 
 **Frozen org/governance principles (permanent IDs, never renumbered):**
-`GOV-ORG-001..005` (NSS apex authority; constitutional precedence; single-hierarchy integrity;
-only officially-approved docs enter REF; constitutional traceability required or explicitly
+`GOV-ORG-001..005` (NSS apex authority; statutory precedence; single-hierarchy integrity;
+only officially-approved docs enter REF; statutory traceability required or explicitly
 flagged as an ERP implementation decision) · `GOV-DATA-001` (parent-child integrity) ·
 `GOV-LIFE-001` (governance change control — no informal edits to frozen standards) ·
 `GOV-LIFE-002` (immutable rule identifiers; deprecated rules keep their ID and point to
@@ -204,7 +204,7 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
   branch/HEAD state; remotes unchanged):** Active branch is `feature/ref-documentation`,
   working tree clean, 5 commits ahead of `personal/feature/ref-documentation` (not yet pushed):
   `40a9f02` (doc-drift reconciliation) → `c88efd0` (kumari → v1.0.0 SOURCE ALIGNED) →
-  `f485aef` (kishore → v1.0.0 SOURCE ALIGNED) → `2f9b567` (**new** heritage module doc set,
+  `f485aef` (kishor → v1.0.0 SOURCE ALIGNED) → `2f9b567` (**new** heritage module doc set,
   v1.0.0 SOURCE ALIGNED, 5 files) → `cf1a085` (organization restructured 4-file→5-file pattern,
   v1.1.0 GOVERNANCE ALIGNED, old files deleted) → `89aa2ec` (person expanded within its existing
   4-file pattern, v1.0.0 SOURCE ALIGNED). Confirmed via `git diff --stat -- backend/ database/`:
@@ -229,7 +229,7 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
   §8's Git remotes row, still an open flag for a human decision. Since the 2026-08-16 pass, a
   large batch of Solution-layer module documentation landed: full overview/ERD/lifecycle/
   business-rules/table-design sets for `membership`, `family`, `attendance` (+ review workflow,
-  Frozen), `kumari`, `kishore`, and a restructured `sevak` (01-06 core + `sangha/`/`seva/`/
+  Frozen), `kumari`, `kishor`, and a restructured `sevak` (01-06 core + `sangha/`/`seva/`/
   `events/` subdocs); `mahila` was corrected from v2.0.0 to v2.1.0 (see §7). None of this
   changed `backend/`/`database/` — still docs-only drift. See §12's 2026-08-18 entry for detail
   and the module-README fixes made this pass.
@@ -278,7 +278,7 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
   correction commit (`5ec61c0 "docs(auth): Some Minor Changes to AUTH-001 File"`). Verify
   actual current content before assuming it's still mid-correction.
 - **REF corpus on disk — fully corrected and verified against both source PDF and docx (as of 2026-08-12):**
-  - `REF-001` (Section A, NSS Constitution) — present, fully restructured to match confirmed
+  - `REF-001` (Section A, NSS Bye-Law) — present, fully restructured to match confirmed
     source sequence: Name → Registered Office → "Special Features : PREAMBLE" (repositioned
     here, not at the top) → short "3. Objects of the Society" intro paragraph → Memorandum
     of Association ("6." — no heading text in source) with founding-members table (9 names +
@@ -293,7 +293,7 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
     project assumptions (including an earlier version of this file) and has been corrected.
     The former `REF-003-017` (which combined two 1975 Resolutions under an invented
     "Section J") has been deleted from the repository. The two 1975 Resolutions are
-    constitutional amendments to **Section C** and are now filed as separate documents
+    statutory amendments to **Section C** and are now filed as separate documents
     adjacent to the clauses they amend: `REF-003-C(i)(2)-1975-01` (amends REF-003-C(i)(2),
     Functions of the Governing Body) and `REF-003-C(i)(8)-1975-02` (amends REF-003-C(i)(5) and
     REF-003-C(i)(8), Duties of the Secretary and Parichalak). Each carries the source's actual
@@ -320,12 +320,12 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 - **Module docs present (updated 2026-08-21 — supersedes the 2026-08-20 sub-bullet below for
   folder count; that bullet's numbering-pattern detail is otherwise still accurate).**
   `docs/03_Solution/modules/{heritage, organization, person, membership, family, attendance,
-  kumari, kishore, mahila, sevak, foundation, administration, authentication, governance,
+  kumari, kishor, mahila, sevak, foundation, administration, authentication, governance,
   publications, reports, upbs, audit, backup_technical, finance}/` — **20** module folders now
   (`finance` added 2026-08-21, via a commit made outside this session — see §12's
   "/document-project pass: Finance module" entry). `finance` uses the same 5-file
   `01_design`/`02_erd`/`03_business_rules`/`04_table_design`/`05_lifecycle` numbering as
-  heritage/kumari/kishore/mahila, and is the one new module confirmed to follow the project's
+  heritage/kumari/kishor/mahila, and is the one new module confirmed to follow the project's
   actual frozen `_code` business-identifier convention correctly (contrast with the `_id`/
   `_code` conflict in §13). (2026-08-20 bullet, folder count only:) 19 module folders
   (`foundation`, `administration`, `authentication`, `governance`, `publications`, `reports`,
@@ -336,7 +336,7 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
   5-file one); organization was restructured 2026-08-19 off that same original pattern onto the
   newer `01_..._module_overview` / `02_..._erd` / `03_..._lifecycle` / `04_..._business_rules` /
   `05_..._table_design` 5-file pattern (deleting its old 4 files, not renaming them) — the same
-  pattern already used by heritage, membership, kumari, kishore, mahila (sevak has a `06_`
+  pattern already used by heritage, membership, kumari, kishor, mahila (sevak has a `06_`
   table-design file too, plus `sangha/`/`seva/`/`events/` subdocs; publications has 7 files).
   Don't assume the numbering scheme is uniform across modules. **`foundation` and
   `authentication` here are Solution-layer module folders, not the same thing as the
@@ -379,7 +379,7 @@ docs/
 │   RESOLUTIONS/, CIRCULARS/, NOTIFICATIONS/ still planned)
 ├── 02_Requirements/ (scaffolded, empty)
 ├── 03_Solution/modules/{heritage, organization, person, membership, family, attendance, kumari,
-│   kishore, mahila, sevak, foundation, administration, authentication, governance,
+│   kishor, mahila, sevak, foundation, administration, authentication, governance,
 │   publications, reports, upbs, audit, backup_technical, finance}/ (+ architecture/, ui/mockups/,
 │   infrastructure/DEPLOYMENT_SYNC_PLAN.md, standards/lifecycle/ [SOL-LIFE-001/002] now
 │   populated; database/security populated 2026-08-21 with cross-module consolidation docs
@@ -438,7 +438,7 @@ Approving Authority / Approver / Project Owner / Project Steering Committee rela
 `Project Owner` = Nilachala Saraswata Sangha (NSS) itself. `Governance Authority` (`GOV-ROLE-002`)
 = `Project Steering Committee` — same body, not two; this is the body recorded as `Owner` and
 `Approver` in AUTH/GOV/GDR document metadata. Final decision authority for governance decisions
-recorded in the GDR rests with the `NSS Governing Body` (constitutional body, REF-003-C(i)(1)),
+recorded in the GDR rests with the `NSS Governing Body` (statutory body, REF-003-C(i)(1)),
 exercised through its President (REF-003-C(i)(3)) and/or Parichalak (REF-003-C(i)(8)) — not the
 Governance Authority/Project Steering Committee — per new rule `GOV-ROLE-006` in `GOV-001`.
 `Approving Authority` was retired as a phantom term (never used anywhere in the corpus, same
@@ -548,18 +548,18 @@ one-body model above. v2.1.0 corrected it back: **one body, two names, one gover
 Treasurer, 3 Members), 2-year term. Not a new decision, just the module docs catching up to the
 already-settled model.
 
-**Kumari Sangha / Kishore Puja:** Each has its own ID distinct from Sangha Sevi ID
-(`Kumari ID ≠ Sangha Sevi ID`, `Kishore ID ≠ Sangha Sevi ID`) — not treated as ordinary
+**Kumari Sangha / Kishor Puja:** Each has its own ID distinct from Sangha Sevi ID
+(`Kumari ID ≠ Sangha Sevi ID`, `Kishor ID ≠ Sangha Sevi ID`) — not treated as ordinary
 membership. Both now have concrete, documented formats: **Kumari ID = `KM000001`** (KM + 6
-digits, permanent), **Kishore ID = `KH000001`** (KH + 6 digits, permanent, one ID spans many
-yearly event registrations). Kishore Puja additionally has a frozen **Guardian Model v2.1**:
+digits, permanent), **Kishor ID = `KH000001`** (KH + 6 digits, permanent, one ID spans many
+yearly event registrations). Kishor Puja additionally has a frozen **Guardian Model v2.1**:
 every participant must have a Guardian who is an NSS Member (via `sangha_sevi` identity, not
 just being a legal guardian/parent) of the participant's Sakha, assigned by the Sakha, not
 necessarily the parent — a parent qualifies only if they independently satisfy the NSS-member/
 Sakha requirement (KISH-023). As of 2026-08-19 both module doc sets are version-locked at
 v1.0.0 SOURCE ALIGNED (a content-freeze tag, not a lifecycle promotion — document-level Status
 remains DRAFT). Both modules are fully designed (`docs/03_Solution/modules/kumari/`,
-`.../kishore/`) but neither has a `backend/` Django app yet.
+`.../kishor/`) but neither has a `backend/` Django app yet.
 
 **Sevak Sangha:** Partially frozen only — foundation exists but executive structure,
 membership lifecycle, training hierarchy, governance model, and operational structure are
@@ -607,7 +607,7 @@ authority. Attendance Enforcement + Attendance Review are frozen.
   structure still PENDING (matches §10's "still open" list).
 - **Reports & Analytics:** 5 metadata/configuration-only tables — `report_category_master`,
   `report_definition`, `report_filter_definition`, `dashboard`, `dashboard_widget`. Consumes
-  authoritative data from Membership/Attendance/Family/Governance/Kumari-Kishore/UPBS without
+  authoritative data from Membership/Attendance/Family/Governance/Kumari-Kishor/UPBS without
   duplicating it; no premature star schema/warehouse; report execution/snapshot/scheduling/
   export persistence all PENDING/FUTURE.
 - **Audit:** 2 tables — `audit_master`, `system_event_log`. Cross-cutting traceability; no
@@ -660,7 +660,7 @@ governance, attendance, config}`. Of these, `authentication`, `foundation`, `mem
 `governance`/`attendance` are stubs (empty `models.py`, no `urls.py` for governance/attendance).
 Only `authentication`, `dashboard`, and `foundation` are wired into `config/urls.py`; `family`,
 `membership`, `heritage` have models but no `urls.py` — admin-only. `mahila`, `kumari`,
-`kishore`, `sevak`, `publications`, `upbs`, `reports`, `administration` are **not yet scaffolded
+`kishor`, `sevak`, `publications`, `upbs`, `reports`, `administration` are **not yet scaffolded
 at all** — planned only. Full detail: `docs/PROJECT_DOCUMENTATION.md` §Directory structure /
 §Gotchas. Do not casually redesign this structure.
 
@@ -709,7 +709,7 @@ UI-001 Login          UI-002 Kendra Dashboard      UI-003 Sakha Dashboard
 UI-004 Member Search  UI-005 Member Profile        UI-006 Family Dashboard (frozen)
 ```
 Top-level nav: Dashboard, Membership, Family, Governance, Attendance, Mahila Sangha, Kumari
-Sangha, Kishore Puja, Sevak Sangha, Founder & Heritage, Publications, UPBS, Reports,
+Sangha, Kishor Puja, Sevak Sangha, Founder & Heritage, Publications, UPBS, Reports,
 Administration.
 
 ## 10. Frozen Domains (do not redesign) vs Still-Open Domains
@@ -718,7 +718,7 @@ Administration.
 Governance Model, Advisory Board, General Body, Election Framework, Vacancy Framework),
 Membership Types/Identity/Renewal/Transfer, Probationary→Regular progression, Parichaya Patra
 foundation, Attendance Enforcement/Review, Family foundation, Mahila Sangha + Mandali, Kumari
-Sangha, Kishore Puja, UPBS registration foundation, technical architecture foundation, master
+Sangha, Kishor Puja, UPBS registration foundation, technical architecture foundation, master
 data foundation, project standards, decision hierarchy, Organization Module, Person module.
 
 **Partially frozen:** Sevak Sangha.
@@ -981,7 +981,7 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   commits ahead of `personal/feature/ref-documentation`) was flagged but not pushed — user did
   not ask for that in this pass.
 
-### 2026-08-19 — /document-project pass: new heritage module doc set, organization restructure to v1.1.0, person/kumari/kishore promoted to v1.0.0 (Claude Code)
+### 2026-08-19 — /document-project pass: new heritage module doc set, organization restructure to v1.1.0, person/kumari/kishor promoted to v1.0.0 (Claude Code)
 - Context: User ran `/document-project` again. `git log develop..HEAD` showed 5 new commits
   beyond the 2026-08-18 pass's last-verified state (`40a9f02` → `c88efd0` → `f485aef` →
   `2f9b567` → `cf1a085` → `89aa2ec`), and `git diff --stat -- backend/ database/` confirmed
@@ -999,9 +999,9 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   substantially within its existing 4-file pattern to v1.0.0 SOURCE ALIGNED, surfacing two real
   discrepancies: the docs name the business identifier `person_id` where the implemented DDL
   uses `person_code`, and the docs mark the address/Aadhaar/photo/blood-group model OPEN even
-  though `person_address` is already implemented in SQL; (4) kumari and kishore were promoted
+  though `person_address` is already implemented in SQL; (4) kumari and kishor were promoted
   to v1.0.0 SOURCE ALIGNED (content-freeze tag, not a status promotion — document-level Status
-  remains DRAFT in both), with kishore's Guardian Model confirmed as specifically "frozen v2.1"
+  remains DRAFT in both), with kishor's Guardian Model confirmed as specifically "frozen v2.1"
   referencing `sangha_sevi` identity; (5) root `README.md` and `docs/PROJECT_DOCUMENTATION.md`
   were both found stale against all of the above (missing heritage entirely, citing organization
   filenames that no longer exist, asserting Person/SQL alignment that no longer holds).
@@ -1010,8 +1010,8 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   list, the un-frozen type-matrix flag, still-empty DDL), and `.../person/README.md` (corrected
   overstated "Frozen"/"Complete" claims to match the docs' own DRAFT — SOURCE ALIGNED status,
   added the `person_id`/`person_code` and address-model discrepancy notes). Made small
-  version-string fixes to `.../kumari/README.md` and `.../kishore/README.md` (Version 1.0 →
-  1.0.0, DRAFT → DRAFT — SOURCE ALIGNED, plus a kishore Document ID typo fix `SOL-KIS-*` →
+  version-string fixes to `.../kumari/README.md` and `.../kishor/README.md` (Version 1.0 →
+  1.0.0, DRAFT → DRAFT — SOURCE ALIGNED, plus a kishor Document ID typo fix `SOL-KIS-*` →
   `SOL-KISH-*`). Updated `docs/PROJECT_DOCUMENTATION.md`: Overview (added Founder & Heritage to
   the module list, 5 real Django apps not 4), the `03_Solution/` detail tree (added heritage,
   corrected organization's file names/version, flagged person's discrepancies), Key Workflows
@@ -1028,7 +1028,7 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   exists). Updated this file's §3 (new dated bullet), §5 (heritage added to both module lists,
   organization's pattern-migration noted), §7 (added a Heritage paragraph; rewrote the
   Organization paragraph to separate the frozen generic structure from the now-open type matrix;
-  rewrote the Person paragraph to flag the two discrepancies; updated the Kumari/Kishore
+  rewrote the Person paragraph to flag the two discrepancies; updated the Kumari/Kishor
   paragraph with the v1.0.0 tags and the Guardian v2.1/`sangha_sevi` detail), §8 (added a
   cross-reference note on the `person_id`/`person_code` conflict), and §13 (three new open
   items).
@@ -1047,7 +1047,7 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   `git diff --stat` confirmed this was pure documentation drift — zero changes to `backend/` or
   `database/`. Five parallel research agents surveyed the new content: full Solution-layer
   design doc sets (overview/ERD/lifecycle/business-rules/table-design) had been added for
-  `membership`, `family`, `attendance` (+ a Frozen review-workflow doc), `kumari`, `kishore`,
+  `membership`, `family`, `attendance` (+ a Frozen review-workflow doc), `kumari`, `kishor`,
   and a restructured `sevak` (01-06 core sequence + `sangha/`/`seva/`/`events/` subdocs,
   core rules renumbered to `SEV-001`-`SEV-040`); `mahila` had drifted to an incorrect v2.0.0
   two-body governance model and was then corrected to v2.1.0 (one body, two names — matching
@@ -1057,7 +1057,7 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   that a second remote now exists — `org` (`github.com/NilachalaSaraswataSangha/NSS_ERP`) — in
   addition to `personal`; `TECH_STACK_DECISIONS.md` §6 still hasn't been reconciled with this or
   the earlier `pie`-removal (still says `pie`, never uses the `org` alias). Every one of the 7
-  newer module `README.md` files (`membership`, `family`, `attendance`, `kumari`, `kishore`,
+  newer module `README.md` files (`membership`, `family`, `attendance`, `kumari`, `kishor`,
   `mahila`, `sevak`) was found still saying "Status: NOT STARTED... No content has been written
   yet," despite each folder now containing a complete doc set.
 - Decision/Outcome: Rewrote all 7 stale module `README.md` files to list actual documents,
@@ -1067,18 +1067,18 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   `docs/PROJECT_DOCUMENTATION.md`'s Directory-structure tree and `03_Solution/` detail section
   to list all 9 modules (was: organization/person/attendance only), added the new
   `standards/lifecycle/` and `infrastructure/` entries, extended the "doc/code gap" Gotcha
-  beyond organization/person to cover membership/family/attendance/kumari/kishore/mahila/sevak,
+  beyond organization/person to cover membership/family/attendance/kumari/kishor/mahila/sevak,
   and corrected the git-remotes Gotcha (was: "only one remote, `personal`" — now two). Updated
   root `README.md`'s Module Structure disclaimer and Current Development Status section (was
   stuck on "Current Focus: Membership Module Design," now stale given 6 more modules got design
   docs since). Updated this file's §3 (new branch/remote bullet), §5 (module-doc-present bullet,
-  doc-tree, new standards-path note), §7 (Kumari `KM000001`/Kishore `KH000001` ID formats +
+  doc-tree, new standards-path note), §7 (Kumari `KM000001`/Kishor `KH000001` ID formats +
   Guardian Model; Mahila v2.0.0→v2.1.0 correction note; Sevak 01-06/SEV-001-040 detail), and §8
   (Git remotes row now lists `org`).
 - Follow-up: `TECH_STACK_DECISIONS.md` §6's `pie`/`org`-alias reconciliation remains an
   unresolved human decision (flagged again, not newly discovered). No `org/*` remote-tracking
   refs have been fetched in any session yet — divergence between `org` and `personal` is still
-  unverified. The doc/code gap for membership/family/attendance/kumari/kishore/mahila/sevak is
+  unverified. The doc/code gap for membership/family/attendance/kumari/kishor/mahila/sevak is
   now explicitly tracked but not resolved — same open question as organization/person's
   long-standing "reconcile Django ORM with SQL DDL" item.
 

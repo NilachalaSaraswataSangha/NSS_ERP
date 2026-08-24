@@ -14,7 +14,7 @@ The Organization Module defines and maintains the organizational structure of NS
 
 Its purpose is to ensure that the ERP represents:
 
-- Constitutionally recognized organizational units
+- Statutoryly recognized organizational units
 - Organizational hierarchy
 - Parent-child relationships
 - Organizational identity
@@ -23,7 +23,7 @@ Its purpose is to ensure that the ERP represents:
 - Organizational address information
 - Organizational scope used by other ERP modules
 
-The module provides the organizational foundation on which Governance, Membership, Attendance, Sevak, Mahila, Kumari, Kishori, Kishore, Reports, Administration, and other modules depend.
+The module provides the organizational foundation on which Governance, Membership, Attendance, Sevak, Mahila, Kumari, Kishori, Kishor, Reports, Administration, and other modules depend.
 
 ---
 
@@ -33,17 +33,17 @@ The Organization Module shall follow the approved:
 
 **GOV-002 — Organizational Governance Standard**
 
-The NSS Constitution is the supreme governing authority for organizational structures represented in the ERP.
+The NSS Bye-Law is the supreme governing authority for organizational structures represented in the ERP.
 
-Where this solution documentation conflicts with an authoritative constitutional document, the authoritative constitutional document prevails.
+Where this solution documentation conflicts with an authoritative statutory document, the authoritative statutory document prevails.
 
 ---
 
 # 3. Organizational Governance Principle
 
-The ERP shall represent the constitutional organizational hierarchy rather than creating an independent ERP-specific hierarchy.
+The ERP shall represent the statutory organizational hierarchy rather than creating an independent ERP-specific hierarchy.
 
-Organizational authority shall flow through the approved constitutional structure.
+Organizational authority shall flow through the approved statutory structure.
 
 No ERP feature shall create an organizational relationship that contradicts the authoritative hierarchy.
 
@@ -57,7 +57,7 @@ The apex organization:
 
 - Has no parent organization
 - Is the root of the organizational hierarchy
-- Provides constitutional authority for subordinate organizational units
+- Provides statutory authority for subordinate organizational units
 - Is unique within the ERP
 
 Only one apex organization shall exist in the production organizational hierarchy.
@@ -66,13 +66,13 @@ Only one apex organization shall exist in the production organizational hierarch
 
 # 5. Organizational Unit
 
-An organizational unit is a constitutionally recognized organizational entity represented within the ERP.
+An organizational unit is a statutorily recognized organizational entity represented within the ERP.
 
 Each organizational unit shall:
 
 - Have a unique organizational identity
 - Have exactly one parent unless it is the apex
-- Belong to the constitutional hierarchy
+- Belong to the statutory hierarchy
 - Have an organizational type
 - Have an organizational status
 - Remain traceable to the apex
@@ -217,9 +217,9 @@ This three-table scope is recorded in the project source.
 
 `organization_type_master` defines the controlled classifications of organizational units.
 
-The exact final constitutional organization-type values shall be derived from approved authoritative organizational references.
+The exact final statutory organization-type values shall be derived from approved authoritative organizational references.
 
-The ERP shall not invent constitutional organizational levels.
+The ERP shall not invent statutory organizational levels.
 
 ---
 
@@ -403,7 +403,7 @@ Sevak
 Mahila
 Kumari
 Kishori
-Kishore
+Kishor
 UPBS
 Reports
 Administration
@@ -432,9 +432,9 @@ The exact authorization matrix belongs to Administration/RBAC.
 
 # 29. Organizational Authority
 
-Organizational authority shall follow the constitutional hierarchy.
+Organizational authority shall follow the statutory hierarchy.
 
-No organization may exercise authority beyond what is granted by the applicable constitutional or governance framework.
+No organization may exercise authority beyond what is granted by the applicable statutory or governance framework.
 
 ---
 
@@ -442,7 +442,7 @@ No organization may exercise authority beyond what is granted by the applicable 
 
 Administrative delegation may allow operational management of organizational records.
 
-Delegation shall not change constitutional ownership or parent-child relationships.
+Delegation shall not change statutory ownership or parent-child relationships.
 
 Delegated authority shall remain auditable.
 
@@ -450,13 +450,13 @@ Delegated authority shall remain auditable.
 
 # 31. Organizational Independence Restriction
 
-An organizational unit shall not operate outside the constitutional hierarchy.
+An organizational unit shall not operate outside the statutory hierarchy.
 
 The ERP shall prohibit:
 
 * Unauthorized hierarchy creation
 * Unauthorized restructuring
-* Duplicate constitutional entities
+* Duplicate statutory entities
 * Parallel organizational hierarchies
 * Unsupported governance relationships
 
@@ -464,7 +464,7 @@ The ERP shall prohibit:
 
 # 32. Duplicate Organization Prevention
 
-The system shall prevent duplicate representations of the same constitutionally recognized organizational unit.
+The system shall prevent duplicate representations of the same statutorily recognized organizational unit.
 
 Organizational identity must remain unique and permanent.
 
@@ -510,15 +510,15 @@ Its status identifies its lifecycle state.
 
 The Organization Module shall not assume that every organization type automatically implies an arbitrary hierarchy.
 
-The constitutional source determines valid organizational relationships.
+The statutory source determines valid organizational relationships.
 
 ---
 
-# 36. Constitutional Authority
+# 36. Statutory Authority
 
-Only approved authoritative references may establish or modify constitutional organizational structure.
+Only approved authoritative references may establish or modify statutory organizational structure.
 
-The ERP shall not create new constitutional organizational levels merely for software convenience.
+The ERP shall not create new statutory organizational levels merely for software convenience.
 
 ---
 
@@ -528,7 +528,7 @@ Changes to the organizational hierarchy shall follow the approved governance cha
 
 Examples:
 
-* Creation of a constitutionally recognized organization
+* Creation of a statutorily recognized organization
 * Closure of an organization
 * Approved restructuring
 * Parent reassignment
@@ -810,7 +810,7 @@ Every non-apex organization shall reference one valid parent organization.
 
 # 59. No Multiple Parents
 
-An organizational unit shall not simultaneously belong to multiple parents within the constitutional hierarchy.
+An organizational unit shall not simultaneously belong to multiple parents within the statutory hierarchy.
 
 ---
 
@@ -889,7 +889,7 @@ Mahila
 Sevak
 Kumari
 Kishori
-Kishore
+Kishor
 ```
 
 Such modules shall reference the Organization Module rather than duplicate the organizational master.
@@ -1005,7 +1005,7 @@ according to the common audit/history framework.
 
 ---
 
-# 73. Constitutional Compliance
+# 73. Statutory Compliance
 
 All organizational solution artifacts must comply with GOV-002.
 
@@ -1096,7 +1096,7 @@ with the organization hierarchy represented through the organization entity and 
 The Organization Module shall preserve:
 
 ```text
-✓ One constitutional apex
+✓ One statutory apex
 ✓ Exactly one parent for every non-apex organization
 ✓ No circular hierarchy
 ✓ No orphan organizations
@@ -1110,7 +1110,7 @@ The Organization Module shall preserve:
 ✓ Common location master reuse
 ✓ Common RBAC reuse
 ✓ Common audit reuse
-✓ Constitutional authority precedence
+✓ Statutory authority precedence
 ✓ No unauthorized organizational levels
 ✓ No duplicate organizational hierarchy
 ```
@@ -1119,7 +1119,7 @@ The Organization Module shall preserve:
 
 # 79. Future Changes
 
-Any future change to the constitutional organizational model shall first be supported by an approved authoritative source or formal governance decision.
+Any future change to the statutory organizational model shall first be supported by an approved authoritative source or formal governance decision.
 
 The Solution documentation shall then be updated before physical implementation.
 

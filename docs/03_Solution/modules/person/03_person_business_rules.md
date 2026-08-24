@@ -28,7 +28,7 @@ A Person may exist independently of NSS Membership.
 
 These rules shall be interpreted together with:
 
-- NSS Constitution and Bye-Laws
+- NSS Bye-Law
 - Approved governance standards
 - Person solution documents
 - Membership business rules
@@ -557,7 +557,7 @@ This applies to:
 - Mahila
 - Kumari
 - Kishori
-- Kishore
+- Kishor
 - Sevak
 
 where those modules require individual identity.
@@ -898,7 +898,7 @@ record shall be reused.
 
 ## PER-BR-093 — Existing Person Reuse for Youth
 
-A Kumari, Kishori, or Kishore participant who later becomes an NSS Member
+A Kumari, Kishori, or Kishor participant who later becomes an NSS Member
 shall retain the same Person identity.
 
 ---
@@ -1043,7 +1043,7 @@ The Family module shall not become the general Person master.
 
 ## PER-BR-106 — No Specialized Person Masters
 
-Mahila, Kumari, Kishori, Kishore, Sevak, or other modules shall not create
+Mahila, Kumari, Kishori, Kishor, Sevak, or other modules shall not create
 duplicate general-purpose Person masters.
 
 ---

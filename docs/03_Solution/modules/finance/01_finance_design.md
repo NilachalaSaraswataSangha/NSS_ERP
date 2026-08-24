@@ -36,7 +36,7 @@ that are not established or approved by the project.
 
 # 2. Source Authority
 
-The Finance Module shall derive its constitutional and financial rules
+The Finance Module shall derive its statutory and financial rules
 from the authoritative NSS Bye-Laws.
 
 The principal sources are:
@@ -138,13 +138,13 @@ Applicable organizational levels may include:
 - Anchalika
 - Zilla
 - Sakha
-- Other constitutionally recognized organizational units
+- Other statutorily recognized organizational units
 
 The exact financial authority and scope applicable to each organizational
 level shall follow the approved organizational and financial governance
 rules.
 
-Finance shall not independently redefine the constitutional
+Finance shall not independently redefine the statutory
 organizational hierarchy.
 
 The Organization Module remains authoritative for organizational identity
@@ -266,7 +266,7 @@ F[A](vi) explicitly requires:
 > and the funds so collected would only be spent in "Satsikshya Bistar";
 > in consultation with the Parichalak.
 
-This establishes a constitutional requirement for:
+This establishes a statutory requirement for:
 
 1. Separate account identification for publication income
 2. Restricted utilization (Satsikshya Bistar only)
@@ -372,7 +372,7 @@ Where the Bye-Laws require separate accounts or separate utilization for
 a particular fund or income source, the Finance Module shall preserve that
 separation.
 
-Constitutionally identified restricted funds:
+Statutoryly identified restricted funds:
 
 | Fund | Restriction | Source |
 |------|-------------|--------|
@@ -470,8 +470,8 @@ financial scopes or funds.
 
 Examples may include:
 
-- Sakha Pranami to Kendra (constitutional flow)
-- Kendra grant to Mahila (constitutional flow)
+- Sakha Pranami to Kendra (statutory flow)
+- Kendra grant to Mahila (statutory flow)
 - Organizational fund transfers
 - Event-related transfers
 
@@ -529,7 +529,7 @@ framework.
 Finance shall not create an independent authentication or authorization
 framework.
 
-### Constitutional Financial Authority
+### Statutory Financial Authority
 
 | Authority | NSS | Mahila |
 |-----------|-----|--------|
@@ -697,12 +697,12 @@ This document establishes the following architectural principles:
 | 8 | Calendar Year is not the primary financial accounting period |
 | 9 | All financial activities are associated with a Financial Year |
 | 10 | Restricted/specific-purpose funds retain utilization boundaries |
-| 11 | Publication income requires separate account (constitutional) |
+| 11 | Publication income requires separate account (statutory) |
 | 12 | Sinking Fund is per-Sakha under Kendra control |
 | 13 | Finance consumes common Auth/RBAC/Audit infrastructure |
 | 14 | Finance does not create duplicate organizational or security infrastructure |
 | 15 | Financial reporting is primarily Financial-Year based |
-| 16 | NSS and Mahila fund sources are both constitutionally established |
+| 16 | NSS and Mahila fund sources are both statutorily established |
 
 ---
 

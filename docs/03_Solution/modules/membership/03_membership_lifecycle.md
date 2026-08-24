@@ -47,7 +47,7 @@ Examples include:
 
 - Family Members.
 - Kumari Participants.
-- Kishore Participants.
+- Kishor Participants.
 - Guardians.
 - Guests.
 - Historical Persons.

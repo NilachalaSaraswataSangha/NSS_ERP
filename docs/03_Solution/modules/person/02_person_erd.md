@@ -47,7 +47,7 @@ The central identity model is:
        |
        +---- Kishori
        |
-       +---- Kishore
+       +---- Kishor
        |
        +---- Sevak
 
@@ -589,15 +589,15 @@ The Kishori Module does not create a duplicate Person identity.
 
 ---
 
-# 35. Person-to-Kishore Relationship
+# 35. Person-to-Kishor Relationship
 
-Kishore-specific records may reference:
+Kishor-specific records may reference:
 
 ```text
 person_pk
 ```
 
-The Kishore Module does not create a duplicate Person identity.
+The Kishor Module does not create a duplicate Person identity.
 
 ---
 
@@ -666,7 +666,7 @@ Attendance lifecycle
 Sevak participation lifecycle
 Mahila participation lifecycle
 Kumari lifecycle
-Kishore/Kishori lifecycle
+Kishor/Kishori lifecycle
 ```
 
 ---
@@ -755,7 +755,7 @@ the final address structure here.
           ├── Mahila
           ├── Kumari
           ├── Kishori
-          ├── Kishore
+          ├── Kishor
           └── Sevak
 ```
 
@@ -875,7 +875,7 @@ The Family Module owns the relationship.
           │
           ├──────────── KISHORI
           │
-          ├──────────── KISHORE
+          ├──────────── KISHOR
           │
           └──────────── SEVAK
 ```
@@ -897,7 +897,7 @@ The ownership model is:
 | Mahila         | Mahila participation            |
 | Kumari         | Kumari participation            |
 | Kishori        | Kishori participation           |
-| Kishore        | Kishore participation           |
+| Kishor        | Kishor participation           |
 | Sevak          | Sevak participation             |
 | Authentication | User accounts/authentication    |
 
@@ -1144,7 +1144,7 @@ Those belong to subsequent solution/implementation documents.
 
 ✓ Kishori references Person
 
-✓ Kishore references Person
+✓ Kishor references Person
 
 ✓ Sevak references Person
 
@@ -1180,7 +1180,7 @@ PERSON
    ├── MAHILA
    ├── KUMARI
    ├── KISHORI
-   ├── KISHORE
+   ├── KISHOR
    └── SEVAK
 ```
 

@@ -459,7 +459,7 @@ SAKHA
 
 This represents the known organizational authorization levels.
 
-The constitutional organizational hierarchy remains authoritative.
+The statutory organizational hierarchy remains authoritative.
 
 ---
 

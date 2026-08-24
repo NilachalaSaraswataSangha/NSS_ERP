@@ -360,7 +360,7 @@ fund_master_pk
 
 ## 9.4 Fund Type
 
-Controlled values (initial set derived from constitutional sources):
+Controlled values (initial set derived from statutory sources):
 
 ```
 GENERAL
@@ -392,7 +392,7 @@ control (FIN-BR-023, FIN-BR-024).
 Where `is_restricted = TRUE`, the system shall enforce utilization rules
 (FIN-BR-019, FIN-BR-021).
 
-Publication income and specific-purpose donations are constitutionally
+Publication income and specific-purpose donations are statutorily
 restricted (FIN-BR-022, FIN-BR-019).
 
 ---
@@ -476,7 +476,7 @@ ADJUSTMENT
 
 ## 10.5 Transaction Category
 
-Controlled values (initial set from constitutional sources):
+Controlled values (initial set from statutory sources):
 
 ```
 MEMBERSHIP_SUBSCRIPTION

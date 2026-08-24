@@ -105,7 +105,7 @@ Responsible for:
     Sakha and related organizational entities
 
 Foundation may provide master/reference infrastructure used by Organization,
-but it does not own the constitutional organizational hierarchy.
+but it does not own the statutory organizational hierarchy.
 
 ---
 
@@ -284,7 +284,7 @@ This principle is explicitly part of the project architecture.
 
 # 16. System Setting Boundary
 
-System settings shall not be used to override constitutional rules or
+System settings shall not be used to override statutory rules or
 frozen business rules.
 
 Configuration controls implementation behaviour where configuration is
@@ -601,15 +601,15 @@ Example:
 System settings shall have controlled ownership.
 
 A setting should not be introduced when the value is actually a fixed
-constitutional or business rule.
+statutory or business rule.
 
 ---
 
-# 41. Constitutional Rules
+# 41. Statutory Rules
 
 Foundation configuration cannot override:
 
-    NSS Constitution
+    NSS Bye-Law
     Approved Bye-Laws
     Authoritative References
     Frozen Governance Rules

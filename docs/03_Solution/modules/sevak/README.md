@@ -38,7 +38,7 @@ SEV-032) were found and deliberately not silently patched.
 - Executive/governance structure (positions, selection/election, term duration) — only a
   provisional body type (`SEVAK_SANGHA_EXECUTIVE`) exists so far.
 - No formal/mandatory training hierarchy.
-- No Kishore → Sevak automatic transition rule.
+- No Kishor → Sevak automatic transition rule.
 - Membership lifecycle and full operational structure still incomplete.
 
 ---

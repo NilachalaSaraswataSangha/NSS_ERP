@@ -1,17 +1,17 @@
-# REF-001 — NSS Constitution
+# REF-001 — NSS Bye-Law
 
 **Document Family:** REF
 
 **Document ID:** REF-001
 
-**Title:** NSS Constitution
+**Title:** NSS Bye-Law
 
 **Repository Path:**
 `docs/01_Authoritative_References/NSS/SECTION-A_PRELIMINARY_AND_GENERAL_PROVISIONS/`
 
 **Source Reference:** REF-SRC-001
 
-**Authority:** Primary Constitutional Authority
+**Authority:** Primary Statutory Authority
 
 **Version:** 1.1
 
@@ -25,7 +25,7 @@
 
 | Version | Date | Description |
 |----------|------------|-------------------------------------------|
-| 1.0 | 2026-07-09 | Initial constitutional reference register |
+| 1.0 | 2026-07-09 | Initial statutory reference register |
 | 1.1 | 2026-08-11 | Restructured to match the exact source sequence: repositioned "Special Features : PREAMBLE" between "2. Location of the Registered Office" and "3. Objects of the Society"; split "Objects of the Society" into its short introductory paragraph and its fuller restatement (with "Bye-law Of Nilachala Saraswata Sangha" sub-heading and the numbered 1-20 list); relocated the Memorandum of Association ("6.") to sit between the two "3. Objects" appearances, matching confirmed source order; added founding-members and witnesses tables with addresses; added the full certification/registration chain (attestation, registration particulars, Registrar's countersignature, "Certified to be a True Copy"). No wording paraphrased; only structural placement and completeness corrected. |
 
 ---
@@ -49,6 +49,8 @@
 
 Bye-law of Nilachala Saraswata Sangha / Memorandum of Association and Constitution of Nilachala Saraswata Sangha
 
+> **Note:** "Constitution" in the document title above refers to the official registered name of the governing document filed under the Societies Registration Act, 1860. NSS is a **statutory body** (a registered society), not a constitutional body. Throughout this project, the governing document is referred to as the **NSS Bye-Law**.
+
 **Edition**
 
 Official Registered Document
@@ -69,9 +71,9 @@ REF-SRC-001
 
 # Introduction
 
-This document serves as the constitutional reference register for the Constitution of the Nilachala Saraswata Sangha.
+This document serves as the statutory reference register for the Bye-Law of the Nilachala Saraswata Sangha.
 
-It preserves the constitutional provisions in a structured reference format and shall not be interpreted as modifying, replacing, or superseding the official Memorandum of Association and Constitution of the Nilachala Saraswata Sangha.
+It preserves the statutory provisions in a structured reference format and shall not be interpreted as modifying, replacing, or superseding the official Memorandum of Association and Bye-Law of the Nilachala Saraswata Sangha.
 
 The section order below follows the confirmed sequence of the official source exactly: Name of the Society, Location of the Registered Office, Special Features : Preamble, a short introductory "Objects of the Society" paragraph, the Memorandum of Association (numbered "6." in the source, with no separate heading text), and finally the fuller restatement of "Objects of the Society" containing the "Bye-law Of Nilachala Saraswata Sangha" sub-heading and the complete numbered list of aims and objects (1 through 20). This sequence — including the repeated "3. Objects of the Society" heading and the numbering jump from 3 directly to 6 with no intervening 4 or 5 — has been confirmed against the source and is not a repository error.
 
@@ -81,11 +83,11 @@ The section order below follows the confirmed sequence of the official source ex
 
 REF-001 is an Authoritative Reference document.
 
-It preserves constitutional provisions without introducing ERP interpretation, implementation guidance, or business rules.
+It preserves statutory provisions without introducing ERP interpretation, implementation guidance, or business rules.
 
-Where ambiguity or inconsistency exists, the official constitutional source shall prevail.
+Where ambiguity or inconsistency exists, the official statutory source shall prevail.
 
-This document shall not be interpreted as modifying, extending, or replacing the authority of the official constitutional source.
+This document shall not be interpreted as modifying, extending, or replacing the authority of the official statutory source.
 
 ---
 
@@ -103,7 +105,7 @@ REF-SRC-001
 
 ---
 
-### Constitutional Provision
+### Statutory Provision
 
 **1. Name of the Society** — Nilachala Saraswata Sangha (which will be hereinafter known as **'Kendra Sangha'**).
 
@@ -157,7 +159,7 @@ REF-SRC-001
 
 ---
 
-### Constitutional Provision
+### Statutory Provision
 
 **2. Location of the Registered Office** — Sri Shri Nigamananda Smruti Mandir, of the Secretary, At: Swargadwar, Puri.
 
@@ -211,7 +213,7 @@ REF-SRC-001
 
 ---
 
-### Constitutional Provision
+### Statutory Provision
 
 **Special Features : PREAMBLE** — Paramahansa Paribrajakacharya Srimat Swami Nigamananda Saraswati Deb (hereinafter mentioned as 'Shri Shri Thakur') felt a divine urge and himself established this 'Nilachala Saraswata Sangha' at Puri on the 24th August 1934 on his 'Holy Birthday' (Srabana Purnima) and blessed this institution by becoming its Founder President. Since then as the trustworthy retainer, faithful propounder and honest propagator of the philosophy and outlook underlying the ideologies of Shri Shri Thakur, the Kendra Sangha has been functioning and shall function as such in Orissa and beyond its limits if circumstances so necessitate, as the supreme organisation and the nerve-centre of all its branches (Sakha Sanghas) along with all attached family organisations (Paribarik Sanghas) who have accepted with all its implications the cardinal principles and special features of the 'Kendra Sangha' by recognising 'GURU' and 'ISTA' as one and the same supreme being and entertaining an unshakable faith in the existence of Shri Shri Gurudev through His Name (Jayaguru Sidha Mantra), Rupa (Internal Existence), Leela (discourse on his life and teachings amongst the devotees) and Bigraha (worship of his image in the Asana Mandir).
 
@@ -265,7 +267,7 @@ REF-SRC-001
 
 ---
 
-### Constitutional Provision
+### Statutory Provision
 
 **3. Objects of the Society :**
 
@@ -323,7 +325,7 @@ REF-SRC-001
 
 ---
 
-### Constitutional Provision
+### Statutory Provision
 
 **6.** We, the undersigned, are desirous of forming a Society, (Sangha) Nilachala Saraswata Sangha in pursuance of this Memorandum of Association and we believe that the facts stated above are true to the best of our knowledge.
 
@@ -428,7 +430,7 @@ REF-SRC-001
 
 ---
 
-### Constitutional Provision
+### Statutory Provision
 
 **3. OBJECTS OF THE SOCIETY:**
 
@@ -531,13 +533,13 @@ This section's identifier (REF-001-004-B) distinguishes it from the short introd
 
 This document forms part of the **Authoritative Reference Library** of the NSS ERP Repository.
 
-It preserves constitutional reference material derived from the official constitutional source.
+It preserves statutory reference material derived from the official statutory source.
 
 Changes to this document require verification against the authoritative source document identified by **REF-SRC-001**.
 
 Unverified modifications are prohibited.
 
-Where any inconsistency exists between this document and the official constitutional source, the official constitutional source shall prevail.
+Where any inconsistency exists between this document and the official statutory source, the official statutory source shall prevail.
 
 ---
 

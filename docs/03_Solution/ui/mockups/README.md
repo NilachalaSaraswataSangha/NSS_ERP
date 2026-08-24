@@ -13,10 +13,10 @@ Reference HTML files using Tailwind CSS + DaisyUI. These are **static visual tar
 | `05_anchalika_dashboard.html` | Anchalika Dashboard | Multi-Sakha overview table, alerts, aggregate stats |
 | `06_zilla_dashboard.html` | Zilla Dashboard | District-level Sakha performance, insights cards |
 | `07_member_profile.html` | UI-005 Member Profile | Tabbed view: personal, membership, family, attendance |
-| `08_family_dashboard.html` | UI-006 Family Dashboard | Family members, head history, Kumari/Kishore youth participation |
+| `08_family_dashboard.html` | UI-006 Family Dashboard | Family members, head history, Kumari/Kishor youth participation |
 | `09_member_search.html` | UI-004 Member Search | Search bar, filter chips, results table with pagination |
 | `10_attendance_marking.html` | Attendance Marking | Weekly Sangha Puja P/A/L toggle grid, progress bar, submit |
-| `11_governance_dashboard.html` | Governance Dashboard | Constitutional bodies, GB composition table, meeting history |
+| `11_governance_dashboard.html` | Governance Dashboard | Statutory bodies, GB composition table, meeting history |
 | `12_mahila_mandali_dashboard.html` | Mahila Parichalana Mandali (Kendra) | Central governing body for all branch Mahila Sanghas, Mandali positions, branch performance |
 | `13_mahila_sakha_dashboard.html` | Sakha Mahila Sangha | Local branch Mahila members, Kumari youth wing, quick actions, recent activity |
 

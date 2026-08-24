@@ -30,7 +30,7 @@ The Person Module therefore forms an identity foundation for:
 - Mahila
 - Kumari
 - Kishori
-- Kishore
+- Kishor
 - Sevak
 - Applications
 - Documents
@@ -99,7 +99,7 @@ NSS member.
 A person participating in Kumari-related activities who may not yet have
 NSS membership.
 
-### Kishore/Kishori Participants
+### Kishor/Kishori Participants
 
 Youth participants who may exist independently from regular NSS
 membership.
@@ -456,9 +456,9 @@ Kumari does not create a duplicate Person master.
 
 ---
 
-# 29. Person and Kishore/Kishori
+# 29. Person and Kishor/Kishori
 
-Kishore/Kishori participation may reference Person identity.
+Kishor/Kishori participation may reference Person identity.
 
 The youth modules do not create a second general-purpose Person identity.
 
@@ -814,7 +814,7 @@ Family Governance
 Attendance Rules
 Mahila Governance
 Kumari Governance
-Kishore/Kishori Governance
+Kishor/Kishori Governance
 Sevak Governance
 Authentication Permissions
 Office-Bearer Assignments
@@ -838,7 +838,7 @@ Person
   ├── Mahila
   ├── Kumari
   ├── Kishori
-  ├── Kishore
+  ├── Kishor
   ├── Sevak
   ├── Applications
   └── Documents
