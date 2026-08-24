@@ -112,6 +112,23 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
+- **Branch/remotes (updated 2026-08-24 — supersedes the 2026-08-21 bullet directly below for
+  current branch/HEAD state; that bullet's content-level findings, e.g. the `SOL-DB-001`
+  `_id`/`_code` discrepancy, are unaffected and still tracked in §13).** User merged
+  `feature/ref-documentation` (tip `cdb2dee`, the Finance-module + 20-module-reconciliation
+  work already described throughout this file) into `develop` directly via `git merge`, done by
+  the user, not an agent — merge commit `9cdf043 "Merge branch 'feature/ref-documentation' into
+  develop"`. **Active branch is `develop`, at `9cdf043`**, working tree clean, now 3 commits
+  ahead of `personal/develop` (`fab9ea2` → `450fa50` → `cdb2dee`, plus the merge commit itself;
+  not yet pushed). `main` remains untouched at `3db5c37`. `feature/ref-documentation` still
+  exists locally at `cdb2dee`, fully merged — a cleanup candidate, not deleted (deletion wasn't
+  requested). A `/document-project` pass immediately after (this entry — see §12) confirmed via
+  `git diff --stat` **zero** `backend/`/`database/` changes in this merge, and two parallel
+  Explore-agent re-verifications found `docs/PROJECT_DOCUMENTATION.md`, root `README.md`, all 20
+  `docs/03_Solution/modules/*/README.md` files, and every backend/database claim in this file
+  (`settings.py` env-vars, `INSTALLED_APPS`, `urls.py` wiring, `requirements.txt` encoding,
+  `database/ddl/02_organization/` still 0-byte, no Django app for any docs-only module) already
+  accurate — no further doc edits were needed beyond this branch-state bullet.
 - **Branch/remotes (updated 2026-08-21, later still — supersedes the bullet directly below for
   current branch/HEAD state; that bullet's content-level findings, e.g. the `SOL-DB-001`
   `_id`/`_code` discrepancy, are unaffected and still tracked in §13).** After the incident in
@@ -725,6 +742,33 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-24 — /document-project pass: verified merge of Finance-module work into develop carried zero drift; updated branch-state bullet (Claude Code)
+- Context: User merged `feature/ref-documentation` (tip `cdb2dee`) into `develop` directly via
+  `git merge` (merge commit `9cdf043`), bringing the already-documented Finance module + 20-
+  module-reconciliation work onto `develop`. Ran `/document-project` right after. `git diff
+  --stat` across the merge confirmed zero `backend/`/`database/` changes — pure docs, consistent
+  with every prior pass on this branch. Rather than re-run a full sweep given how recently (three
+  sessions running, 2026-08-20 and twice 2026-08-21) backend/database claims and module READMEs
+  had each been independently re-verified with zero drift, ran two targeted parallel `Explore`
+  agents: (1) checked `docs/PROJECT_DOCUMENTATION.md` and root `README.md` for currency against
+  the 20-module/Finance state — confirmed both already say "20 module[s]", both fully describe
+  Finance's 7 tables, all 20 `docs/03_Solution/modules/*/` folders exist with accurate READMEs
+  (spot-checked finance/administration/governance/audit), no stale commit-hash/branch-name
+  references, and the pre-existing `_id`/`_code` (`SOL-DB-001`) conflict note is still present;
+  (2) re-verified the 5 core backend/database claims in this file directly against code
+  (`settings.py` env-vars with no defaults, `INSTALLED_APPS`/`urls.py` wiring, `requirements.txt`
+  UTF-16LE/CRLF encoding, `database/ddl/02_organization/` still 0-byte, no Django app exists for
+  any docs-only module) — all passed. The only actual staleness found was in this file itself:
+  §3's branch/remotes bullet still described `develop` at `2433c70` (pre-Finance-merge,
+  pre-dating `fab9ea2`/`450fa50`/`cdb2dee`/`9cdf043`).
+- Decision/Outcome: Added a new dated bullet to §3 recording `develop` at `9cdf043`, 3 commits
+  ahead of `personal/develop` (unpushed), `feature/ref-documentation` as a fully-merged cleanup
+  candidate, and `main` untouched. No other `.md` file needed a change — both Explore agents
+  came back PASS on every check.
+- Follow-up: `develop`/3-commits-ahead-of-`personal/develop` remains unpushed — not pushed here,
+  same as every prior pass, since pushing wasn't requested. No new open items surfaced; §13 is
+  unchanged from the 2026-08-21 pass.
 
 ### 2026-08-21 — /document-project pass (run directly, not via project-documenter agent): verified merge into develop carried zero code drift; updated branch-state bullet (Claude Code)
 - Context: Ran `/document-project` directly right after manually fast-forward-merging
