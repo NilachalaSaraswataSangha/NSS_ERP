@@ -286,31 +286,42 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
     containing its REF file(s) — folders are navigation only, identity lives in the filename.
 - **Governance docs present (updated 2026-08-14):** `AUTH-001`, `GOV-001..005`,
   `GDR-001..004` — all exist under `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.
-- **Module docs present (updated 2026-08-20):** `docs/03_Solution/modules/{heritage,
-  organization, person, membership, family, attendance, kumari, kishore, mahila, sevak,
-  foundation, administration, authentication, governance, publications, reports, upbs, audit,
-  backup_technical}/` — **19** module folders now (`foundation`, `administration`,
-  `authentication`, `governance`, `publications`, `reports`, `upbs`, `audit`,
-  `backup_technical` added 2026-08-20). Person is the only one still on the original
-  `01_..._design`/`02_..._erd`/`03_..._business_rules`/`04_..._table_design` 4-file pattern
-  (matched by the new `administration`/`authentication`/`foundation`/`governance`/`audit`/
-  `backup_technical` sets too — they reuse this same simpler 4-file numbering, not the 5-file
-  one); organization was restructured 2026-08-19 off that same original pattern onto the newer
-  `01_..._module_overview` / `02_..._erd` / `03_..._lifecycle` / `04_..._business_rules` /
+- **Module docs present (updated 2026-08-21 — supersedes the 2026-08-20 sub-bullet below for
+  folder count; that bullet's numbering-pattern detail is otherwise still accurate).**
+  `docs/03_Solution/modules/{heritage, organization, person, membership, family, attendance,
+  kumari, kishore, mahila, sevak, foundation, administration, authentication, governance,
+  publications, reports, upbs, audit, backup_technical, finance}/` — **20** module folders now
+  (`finance` added 2026-08-21, via a commit made outside this session — see §12's
+  "/document-project pass: Finance module" entry). `finance` uses the same 5-file
+  `01_design`/`02_erd`/`03_business_rules`/`04_table_design`/`05_lifecycle` numbering as
+  heritage/kumari/kishore/mahila, and is the one new module confirmed to follow the project's
+  actual frozen `_code` business-identifier convention correctly (contrast with the `_id`/
+  `_code` conflict in §13). (2026-08-20 bullet, folder count only:) 19 module folders
+  (`foundation`, `administration`, `authentication`, `governance`, `publications`, `reports`,
+  `upbs`, `audit`, `backup_technical` added 2026-08-20). Person is the only one still on the
+  original `01_..._design`/`02_..._erd`/`03_..._business_rules`/`04_..._table_design` 4-file
+  pattern (matched by the new `administration`/`authentication`/`foundation`/`governance`/
+  `audit`/`backup_technical` sets too — they reuse this same simpler 4-file numbering, not the
+  5-file one); organization was restructured 2026-08-19 off that same original pattern onto the
+  newer `01_..._module_overview` / `02_..._erd` / `03_..._lifecycle` / `04_..._business_rules` /
   `05_..._table_design` 5-file pattern (deleting its old 4 files, not renaming them) — the same
   pattern already used by heritage, membership, kumari, kishore, mahila (sevak has a `06_`
   table-design file too, plus `sangha/`/`seva/`/`events/` subdocs; publications has 7 files).
   Don't assume the numbering scheme is uniform across modules. **`foundation` and
   `authentication` here are Solution-layer module folders, not the same thing as the
   `backend/foundation`/`backend/authentication` Django apps of the same name** — see §7/§8/§13.
-  All 19 module folders have an accurate `README.md` (the 9 new ones written/created
-  2026-08-20; `audit`/`backup_technical` had none before).
+  All 20 module folders have an accurate `README.md` (the 9 new ones written/created
+  2026-08-20; `audit`/`backup_technical` had none before that; `finance`'s written 2026-08-21).
 - **Standards docs present:** `docs/00_Project_Governance/STD/01_project_standards.md` …
   `05_security_standards.md`.
 - **Releases present:** `v0.1.0` through `v0.5.1` under `docs/05_Releases/`.
-- **Other branches that exist but are NOT current:** `develop`, `main`,
-  `feature/admin-setup`, `feature/founder-heritage`, `feature/membership-design`,
-  `feature/person-ddl`, `feature/person-management`, `feature/ref-documentation`. Notably
+- **Other branches (updated 2026-08-21 — a new `feature/database-schema` branch appeared
+  outside this session, see §12; supersedes the list below).** `develop`, `main`,
+  `feature/admin-setup`, `feature/database-schema` (new, tip `fab9ea2` — same tip `develop` was
+  at before `finance` landed; created/used outside this Claude Code session, purpose not yet
+  documented), `feature/founder-heritage`, `feature/membership-design`, `feature/person-ddl`,
+  `feature/person-management`, `feature/ref-documentation` (currently checked out, tip
+  `450fa50`), `feature/ref-renaming`, `docs/sevak-business-rules-structure`. Notably
   `feature/organization-module` (referenced in an older handoff phase) does **not** appear in
   the branch list — that handoff phase was stale; trust the live branch list over it.
 
@@ -338,7 +349,7 @@ docs/
 ├── 02_Requirements/ (scaffolded, empty)
 ├── 03_Solution/modules/{heritage, organization, person, membership, family, attendance, kumari,
 │   kishore, mahila, sevak, foundation, administration, authentication, governance,
-│   publications, reports, upbs, audit, backup_technical}/ (+ architecture/, ui/mockups/,
+│   publications, reports, upbs, audit, backup_technical, finance}/ (+ architecture/, ui/mockups/,
 │   infrastructure/DEPLOYMENT_SYNC_PLAN.md, standards/lifecycle/ [SOL-LIFE-001/002] now
 │   populated; database/security populated 2026-08-21 with cross-module consolidation docs
 │   [DATABASE_DESIGN_STANDARDS.md, SECURITY_ARCHITECTURE.md] — only api/ still empty)
@@ -576,6 +587,21 @@ authority. Attendance Enforcement + Attendance Review are frozen.
   failover all open.
 
 None of these nine has any corresponding `backend/` Django app.
+
+**Finance module (v1.0.0 SOURCE ALIGNED, added 2026-08-21 — 20th module, landed via a commit
+made outside this Claude Code session, see §12):** `docs/03_Solution/modules/finance/` — 7
+tables: `financial_year`, `financial_scope`, `fund_master`, `financial_transaction`,
+`financial_receipt`, `financial_payment`, `financial_transfer`. Derives from `REF-003-F[A]`/
+`[b]`/`[c]` (NSS Bye-Law Section F) and `REF-MS-7(i)`–`(iii)` (Mahila Sangha Bye-Law Clause 7);
+does not supersede either Bye-Law. Core principle **Financial Scope Independence**
+(`FIN-ARCH-001`) — Financial Scope is explicitly not synonymous with Organization; one
+organization may have multiple financial scopes (e.g. regular Kendra finance vs. a specific
+event's finance, tracked separately). Unified financial transaction model (`FIN-BR-011`):
+`financial_transaction` is the single ledger table; receipt/payment/transfer attach as
+evidence, not separate ledgers. Business rules `FIN-BR-001`–`FIN-BR-068`. Notably **correctly
+follows the project's frozen `_code` business-identifier convention** (`year_code`, not
+`year_id`) — the one new module confirmed consistent with §8's DB-naming standard, in contrast
+to the `_id`/`_code` conflict flagged in §13. No `backend/finance/` Django app.
 
 ## 8. Technical Architecture
 
