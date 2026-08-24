@@ -541,10 +541,13 @@ Completed:
 * Reports & Analytics Module Design (v1.0.0, SOURCE ALIGNED — 5 metadata/config-only tables)
 * Audit Module Design (v1.0.0, SOURCE ALIGNED — 2 tables)
 * Backup & Technical Module Design (v1.0.0, SOURCE ALIGNED — 2 tables)
+* Finance Module Design (v1.0.0, SOURCE ALIGNED — 7 tables: financial_year, financial_scope,
+  fund_master, financial_transaction, financial_receipt, financial_payment, financial_transfer;
+  derives from NSS Bye-Law Section F and Mahila Sangha Bye-Law Clause 7)
 
 Current Focus:
 
-* Reconciling Solution-layer design docs with actual Django/SQL implementation across all 19
+* Reconciling Solution-layer design docs with actual Django/SQL implementation across all 20
   documented modules — every module now has a complete (or largely complete) design, but none
   has corresponding backend code beyond membership/family/heritage/authentication's existing
   minimal models. No release doc has been created yet for the module-doc work landed since

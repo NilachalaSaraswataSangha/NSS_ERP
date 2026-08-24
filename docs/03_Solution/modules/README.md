@@ -13,7 +13,8 @@ document-level `Status` field remains `DRAFT` throughout). **None of this docume
 matching backend implementation beyond the 5 pre-existing Django apps** (`foundation`,
 `authentication`, `family`, `membership`, `heritage`) and the partial `person`/`foundation`(01)
 SQL DDL — see `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas / Open questions before
-assuming any of this is built.
+assuming any of this is built. **`finance/` (20th module, added 2026-08-21) follows the same
+pattern** — design-only, no backend counterpart.
 
 | Module | Design status | Backend/DDL reality |
 |---|---|---|
@@ -36,6 +37,7 @@ assuming any of this is built.
 | `reports/` | v1.0.0, SOURCE ALIGNED — 5 metadata-only tables | no `backend/reports/` app |
 | `audit/` | v1.0.0, SOURCE ALIGNED — 2 tables | no `backend/audit/` app |
 | `backup_technical/` | v1.0.0, SOURCE ALIGNED — 2 tables | no corresponding Django app |
+| `finance/` | v1.0.0, SOURCE ALIGNED — 7 tables (financial_year/scope/fund_master/transaction/receipt/payment/transfer), `_code` convention followed correctly | no `backend/finance/` app |
 
 See `docs/PROJECT_DOCUMENTATION.md` → `03_Solution/` detail for the full breakdown, and
 `CLAUDE.md` §13 for open reconciliation items (Mandali term-length conflict, `foundation`/

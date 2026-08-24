@@ -115,13 +115,13 @@ NSS_ERP/
 │   │   ├── NSS/            Source-faithful transcription of NSS's Constitution & Bye-Laws (see detail below)
 │   │   └── MAHILA_SANGHA/  Source-faithful transcription of Mahila Sangha's own Bye-Law (see detail below)
 │   ├── 02_Requirements/         Scaffolded only — business/functional/non_functional/traceability subfolders, no content yet
-│   ├── 03_Solution/             Per-module design docs — now 19 module folders (organization,
+│   ├── 03_Solution/             Per-module design docs — now 20 module folders (organization,
 │   │                            person, membership, family, attendance, heritage, kumari,
 │   │                            kishore, mahila, sevak, foundation, administration,
 │   │                            authentication, governance, publications, reports, upbs,
-│   │                            audit, backup_technical) + architecture/ui/infrastructure/
-│   │                            standards/database/security content now populated (see detail
-│   │                            below); only api/ remains empty scaffolding
+│   │                            audit, backup_technical, finance) + architecture/ui/
+│   │                            infrastructure/standards/database/security content now
+│   │                            populated (see detail below); only api/ remains empty scaffolding
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
@@ -255,7 +255,8 @@ database/
 │   ├── upbs/               NEW 2026-08-20 — 01-04, v1.0.0 SOURCE ALIGNED — 7 tables (upbs_event, upbs_registration, delegate_card, prasad_patra, accommodation_allocation, camp_master, guest_reference); Day 1/2/3 ops + volunteer structure explicitly PENDING; no backend/upbs/ app
 │   ├── reports/            NEW 2026-08-20 — 01-04, v1.0.0 SOURCE ALIGNED — 5 metadata/configuration-only tables (report_category_master, report_definition, report_filter_definition, dashboard, dashboard_widget); consumes but never duplicates other modules' data; no backend/reports/ app
 │   ├── audit/              NEW 2026-08-20 — 01-04 (no README before this pass), v1.0.0 SOURCE ALIGNED — 2 tables (audit_master, system_event_log); no backend/audit/ app
-│   └── backup_technical/   NEW 2026-08-20 — 01-04 (no README before this pass), v1.0.0 SOURCE ALIGNED — 2 tables (backup_master, restore_history); no corresponding Django app
+│   ├── backup_technical/   NEW 2026-08-20 — 01-04 (no README before this pass), v1.0.0 SOURCE ALIGNED — 2 tables (backup_master, restore_history); no corresponding Django app
+│   └── finance/            NEW 2026-08-21 — 01-05 design/erd/business_rules/table_design/lifecycle, v1.0.0 SOURCE ALIGNED (ERD tagged DRAFT — LOGICAL DESIGN) — 7 tables (financial_year, financial_scope, fund_master, financial_transaction, financial_receipt, financial_payment, financial_transfer); derives from REF-003-F[A]/[b]/[c] and REF-MS-7(i)-(iii); Financial Scope Independence principle (FIN-ARCH-001) keeps Financial Scope distinct from Organization; correctly follows the project's `_code` business-identifier convention (contrast with the `_id`/`_code` conflict below); business rules FIN-BR-001–068; no backend/finance/ app; post-dates DATABASE_DESIGN_STANDARDS.md/SECURITY_ARCHITECTURE.md so isn't yet listed in either's source inventory
 ├── standards/
 │   └── lifecycle/         SOL-LIFE-001 (PARTICIPATION_LIFECYCLE_RULES.md), SOL-LIFE-002 (PERSON_LIFECYCLE_RULES.md), both FROZEN v1.0.0 — added 2026-08-18, README.md added 2026-08-20; a SOLUTION-layer standards path distinct from the governance-layer docs/00_Project_Governance/STD/, not yet cross-referenced from either README or from the Sevak/Mahila/Kumari module docs that should cite SOL-LIFE-001 (see Gotchas)
 ├── architecture/
@@ -294,9 +295,10 @@ gap too** — added 2026-08-19 with an 8-table v1.0.0 SOURCE ALIGNED design, but
 nine more module doc sets landed with the same gap:** `administration`, `audit`,
 `authentication` (Solution-layer), `backup_technical`, `foundation` (Solution-layer),
 `governance` (Solution-layer), `publications`, `reports`, `upbs` — none has a corresponding
-Django app (`publications` rides entirely on Heritage's already-unimplemented tables). Same
-pattern as the pre-existing organization/person gap — don't assume any of these docs describe
-currently-running code.
+Django app (`publications` rides entirely on Heritage's already-unimplemented tables). **As of
+2026-08-21, `finance/` (20th module, 7 tables) landed with the same gap** — no `backend/
+finance/` app, no DDL. Same pattern as the pre-existing organization/person gap — don't assume
+any of these docs describe currently-running code.
 
 ## Setup & running
 
