@@ -46,8 +46,8 @@ GOV-002 requires the ERP to maintain:
 * hierarchical level; and
 * organizational status.
 
-The NSS Constitution remains the supreme authority for the actual
-constitutional organizational structure.
+The NSS Bye-Law remains the supreme authority for the actual
+statutory organizational structure.
 
 ---
 
@@ -178,10 +178,10 @@ itself.
 `organization_type_code` provides the stable machine-readable value for the
 organization type.
 
-The actual constitutional type vocabulary shall come from approved
+The actual statutory type vocabulary shall come from approved
 authoritative/project master-data sources.
 
-This document does not independently create new constitutional organization
+This document does not independently create new statutory organization
 types.
 
 ---
@@ -204,7 +204,7 @@ It may be used in:
 
 `description` provides supporting explanatory information.
 
-It shall not be used to create constitutional meaning that is absent from
+It shall not be used to create statutory meaning that is absent from
 the authoritative source.
 
 ---
@@ -215,7 +215,7 @@ the authoritative source.
 
 It does not establish:
 
-* constitutional hierarchy;
+* statutory hierarchy;
 * parent-child compatibility; or
 * reporting authority.
 
@@ -543,7 +543,7 @@ or another physical type.
 
 ---
 
-# 36. Hierarchical Level — Constitutional Meaning
+# 36. Hierarchical Level — Statutory Meaning
 
 The value of `hierarchical_level` must reflect the approved organizational
 structure.
@@ -1032,7 +1032,7 @@ Sevak
 Mahila
 Kumari
 Kishori
-Kishore
+Kishor
 Governance
 Membership
 Attendance

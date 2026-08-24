@@ -4,7 +4,7 @@ Version: 1.0.0
 
 Status: DRAFT — SOURCE ALIGNED. All four documents below carry document-level
 `Status: DRAFT — SOURCE ALIGNED` — despite being described as "complete," this is a content
-version tag, not a promotion out of DRAFT (matches the pattern used by kumari/kishore).
+version tag, not a promotion out of DRAFT (matches the pattern used by kumari/kishor).
 
 ---
 

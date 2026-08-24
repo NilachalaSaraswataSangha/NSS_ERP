@@ -851,7 +851,7 @@ infrastructure.
 
 The exact permission matrix is governed by:
 
-* constitutional authority
+* statutory authority
 * Financial Scope
 * Administration/RBAC
 * approved Finance authorization rules

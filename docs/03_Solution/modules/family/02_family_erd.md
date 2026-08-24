@@ -197,13 +197,13 @@ A Kumari participant may exist without NSS Membership.
 
 ---
 
-# 11. Kishore Relationship
+# 11. Kishor Relationship
 
-Kishore participation remains in the Kishore Module.
+Kishor participation remains in the Kishor Module.
 
 Family provides context.
 
-Guardian assignment remains in the Kishore Module.
+Guardian assignment remains in the Kishor Module.
 
 ---
 
@@ -266,7 +266,7 @@ sangha_sevi
 
 kumari_membership
 
-kishore_participant
+kishor_participant
 ```
 
 The aggregated view does not replace ownership of data in the respective modules.
@@ -284,8 +284,8 @@ The aggregated view does not replace ownership of data in the respective modules
 | Family Head History   | Family               |
 | Family Transition     | Family               |
 | Kumari Participation  | Kumari               |
-| Kishore Participation | Kishore              |
-| Guardian Assignment   | Kishore              |
+| Kishor Participation | Kishor              |
+| Guardian Assignment   | Kishor              |
 | Mahila Participation  | Mahila               |
 
 ---

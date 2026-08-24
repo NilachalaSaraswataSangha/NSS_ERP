@@ -1,23 +1,23 @@
-# NSS ERP — Kishore Puja Table Design
+# NSS ERP — Kishor Puja Table Design
 
 **Document ID:** SOL-KISH-005  
 **Version:** 1.0.0  
 **Status:** DRAFT — SOURCE ALIGNED  
-**Module:** Kishore Puja  
+**Module:** Kishor Puja  
 **Parent System:** Nilachala Saraswata Sangha ERP
 
 ---
 
 # 1. Purpose
 
-This document defines the logical table design for the Kishore Puja module.
+This document defines the logical table design for the Kishor Puja module.
 
 It translates the approved:
 
-- Kishore Module Overview
-- Kishore ERD
-- Kishore Lifecycle
-- Kishore Business Rules
+- Kishor Module Overview
+- Kishor ERD
+- Kishor Lifecycle
+- Kishor Business Rules
 
 into a structured relational table design.
 
@@ -27,12 +27,12 @@ This document does not generate SQL.
 
 # 2. Design Principles
 
-The Kishore table design follows the NSS ERP principles:
+The Kishor table design follows the NSS ERP principles:
 
 ```text
 Person ≠ Member
 
-Kishore ≠ NSS Member
+Kishor ≠ NSS Member
 
 KH ID ≠ Sangha Sevi ID
 
@@ -49,27 +49,27 @@ Common Modules Own Their Domains
 
 ---
 
-# 3. Kishore Domain Tables
+# 3. Kishor Domain Tables
 
-The Kishore domain consists of four primary tables:
+The Kishor domain consists of four primary tables:
 
 ```text
-kishore_participant
+kishor_participant
 
-kishore_event
+kishor_event
 
-kishore_event_registration
+kishor_event_registration
 
-kishore_membership_transition
+kishor_membership_transition
 ```
 
-This matches the frozen Kishore architecture.
+This matches the frozen Kishor architecture.
 
 ---
 
 # 4. Common Tables Used
 
-Kishore integrates with existing common tables, including:
+Kishor integrates with existing common tables, including:
 
 ```text
 person
@@ -89,7 +89,7 @@ attendance
 audit
 ```
 
-Kishore shall not duplicate these common domains.
+Kishor shall not duplicate these common domains.
 
 ---
 
@@ -97,37 +97,37 @@ Kishore shall not duplicate these common domains.
 
 | Table                           | Owner                          | Purpose                     |
 | ------------------------------- | ------------------------------ | --------------------------- |
-| `kishore_participant`           | Kishore                        | Permanent KH identity       |
-| `kishore_event`                 | Kishore/Event                  | Annual Kishore Puja         |
-| `kishore_event_registration`    | Kishore                        | Event-specific registration |
-| `kishore_membership_transition` | Kishore/Membership integration | KH → SS transition          |
+| `kishor_participant`           | Kishor                        | Permanent KH identity       |
+| `kishor_event`                 | Kishor/Event                  | Annual Kishor Puja         |
+| `kishor_event_registration`    | Kishor                        | Event-specific registration |
+| `kishor_membership_transition` | Kishor/Membership integration | KH → SS transition          |
 
 ---
 
-# 6. `kishore_participant`
+# 6. `kishor_participant`
 
 ## Purpose
 
-Stores the permanent identity of a Kishore participant.
+Stores the permanent identity of a Kishor participant.
 
-One Person may have one Kishore identity.
+One Person may have one Kishor identity.
 
-The identity remains valid across multiple Kishore Puja years.
+The identity remains valid across multiple Kishor Puja years.
 
 ---
 
-# 7. `kishore_participant` — Columns
+# 7. `kishor_participant` — Columns
 
 | Column                    | Logical Type     | Required | Key    | Description                               |
 | ------------------------- | ---------------- | -------: | ------ | ----------------------------------------- |
-| `kishore_participant_pk`  | BIGINT           |      Yes | PK     | Internal primary key                      |
-| `kishore_id`              | VARCHAR          |      Yes | UNIQUE | Permanent participant-facing KH ID        |
+| `kishor_participant_pk`  | BIGINT           |      Yes | PK     | Internal primary key                      |
+| `kishor_id`              | VARCHAR          |      Yes | UNIQUE | Permanent participant-facing KH ID        |
 | `person_pk`               | BIGINT           |      Yes | FK     | Reference to `person`                     |
 | `sakha_organization_pk`   | BIGINT           |      Yes | FK     | Participant's operational Sakha           |
 | `guardian_sangha_sevi_pk` | BIGINT           |      Yes | FK     | Current assigned NSS Guardian             |
 | `assigned_by_sakha_pk`    | BIGINT           |      Yes | FK     | Sakha responsible for Guardian assignment |
 | `guardian_assigned_date`  | DATE             |      Yes | —      | Effective Guardian assignment date        |
-| `registration_date`       | DATE             |      Yes | —      | Initial Kishore registration date         |
+| `registration_date`       | DATE             |      Yes | —      | Initial Kishor registration date         |
 | `status`                  | Master/Data Type |      Yes | FK     | Participant status                        |
 | `remarks`                 | TEXT             |       No | —      | Administrative remarks                    |
 | `created_at`              | TIMESTAMP        |      Yes | —      | Creation timestamp                        |
@@ -139,7 +139,7 @@ The Guardian-related fields are based on the frozen v2.1 Guardian Model. The Gua
 
 ---
 
-# 8. `kishore_participant_pk`
+# 8. `kishor_participant_pk`
 
 Internal database primary key.
 
@@ -156,7 +156,7 @@ This is not the public KH ID.
 
 ---
 
-# 9. `kishore_id`
+# 9. `kishor_id`
 
 Permanent participant-facing identifier.
 
@@ -190,10 +190,10 @@ Relationship:
 ```text
 person
    ↓
-kishore_participant
+kishor_participant
 ```
 
-The Kishore module does not duplicate Person information.
+The Kishor module does not duplicate Person information.
 
 ---
 
@@ -219,7 +219,7 @@ References the assigned NSS Guardian.
 The reference shall be:
 
 ```text
-kishore_participant.guardian_sangha_sevi_pk
+kishor_participant.guardian_sangha_sevi_pk
         ↓
 sangha_sevi
 ```
@@ -248,7 +248,7 @@ Guardian history shall be preserved through the project's history/audit mechanis
 
 # 15. `registration_date`
 
-Records the date on which the participant first entered the Kishore system.
+Records the date on which the participant first entered the Kishor system.
 
 This is distinct from individual annual event registrations.
 
@@ -256,7 +256,7 @@ This is distinct from individual annual event registrations.
 
 # 16. `status`
 
-Represents the current Kishore participant status.
+Represents the current Kishor participant status.
 
 The final allowable values shall come from the approved master-data/business-rule definitions.
 
@@ -281,7 +281,7 @@ Remarks shall not be used to store structured business data that belongs in dedi
 
 # 18. Audit Columns
 
-All Kishore domain tables shall follow the common project audit standard.
+All Kishor domain tables shall follow the common project audit standard.
 
 At minimum:
 
@@ -294,27 +294,27 @@ updated_by
 
 ---
 
-# 19. `kishore_event`
+# 19. `kishor_event`
 
 ## Purpose
 
-Represents an annual Kishore Puja event.
+Represents an annual Kishor Puja event.
 
 Examples:
 
 ```text
-Kishore Puja 2026
-Kishore Puja 2027
-Kishore Puja 2028
+Kishor Puja 2026
+Kishor Puja 2027
+Kishor Puja 2028
 ```
 
 ---
 
-# 20. `kishore_event` — Columns
+# 20. `kishor_event` — Columns
 
 | Column                 | Logical Type     | Required | Key | Description            |
 | ---------------------- | ---------------- | -------: | --- | ---------------------- |
-| `kishore_event_pk`     | BIGINT           |      Yes | PK  | Event primary key      |
+| `kishor_event_pk`     | BIGINT           |      Yes | PK  | Event primary key      |
 | `event_name`           | VARCHAR          |      Yes | —   | Event name             |
 | `financial_year`       | VARCHAR/SMALLINT |      Yes | —   | Applicable year        |
 | `event_date`           | DATE             |      Yes | —   | Event date             |
@@ -328,15 +328,15 @@ Kishore Puja 2028
 | `updated_at`           | TIMESTAMP        |      Yes | —   | Last update timestamp  |
 | `updated_by`           | BIGINT           |      Yes | FK  | Updating user          |
 
-The earlier frozen source identifies the event around `kishore_event_pk`, `event_name`, `financial_year`, `event_date`, and `host_organization_pk`.
+The earlier frozen source identifies the event around `kishor_event_pk`, `event_name`, `financial_year`, `event_date`, and `host_organization_pk`.
 
 ---
 
-# 21. `kishore_event_pk`
+# 21. `kishor_event_pk`
 
-Internal primary key for the Kishore event.
+Internal primary key for the Kishor event.
 
-It uniquely identifies one annual Kishore Puja occurrence.
+It uniquely identifies one annual Kishor Puja occurrence.
 
 ---
 
@@ -347,8 +347,8 @@ Human-readable event name.
 Examples:
 
 ```text
-Kishore Puja 2026
-Kishore Puja 2027
+Kishor Puja 2026
+Kishor Puja 2027
 ```
 
 ---
@@ -368,7 +368,7 @@ This supports:
 
 # 24. `event_date`
 
-Scheduled date of the Kishore Puja.
+Scheduled date of the Kishor Puja.
 
 ---
 
@@ -384,7 +384,7 @@ The host organization is not necessarily the same as every participant's Sakha.
 
 Where applicable, references the common Location framework.
 
-Kishore shall not create a duplicate location master.
+Kishor shall not create a duplicate location master.
 
 ---
 
@@ -419,31 +419,31 @@ Optional administrative notes.
 
 ---
 
-# 30. `kishore_event_registration`
+# 30. `kishor_event_registration`
 
 ## Purpose
 
-Represents registration of one Kishore participant for one Kishore event.
+Represents registration of one Kishor participant for one Kishor event.
 
 Relationship:
 
 ```text
-kishore_participant
+kishor_participant
         ↓
-kishore_event_registration
+kishor_event_registration
         ↑
-kishore_event
+kishor_event
 ```
 
 ---
 
-# 31. `kishore_event_registration` — Columns
+# 31. `kishor_event_registration` — Columns
 
 | Column                          | Logical Type     | Required | Key | Description                         |
 | ------------------------------- | ---------------- | -------: | --- | ----------------------------------- |
-| `kishore_event_registration_pk` | BIGINT           |      Yes | PK  | Registration primary key            |
-| `kishore_participant_pk`        | BIGINT           |      Yes | FK  | Kishore participant                 |
-| `kishore_event_pk`              | BIGINT           |      Yes | FK  | Kishore event                       |
+| `kishor_event_registration_pk` | BIGINT           |      Yes | PK  | Registration primary key            |
+| `kishor_participant_pk`        | BIGINT           |      Yes | FK  | Kishor participant                 |
+| `kishor_event_pk`              | BIGINT           |      Yes | FK  | Kishor event                       |
 | `registration_date`             | DATE             |      Yes | —   | Registration date                   |
 | `registration_status`           | Master/Data Type |      Yes | FK  | Registration state                  |
 | `sakha_organization_pk`         | BIGINT           |      Yes | FK  | Sakha associated with registration  |
@@ -459,16 +459,16 @@ kishore_event
 
 # 32. Registration Primary Key
 
-`kishore_event_registration_pk` uniquely identifies one registration record.
+`kishor_event_registration_pk` uniquely identifies one registration record.
 
 ---
 
 # 33. Participant Foreign Key
 
 ```text
-kishore_event_registration.kishore_participant_pk
+kishor_event_registration.kishor_participant_pk
         ↓
-kishore_participant.kishore_participant_pk
+kishor_participant.kishor_participant_pk
 ```
 
 ---
@@ -476,9 +476,9 @@ kishore_participant.kishore_participant_pk
 # 34. Event Foreign Key
 
 ```text
-kishore_event_registration.kishore_event_pk
+kishor_event_registration.kishor_event_pk
         ↓
-kishore_event.kishore_event_pk
+kishor_event.kishor_event_pk
 ```
 
 ---
@@ -488,9 +488,9 @@ kishore_event.kishore_event_pk
 The logical business key is:
 
 ```text
-kishore_participant_pk
+kishor_participant_pk
 +
-kishore_event_pk
+kishor_event_pk
 ```
 
 A participant shall not have duplicate active registrations for the same event.
@@ -501,15 +501,15 @@ The physical uniqueness constraint will be finalized during database implementat
 
 # 36. `registration_date`
 
-Date on which the participant was registered for the specific Kishore event.
+Date on which the participant was registered for the specific Kishor event.
 
 This differs from:
 
 ```text
-kishore_participant.registration_date
+kishor_participant.registration_date
 ```
 
-which represents the participant's initial entry into Kishore.
+which represents the participant's initial entry into Kishor.
 
 ---
 
@@ -535,7 +535,7 @@ Optional historical Guardian context for the particular event registration.
 
 This is useful when the participant's Guardian changes between annual events.
 
-The authoritative current Guardian remains on `kishore_participant`.
+The authoritative current Guardian remains on `kishor_participant`.
 
 ---
 
@@ -579,20 +579,20 @@ KH000123
 
 ---
 
-# 43. `kishore_membership_transition`
+# 43. `kishor_membership_transition`
 
 ## Purpose
 
-Records the transition between Kishore participation and approved NSS Membership.
+Records the transition between Kishor participation and approved NSS Membership.
 
 ---
 
-# 44. `kishore_membership_transition` — Columns
+# 44. `kishor_membership_transition` — Columns
 
 | Column                    | Logical Type     | Required | Key | Description               |
 | ------------------------- | ---------------- | -------: | --- | ------------------------- |
 | `transition_pk`           | BIGINT           |      Yes | PK  | Transition primary key    |
-| `kishore_participant_pk`  | BIGINT           |      Yes | FK  | Kishore participant       |
+| `kishor_participant_pk`  | BIGINT           |      Yes | FK  | Kishor participant       |
 | `sangha_sevi_pk`          | BIGINT           |      Yes | FK  | Resulting NSS Sangha Sevi |
 | `transition_date`         | DATE             |      Yes | —   | Transition date           |
 | `membership_type_granted` | Master/Data Type |      Yes | FK  | Membership type granted   |
@@ -606,7 +606,7 @@ The source explicitly identifies the transition structure around:
 
 ```text
 transition_pk
-kishore_participant_pk
+kishor_participant_pk
 sangha_sevi_pk
 transition_date
 membership_type_granted
@@ -624,7 +624,7 @@ Internal primary key for the transition record.
 
 References the common Sangha Sevi identity created/approved through the Membership module.
 
-Kishore does not generate the Sangha Sevi ID independently.
+Kishor does not generate the Sangha Sevi ID independently.
 
 ---
 
@@ -647,9 +647,9 @@ The Membership module remains authoritative for allowable membership types.
 The permanent historical relationship is:
 
 ```text
-kishore_participant
+kishor_participant
         ↓
-kishore_membership_transition
+kishor_membership_transition
         ↓
 sangha_sevi
 ```
@@ -668,12 +668,12 @@ SS000456
 
 # 50. No Automatic Membership
 
-A Kishore participant shall not receive a Sangha Sevi ID merely by:
+A Kishor participant shall not receive a Sangha Sevi ID merely by:
 
 * Registration
 * Attendance
 * Participation
-* Completion of Kishore Puja
+* Completion of Kishor Puja
 
 Membership requires the common Membership approval process.
 
@@ -686,7 +686,7 @@ Membership transition shall not create another Person record.
 The same Person remains connected to:
 
 ```text
-Kishore History
+Kishor History
 +
 NSS Membership
 ```
@@ -696,51 +696,51 @@ NSS Membership
 # 52. Foreign-Key Summary
 
 ```text
-kishore_participant.person_pk
+kishor_participant.person_pk
         ↓
 person
 
-kishore_participant.sakha_organization_pk
+kishor_participant.sakha_organization_pk
         ↓
 organization
 
-kishore_participant.guardian_sangha_sevi_pk
+kishor_participant.guardian_sangha_sevi_pk
         ↓
 sangha_sevi
 
-kishore_participant.assigned_by_sakha_pk
+kishor_participant.assigned_by_sakha_pk
         ↓
 organization
 
-kishore_event.host_organization_pk
+kishor_event.host_organization_pk
         ↓
 organization
 
-kishore_event.location_pk
+kishor_event.location_pk
         ↓
 location framework
 
-kishore_event_registration.kishore_participant_pk
+kishor_event_registration.kishor_participant_pk
         ↓
-kishore_participant
+kishor_participant
 
-kishore_event_registration.kishore_event_pk
+kishor_event_registration.kishor_event_pk
         ↓
-kishore_event
+kishor_event
 
-kishore_event_registration.sakha_organization_pk
+kishor_event_registration.sakha_organization_pk
         ↓
 organization
 
-kishore_event_registration.guardian_sangha_sevi_pk
+kishor_event_registration.guardian_sangha_sevi_pk
         ↓
 sangha_sevi
 
-kishore_membership_transition.kishore_participant_pk
+kishor_membership_transition.kishor_participant_pk
         ↓
-kishore_participant
+kishor_participant
 
-kishore_membership_transition.sangha_sevi_pk
+kishor_membership_transition.sangha_sevi_pk
         ↓
 sangha_sevi
 ```
@@ -754,27 +754,27 @@ Person
   1
   |
   0..1
-Kishore Participant
+Kishor Participant
 ```
 
 ```text
-Kishore Participant
+Kishor Participant
   1
   |
   N
-Kishore Event Registration
+Kishor Event Registration
 ```
 
 ```text
-Kishore Event
+Kishor Event
   1
   |
   N
-Kishore Event Registration
+Kishor Event Registration
 ```
 
 ```text
-Kishore Participant
+Kishor Participant
   1
   |
   N
@@ -788,7 +788,7 @@ Membership Transition
 ```text
 PERSON
    ↓
-KISHORE_PARTICIPANT
+KISHOR_PARTICIPANT
    ↓
 KH000123
 ```
@@ -800,7 +800,7 @@ The KH ID remains permanent.
 # 55. Annual Event Model
 
 ```text
-KISHORE_PARTICIPANT
+KISHOR_PARTICIPANT
        |
        +---- REGISTRATION 2026
        |
@@ -818,7 +818,7 @@ SANGHA_SEVI
      |
      | Guardian
      ↓
-KISHORE_PARTICIPANT
+KISHOR_PARTICIPANT
 ```
 
 The Guardian must be an NSS Member belonging to the participant's Sakha.
@@ -846,13 +846,13 @@ These fields shall not be replaced by a generic free-text Guardian field.
 Current participant Guardian:
 
 ```text
-kishore_participant.guardian_sangha_sevi_pk
+kishor_participant.guardian_sangha_sevi_pk
 ```
 
 Historical event Guardian, where required:
 
 ```text
-kishore_event_registration.guardian_sangha_sevi_pk
+kishor_event_registration.guardian_sangha_sevi_pk
 ```
 
 This prevents later Guardian changes from destroying historical event context.
@@ -861,7 +861,7 @@ This prevents later Guardian changes from destroying historical event context.
 
 # 59. Family Integration
 
-The Kishore module uses the common Family relationship:
+The Kishor module uses the common Family relationship:
 
 ```text
 family_group
@@ -870,16 +870,16 @@ family_relationship
     ↓
 person
     ↓
-kishore_participant
+kishor_participant
 ```
 
-No Kishore-specific family table is introduced.
+No Kishor-specific family table is introduced.
 
 ---
 
 # 60. Family Visibility
 
-Family users may access their own family's Kishore information, including:
+Family users may access their own family's Kishor information, including:
 
 ```text
 Participant Details
@@ -897,7 +897,7 @@ Access remains restricted to the user's own family.
 
 # 61. Sakha Visibility
 
-Sakha users access Kishore records within their authorized Sakha scope.
+Sakha users access Kishor records within their authorized Sakha scope.
 
 The Sakha scope is based on:
 
@@ -909,18 +909,18 @@ sakha_organization_pk
 
 # 62. Kendra Visibility
 
-Kendra users may access Kishore records across Sakhas according to RBAC.
+Kendra users may access Kishor records across Sakhas according to RBAC.
 
-No separate Kendra-specific Kishore table is required.
+No separate Kendra-specific Kishor table is required.
 
 ---
 
 # 63. Common Attendance Integration
 
-Kishore does not introduce:
+Kishor does not introduce:
 
 ```text
-kishore_attendance
+kishor_attendance
 ```
 
 as a core table.
@@ -928,7 +928,7 @@ as a core table.
 Where required:
 
 ```text
-kishore event
+kishor event
        ↓
 common attendance framework
 ```
@@ -939,12 +939,12 @@ The Attendance module remains authoritative.
 
 # 64. Common Audit Integration
 
-Kishore uses the common Audit framework.
+Kishor uses the common Audit framework.
 
 No:
 
 ```text
-kishore_audit
+kishor_audit
 ```
 
 table is introduced.
@@ -953,7 +953,7 @@ table is introduced.
 
 # 65. Common Organization Integration
 
-Kishore uses:
+Kishor uses:
 
 ```text
 organization
@@ -965,13 +965,13 @@ for:
 * Guardian assignment Sakha
 * Event host organization
 
-No Kishore-specific organization master is introduced.
+No Kishor-specific organization master is introduced.
 
 ---
 
 # 66. Common Membership Integration
 
-Kishore uses:
+Kishor uses:
 
 ```text
 membership
@@ -1025,7 +1025,7 @@ simultaneously.
 Logical uniqueness requirements:
 
 ```text
-kishore_id
+kishor_id
 ```
 
 must be unique.
@@ -1036,14 +1036,14 @@ The participant identity:
 person_pk
 ```
 
-must not produce multiple active Kishore identities.
+must not produce multiple active Kishor identities.
 
 The event registration combination:
 
 ```text
-kishore_participant_pk
+kishor_participant_pk
 +
-kishore_event_pk
+kishor_event_pk
 ```
 
 must not produce duplicate active registrations.
@@ -1064,7 +1064,7 @@ sangha_sevi_pk → sangha_sevi
 organization_pk → organization
 ```
 
-No orphaned Kishore references shall be permitted.
+No orphaned Kishor references shall be permitted.
 
 ---
 
@@ -1085,7 +1085,7 @@ Completed records shall remain available for:
 
 The physical implementation shall follow the project-wide soft-delete/history standard.
 
-The business rules do not authorize physical deletion of historical Kishore participation records.
+The business rules do not authorize physical deletion of historical Kishor participation records.
 
 ---
 
@@ -1094,7 +1094,7 @@ The business rules do not authorize physical deletion of historical Kishore part
 The final PostgreSQL implementation should provide efficient lookup for:
 
 ```text
-kishore_id
+kishor_id
 
 person_pk
 
@@ -1102,7 +1102,7 @@ sakha_organization_pk
 
 guardian_sangha_sevi_pk
 
-kishore_event_pk
+kishor_event_pk
 
 registration_date
 
@@ -1141,7 +1141,7 @@ Name search remains a Person-module concern.
 The design supports:
 
 ```text
-Total Kishore Participants
+Total Kishor Participants
 
 Participants by Sakha
 
@@ -1169,7 +1169,7 @@ Person
    +
 Family Relationship
    +
-Kishore Participant
+Kishor Participant
    +
 Event Registration
    +
@@ -1178,7 +1178,7 @@ Guardian
 Membership Transition
 ```
 
-No separate family-facing Kishore table is required.
+No separate family-facing Kishor table is required.
 
 ---
 
@@ -1187,7 +1187,7 @@ No separate family-facing Kishore table is required.
 Sakha Dashboard can derive:
 
 ```text
-Kishore Participants
+Kishor Participants
 +
 Event Registrations
 +
@@ -1205,7 +1205,7 @@ filtered by the authorized Sakha.
 Kendra Dashboard can aggregate:
 
 ```text
-All Kishore Participants
+All Kishor Participants
 +
 All Events
 +
@@ -1222,7 +1222,7 @@ Membership Transitions
 
 # 79. Table Boundary — Person
 
-Kishore shall not store duplicate:
+Kishor shall not store duplicate:
 
 ```text
 Name
@@ -1239,7 +1239,7 @@ when those values belong to Person.
 
 # 80. Table Boundary — Family
 
-Kishore shall not store duplicate:
+Kishor shall not store duplicate:
 
 ```text
 Father
@@ -1256,7 +1256,7 @@ Family relationships belong to the Family module.
 
 # 81. Table Boundary — Organization
 
-Kishore shall not store duplicate Sakha master information.
+Kishor shall not store duplicate Sakha master information.
 
 The Organization module owns organizational identity and hierarchy.
 
@@ -1264,7 +1264,7 @@ The Organization module owns organizational identity and hierarchy.
 
 # 82. Table Boundary — Membership
 
-Kishore shall not store duplicate:
+Kishor shall not store duplicate:
 
 ```text
 Sangha Sevi ID
@@ -1280,15 +1280,15 @@ The Membership module owns these domains.
 
 # 83. Table Boundary — Attendance
 
-Kishore shall not duplicate the Attendance engine.
+Kishor shall not duplicate the Attendance engine.
 
 ---
 
 # 84. Table Boundary — Event
 
-If a common Event framework becomes authoritative, Kishore-specific event data shall contain only the additional Kishore-specific information required by the approved architecture.
+If a common Event framework becomes authoritative, Kishor-specific event data shall contain only the additional Kishor-specific information required by the approved architecture.
 
-This document preserves the current logical `kishore_event` entity.
+This document preserves the current logical `kishor_event` entity.
 
 ---
 
@@ -1318,16 +1318,16 @@ Where the business requirement is clear but the exact PostgreSQL implementation 
 # 87. Core Table Summary
 
 ```text
-1. kishore_participant
-   Permanent Kishore identity
+1. kishor_participant
+   Permanent Kishor identity
 
-2. kishore_event
-   Annual Kishore Puja event
+2. kishor_event
+   Annual Kishor Puja event
 
-3. kishore_event_registration
+3. kishor_event_registration
    Participant registration for an event
 
-4. kishore_membership_transition
+4. kishor_membership_transition
    KH → NSS Membership relationship
 ```
 
@@ -1339,16 +1339,16 @@ Where the business requirement is clear but the exact PostgreSQL implementation 
                          PERSON
                            |
                            v
-                  KISHORE_PARTICIPANT
+                  KISHOR_PARTICIPANT
                    |       |       |
                    |       |       |
                    |       |       +---- Guardian ----> SANGHA_SEVI
                    |       |
                    |       +---- Sakha -------------> ORGANIZATION
                    |
-                   +----< KISHORE_EVENT_REGISTRATION >---- KISHORE_EVENT
+                   +----< KISHOR_EVENT_REGISTRATION >---- KISHOR_EVENT
                    |
-                   +----< KISHORE_MEMBERSHIP_TRANSITION >- SANGHA_SEVI
+                   +----< KISHOR_MEMBERSHIP_TRANSITION >- SANGHA_SEVI
 ```
 
 ---
@@ -1356,11 +1356,11 @@ Where the business requirement is clear but the exact PostgreSQL implementation 
 # 89. Final Table Design
 
 ```text
-kishore_participant
+kishor_participant
         |
-        +---- kishore_event_registration ---- kishore_event
+        +---- kishor_event_registration ---- kishor_event
         |
-        +---- kishore_membership_transition ---- sangha_sevi
+        +---- kishor_membership_transition ---- sangha_sevi
         |
         +---- guardian_sangha_sevi ---- sangha_sevi
         |
@@ -1378,7 +1378,7 @@ The physical implementation shall preserve:
 ```text
 One Person
    ↓
-One Kishore Identity
+One Kishor Identity
    ↓
 One Permanent KH ID
    ↓
@@ -1400,17 +1400,17 @@ Assigns
    ↓
 NSS Member / Sangha Sevi
    ↓
-Kishore Participant
+Kishor Participant
 ```
 
 ---
 
 # 91. Source Alignment
 
-This table design reflects the currently frozen Kishore source:
+This table design reflects the currently frozen Kishor source:
 
 ```text
-Annual Event-Based Kishore Puja
+Annual Event-Based Kishor Puja
 
 Permanent KH ID
 
@@ -1425,7 +1425,7 @@ Year-wise Participation
 KH → SS Membership Transition
 ```
 
-The source identifies Kishore Puja as an annual event/activity rather than a permanent organizational unit.
+The source identifies Kishor Puja as an annual event/activity rather than a permanent organizational unit.
 
 ---
 

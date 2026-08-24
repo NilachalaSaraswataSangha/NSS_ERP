@@ -25,7 +25,7 @@ pattern** — design-only, no backend counterpart.
 | `attendance/` | v1.0.0, DRAFT — 5-file (Review Workflow FROZEN) + `DARSHAK_BUSINESS_RULE.md` | `backend/attendance/` is an empty stub |
 | `heritage/` | v1.0.0, SOURCE ALIGNED — 8 tables | `backend/heritage/` implements only `founder_master` |
 | `kumari/` | v1.0.0, SOURCE ALIGNED — 5 tables | no `backend/kumari/` app |
-| `kishore/` | v1.0.0, SOURCE ALIGNED — Guardian Model v2.1 frozen | no `backend/kishore/` app |
+| `kishor/` | v1.0.0, SOURCE ALIGNED — Guardian Model v2.1 frozen | no `backend/kishor/` app |
 | `mahila/` | v2.1.0, BYE-LAW ALIGNED — one Governing Body = Mandali, **2-year** term (MAH-040) | no `backend/mahila/` app |
 | `sevak/` | Mixed — only `06_sevak_table_design.md` FROZEN, rest DRAFT/consolidation | no `backend/sevak/` app |
 | `foundation/` (Solution-layer) | v1.0.0, SOURCE ALIGNED — 8 tables (master data/geography/sequences) — **not the same scope as `backend/foundation/`**, see its README | `database/ddl/01_foundation/` implements id_sequence/location; master_category/master_data/system_setting do not exist |

@@ -457,7 +457,7 @@ Conceptually:
        ↓
     Sakha
 
-The exact constitutional hierarchy remains governed by the Organization
+The exact statutory hierarchy remains governed by the Organization
 domain and authoritative governance documents.
 
 ---
@@ -814,30 +814,30 @@ This must be established separately.
 
 # 32. Governance Dependency
 
-## ADMIN-BR-059 — Constitutional Authority
+## ADMIN-BR-059 — Statutory Authority
 
 **Status:** SOURCE-ALIGNED
 
 Where administrative authority depends on organizational or governance
-structure, the approved constitutional and governance hierarchy takes
+structure, the approved statutory and governance hierarchy takes
 precedence.
 
 The Organization governance standard states that organizational structures
-must derive from authoritative constitutional sources and that conflicts
-must be resolved in favour of constitutional authority.
+must derive from authoritative statutory sources and that conflicts
+must be resolved in favour of statutory authority.
 
 ---
 
-# 33. Role and Constitutional Authority
+# 33. Role and Statutory Authority
 
-## ADMIN-BR-060 — No Permission Beyond Constitutional Authority
+## ADMIN-BR-060 — No Permission Beyond Statutory Authority
 
 **Status:** SOURCE-ALIGNED
 
 Application authorization shall not be used to create authority that
-contradicts the constitutional organizational hierarchy.
+contradicts the statutory organizational hierarchy.
 
-Administrative permission cannot alter constitutional ownership or reporting
+Administrative permission cannot alter statutory ownership or reporting
 relationships.
 
 ---

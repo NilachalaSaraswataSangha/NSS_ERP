@@ -12,9 +12,9 @@
 
 NSS ERP is an in-development Enterprise Resource Planning system for **Nilachala Saraswata
 Sangha (NSS)**, a religious/spiritual organization. It is not a generic corporate ERP — its
-data model is built around NSS's own constitutional structure (Kendra → Anchalika/Zilla →
+data model is built around NSS's own statutory structure (Kendra → Anchalika/Zilla →
 Sakha), its membership system (Sangha Sevi ID), and organizational concepts like Family,
-Governance, Attendance, Mahila Sangha, Kumari Sangha, Kishore Puja, Sevak Sangha, and Founder &
+Governance, Attendance, Mahila Sangha, Kumari Sangha, Kishor Puja, Sevak Sangha, and Founder &
 Heritage.
 
 The project follows a **Constitution First → Governance → Requirements → Solution →
@@ -30,7 +30,7 @@ flow, five real Django data models (`foundation`, `authentication`, `family`, `m
 `heritage`), a partially-implemented PostgreSQL schema (foundation/location + person are
 implemented, organization is not), and an extensive, mature governance/documentation corpus that
 is significantly ahead of the code — the gap widened further as of 2026-08-19, when Founder &
-Heritage, Organization, Person, Kumari, and Kishore all received substantial new/restructured
+Heritage, Organization, Person, Kumari, and Kishor all received substantial new/restructured
 design documentation with no matching code changes, and again as of this pass (2026-08-20),
 when nine more module doc sets landed (`administration`, `audit`, `authentication` [Solution-
 layer], `backup_technical`, `foundation` [Solution-layer], `governance` [Solution-layer],
@@ -117,7 +117,7 @@ NSS_ERP/
 │   ├── 02_Requirements/         Scaffolded only — business/functional/non_functional/traceability subfolders, no content yet
 │   ├── 03_Solution/             Per-module design docs — now 20 module folders (organization,
 │   │                            person, membership, family, attendance, heritage, kumari,
-│   │                            kishore, mahila, sevak, foundation, administration,
+│   │                            kishor, mahila, sevak, foundation, administration,
 │   │                            authentication, governance, publications, reports, upbs,
 │   │                            audit, backup_technical, finance) + architecture/ui/
 │   │                            infrastructure/standards/database/security content now
@@ -148,7 +148,7 @@ backend/
 └── manage.py
 ```
 
-Modules referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishore`, `sevak`,
+Modules referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishor`, `sevak`,
 `publications`, `upbs`, `reports`, `administration`) **do not exist yet** as Django apps — they
 are planned, not scaffolded.
 
@@ -172,7 +172,7 @@ NSS/
 └── SECTION-I_DISSOLUTION/                          REF-003-I
 ```
 
-**No "Section J" exists in the source Bye-Law.** The Bye-Law's constitutional sections end at
+**No "Section J" exists in the source Bye-Law.** The Bye-Law's statutory sections end at
 Section I (Dissolution); the two 1975 Resolutions that follow in the source text are explicit
 amendments to Section C (inserting sub-clauses into Functions of the Governing Body and Duties
 of the Secretary/Parichalak), not a standalone section. An earlier repository pass had
@@ -244,7 +244,7 @@ database/
 │   ├── attendance/         01-05 overview/erd/business_rules/table_design/review_workflow (review workflow FROZEN) + DARSHAK_BUSINESS_RULE.md (see below) — zero corresponding backend code
 │   ├── heritage/           NEW 2026-08-19 — 01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED — 8 tables designed (founder_master + teachings/objectives/milestones/publications/office-bearers + 2 lookup masters); `backend/heritage/` implements only founder_master, no urls.py
 │   ├── kumari/             01-05 overview/erd/lifecycle/business_rules/table_design, now v1.0.0 SOURCE ALIGNED (still document-Status DRAFT) — KM000001 ID format; no backend/kumari/ app
-│   ├── kishore/            01-05 overview/erd/lifecycle/business_rules/table_design, now v1.0.0 SOURCE ALIGNED (still document-Status DRAFT) — KH000001 ID format + frozen v2.1 Guardian Model (Guardian must independently qualify via `sangha_sevi` identity); no backend/kishore/ app
+│   ├── kishor/            01-05 overview/erd/lifecycle/business_rules/table_design, now v1.0.0 SOURCE ALIGNED (still document-Status DRAFT) — KH000001 ID format + frozen v2.1 Guardian Model (Guardian must independently qualify via `sangha_sevi` identity); no backend/kishor/ app
 │   ├── mahila/             01-05 overview/erd/lifecycle/business_rules/table_design, all v2.1.0 — v2.1.0 corrected a v2.0.0 error that had modeled Mahila Governing Body and Mahila Parichalana Mandali as two bodies; now explicitly one body, two names; freezes the Mandali term at 2 years (MAH-040); no backend/mahila/ app
 │   ├── sevak/              01-06 core sequence (only 06_table_design FROZEN, rest DRAFT/consolidation-in-progress) + sangha/, seva/, events/ subdocs; core SEV-001..040; no backend/sevak/ app
 │   ├── foundation/         NEW 2026-08-20 — 01-04 overview/erd/business_rules/table_design, v1.0.0 SOURCE ALIGNED — 8 tables (master_category, master_data, system_setting, id_sequence_master, country, state, district, city_village). **Same name, different scope from `backend/foundation/`** (which implements Person/Organization/Address) — this Solution module instead matches `database/ddl/01_foundation/`'s id_sequence/location tables; master_category/master_data/system_setting have no SQL yet
@@ -284,12 +284,12 @@ display label (dashboards, attendance screens) but must never be a `membership_t
 value in the database.
 
 **Doc/code gap widened, not just organization/person anymore.** The membership/family/
-attendance/kumari/kishore/mahila/sevak design docs added 2026-08-17/18 (kumari/kishore now
+attendance/kumari/kishor/mahila/sevak design docs added 2026-08-17/18 (kumari/kishor now
 promoted to v1.0.0 SOURCE ALIGNED as of 2026-08-19, still document-Status DRAFT) describe
 schemas far richer than what exists in code: `backend/membership/models.py` has 3 plain-PK
 models vs. ~10 UUID-keyed tables in the design; `backend/family/models.py` has 2 models vs. a
 frozen 4-table design; `backend/attendance/` has no models at all despite a full 5-doc design;
-and `kumari`/`kishore`/`mahila`/`sevak` have no Django app at all. **Heritage now has the same
+and `kumari`/`kishor`/`mahila`/`sevak` have no Django app at all. **Heritage now has the same
 gap too** — added 2026-08-19 with an 8-table v1.0.0 SOURCE ALIGNED design, but
 `backend/heritage/` implements only 1 of the 8 tables (`founder_master`). **As of 2026-08-20,
 nine more module doc sets landed with the same gap:** `administration`, `audit`,

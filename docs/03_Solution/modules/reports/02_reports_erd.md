@@ -501,7 +501,7 @@ Conceptually:
 ```text
 Kumari
    │
-Kishore
+Kishor
    │
    ▼
 Youth Reporting
@@ -1387,7 +1387,7 @@ Reports must respect Family visibility rules.
 
 # 74. Youth Analytics
 
-Youth reports must respect the applicable Kumari/Kishore privacy and
+Youth reports must respect the applicable Kumari/Kishor privacy and
 visibility rules.
 
 ---
@@ -1540,7 +1540,7 @@ inside Membership, Attendance, Governance or Administration.
 
 The project UI/navigation source also identifies Reports as a primary ERP
 navigation module alongside Membership, Family, Governance, Attendance,
-Mahila Sangha, Kumari Sangha, Kishore Puja, Founder & Heritage, UPBS and
+Mahila Sangha, Kumari Sangha, Kishor Puja, Founder & Heritage, UPBS and
 Administration.
 
 The reporting architecture therefore preserves the project-wide modular

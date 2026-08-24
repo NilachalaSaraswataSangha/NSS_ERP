@@ -370,9 +370,9 @@ kumari_membership
 
 kumari_activity_participant
 
-kishore_participant
+kishor_participant
 
-kishore_event_participation
+kishor_event_participation
 ```
 
 The frozen Family Visibility design identifies these relationships as part of the Family view layer.
@@ -396,8 +396,8 @@ family_group
 kumari_membership
 kumari_activity_participant
 
-kishore_participant
-kishore_event_participation
+kishor_participant
+kishor_event_participation
 ```
 
 The view is an implementation option for Family Dashboard / Parent Portal / Youth Reports and is not a replacement for the underlying authoritative tables.
@@ -502,8 +502,8 @@ Marriage-related Family Transitions
 | Family Head           | Family Module     |
 | Family Transition     | Family Module     |
 | Kumari Participation  | Kumari Module     |
-| Kishore Participation | Kishore Module    |
-| Guardian Assignment   | Kishore Module    |
+| Kishor Participation | Kishor Module    |
+| Guardian Assignment   | Kishor Module    |
 | Mahila Participation  | Mahila Module     |
 
 ---

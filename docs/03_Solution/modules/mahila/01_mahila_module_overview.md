@@ -17,7 +17,7 @@ The module represents Mahila Sangha-related institutional, membership, governanc
 The module is derived from:
 
 1. The verified and approved **Bye-Law of Nilachala Saraswata Mahila Sangha**.
-2. Applicable NSS Constitution and Bye-Laws.
+2. Applicable NSS Bye-Law.
 3. Approved NSS governance standards.
 4. Approved NSS Membership and Person frameworks.
 5. Existing approved NSS ERP governance decisions.
@@ -59,7 +59,7 @@ The documented objectives include:
 - Seva Puja at Nilachala Kutir.
 - Other activities performed according to established practices and conventions approved and directed by Kendra Sangha.
 
-The ERP module shall therefore support the management and traceability of these institutional functions without attempting to redefine their spiritual or constitutional meaning.
+The ERP module shall therefore support the management and traceability of these institutional functions without attempting to redefine their spiritual or statutory meaning.
 
 ---
 
@@ -759,7 +759,7 @@ An implementation decision required to represent an approved rule.
 
 Insufficient authoritative source exists.
 
-This classification prevents implementation assumptions from being presented as constitutional facts.
+This classification prevents implementation assumptions from being presented as statutory facts.
 
 ---
 
@@ -902,7 +902,7 @@ The purpose of this documentation phase is to establish the approved functional 
 # 45. Related Documents
 
 ```text
-NSS Constitution / Bye-Laws
+NSS Bye-Law
 
 NSS_Mahila_Sangha_Bye_Law.docx
 

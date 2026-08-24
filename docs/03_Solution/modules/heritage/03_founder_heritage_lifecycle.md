@@ -12,7 +12,7 @@
 
 This document defines the lifecycle of content and records maintained by the Founder & Heritage Module.
 
-Unlike Membership, Attendance, Sevak, Kumari, or Kishore, Founder & Heritage does not represent a participant lifecycle.
+Unlike Membership, Attendance, Sevak, Kumari, or Kishor, Founder & Heritage does not represent a participant lifecycle.
 
 Its lifecycle concerns:
 

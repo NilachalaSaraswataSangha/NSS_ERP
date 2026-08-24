@@ -880,7 +880,7 @@ position_master
 body_member_assignment
 ```
 
-The current source identifies the constitutionally defined nine-member
+The current source identifies the statutorily defined nine-member
 structure.
 
 ---

@@ -748,7 +748,7 @@ CONDUCTED
 CLOSED
 ```
 
-This is an ERP implementation lifecycle, not a constitutional status defined by the Bye-Law.
+This is an ERP implementation lifecycle, not a statutory status defined by the Bye-Law.
 
 ---
 
@@ -1085,7 +1085,7 @@ CLOSED
 
 are ERP lifecycle representations.
 
-They must not be described as constitutional terms unless the authoritative source uses them.
+They must not be described as statutory terms unless the authoritative source uses them.
 
 ---
 

@@ -1263,7 +1263,7 @@ Attendance
 Family
 Governance
 Kumari
-Kishore
+Kishor
 UPBS
 Organization
 Person
@@ -1317,7 +1317,7 @@ family
 governance bodies
 governance assignments
 kumari records
-kishore records
+kishor records
 UPBS transactions
 organization
 ```

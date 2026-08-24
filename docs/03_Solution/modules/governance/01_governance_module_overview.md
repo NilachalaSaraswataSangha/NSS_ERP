@@ -471,14 +471,14 @@ the ability to determine who held a position during a previous period.
 
 ---
 
-# 26. Constitutional Authority
+# 26. Statutory Authority
 
 Governance structures represented in the ERP must remain aligned with the
-authoritative NSS Constitution and Bye-Laws.
+authoritative NSS Bye-Law.
 
 The Constitution remains the highest governing authority.
 
-Project governance documentation cannot override constitutional authority.
+Project governance documentation cannot override statutory authority.
 
 ---
 

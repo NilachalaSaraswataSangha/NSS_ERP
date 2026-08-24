@@ -440,7 +440,7 @@ Development
 Future NSS / Mahila Participation
 ```
 
-This distinguishes Kumari Sangha from the annual-event model used for Kishore Puja.
+This distinguishes Kumari Sangha from the annual-event model used for Kishor Puja.
 
 ---
 
@@ -742,9 +742,9 @@ The relationship is preserved historically.
 
 ---
 
-# 40. Kishore Puja Boundary
+# 40. Kishor Puja Boundary
 
-Kumari Sangha and Kishore Puja shall remain separate business modules.
+Kumari Sangha and Kishor Puja shall remain separate business modules.
 
 Kumari Sangha:
 
@@ -752,7 +752,7 @@ Kumari Sangha:
 Continuous Development Program
 ```
 
-Kishore Puja:
+Kishor Puja:
 
 ```text
 Annual Event-Based Participation
@@ -863,7 +863,7 @@ Adolescent Age Group
 
 as the intended participant population.
 
-Because the exact age rule is not frozen, this remains a documented working eligibility model rather than a hard-coded constitutional requirement.
+Because the exact age rule is not frozen, this remains a documented working eligibility model rather than a hard-coded statutory requirement.
 
 ---
 

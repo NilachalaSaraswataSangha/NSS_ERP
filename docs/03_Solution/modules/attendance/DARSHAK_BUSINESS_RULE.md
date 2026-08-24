@@ -30,8 +30,8 @@ In day-to-day Sangha operations, "Darshak" is used informally to refer to attend
 
 | Who is called Darshak operationally | Official status |
 |-------------------------------------|-----------------|
-| Probationary Member (holds Anumati Patra, not yet Parichaya Patra) | Constitutionally: Probationary Member per REF-002-002 |
-| Member from another Sakha attending without transferring Parichaya Patra | Constitutionally: Regular Member of their home Sakha |
+| Probationary Member (holds Anumati Patra, not yet Parichaya Patra) | Statutoryly: Probationary Member per REF-002-002 |
+| Member from another Sakha attending without transferring Parichaya Patra | Statutoryly: Regular Member of their home Sakha |
 
 ---
 
@@ -53,7 +53,7 @@ In day-to-day Sangha operations, "Darshak" is used informally to refer to attend
 
 ---
 
-## Constitutional Basis
+## Statutory Basis
 
 ### Probationary Member (REF-002-002)
 

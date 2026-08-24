@@ -40,7 +40,7 @@ The frozen module hierarchy includes:
     Attendance
     Mahila Sangha
     Kumari Sangha
-    Kishore Puja
+    Kishor Puja
     Sevak Sangha
     Founder & Heritage
     Publications

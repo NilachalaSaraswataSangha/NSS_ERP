@@ -59,7 +59,7 @@ ONE PERSON IDENTITY
 ```
 
 Membership, Family, Governance, Attendance, Mahila, Kumari, Kishori,
-Kishore, and Sevak records reference Person identity where applicable.
+Kishor, and Sevak records reference Person identity where applicable.
 
 The Person table is not the Membership table.
 
@@ -617,7 +617,7 @@ The following modules may reference `person_pk`:
 Mahila
 Kumari
 Kishori
-Kishore
+Kishor
 Sevak
 ```
 
@@ -633,7 +633,7 @@ The following concepts shall not become separate Person identities:
 Mahila Person
 Kumari Person
 Kishori Person
-Kishore Person
+Kishor Person
 Sevak Person
 ```
 
@@ -1070,7 +1070,7 @@ The Person table does not contain attendance records.
 
 # 78. Specialized Module Relationship — External
 
-Mahila, Kumari, Kishori, Kishore, and Sevak may reference Person identity.
+Mahila, Kumari, Kishori, Kishor, and Sevak may reference Person identity.
 
 No duplicate Person table is created in those modules.
 

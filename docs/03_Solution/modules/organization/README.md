@@ -9,7 +9,7 @@ GOVERNANCE ALIGNED v1.1.0. Designed, **not yet implemented in SQL**
 
 As of this version the module was restructured from its original 4-file
 `01_design`/`02_erd`/`03_business_rules`/`04_table_design` pattern to the 5-file pattern below
-(matching membership/person/kumari/kishore/mahila) — the old files
+(matching membership/person/kumari/kishor/mahila) — the old files
 (`01_organization_design.md`, `03_organization_business_rules.md`,
 `04_organization_table_design.md`) were deleted, not renamed.
 

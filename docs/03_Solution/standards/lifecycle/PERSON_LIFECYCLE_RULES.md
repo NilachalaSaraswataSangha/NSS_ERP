@@ -52,7 +52,7 @@ No separate manual deceased action in:
 - Sevak
 - Mahila
 - Kumari
-- Kishore
+- Kishor
 - Governance
 - Family
 - Attendance
@@ -70,7 +70,7 @@ The system derives all consequences from: Person.status = DECEASED
 | Sevak participation | INACTIVE, reason = DECEASED, source = SYSTEM |
 | Mahila participation | INACTIVE, reason = DECEASED, source = SYSTEM |
 | Kumari participation | INACTIVE, reason = DECEASED, source = SYSTEM |
-| Kishore participation | INACTIVE, reason = DECEASED, source = SYSTEM |
+| Kishor participation | INACTIVE, reason = DECEASED, source = SYSTEM |
 | Governance assignment | Automatically ended/inactive |
 | Attendance | Historical records preserved |
 | Family | Historical relationship preserved |
@@ -86,7 +86,7 @@ No ID is deleted or changed:
 - Person ID remains
 - Sangha Sevi ID remains
 - Kumari ID remains
-- Kishore ID remains
+- Kishor ID remains
 - All permanent business identifiers remain
 
 Example: SS00000123 does not disappear. It becomes SS00000123, Status: DECEASED.

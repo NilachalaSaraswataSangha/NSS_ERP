@@ -190,7 +190,7 @@ The source explicitly identifies these office-bearer positions.
 
 **Status:** FROZEN
 
-The Kendra Governing Body shall consist of the constitutionally defined
+The Kendra Governing Body shall consist of the statutorily defined
 nine-member structure.
 
 The database must not permit governance assignments that silently violate
@@ -843,9 +843,9 @@ current operational views.
 
 ---
 
-# 25. Constitutional Change
+# 25. Statutory Change
 
-## GOV-BR-064 — Constitutional Authority
+## GOV-BR-064 — Statutory Authority
 
 **Status:** FROZEN
 
@@ -1015,7 +1015,7 @@ Bye-Law, but Finance/financial workflows remain a separate domain.
 The Bye-Law identifies annual audit by a qualified auditor.
 
 The ERP may support audit records and reporting, but the software does not
-replace the constitutional audit requirement.
+replace the statutory audit requirement.
 
 ---
 
@@ -1207,7 +1207,7 @@ The current project baseline identifies as fully frozen:
 **Status:** FROZEN
 
 Where the authoritative source does not define an operational detail,
-software design shall not silently invent a constitutional rule.
+software design shall not silently invent a statutory rule.
 
 The issue must instead be:
 
@@ -1292,7 +1292,7 @@ Advisory Board, General Body, Election Framework, Vacancy Framework,
 Mahila Sangha and Mahila Parichalana Mandali as frozen.
 
 The Bye-Law review confirms the Kendra Governing Body, Advisory Board,
-General Body and office-bearer structure as constitutional governance
+General Body and office-bearer structure as statutory governance
 entities.
 
 The frozen Mahila rules establish the nine-member structure, positions,

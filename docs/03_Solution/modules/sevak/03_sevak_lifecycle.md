@@ -949,12 +949,12 @@ UPBS registration and operational rules remain owned by the UPBS module.
 
 ---
 
-# 41. Kishore → Sevak Pathway
+# 41. Kishor → Sevak Pathway
 
 A possible pathway may exist:
 
 ```text
-Kishore
+Kishor
    ↓
 Sevak Sangha
 ```
@@ -1310,7 +1310,7 @@ The following lifecycle principles are frozen:
 * No mandatory training hierarchy is frozen.
 * Orientation and training are not lifecycle status gates.
 * UPBS Volunteer pathway is not automatic.
-* Kishore → Sevak transition is not automatic.
+* Kishor → Sevak transition is not automatic.
 * Sevak governance pathway remains subject to pending governance rules.
 * Historical records are never physically deleted.
 * All lifecycle transitions are auditable.

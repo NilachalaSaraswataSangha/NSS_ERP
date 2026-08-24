@@ -286,7 +286,7 @@ Parent A
 Parent B
 ```
 
-simultaneously within the constitutional hierarchy.
+simultaneously within the statutory hierarchy.
 
 The source explicitly prohibits multiple parent assignments. 
 
@@ -360,9 +360,9 @@ organization
       └── organization_type
 ```
 
-The exact constitutional organization types shall be derived from authoritative NSS references.
+The exact statutory organization types shall be derived from authoritative NSS references.
 
-The ERP shall not invent constitutional organizational levels.
+The ERP shall not invent statutory organizational levels.
 
 ---
 
@@ -721,7 +721,7 @@ Apex Organization
 
 This diagram illustrates the relationship model only.
 
-It does not define constitutional organization types.
+It does not define statutory organization types.
 
 ---
 
@@ -890,7 +890,7 @@ A parent organization must:
 * Exist
 * Be a valid organization
 * Not create a circular hierarchy
-* Remain constitutionally valid
+* Remain statutorily valid
 
 ---
 
@@ -1084,7 +1084,7 @@ TOTAL = 3
 # 61. Final ERD Principles
 
 ```text
-✓ One constitutional apex
+✓ One statutory apex
 
 ✓ Apex has no parent
 

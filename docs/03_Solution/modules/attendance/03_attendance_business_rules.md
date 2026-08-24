@@ -104,7 +104,7 @@ This reaches the Attendance Review trigger.
 
 Three consecutive Weekly Sangha Puja absences shall create an Attendance Review.
 
-This reflects the constitutional Membership provision concerning absence from three consecutive Weekly Sangha Pujas.
+This reflects the statutory Membership provision concerning absence from three consecutive Weekly Sangha Pujas.
 
 ---
 

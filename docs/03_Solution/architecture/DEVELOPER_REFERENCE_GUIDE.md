@@ -26,9 +26,9 @@ For any piece of work, read the chain **top-down** before writing code. If a low
 
 | Layer | Full Name | What It Contains | Developer Action |
 |-------|-----------|-----------------|-----------------|
-| **REF** | Authoritative Reference | Original constitutional and bye-law text preserved verbatim. No interpretation, no ERP logic — just the official source wording. | Read to understand what the organization's governing documents actually say. This is the ultimate source of truth. |
+| **REF** | Authoritative Reference | Original statutory and bye-law text preserved verbatim. No interpretation, no ERP logic — just the official source wording. | Read to understand what the organization's governing documents actually say. This is the ultimate source of truth. |
 | **AUTH** | Authoritative Reference Standard | Rules for how REF documents are organized, identified, versioned, and cross-referenced. Defines the `REF-00X` and `REF-MS-XXX` naming schemes. | Read if creating or modifying any REF document. Otherwise skip to GOV. |
-| **GOV** | Governance Standards | How the ERP interprets and applies constitutional authority. Contains frozen principles like NSS apex authority, organizational hierarchy integrity, immutable identifiers, and change control rules. | Read to understand what governance constraints your code must respect. If GOV says "only one active KENDRA allowed" — your code enforces it. |
+| **GOV** | Governance Standards | How the ERP interprets and applies statutory authority. Contains frozen principles like NSS apex authority, organizational hierarchy integrity, immutable identifiers, and change control rules. | Read to understand what governance constraints your code must respect. If GOV says "only one active KENDRA allowed" — your code enforces it. |
 | **REQ** | Requirements | Business and functional requirements derived from GOV and REF. Specifies what the system must do in concrete, testable terms (e.g. "membership renewal must be completed before Dola Purnima with no grace period"). | Read to understand the exact behavior your code must implement. Every feature maps to a REQ. |
 | **SOLUTION** | Solution Design | Database schema, API design, UI specification, security architecture, deployment plan. The technical "how" that satisfies the REQ "what." Includes table designs, ERDs, and the Tech Stack Decisions document. | Read to understand the approved technical approach before coding. Do not invent your own schema — follow the SOLUTION doc. |
 | **CODE** | Implementation | The actual Python/SQL/HTML/JS you write. Must trace to SOLUTION. Must not independently invent business rules — if a rule is missing from REQ/SOLUTION, flag it as **Pending**, do not assume. | This is where you work. Every model, view, endpoint, and template lives here. |
@@ -61,7 +61,7 @@ Suppose you need to implement **membership transfer**:
 8. RELEASE → Document in release notes
 ```
 
-If at step 1 you find the bye-law says nothing about transfer, you **cannot invent a constitutional rule**. You document it as an ERP implementation decision (not a constitutional requirement) and proceed from REQ onward.
+If at step 1 you find the bye-law says nothing about transfer, you **cannot invent a statutory rule**. You document it as an ERP implementation decision (not a statutory requirement) and proceed from REQ onward.
 
 ---
 
@@ -117,7 +117,7 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 | Work Item | Documents to Read (in order) | Path |
 |-----------|------------------------------|------|
 | Membership types, Sangha Sevi ID, renewal, transfer | 1. REF-002 (Membership Bye-Laws) | `docs/01_Authoritative_References/NSS/SECTION-B_MEMBERSHIPS/` |
-| | 2. GOV-ORG-005 (Constitutional Traceability) | `docs/00_Project_Governance/GOV/GOV-002_Organizational_Governance_Standard.md` |
+| | 2. GOV-ORG-005 (Statutory Traceability) | `docs/00_Project_Governance/GOV/GOV-002_Organizational_Governance_Standard.md` |
 | | 3. Membership Business Rules | `docs/03_Solution/modules/membership/` (when created) |
 | | 4. CLAUDE.md Section 7 (Frozen Principles) | `CLAUDE.md` |
 | | 5. Tech Stack (ID sequence config) | `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` |
@@ -195,16 +195,16 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 
 ---
 
-### Kishore Puja
+### Kishor Puja
 
 | Work Item | Documents to Read (in order) | Path |
 |-----------|------------------------------|------|
-| KH identity, annual registration, Guardian assignment | 1. Module Overview | `docs/03_Solution/modules/kishore/01_kishore_module_overview.md` |
-| | 2. ERD | `docs/03_Solution/modules/kishore/02_kishore_erd.md` |
-| | 3. Lifecycle | `docs/03_Solution/modules/kishore/03_kishore_lifecycle.md` |
-| | 4. Business Rules (v1.0.0, SOURCE ALIGNED, KISH-001–KISH-100, Guardian Model frozen v2.1) | `docs/03_Solution/modules/kishore/04_kishore_business_rules.md` |
-| | 5. Table Design (4 tables: kishore_participant, kishore_event, kishore_event_registration, kishore_membership_transition) | `docs/03_Solution/modules/kishore/05_kishore_table_design.md` |
-| | 6. Existing DDL | none — no `backend/kishore/` app yet |
+| KH identity, annual registration, Guardian assignment | 1. Module Overview | `docs/03_Solution/modules/kishor/01_kishor_module_overview.md` |
+| | 2. ERD | `docs/03_Solution/modules/kishor/02_kishor_erd.md` |
+| | 3. Lifecycle | `docs/03_Solution/modules/kishor/03_kishor_lifecycle.md` |
+| | 4. Business Rules (v1.0.0, SOURCE ALIGNED, KISH-001–KISH-100, Guardian Model frozen v2.1) | `docs/03_Solution/modules/kishor/04_kishor_business_rules.md` |
+| | 5. Table Design (4 tables: kishor_participant, kishor_event, kishor_event_registration, kishor_membership_transition) | `docs/03_Solution/modules/kishor/05_kishor_table_design.md` |
+| | 6. Existing DDL | none — no `backend/kishor/` app yet |
 
 ---
 
@@ -277,7 +277,7 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 
 | If you need... | Look in... |
 |----------------|-----------|
-| Constitutional wording (exact clauses) | `docs/01_Authoritative_References/NSS/` or `MAHILA_SANGHA/` |
+| Statutory wording (exact clauses) | `docs/01_Authoritative_References/NSS/` or `MAHILA_SANGHA/` |
 | How the governance framework works | `docs/00_Project_Governance/GOV/GOV-001_Project_Governance_Principles.md` |
 | How REF docs are managed | `docs/00_Project_Governance/AUTH/AUTH-001_Authoritative_Reference_Standard.md` |
 | Organizational hierarchy rules | `docs/00_Project_Governance/GOV/GOV-002_Organizational_Governance_Standard.md` |

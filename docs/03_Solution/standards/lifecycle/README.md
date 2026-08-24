@@ -8,9 +8,9 @@ v1.0.0.
 
 - **`PERSON_LIFECYCLE_RULES.md`** (`SOL-LIFE-002`) — the authoritative rule for what happens
   system-wide when a Person is marked `DECEASED`. Death is recorded once, only at the Person
-  level (never as a separate manual action inside Membership/Sevak/Mahila/Kumari/Kishore/
+  level (never as a separate manual action inside Membership/Sevak/Mahila/Kumari/Kishor/
   Governance/Family/Attendance) and propagates from there. No permanent ID (Person ID, Sangha
-  Sevi ID, Kumari ID, Kishore ID) is ever deleted or changed — a deceased person's ID persists
+  Sevi ID, Kumari ID, Kishor ID) is ever deleted or changed — a deceased person's ID persists
   with `Status: DECEASED`. Nothing is physically deleted; history is preserved throughout.
 - **`PARTICIPATION_LIFECYCLE_RULES.md`** (`SOL-LIFE-001`) — the shared rule for how Sevak
   Sangha, Mahila Sangha, and Kumari Sangha *participation* records react to two authoritative

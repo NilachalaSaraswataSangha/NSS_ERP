@@ -27,7 +27,7 @@ Purpose: Physical table design — five metadata/configuration tables.
 ## Key facts
 
 - Cross-module read/analytics capability consuming authoritative data from Membership,
-  Attendance, Family, Governance, Kumari/Kishore ("Youth"), and UPBS. Reports does **not** own
+  Attendance, Family, Governance, Kumari/Kishor ("Youth"), and UPBS. Reports does **not** own
   or duplicate any transactional data from those modules.
 - **Five tables, metadata/configuration only:** `report_category_master`,
   `report_definition`, `report_filter_definition`, `dashboard`, `dashboard_widget`.

@@ -33,7 +33,7 @@ This document exists so that:
 | `00_Project_Governance/STD/` | Project-wide standards |
 | `03_Solution/modules/<module>/04_*_table_design.md` | Per-module frozen designs |
 | `03_Solution/architecture/TECH_STACK_DECISIONS.md` | Technology choices |
-| NSS Constitution / Bye-Laws | Supreme authority for business rules |
+| NSS Bye-Law | Supreme authority for business rules |
 
 This document consolidates; those documents remain authoritative.
 
@@ -740,7 +740,7 @@ DATABASE_DESIGN_STANDARDS.md (this document)
             ├── modules/family/04_family_table_design.md
             ├── modules/attendance/04_attendance_table_design.md
             ├── modules/kumari/05_kumari_table_design.md
-            ├── modules/kishore/05_kishore_table_design.md
+            ├── modules/kishor/05_kishor_table_design.md
             ├── modules/mahila/05_mahila_table_design.md
             ├── modules/sevak/06_sevak_table_design.md
             ├── modules/publications/04_publications_table_design.md

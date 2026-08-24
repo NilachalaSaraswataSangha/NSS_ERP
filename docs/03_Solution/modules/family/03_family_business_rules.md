@@ -64,7 +64,7 @@ Examples:
 * Child
 * Guardian
 * Kumari Participant
-* Kishore Participant
+* Kishor Participant
 * Future Applicant
 * Historical Person
 
@@ -228,9 +228,9 @@ Authorized Family users may view relevant Kumari participation information for m
 
 ---
 
-## FAM-021 — Kishore Visibility
+## FAM-021 — Kishor Visibility
 
-Authorized Family users may view relevant Kishore participation information for members of their own Family.
+Authorized Family users may view relevant Kishor participation information for members of their own Family.
 
 ---
 
@@ -272,7 +272,7 @@ The Family Module shall not duplicate the complete source records of:
 
 * Membership
 * Kumari
-* Kishore
+* Kishor
 * Mahila
 * Attendance
 
@@ -293,7 +293,7 @@ Membership Summary
 
 Kumari Participation
 
-Kishore Participation
+Kishor Participation
 
 Family Activities
 
@@ -359,9 +359,9 @@ Kumari participation belongs to Kumari Module.
 
 ---
 
-## FAM-034 — Kishore Boundary
+## FAM-034 — Kishor Boundary
 
-Kishore participation and guardian assignment belong to Kishore Module.
+Kishor participation and guardian assignment belong to Kishor Module.
 
 ---
 

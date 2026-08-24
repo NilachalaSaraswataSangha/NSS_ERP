@@ -15,7 +15,7 @@ within the NSS ERP.
 
 The rules cover:
 
-- Constitutional organizational authority
+- Statutory organizational authority
 - Organizational identity
 - Organizational hierarchy
 - Parent-child integrity
@@ -35,11 +35,11 @@ The primary governing source is:
 GOV-002 — Organizational Governance Standard
 ```
 
-The NSS Constitution remains the supreme governing authority for all
+The NSS Bye-Law remains the supreme governing authority for all
 organizational structures represented in the ERP.
 
 Where a conflict exists between this solution document and an authoritative
-constitutional source, the constitutional source prevails.
+statutory source, the statutory source prevails.
 
 ---
 
@@ -59,20 +59,20 @@ governance identifier is retained in the traceability section.
 
 ---
 
-# 3. Constitutional Authority
+# 3. Statutory Authority
 
-## ORG-BR-001 — Constitutional Authority Precedence
+## ORG-BR-001 — Statutory Authority Precedence
 
 The organizational hierarchy implemented by the ERP shall be derived from
-approved constitutional and authoritative reference documents.
+approved statutory and authoritative reference documents.
 
 Business rules, workflows, permissions, reports, APIs, UI, and organizational
-metadata shall not contradict constitutional authority.
+metadata shall not contradict statutory authority.
 
 Where a conflict exists:
 
 ```text
-Constitutional Authority
+Statutory Authority
         ↓
 takes precedence
 ```
@@ -96,12 +96,12 @@ This implements GOV-ORG-004.
 
 ---
 
-## ORG-BR-003 — Constitutionally Recognized Organizational Units
+## ORG-BR-003 — Statutoryly Recognized Organizational Units
 
 An organizational unit shall exist in the ERP only where it is recognized by
-an approved constitutional or authoritative reference.
+an approved statutory or authoritative reference.
 
-The ERP shall not create a new constitutional organizational unit merely
+The ERP shall not create a new statutory organizational unit merely
 because an application workflow requires one.
 
 ---
@@ -110,27 +110,27 @@ because an application workflow requires one.
 
 ## ORG-BR-004 — Single Apex Organization
 
-The NSS ERP shall recognize one constitutionally established apex
+The NSS ERP shall recognize one statutorily established apex
 organization as the highest organizational authority.
 
 The apex organization:
 
 * has no parent;
 * is the root of the organizational hierarchy;
-* provides constitutional authority for subordinate organizations; and
+* provides statutory authority for subordinate organizations; and
 * is unique within the production organizational hierarchy.
 
 This implements GOV-ORG-001.
 
 ---
 
-## ORG-BR-005 — No Organization Outside the Constitutional Hierarchy
+## ORG-BR-005 — No Organization Outside the Statutory Hierarchy
 
 No organizational entity maintained by the ERP shall exist outside the
-constitutional organizational hierarchy.
+statutory organizational hierarchy.
 
 All organizational entities shall derive their authority through the
-constitutional hierarchy originating from the apex organization.
+statutory hierarchy originating from the apex organization.
 
 ---
 
@@ -138,7 +138,7 @@ constitutional hierarchy originating from the apex organization.
 
 The organizational hierarchy shall contain one and only one apex/root.
 
-Multiple independent organizational trees representing the same constitutional
+Multiple independent organizational trees representing the same statutory
 organization are prohibited.
 
 This implements GOV-DATA-002.
@@ -184,7 +184,7 @@ historical organization shall never be assigned to another organization.
 ## ORG-BR-010 — Duplicate Organizational Identity Prohibited
 
 The ERP shall not maintain two independent organization records representing
-the same constitutionally recognized organizational unit.
+the same statutorily recognized organizational unit.
 
 ---
 
@@ -193,7 +193,7 @@ the same constitutionally recognized organizational unit.
 ## ORG-BR-011 — Exactly One Parent for Non-Apex Organizations
 
 Every organizational unit shall maintain exactly one valid parent
-organization unless it is constitutionally designated as the apex.
+organization unless it is statutorily designated as the apex.
 
 This implements GOV-ORG-003 and GOV-DATA-001.
 
@@ -302,7 +302,7 @@ as organizational relationships/data that the ERP shall maintain.
 ## ORG-BR-020 — Hierarchical Level Shall Follow Authoritative Structure
 
 The hierarchical level of an organization shall be derived from the approved
-constitutional organizational structure.
+statutory organizational structure.
 
 The application shall not invent organizational levels.
 
@@ -347,10 +347,10 @@ inventing a new table.
 
 # 8. Organizational Relationships
 
-## ORG-BR-023 — Constitutional Relationship
+## ORG-BR-023 — Statutory Relationship
 
 Relationships between organizational units shall be governed by
-constitutional authority.
+statutory authority.
 
 The ERP shall preserve:
 
@@ -379,7 +379,7 @@ The common Organization hierarchy is authoritative.
 
 ## ORG-BR-026 — No Unauthorized Organizational Level
 
-The ERP shall not introduce a new constitutional organizational level merely
+The ERP shall not introduce a new statutory organizational level merely
 for software convenience.
 
 A new level requires authoritative support and applicable governance approval.
@@ -388,30 +388,30 @@ A new level requires authoritative support and applicable governance approval.
 
 # 9. Organizational Authority
 
-## ORG-BR-027 — Authority Follows Constitutional Hierarchy
+## ORG-BR-027 — Authority Follows Statutory Hierarchy
 
-Authority within the ERP shall follow the constitutional organizational
+Authority within the ERP shall follow the statutory organizational
 hierarchy.
 
 An organizational unit shall exercise only the authority granted by the
-constitutional governance framework.
+statutory governance framework.
 
 ---
 
 ## ORG-BR-028 — ERP Record Does Not Grant Authority
 
-Creating an organization record does not itself grant constitutional or
+Creating an organization record does not itself grant statutory or
 governance authority.
 
-Authority derives from the applicable constitutional and governance
+Authority derives from the applicable statutory and governance
 framework.
 
 ---
 
-## ORG-BR-029 — No Authority Beyond Constitutional Scope
+## ORG-BR-029 — No Authority Beyond Statutory Scope
 
 No organization may exercise authority beyond the scope granted by the
-constitutional framework.
+statutory framework.
 
 ---
 
@@ -424,8 +424,8 @@ records.
 
 Delegation shall not modify:
 
-* constitutional ownership;
-* constitutional reporting relationships;
+* statutory ownership;
+* statutory reporting relationships;
 * organizational hierarchy; or
 * permanent organizational identity.
 
@@ -433,17 +433,17 @@ Delegated authority shall be auditable.
 
 ---
 
-## ORG-BR-031 — Delegation Cannot Create Constitutional Structure
+## ORG-BR-031 — Delegation Cannot Create Statutory Structure
 
 Delegated administrative authority shall not be used to create a new
-constitutional organizational level or unsupported hierarchy.
+statutory organizational level or unsupported hierarchy.
 
 ---
 
-## ORG-BR-032 — Delegation Cannot Transfer Constitutional Ownership
+## ORG-BR-032 — Delegation Cannot Transfer Statutory Ownership
 
 Delegated access shall not be interpreted as authority to transfer
-constitutional organizational ownership.
+statutory organizational ownership.
 
 ---
 
@@ -451,7 +451,7 @@ constitutional organizational ownership.
 
 ## ORG-BR-033 — No Unauthorized Independence
 
-An organizational unit shall not operate independently of the constitutional
+An organizational unit shall not operate independently of the statutory
 organizational hierarchy.
 
 ---
@@ -471,9 +471,9 @@ Applicable governance approval is required.
 
 ---
 
-## ORG-BR-036 — Duplicate Constitutional Entities Prohibited
+## ORG-BR-036 — Duplicate Statutory Entities Prohibited
 
-The ERP shall prohibit duplicate representations of constitutionally
+The ERP shall prohibit duplicate representations of statutorily
 recognized organizational entities.
 
 ---
@@ -652,7 +652,7 @@ master data.
 ## ORG-BR-055 — Organization Type Values Require Authority
 
 The ERP shall not treat arbitrary user-created organization types as
-constitutional organizational types.
+statutory organizational types.
 
 The authoritative source must establish the valid organizational type
 vocabulary.
@@ -690,7 +690,7 @@ Organization status shall be represented through the controlled
 
 ## ORG-BR-059 — No Unsupported Status
 
-The current solution shall not introduce additional constitutional lifecycle
+The current solution shall not introduce additional statutory lifecycle
 states without an approved governance change.
 
 Examples such as:
@@ -778,7 +778,7 @@ Sevak
 Mahila
 Kumari
 Kishori
-Kishore
+Kishor
 ```
 
 shall not create a second master representation of the same organization.
@@ -998,7 +998,7 @@ Complete lifecycle transition matrix
 Automatic status transitions
 Automatic organizational closure rules
 Multiple address history
-Additional constitutional organization levels
+Additional statutory organization levels
 ```
 
 ---
@@ -1008,7 +1008,7 @@ Additional constitutional organization levels
 The following rules are considered firmly established from GOV-002:
 
 ```text
-✓ Single constitutional apex
+✓ Single statutory apex
 
 ✓ Apex has no parent
 
@@ -1032,7 +1032,7 @@ The following rules are considered firmly established from GOV-002:
 
 ✓ Identifier is never reused
 
-✓ Constitutional authority takes precedence
+✓ Statutory authority takes precedence
 
 ✓ Only authoritative references establish organizational structure
 
@@ -1040,17 +1040,17 @@ The following rules are considered firmly established from GOV-002:
 
 ✓ Unauthorized restructuring is prohibited
 
-✓ Duplicate constitutional entities are prohibited
+✓ Duplicate statutory entities are prohibited
 
 ✓ Parallel organizational hierarchies are prohibited
 
 ✓ Unsupported governance relationships are prohibited
 
-✓ Authority follows constitutional hierarchy
+✓ Authority follows statutory hierarchy
 
-✓ Delegation cannot alter constitutional ownership
+✓ Delegation cannot alter statutory ownership
 
-✓ Delegation cannot alter constitutional reporting relationships
+✓ Delegation cannot alter statutory reporting relationships
 
 ✓ Delegated authority is auditable
 
@@ -1085,7 +1085,7 @@ implemented as frozen rules:
 | Automatic lifecycle transitions               | NOT FROZEN           |
 | Address history                               | OUT OF CURRENT SCOPE |
 | Multiple current addresses                    | OUT OF CURRENT SCOPE |
-| Additional constitutional organization levels | NOT AUTHORIZED       |
+| Additional statutory organization levels | NOT AUTHORIZED       |
 
 ---
 
@@ -1094,7 +1094,7 @@ implemented as frozen rules:
 | Rule Area                        | Source       |
 | -------------------------------- | ------------ |
 | Apex organization                | GOV-ORG-001  |
-| Constitutional authority         | GOV-ORG-002  |
+| Statutory authority         | GOV-ORG-002  |
 | Hierarchy integrity              | GOV-ORG-003  |
 | Authoritative references         | GOV-ORG-004  |
 | Parent-child integrity           | GOV-DATA-001 |
@@ -1138,7 +1138,7 @@ The Organization Module shall preserve the following invariant:
                     ONE APEX
                        │
                        ▼
-              CONSTITUTIONAL ROOT
+              BYE-LAW ROOT
                        │
               ┌────────┴────────┐
               ▼                 ▼
@@ -1154,7 +1154,7 @@ The Organization Module shall preserve the following invariant:
 Every organizational unit must remain:
 
 ```text
-Constitutionally recognized
+Statutoryly recognized
         +
 Uniquely identified
         +

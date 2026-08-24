@@ -1529,7 +1529,7 @@ NSS Finance Model
 NSS Audit Model
 ```
 
-The Bye-Law remains authoritative for Mahila constitutional requirements.
+The Bye-Law remains authoritative for Mahila statutory requirements.
 
 ---
 

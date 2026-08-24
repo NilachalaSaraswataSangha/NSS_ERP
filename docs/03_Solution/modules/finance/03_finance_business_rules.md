@@ -24,12 +24,12 @@ Every Finance rule shall identify its authority.
 
 | Classification | Meaning |
 |----------------|---------|
-| **CONSTITUTIONAL** | Directly established by authoritative Bye-Laws |
+| **BYE-LAW** | Directly established by authoritative Bye-Laws |
 | **ERP-FROZEN** | Explicitly established as an NSS ERP design rule |
 | **CROSS-MODULE** | Inherited from another frozen ERP module |
 | **PENDING** | Requires further business/source decision |
 
-The ERP shall not represent an ERP design decision as a constitutional
+The ERP shall not represent an ERP design decision as a statutory
 provision unless the authoritative source actually establishes it.
 
 ---
@@ -201,12 +201,12 @@ relationships:
 
 ## FIN-BR-012 — Income Classification
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Income shall be represented through controlled transaction
 classification.
 
-Constitutional income categories (NSS Bye-Law F[A]):
+Statutory income categories (NSS Bye-Law F[A]):
 
 - Monthly subscriptions and special subscriptions from members
 - Annual Pranamis of all kinds from all Sakha Sanghas including Mahila
@@ -225,7 +225,7 @@ Constitutional income categories (NSS Bye-Law F[A]):
 **Classification:** ERP-FROZEN
 
 A unified transaction model shall not mean that all income sources lose
-their constitutional distinction.
+their statutory distinction.
 
 Pranami, donation, grant, publication income, Sinking Fund contribution,
 etc. must remain separately identifiable for reporting and utilization
@@ -238,7 +238,7 @@ where required.
 **Classification:** ERP-FROZEN
 
 The ERP shall not create a separate primary transaction table merely
-because the constitutional source category differs.
+because the statutory source category differs.
 
 ```
 NOT:
@@ -278,11 +278,11 @@ The final physical representation shall be determined in
 
 ---
 
-## FIN-BR-016 — Constitutional Fund Categories
+## FIN-BR-016 — Statutory Fund Categories
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
-The Finance classification model shall support the constitutional fund
+The Finance classification model shall support the statutory fund
 sources established by the NSS Bye-Laws (F[A](i) through F[A](ix)).
 
 ---
@@ -292,7 +292,7 @@ sources established by the NSS Bye-Laws (F[A](i) through F[A](ix)).
 **Classification:** ERP-FROZEN
 
 The ERP shall not represent an internally invented category as a
-constitutional fund category.
+statutory fund category.
 
 Additional operational classifications may be introduced only as
 approved ERP classifications and shall not be misrepresented as Bye-Law
@@ -314,7 +314,7 @@ A Financial Scope may contain multiple Funds.
 
 ## FIN-BR-019 — Specific-Purpose Restriction
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Any funds raised or donations received for a specific purpose shall be
 spent and utilized only for that particular purpose.
@@ -359,7 +359,7 @@ Table/API implementation decision.
 
 ## FIN-BR-022 — Publication Income Separation
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Publication proceeds of the Kendra Sangha shall be shown in a separate
 account and used only for "Satsikshya Bistar" in consultation with the
@@ -375,7 +375,7 @@ The Finance system shall preserve this separate financial identity.
 
 ## FIN-BR-023 — Sakha-Specific Sinking Fund
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Special Pranamis from Sakha Sanghas may establish a Sinking Fund in the
 name of the respective Sakha Sangha under the control of the Kendra
@@ -408,7 +408,7 @@ undifferentiated balance.
 
 ## FIN-BR-025 — Kendra Control of Sinking Fund
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Sinking Fund associated with a respective Sakha remains under the
 control of the Kendra Sangha.
@@ -419,7 +419,7 @@ Source: F[A](iii)
 
 ## FIN-BR-026 — Sinking Fund Expenditure and Reimbursement
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Where the Kendra Sangha temporarily takes over Seva/Puja in a
 Sakha/Asana Mandir and expenditure is incurred from the Sinking Fund,
@@ -441,11 +441,11 @@ Subsequent reimbursement
 
 ---
 
-# 8. Constitutional Financial Flows
+# 8. Statutory Financial Flows
 
 ## FIN-BR-027 — Annual Pranamis from Sakha Sanghas
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Kendra Sangha's funds include annual Pranamis of all kinds from all
 Sakha Sanghas including Mahila Sanghas.
@@ -459,7 +459,7 @@ contributing organizational context and Kendra financial records.
 
 ## FIN-BR-028 — Kendra-to-Mahila Financial Flow
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Mahila Bye-Laws recognize grants received from the Kendra Sangha as
 one of its fund sources.
@@ -473,7 +473,7 @@ flow.
 
 ## FIN-BR-029 — Donations to Saraswata Matha / Guru Dhama
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Kendra Governing Body may sanction donations from Kendra funds to the
 Saraswata Matha and Guru Dhama for specific purposes by following the
@@ -498,7 +498,7 @@ Such a transaction shall preserve:
 
 **Classification:** ERP-FROZEN
 
-The ERP shall not introduce constitutional transfer types that are not
+The ERP shall not introduce statutory transfer types that are not
 supported by the authoritative sources.
 
 Operational transfers may exist where separately approved as ERP
@@ -615,7 +615,7 @@ Finance shall not create independent:
 
 ## FIN-BR-039 — Kendra Treasurer Authority
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Kendra Treasurer is responsible for the Kendra Sangha funds and for
 maintaining proper cash and bank accounts covering receipts and
@@ -625,7 +625,7 @@ disbursements.
 
 ## FIN-BR-040 — Kendra Disbursement Authorization
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Kendra Treasurer may disburse funds only on the written orders of the
 President for execution of a scheme approved by the Governing Body.
@@ -647,7 +647,7 @@ The ERP shall not collapse these into a single generic approval.
 
 ## FIN-BR-041 — Kendra Annual Budget
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Kendra Governing Body shall pass an annual budget considering
 anticipated income and expenditure.
@@ -660,7 +660,7 @@ Governing Body consideration.
 
 ## FIN-BR-042 — Mahila Financial Authority
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 The Mahila Governing Body shall maintain proper accounts of receipts,
 including Pranamis, donations and grants, and disbursements on different
@@ -670,7 +670,7 @@ accounts, and shall prepare its annual budget estimate.
 
 ## FIN-BR-043 — Mahila Expenditure Support
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Mahila expenditure shall be supported by the applicable Governing Body
 resolution, and specific-purpose donations shall be used only for that
@@ -703,7 +703,7 @@ No generic authority matrix shall be invented from the Kendra rules.
 
 ## FIN-BR-045 — Kendra Fund Accounts
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Kendra funds are to be maintained in Post Office Savings Bank and/or
 nationalized Commercial Bank accounts in the name of Nilachala Saraswata
@@ -715,7 +715,7 @@ Source: F[b]
 
 ## FIN-BR-046 — Mahila Fund Accounts
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Mahila funds are to be maintained in the prescribed postal/state-bank
 arrangement and operated jointly by the Treasurer and Secretary.
@@ -738,7 +738,7 @@ The ERP must not assume that one Organization has only one bank account.
 
 ## FIN-BR-048 — Kendra Utilization
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Kendra funds shall be utilized according to Governing Body decisions and
 for the purposes permitted by the Bye-Laws.
@@ -759,7 +759,7 @@ Permitted purposes include:
 
 ## FIN-BR-049 — Specific-Purpose Utilization
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Funds raised or donations received for a specific purpose shall be spent
 and utilized for that particular purpose only.
@@ -770,7 +770,7 @@ Source: F[c](iv)
 
 ## FIN-BR-050 — Mahila Utilization
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Mahila funds may be used for the purposes specified in its Bye-Laws,
 subject to the applicable consultation, resolution and purpose
@@ -857,7 +857,7 @@ Finance shall not create a separate audit framework.
 
 ## FIN-BR-058 — Financial Audit Support
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Finance shall preserve sufficient records to support the required annual
 audit and presentation of audited accounts.
@@ -881,7 +881,7 @@ A separate Mahila Finance application/subsystem shall not be created.
 
 ## FIN-BR-060 — Mahila Fund Sources
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Mahila financial sources include:
 
@@ -898,7 +898,7 @@ Source: MS-7(i)(a) through MS-7(i)(g)
 
 ## FIN-BR-061 — Mahila Specific-Purpose Funds
 
-**Classification:** CONSTITUTIONAL
+**Classification:** BYE-LAW
 
 Specific-purpose Mahila donations shall remain separately identifiable
 and shall be utilized only for the stated purpose.
@@ -1017,7 +1017,7 @@ The seven previously unresolved ERD decisions are now treated as follows:
 | 4 | Payment model | ERP-FROZEN: payment evidence linked to transaction |
 | 5 | Restricted-fund enforcement | ERP-FROZEN: explicit restriction + utilization validation |
 | 6 | Financial authorization | Partially frozen: Kendra/Mahila source-derived; other scopes PENDING |
-| 7 | Sinking Fund | CONSTITUTIONAL + ERP-FROZEN: Sakha-specific, Kendra-controlled |
+| 7 | Sinking Fund | BYE-LAW + ERP-FROZEN: Sakha-specific, Kendra-controlled |
 
 ---
 
