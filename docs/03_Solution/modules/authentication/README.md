@@ -1,11 +1,11 @@
 # NSS ERP Authentication & Security Module
 
-Status: DRAFT — SOURCE ALIGNED, v1.0.0. Full Solution design complete (4 files). The
-`backend/authentication/` Django app already has real models (`Role`, `UserRole`,
+Status: DRAFT — SOURCE ALIGNED, v1.0.0/v0.1.0 (lifecycle doc). Full Solution design now 5
+files. The `backend/authentication/` Django app already has real models (`Role`, `UserRole`,
 `LoginAudit`) and a working login view — see `backend/authentication/README.md` — but they are
 a different, simpler schema than the one designed here (see Note below).
 
-**Naming note:** this Solution-layer document set (`SOL-AUTH-001`…`004`) is unrelated to the
+**Naming note:** this Solution-layer document set (`SOL-AUTH-001`…`005`) is unrelated to the
 governance-layer `AUTH-001` under `docs/00_Project_Governance/AUTH/` (the Authoritative
 Reference Standard) — see `CLAUDE.md` §6's terminology note. Same three letters, two entirely
 different documents.
@@ -22,13 +22,19 @@ Roles/Permissions/Organizational Scope.
 02_authentication_security_erd.md — Version 1.0.0
 Purpose: Entity relationship design for the seven-table security foundation.
 
-03_authentication_security_business_rules.md — Version 1.0.0, AUTH-BR-001–AUTH-BR-080
+03_authentication_security_lifecycle.md — Version 0.1.0, DRAFT, Document ID `SOL-AUTH-005`
+Purpose: `user_account` states (ACTIVE/LOCKED/INACTIVE), append-only `password_history`,
+conceptual session lifecycle (application layer), RBAC deferred to Administration, account
+deactivation preserves business records, Person-death integration.
+
+04_authentication_security_business_rules.md — Version 1.0.0, AUTH-BR-001–AUTH-BR-080 (was
+`03_...` before the lifecycle doc was inserted and file numbers shifted down one slot)
 Purpose: Business rules — Argon2 password hashing, JWT authentication, session management,
 encrypted sensitive data (including Aadhaar), Row-Level Security identified as security
 principles. Explicitly does not freeze `login_history`/`session_history`/MFA/password-reset/
 lockout tables — "security standards do not by themselves authorize new database tables."
 
-04_authentication_security_table_design.md — Version 1.0.0
+05_authentication_security_table_design.md — Version 1.0.0 (was `04_...`)
 Purpose: Physical table design — seven tables split between identity/credential security here
 and RBAC management in Administration.
 
@@ -56,6 +62,7 @@ placeholder to be replaced, not an implementation of this design.
 
 ## Current Status
 
-Design Complete · ERD Complete · Business Rules Drafted (SOURCE ALIGNED) · Table Design
-Drafted (SOURCE ALIGNED) · SQL Implementation Not Started · `backend/authentication/` exists
-but implements an unrelated, simpler schema
+Design Complete · ERD Complete · Lifecycle Documented (SOL-AUTH-005 — does not yet
+cross-reference `SOL-LIFE-001`/`002`, see `CLAUDE.md` §13) · Business Rules Drafted (SOURCE
+ALIGNED) · Table Design Drafted (SOURCE ALIGNED) · SQL Implementation Not Started ·
+`backend/authentication/` exists but implements an unrelated, simpler schema

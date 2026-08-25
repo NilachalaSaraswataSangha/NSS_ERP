@@ -213,7 +213,7 @@ REF-SRC-003
 
 **Remarks**
 
-Clause 1 refers to "article 'A' and the Memorandum" — corresponding to REF-001 (NSS Constitution), which preserves the Objects of the Society and the Memorandum of Association. This cross-reference is preserved verbatim from the official Bye-Law and shall not be reinterpreted.
+Clause 1 refers to "article 'A' and the Memorandum" — corresponding to REF-001 (NSS Bye-Law), which preserves the Objects of the Society and the Memorandum of Association. This cross-reference is preserved verbatim from the official Bye-Law and shall not be reinterpreted.
 
 ---
 

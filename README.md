@@ -200,13 +200,15 @@ Notes:
 *The sections below describe the full planned module roadmap. As of this writing, only
 **Foundation, Membership, Family, Governance (stub), Attendance (stub), and Founder & Heritage**
 exist as Django apps under `backend/` — Mahila Sangha, Kumari Sangha, Kishor Puja, Sevak
-Sangha, UPBS, Reports & Analytics, Administration, Audit, and Backup & Technical have no app
-directory yet. Solution-layer design documentation (overview/ERD/lifecycle/business-rules/
-table-design) is now complete for essentially every module on this roadmap — Membership,
-Family, Attendance, Organization, Person, Founder & Heritage, Kumari Sangha, Kishor Puja,
-Mahila Sangha, Administration, Authentication & Security, Foundation, Governance, Publications,
-Reports & Analytics, UPBS, Audit, and Backup & Technical — and largely complete for Sevak
-Sangha — ahead of, and not yet reconciled with, any backend implementation. Two of these
+Sangha, UPBS, Reports & Analytics, Administration, Audit, Backup & Technical, Finance, and
+Programmes & Events have no app directory yet. Solution-layer design documentation (overview/
+ERD/lifecycle/business-rules/table-design) is now complete for essentially every module on this
+roadmap — Membership, Family, Attendance, Organization, Person, Founder & Heritage, Kumari
+Sangha, Kishor Puja, Mahila Sangha, Administration, Authentication & Security, Foundation,
+Governance, Publications, Reports & Analytics, UPBS, Audit, Backup & Technical, and Finance —
+and largely complete for Sevak Sangha — ahead of, and not yet reconciled with, any backend
+implementation. **Programmes & Events (Module #21) is the one exception**: still v0.1.0 DRAFT,
+explicitly not frozen, with none of its 5 candidate tables settled yet. Two of these
 (Foundation, Authentication & Security) share a name with an existing `backend/` app but design
 an unrelated schema — see `docs/PROJECT_DOCUMENTATION.md` → Gotchas. See
 `docs/PROJECT_DOCUMENTATION.md` for the current, code-verified status of each.*
@@ -544,16 +546,20 @@ Completed:
 * Finance Module Design (v1.0.0, SOURCE ALIGNED — 7 tables: financial_year, financial_scope,
   fund_master, financial_transaction, financial_receipt, financial_payment, financial_transfer;
   derives from NSS Bye-Law Section F and Mahila Sangha Bye-Law Clause 7)
+* Programmes & Events Module Design (Module #21, v0.1.0, DRAFT — NOT FROZEN — Programme Type →
+  Event Instance two-level model; 5 candidate common tables, none frozen; backed by a 21-module
+  dependency map and cross-module compatibility review, both PROPOSED)
 
 Current Focus:
 
-* Reconciling Solution-layer design docs with actual Django/SQL implementation across all 20
+* Reconciling Solution-layer design docs with actual Django/SQL implementation across all 21
   documented modules — every module now has a complete (or largely complete) design, but none
   has corresponding backend code beyond membership/family/heritage/authentication's existing
   minimal models. No release doc has been created yet for the module-doc work landed since
   v0.5.1 (heritage added; organization/person/kumari/kishor expanded or restructured; then
   foundation/administration/authentication/governance/publications/reports/upbs/audit/
-  backup_technical added).
+  backup_technical/finance added; then programmes_events added plus new lifecycle documents for
+  person/family/governance/attendance/authentication/administration).
 
 Next Release Target:
 

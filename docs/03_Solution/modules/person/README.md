@@ -2,7 +2,7 @@
 
 Version: 1.0.0
 
-Status: DRAFT — SOURCE ALIGNED. All four documents below carry document-level
+Status: DRAFT — SOURCE ALIGNED. All five documents below carry document-level
 `Status: DRAFT — SOURCE ALIGNED` — despite being described as "complete," this is a content
 version tag, not a promotion out of DRAFT (matches the pattern used by kumari/kishor).
 
@@ -16,10 +16,15 @@ non-member, family member, applicant, or historical record, all under one table.
 
 `02_person_erd.md` — entity relationship design.
 
-`03_person_business_rules.md` — business rules, PER-BR-001–PER-BR-107.
+`03_person_lifecycle.md` (SOL-PER-005, added 2026-08-25, renumbering shifted business rules/
+table design down one slot — see below) — 3 Person states (ACTIVE, ACTIVE-DECEASED, INACTIVE),
+merge workflow, death handling (death does not delete — PER-BR-026), document lifecycle.
 
-`04_person_table_design.md` (SOL-PER-004) — logical table design. **Two tables**: `person`,
-`document_master`.
+`04_person_business_rules.md` — business rules, PER-BR-001–PER-BR-107. (Was `03_...` before the
+lifecycle doc was inserted.)
+
+`05_person_table_design.md` (was `SOL-PER-004`, filename shifted from `04_...`) — logical table
+design. **Two tables**: `person`, `document_master`.
 
 ---
 
@@ -32,13 +37,13 @@ globally unique, at least one contact (mobile or email) required.
 ## Explicitly left OPEN (not silently frozen)
 
 Exact physical address structure, Aadhaar, photo, and blood-group handling — this document set
-deliberately does **not** invent a final design for these; see `04_person_table_design.md`
+deliberately does **not** invent a final design for these; see `05_person_table_design.md`
 §47-48, §94.
 
 ## Known discrepancies — flagged, not resolved here
 
 - **Business identifier naming:** this doc set names the business identifier `person_id`
-  (`04_person_table_design.md` §7-9), but the already-implemented DDL
+  (`05_person_table_design.md` §7-9), but the already-implemented DDL
   (`database/ddl/03_person/02_person.sql`) names the column `person_code`
   (`uq_person_code`, `idx_person_code`) — matching the project-wide `_code` convention for
   business identifiers (`CLAUDE.md` §8). Needs reconciliation before either is treated as final.
@@ -55,10 +60,10 @@ deliberately does **not** invent a final design for these; see `04_person_table_
 
 ## Current Status
 
-Design Complete · ERD Complete · Business Rules Complete (SOURCE ALIGNED) · Table Design
-Complete (SOURCE ALIGNED) · SQL Implementation Partial — `database/ddl/03_person/` implements
-`person` and `person_address` (using `person_code`, not `person_id`); no `document_master`
-table exists in SQL.
+Design Complete · ERD Complete · Lifecycle Documented (SOL-PER-005) · Business Rules Complete
+(SOURCE ALIGNED) · Table Design Complete (SOURCE ALIGNED) · SQL Implementation Partial —
+`database/ddl/03_person/` implements `person` and `person_address` (using `person_code`, not
+`person_id`); no `document_master` table exists in SQL.
 
 ---
 
