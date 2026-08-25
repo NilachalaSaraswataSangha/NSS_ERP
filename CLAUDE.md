@@ -112,6 +112,34 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
+- **Branch/remotes (updated 2026-08-25 — supersedes the 2026-08-21 bullet below for current
+  branch/HEAD/commit-count state; that bullet's `SOL-DB-001` `_id`/`_code` finding is
+  unaffected and still tracked in §13).** Active branch is still `feature/ref-documentation`,
+  working tree clean, now 9 commits ahead of `personal/feature/ref-documentation` (not yet
+  pushed): `7791cf1` → `c9e4904` → `2433c70` → `450fa50` (Finance module) → `cdb2dee` →
+  `ea50adb` (terminology corrections: Kishore→Kishor, NSS Constitution→NSS Bye-Law,
+  constitutional→statutory) → `d75d39f` (Programme & Event domain model, `SOL-EVT-001`/`002`)
+  → `34584a9` (21-module dependency map `SOL-ARCH-007`, 12-tier implementation order
+  `SOL-ARCH-008`, cross-module review `SOL-EVT-006`) → `08b96e5` (**new 21st module**,
+  `programmes_events`, Module #21, v0.1.0 DRAFT — NOT FROZEN) → six lifecycle-doc commits
+  (`c9933a5` person, `2ffc37d` family, `0e26deb` governance, `338acdf` attendance, `a895792`
+  authentication, `0d14d0f` administration — each adds a `03_..._lifecycle.md` and renumbers
+  that module's existing business-rules/table-design files down one slot). `git diff --stat
+  develop..HEAD -- backend/ database/` still shows **zero** backend/database changes — pure
+  docs drift, 149 files / ~23.5k insertions since the 2026-08-21 bullet's last-verified commit.
+  A full `/document-project` pass this session found and fixed: (1) the new `programmes_events`
+  module had no `README.md` and was entirely absent from `docs/03_Solution/modules/README.md`'s
+  index — both created/fixed; (2) all 6 modules with new lifecycle docs had stale `README.md`
+  files still citing the pre-renumbering filenames — all 6 fixed; (3) `docs/03_Solution/
+  architecture/README.md` didn't list the 5 new architecture files — fixed; (4) module-count
+  strings in `docs/README.md` and `docs/PROJECT_DOCUMENTATION.md` still said 19/20 — fixed to
+  21; (5) three genuine terminology-correction leftovers from `ea50adb` — fixed directly (see
+  §12); (6) the Mahila Parichalana Mandali conflict already tracked in §13 turned out to be
+  wider than just term length — the new `governance/03_governance_lifecycle.md` and
+  `mahila/03_mahila_lifecycle.md` also disagree on the reconstitution *process itself* (formal
+  election tables vs. consensus-only) — added to §13; (7) none of the 6 new lifecycle docs cite
+  `SOL-LIFE-001`/`SOL-LIFE-002` despite SOL-LIFE-001 requiring modules to reference rather than
+  duplicate — new open item in §13, not fixed (would mean editing rule text in six docs).
 - **Branch/remotes (updated 2026-08-21, later same day — supersedes the bullet directly below
   for current branch/HEAD state; that bullet's content-level findings, e.g. the `SOL-DB-001`
   `_id`/`_code` discrepancy, are unaffected and still tracked in §13. See §12's "Incident"
@@ -286,32 +314,41 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
     containing its REF file(s) — folders are navigation only, identity lives in the filename.
 - **Governance docs present (updated 2026-08-14):** `AUTH-001`, `GOV-001..005`,
   `GDR-001..004` — all exist under `docs/00_Project_Governance/{AUTH,GOV,GDR}/`.
-- **Module docs present (updated 2026-08-21 — supersedes the 2026-08-20 sub-bullet below for
+- **Module docs present (updated 2026-08-25 — supersedes the 2026-08-21 sub-bullet below for
   folder count; that bullet's numbering-pattern detail is otherwise still accurate).**
   `docs/03_Solution/modules/{heritage, organization, person, membership, family, attendance,
   kumari, kishor, mahila, sevak, foundation, administration, authentication, governance,
-  publications, reports, upbs, audit, backup_technical, finance}/` — **20** module folders now
-  (`finance` added 2026-08-21, via a commit made outside this session — see §12's
-  "/document-project pass: Finance module" entry). `finance` uses the same 5-file
-  `01_design`/`02_erd`/`03_business_rules`/`04_table_design`/`05_lifecycle` numbering as
-  heritage/kumari/kishor/mahila, and is the one new module confirmed to follow the project's
-  actual frozen `_code` business-identifier convention correctly (contrast with the `_id`/
-  `_code` conflict in §13). (2026-08-20 bullet, folder count only:) 19 module folders
-  (`foundation`, `administration`, `authentication`, `governance`, `publications`, `reports`,
-  `upbs`, `audit`, `backup_technical` added 2026-08-20). Person is the only one still on the
-  original `01_..._design`/`02_..._erd`/`03_..._business_rules`/`04_..._table_design` 4-file
-  pattern (matched by the new `administration`/`authentication`/`foundation`/`governance`/
-  `audit`/`backup_technical` sets too — they reuse this same simpler 4-file numbering, not the
-  5-file one); organization was restructured 2026-08-19 off that same original pattern onto the
-  newer `01_..._module_overview` / `02_..._erd` / `03_..._lifecycle` / `04_..._business_rules` /
-  `05_..._table_design` 5-file pattern (deleting its old 4 files, not renaming them) — the same
-  pattern already used by heritage, membership, kumari, kishor, mahila (sevak has a `06_`
-  table-design file too, plus `sangha/`/`seva/`/`events/` subdocs; publications has 7 files).
+  publications, reports, upbs, audit, backup_technical, finance, programmes_events}/` —
+  **21** module folders now (`programmes_events` added 2026-08-25 — Module #21, the only one
+  tagged v0.1.0 DRAFT/NOT FROZEN rather than v1.0.0 SOURCE ALIGNED; see §7). Six existing
+  modules (`person`, `family`, `governance`, `attendance`, `authentication`, `administration`)
+  each gained a new `03_..._lifecycle.md` document the same session, shifting their existing
+  business-rules/table-design files down one filename slot (e.g. attendance's old
+  `05_..._review_workflow.md` became `06_...`) — check each module's own `README.md` (all 6
+  fixed this pass) for the current exact file list rather than assuming last session's numbers
+  still apply. (2026-08-21 bullet, folder count only:) 20 module folders (`finance` added
+  2026-08-21, via a commit made outside this session — see §12's "/document-project pass:
+  Finance module" entry). `finance` uses the same 5-file `01_design`/`02_erd`/
+  `03_business_rules`/`04_table_design`/`05_lifecycle` numbering as heritage/kumari/kishor/
+  mahila, and is the one new module confirmed to follow the project's actual frozen `_code`
+  business-identifier convention correctly (contrast with the `_id`/`_code` conflict in §13).
+  Person is the only one still on the original `01_..._design`/`02_..._erd`/
+  `03_..._business_rules`/`04_..._table_design` 4-file pattern (matched by
+  `foundation`/`audit`/`backup_technical`, which did **not** get a lifecycle doc this
+  session — they reuse this same simpler 4-file numbering, not the 5-file one) —
+  **except person itself now has a `03_person_lifecycle.md` inserted too**, making it a 5-file
+  set like organization/heritage/kumari/kishor/mahila, just with business rules/table design
+  shifted to slots 04/05 instead of the lifecycle doc being the module's native slot 3 from the
+  start. `family`, `governance`, `attendance`, `authentication`, and `administration` each
+  gained a lifecycle doc the same way — all five were previously on the simpler 4-file pattern
+  and are now 5-file (6-file for attendance, which already had a separate frozen review-workflow
+  file at slot 5, now pushed to slot 6).
   Don't assume the numbering scheme is uniform across modules. **`foundation` and
   `authentication` here are Solution-layer module folders, not the same thing as the
   `backend/foundation`/`backend/authentication` Django apps of the same name** — see §7/§8/§13.
-  All 20 module folders have an accurate `README.md` (the 9 new ones written/created
-  2026-08-20; `audit`/`backup_technical` had none before that; `finance`'s written 2026-08-21).
+  All 21 module folders have an accurate `README.md` (`programmes_events`'s written 2026-08-25;
+  the 6 lifecycle-doc modules' READMEs fixed 2026-08-25; the 9 from 2026-08-20; `audit`/
+  `backup_technical` had none before that; `finance`'s written 2026-08-21).
 - **Standards docs present:** `docs/00_Project_Governance/STD/01_project_standards.md` …
   `05_security_standards.md`.
 - **Releases present:** `v0.1.0` through `v0.5.1` under `docs/05_Releases/`.
@@ -349,7 +386,8 @@ docs/
 ├── 02_Requirements/ (scaffolded, empty)
 ├── 03_Solution/modules/{heritage, organization, person, membership, family, attendance, kumari,
 │   kishor, mahila, sevak, foundation, administration, authentication, governance,
-│   publications, reports, upbs, audit, backup_technical, finance}/ (+ architecture/, ui/mockups/,
+│   publications, reports, upbs, audit, backup_technical, finance, programmes_events}/ (+
+│   architecture/, ui/mockups/,
 │   infrastructure/DEPLOYMENT_SYNC_PLAN.md, standards/lifecycle/ [SOL-LIFE-001/002] now
 │   populated; database/security populated 2026-08-21 with cross-module consolidation docs
 │   [DATABASE_DESIGN_STANDARDS.md, SECURITY_ARCHITECTURE.md] — only api/ still empty)
@@ -516,6 +554,13 @@ one-body model above. v2.1.0 corrected it back: **one body, two names, one gover
 — 9-member Governing Body (President, Vice-President, Parichalak, Secretary, Joint Secretary,
 Treasurer, 3 Members), 2-year term. Not a new decision, just the module docs catching up to the
 already-settled model.
+**Widened conflict (2026-08-25):** the new `mahila/03_mahila_lifecycle.md` and `governance/
+03_governance_lifecycle.md` disagree on more than term length — governance's lifecycle doc
+models Mahila reconstitution as a formal consensus→election→`election`/`election_result`-table
+process, while mahila's own lifecycle doc describes routine reconstitution as Parichalak
+consensus + President's consent with no formal election tables at all (elections reserved for
+President/Vice-President vacancies only). Both the term length AND the process model are now
+unreconciled between the two modules — see §13.
 
 **Kumari Sangha / Kishor Puja:** Each has its own ID distinct from Sangha Sevi ID
 (`Kumari ID ≠ Sangha Sevi ID`, `Kishor ID ≠ Sangha Sevi ID`) — not treated as ordinary
@@ -602,6 +647,24 @@ evidence, not separate ledgers. Business rules `FIN-BR-001`–`FIN-BR-068`. Nota
 follows the project's frozen `_code` business-identifier convention** (`year_code`, not
 `year_id`) — the one new module confirmed consistent with §8's DB-naming standard, in contrast
 to the `_id`/`_code` conflict flagged in §13. No `backend/finance/` Django app.
+
+**Programmes & Events module (Module #21, v0.1.0 DRAFT — NOT FROZEN, added 2026-08-25):**
+`docs/03_Solution/modules/programmes_events/` — the one module that is **not** tagged SOURCE
+ALIGNED; explicitly "ARCHITECTURALLY JUSTIFIED" but "FORMAL MODULE FREEZE PENDING." Models a
+two-level **Programme Type → Event Instance** structure (e.g. `KISHOR_PUJA`/`UPBS`/
+`JANMOUTSABA` as reusable Programme Types; each year's occurrence as an independent Event
+Instance). Two boundaries carried over from existing conventions: Organizer is always an
+Organization, never an Event Location; Patha Chakra is an Organization Type, not a Programme/
+Event Type. **5 candidate common tables, none frozen**: `programme_type`, `event`,
+`event_session`, `event_location`, `event_history` — UPBS/Kishor/Sevak's own event entities and
+`financial_scope` remain domain-owned, not absorbed into these. Backed by 5 new cross-module
+architecture docs added the same session: `PROGRAMME_EVENT_DOMAIN_MODEL.md` (`SOL-EVT-001`),
+`EVENT_ENTITY_RECONCILIATION.md` (`SOL-EVT-002`), `MODULE_DEPENDENCY_MAP.md` (`SOL-ARCH-007`,
+21-module dependency map, PROPOSED), `IMPLEMENTATION_DEPENDENCY_ORDER.md` (`SOL-ARCH-008`,
+12-tier build order, PROPOSED), `PROGRAMMES_EVENTS_CROSS_MODULE_REVIEW.md` (`SOL-EVT-006`,
+no hard conflicts found against any other module, but flags an open "Ownership Ambiguity" risk
+and no frozen migration strategy for absorbing vs. referencing existing domain event entities).
+No `backend/programmes_events/` Django app.
 
 ## 8. Technical Architecture
 
@@ -694,7 +757,9 @@ data foundation, project standards, decision hierarchy, Organization Module, Per
 
 **Still open / need REQ-level work:** Membership Reinstatement, Disciplinary Workflow, Patha
 Chakra, Gruhasana, Sangha Puja, Mahila Puja, Pali System, Seva-Puja, Sevak Sangha operational
-structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance workflows.
+structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance workflows,
+Programmes & Events module (Module #21) formal freeze — currently v0.1.0 DRAFT, all 5
+candidate common tables unfrozen.
 
 ## 11. Standing Working Rules
 
@@ -711,6 +776,55 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
 ## 12. Session Log
 
 <!-- Newest entries at the top. -->
+
+### 2026-08-25 — /document-project pass: reconciled 21st module (Programmes & Events) and 6 new lifecycle docs; fixed terminology-correction leftovers; widened Mahila/Governance conflict (Claude Code)
+- Context: Ran `/document-project`. `git status`/`git log` showed the branch unchanged
+  (`feature/ref-documentation`, clean working tree) but now 9 commits ahead of
+  `personal/feature/ref-documentation` — 9 new commits since the 2026-08-21 pass's
+  last-verified state (`7791cf1`), none reflected anywhere in CLAUDE.md/
+  `PROJECT_DOCUMENTATION.md`/`README.md`: a terminology-correction sweep (`ea50adb`,
+  Kishore→Kishor / NSS Constitution→NSS Bye-Law / constitutional→statutory across 126 files),
+  two new architecture docs on a Programme/Event domain model (`d75d39f`,
+  `PROGRAMME_EVENT_DOMAIN_MODEL.md`/`SOL-EVT-001`, `EVENT_ENTITY_RECONCILIATION.md`/
+  `SOL-EVT-002`), three more architecture docs (`34584a9`, `MODULE_DEPENDENCY_MAP.md`/
+  `SOL-ARCH-007`, `IMPLEMENTATION_DEPENDENCY_ORDER.md`/`SOL-ARCH-008`,
+  `PROGRAMMES_EVENTS_CROSS_MODULE_REVIEW.md`/`SOL-EVT-006`), a brand-new 21st module
+  `programmes_events` (`08b96e5`, Module #21, v0.1.0 DRAFT — NOT FROZEN, 5 candidate common
+  tables), and six lifecycle-doc commits (`c9933a5` person, `2ffc37d` family, `0e26deb`
+  governance, `338acdf` attendance, `a895792` authentication, `0d14d0f` administration — each
+  inserting a new `03_..._lifecycle.md` and shifting that module's business-rules/table-design
+  files down one slot). `git diff --stat develop..HEAD -- backend/ database/` confirmed **zero**
+  backend/database changes — pure docs drift, 149 files / ~23.5k insertions. Four parallel
+  Explore agents surveyed: (1) the new Programmes & Events module + its 5 architecture docs;
+  (2) the six new lifecycle docs and the file renumbering; (3) the terminology-correction commit
+  for missed leftovers, plus whether Organization's recently-touched business-rules file
+  resolved the already-flagged type-matrix openness (it didn't — terminology-only diff); (4)
+  module-README/index staleness and top-level doc-count strings.
+- Decision/Outcome: Created `docs/03_Solution/modules/programmes_events/README.md` (didn't
+  exist). Fixed all 6 stale module READMEs (`person`, `family`, `governance`, `attendance`,
+  `authentication`, `administration`) to list their new lifecycle doc and corrected file
+  numbering. Updated `docs/03_Solution/modules/README.md` (21-module table, programmes_events
+  row) and `docs/03_Solution/architecture/README.md` (added the 5 new architecture files).
+  Fixed three genuine terminology-correction leftovers the `ea50adb` sweep missed: an inline
+  "REF-001 (NSS Constitution)" cross-reference in `docs/01_Authoritative_References/NSS/
+  SECTION-I_DISSOLUTION/REF-003-I_Dissolution.md`, an ASCII-diagram "ONE CONSTITUTIONAL ROOT"
+  label in `docs/03_Solution/modules/organization/05_organization_table_design.md`, and a
+  "Constitutional/statutory organizational positions" redundancy in `docs/03_Solution/modules/
+  programmes_events/04_programmes_events_business_rules.md` (postdates the correction commit
+  entirely). Checked a fourth candidate leftover in a `REF-MS-5` document and left it alone —
+  "Constitution of the Kendra Sangha" is `REF-003-C`'s own actual section title, not a stale
+  "NSS Constitution" synonym. Fixed stale module-count strings (19/20 → 21) in `docs/README.md`
+  and three spots in `docs/PROJECT_DOCUMENTATION.md`, plus two stale `04_person_table_design.md`
+  filename references (now `05_...`) and one stale `governance/03_governance_business_rules.md`
+  reference (now `04_...`) inside `PROJECT_DOCUMENTATION.md`'s Open Questions. Added a
+  Programmes & Events module paragraph to §7 above, updated the Mahila paragraph's
+  cross-reference note to cover the newly-found process-model conflict (not just term length),
+  updated §3/§5/§10 above, and added four new/widened items to §13.
+- Follow-up: none of the newly-surfaced design conflicts were resolved this pass — the widened
+  Mahila/Governance conflict (now term length AND process model), the six lifecycle docs' missing
+  SOL-LIFE-001/002 cross-references, and Programmes & Events' unfrozen common tables are all
+  flagged only, per the standing rule not to invent answers to open design questions
+  unilaterally. The 9 unpushed commits remain unpushed — not requested this pass.
 
 ### 2026-08-21 — Incident: `project-documenter` agent merged `feature/ref-documentation` → `develop` → `main` without authorization; reverted; agent restricted to read-only git (Claude Code)
 - Context: Committed `c9e4904` (doc-count reconciliation) on `feature/ref-documentation`, then
@@ -1364,11 +1478,14 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   already implements a multi-address table. Needs reconciliation: is the SQL a de facto
   decision, or should it be revisited alongside the other open items? See §7.
 - **New (2026-08-20): Mahila Parichalana Mandali term length — 3 years vs. 2 years, both
-  FROZEN.** `docs/03_Solution/modules/governance/03_governance_business_rules.md` (GOV-BR-031)
+  FROZEN.** `docs/03_Solution/modules/governance/04_governance_business_rules.md` (GOV-BR-031)
   freezes the Mandali's term at 3 years; `docs/03_Solution/modules/mahila/
   04_mahila_business_rules.md` (MAH-040) freezes it at 2 years. Direct contradiction between two
-  module docs that each label themselves FROZEN/settled. Needs an explicit decision on which is
-  authoritative (or a joint correction) before either is implemented — not resolved here.
+  module docs that each label themselves FROZEN/settled. **Widened 2026-08-25:** the two
+  modules' new lifecycle docs also disagree on the reconstitution process itself — governance's
+  models a formal consensus→election→election-table path, mahila's models consensus-only with
+  no formal election tables. Needs an explicit decision on which is authoritative (or a joint
+  correction) before either is implemented — not resolved here.
 - **New (2026-08-20): `foundation`/`authentication` Solution-doc-folder vs. Django-app naming
   collisions** — not a factual contradiction (the two "foundation"s and two "authentication"s
   describe genuinely different, non-overlapping scopes), but confusing enough to warrant an
@@ -1383,3 +1500,21 @@ structure, UPBS Volunteer structure + Day 1/2/3 operations, detailed Finance wor
   doc (it likely absorbed the same `_id` usage already flagged in the Person module docs above)
   rather than a considered convention change, but needs an explicit correction, not an assumed
   one. See §12's 2026-08-21 entry.
+- **New (2026-08-25): six new lifecycle docs don't cross-reference `SOL-LIFE-001`/`002`.**
+  `person/03_person_lifecycle.md`, `family/03_family_lifecycle.md`,
+  `governance/03_governance_lifecycle.md`, `attendance/03_attendance_lifecycle.md`,
+  `authentication/03_authentication_security_lifecycle.md`, and
+  `administration/03_administration_lifecycle.md` each restate death-cascade rules instead of
+  citing `docs/03_Solution/standards/lifecycle/PERSON_LIFECYCLE_RULES.md` (SOL-LIFE-002) or
+  `PARTICIPATION_LIFECYCLE_RULES.md` (SOL-LIFE-001), even though SOL-LIFE-001 §16 requires
+  modules to reference rather than duplicate. Not a content contradiction — governance/family/
+  attendance's restated rules match SOL-LIFE-002; authentication/administration aren't even in
+  its consequence table (a gap in SOL-LIFE-002, not in the new docs). Needs a decision on
+  whether to add cross-reference notes to the six new docs or extend SOL-LIFE-002's table — not
+  done here since it touches rule text in six documents. See §12's 2026-08-25 entry.
+- **New (2026-08-25): Programmes & Events (Module #21) common-table ownership/migration
+  strategy is open by design.** `PROGRAMMES_EVENTS_CROSS_MODULE_REVIEW.md` (`SOL-EVT-006`)
+  itself flags this — no other module conflict, but none of the 5 candidate common tables
+  (`programme_type`, `event`, `event_session`, `event_location`, `event_history`) are frozen,
+  and whether UPBS/Kishor/Sevak's own event entities get absorbed or merely reference them is
+  undecided. Not a contradiction to resolve, just incomplete design work — see §7/§10.

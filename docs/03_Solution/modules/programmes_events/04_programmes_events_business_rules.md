@@ -1138,7 +1138,7 @@ The exact permission matrix remains PENDING.
 
 **Classification:** ERP-FROZEN / CROSS-MODULE
 
-Constitutional/statutory organizational positions shall not
+Statutory organizational positions shall not
 automatically be treated as application roles.
 
 Application authorization shall use the Administration/RBAC framework.

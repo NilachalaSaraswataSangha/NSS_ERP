@@ -16,13 +16,20 @@ Attendance Reports).
 02_attendance_erd.md — Version 1.0.0, DRAFT
 Purpose: Entity relationship design for attendance marking and review.
 
-03_attendance_business_rules.md — Version 1.0.0, DRAFT
+03_attendance_lifecycle.md — Version 0.1.0, DRAFT, Document ID `SOL-ATT-006`
+Purpose: `weekly_sangha_puja` (SCHEDULED/CONDUCTED), `attendance` (PRESENT/ABSENT/
+EXCUSED_ABSENCE + correction), `attendance_exception` (ACTIVE/EXPIRED), `attendance_review`
+(OPEN/DEFERRED/CLOSED/ESCALATED_TO_PRESIDENT/ESCALATED_TO_PARICHALAK), consecutive-absence
+detection, cross-Sakha attendance, Person-death integration.
+
+04_attendance_business_rules.md — Version 1.0.0, DRAFT (was `03_...` before the lifecycle doc
+was inserted and file numbers shifted down one slot)
 Purpose: Business rules governing who may mark/review attendance and how records are corrected.
 
-04_attendance_table_design.md — Version 1.0.0, DRAFT
+05_attendance_table_design.md — Version 1.0.0, DRAFT (was `04_...`)
 Purpose: Physical table design for attendance records and review history.
 
-05_attendance_review_workflow.md — Version 1.0.0, **Status: FROZEN**
+06_attendance_review_workflow.md — Version 1.0.0, **Status: FROZEN** (was `05_...`)
 Purpose: Attendance Enforcement + Attendance Review workflow — Secretary as primary operational
 authority, President as oversight/appeal authority (per `CLAUDE.md` §7).
 
@@ -39,6 +46,9 @@ Probationary/Regular member from another Sakha), never a `membership_type_master
 Design Complete
 
 ERD Complete
+
+Lifecycle Documented (SOL-ATT-006 — does not yet cross-reference `SOL-LIFE-001`/`002`, see
+`CLAUDE.md` §13)
 
 Business Rules Drafted
 
