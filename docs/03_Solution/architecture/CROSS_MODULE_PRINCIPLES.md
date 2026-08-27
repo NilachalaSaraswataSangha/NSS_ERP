@@ -385,10 +385,57 @@ The same one-owner-per-table principle applies to future modules.
 | Migration lineage required conceptually | FROZEN |
 | Exact Migration physical tables | OPEN — DDL/design phase |
 | Exact cross-module FK creation order | OPEN — dependency/DDL phase |
+| Correspondence register owned by Administration (CORR-DECISION-003) | FROZEN |
 
 ---
 
-# 16. Relationship to Module Documentation
+# 16. Correspondence Register
+
+**CORR-DECISION-003 — Administration Correspondence Register**
+
+The NSS ERP shall provide an Administration-owned correspondence register for inward and outward official communications. The capability shall support basic registration, reference numbering, sender/recipient information, subject, date, medium, status/follow-up information, and association with Foundation-owned documents. Domain-specific business requests remain owned by their respective modules. Financial transactions remain exclusively owned by Finance under FIN-ARCH-001. No generic application/workflow engine is introduced by this decision.
+
+## 16.1 Ownership
+
+```text
+Administration
+└── Correspondence Register
+    ├── Inward correspondence
+    └── Outward correspondence
+```
+
+## 16.2 Ownership Boundaries
+
+| What | Owner |
+|------|-------|
+| Correspondence register (recording official communications) | Administration |
+| Documents/attachments associated with correspondence | Foundation (`document_master`) |
+| Membership renewal/transfer requests | Membership |
+| Gruhasana renewal | Membership |
+| Financial transactions arising from correspondence | Finance |
+| Governing-body authority decisions | Governance |
+| Property-related matters | Assets & Property |
+| Other domain-specific requests | Their owning module |
+
+## 16.3 What This Decision Does Not Introduce
+
+- A generic form/application engine
+- A standalone Correspondence & Applications module
+- Application workflow tables
+- A BPM/workflow automation system
+- Domain-specific request tables (these remain with their owning modules)
+
+## 16.4 Physical Design
+
+Physical table design (one table vs. two, column list, reference numbering scheme) shall be established during the Administration Correspondence Register documentation phase.
+
+## 16.5 Source Authority
+
+The original project proposal (2013-14) §1.7 identifies "Correspondence within members & Sakha Sangha & with outside agencies" as an ERP requirement. This decision addresses that requirement through Administration ownership rather than a separate module.
+
+---
+
+# 17. Relationship to Module Documentation
 
 This document provides project-wide architectural principles.
 
@@ -405,7 +452,7 @@ Where a module document conflicts with a frozen project-wide principle, the conf
 
 ---
 
-# 17. Change Control
+# 18. Change Control
 
 Changes to the principles in this document shall be made through an explicit architecture decision.
 
@@ -421,7 +468,7 @@ shall be reviewed for impact on the ownership matrix, dependency graph, DB Stand
 
 ---
 
-# 18. Status
+# 19. Status
 
 **DOCUMENT STATUS:** FROZEN — PROJECT-WIDE ARCHITECTURAL PRINCIPLES
 
