@@ -72,7 +72,7 @@ Runtime dependency describes application-level consumption.
 
 # 3. Current Module Inventory
 
-The current project contains 21 module domains:
+The current project contains 22 module domains:
 
 |  # | Module             | Status   |
 | -: | ------------------ | -------- |
@@ -97,9 +97,14 @@ The current project contains 21 module domains:
 | 19 | Sevak              | Existing |
 | 20 | UPBS               | Existing |
 | 21 | Programme & Events | Proposed |
+| 22 | Assets & Property  | Existing |
 
 **Module #21 is architecturally justified but remains pending formal
 module freeze.**
+
+**Module #22 (Assets & Property) documentation complete (SOL-AP-001
+through SOL-AP-005). 7 module-owned tables. Tier position OPEN pending
+final dependency-graph review.**
 
 ---
 
