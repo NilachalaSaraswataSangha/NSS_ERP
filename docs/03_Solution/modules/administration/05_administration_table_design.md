@@ -50,6 +50,25 @@ Authentication dependency:
 
 The source identifies all seven tables in the centralized Security foundation.
 
+## Table Ownership Declaration (Frozen 2026-08-26)
+
+**Administration OWNS (DDL authority):**
+
+    role_master
+    permission_master
+    role_permission
+    user_role
+    admin_scope
+
+**Authentication & Security OWNS (DDL authority):**
+
+    user_account
+    password_history
+
+Both modules may **reference** the other's tables via foreign keys, but
+**ownership is exclusive** — only the owning module may alter the table's
+DDL definition, add columns, or change constraints.
+
 ---
 
 # 3. Database Naming Standard
