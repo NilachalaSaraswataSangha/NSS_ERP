@@ -352,7 +352,31 @@ WHERE CAN YOU DO IT?
 Administration therefore consumes Authentication identity.
 
 Event authorization uses the existing Administration/RBAC framework and
-does not create an independent permission architecture. 
+does not create an independent permission architecture.
+
+## 12.1 Correspondence Register Capability
+
+Administration also owns the Correspondence Register (CORR-DECISION-003),
+which introduces three additional tables:
+
+```text
+correspondence
+correspondence_document
+correspondence_finance_reference
+```
+
+This capability adds the following dependencies to Administration:
+
+* Person (FK: sender, recipient, responsible person)
+* Organization (FK: sender, recipient, responsible organization)
+* Foundation.master_data (FK: medium, status)
+* Foundation.document_master (FK: via correspondence_document)
+* Foundation.id_sequence_master (application/service — no FK)
+* Finance.financial_transaction (optional FK via correspondence_finance_reference — deferred)
+
+The Correspondence Register is a reusable platform capability (CORR-ARCH-002).
+Any module may use it to associate official communications with its business
+records without transferring ownership to Administration. 
 
 ---
 
@@ -1302,7 +1326,7 @@ for DDL purposes.
 | Family             |          ✓ |      ✓ |              |          ✓ |            |            |         |        |
 | Membership         |          ✓ |      ✓ |            ✓ |          — |            |            |         |        |
 | Authentication     |          ✓ |      ✓ |              |          ✓ |          — |            |         |        |
-| Administration     |          ✓ |        |            ✓ |            |          ✓ |            |         |        |
+| Administration     |          ✓ |      ✓ |            ✓ |            |          ✓ |            |      ✓* |        |
 | Audit              |          ✓ |        |              |            |          ✓ |            |         |        |
 | Attendance         |          ✓ |      ✓ |            ✓ |          ✓ |          ✓ |          — |         |      ✓ |
 | Governance         |          ✓ |      ✓ |            ✓ |            |          ✓ |            |         |        |
@@ -1364,6 +1388,18 @@ Attendance
 Organization
    ↑
 Attendance
+
+Person
+   ↑
+Administration (Correspondence Register)
+
+Organization
+   ↑
+Administration (Correspondence Register)
+
+Foundation.document_master
+   ↑
+Administration (Correspondence Register)
 ```
 
 These align with the existing database standards. 

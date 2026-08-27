@@ -386,6 +386,8 @@ The same one-owner-per-table principle applies to future modules.
 | Exact Migration physical tables | OPEN — DDL/design phase |
 | Exact cross-module FK creation order | OPEN — dependency/DDL phase |
 | Correspondence register owned by Administration (CORR-DECISION-003) | FROZEN |
+| Correspondence financial traceability via M:N junction (CORR-ARCH-001) | FROZEN |
+| Correspondence is a reusable cross-module platform capability (CORR-ARCH-002) | FROZEN |
 
 ---
 
@@ -432,6 +434,14 @@ Physical table design (one table vs. two, column list, reference numbering schem
 ## 16.5 Source Authority
 
 The original project proposal (2013-14) §1.7 identifies "Correspondence within members & Sakha Sangha & with outside agencies" as an ERP requirement. This decision addresses that requirement through Administration ownership rather than a separate module.
+
+## 16.6 CORR-ARCH-001 — Financial Traceability
+
+Where a correspondence results in, refers to, or requires a financial transaction, the correspondence record shall be capable of referencing the corresponding Finance transaction. This is not limited to payments — any Finance transaction (donation, purchase, tax, refund, salary, bank, adjustment) may have related correspondence. Correspondence shall not create, own, or duplicate financial transaction data. Finance remains the authoritative owner of the financial transaction.
+
+## 16.7 CORR-ARCH-002 — Cross-Module Record Traceability (Reusable Platform Capability)
+
+Correspondence is a reusable cross-module capability. Administration owns the Correspondence Register, but any module may use it to record, associate, and trace official communications related to that module's business records. The consuming module remains the owner of its business process and records. A module may associate its forms, applications, requests, transactions, or other business records with correspondence without transferring ownership of those records to Administration.
 
 ---
 

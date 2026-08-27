@@ -59,6 +59,9 @@ The source identifies all seven tables in the centralized Security foundation.
     role_permission
     user_role
     admin_scope
+    correspondence
+    correspondence_document
+    correspondence_finance_reference
 
 **Authentication & Security OWNS (DDL authority):**
 
@@ -1092,7 +1095,17 @@ user_role
 admin_scope
 ```
 
-for a total of seven tables.
+for a total of seven tables in the centralized Security foundation
+(five Administration-owned, two Authentication-owned).
+
+The Correspondence Register capability adds three further Administration-owned
+tables (defined in SOL-ADMIN-009):
+
+    correspondence
+    correspondence_document
+    correspondence_finance_reference
+
+bringing the Administration-owned total to eight tables.
 
 The project database standards establish the technical PK naming convention,
 FK-to-PK convention, and standard audit metadata fields.
