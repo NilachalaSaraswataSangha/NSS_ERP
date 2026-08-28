@@ -239,7 +239,7 @@ Example: `EKM/OUT/2027-28/001` for Ekamra Sangha outward #1.
 
 ### Dependencies
 
-- 3/4-letter organization code convention must freeze before
+- 3–5 letter organization code convention must freeze before
   implementing reference numbering (Organization DDL phase)
 - `id_sequence_master` usage becomes per-organization rather than global
 - Compatible with existing frozen schema (additive extension)

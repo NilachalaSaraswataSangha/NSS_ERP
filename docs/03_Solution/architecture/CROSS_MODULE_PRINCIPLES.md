@@ -388,6 +388,9 @@ The same one-owner-per-table principle applies to future modules.
 | Correspondence register owned by Administration (CORR-DECISION-003) | FROZEN |
 | Correspondence financial traceability via M:N junction (CORR-ARCH-001) | FROZEN |
 | Correspondence is a reusable cross-module platform capability (CORR-ARCH-002) | FROZEN |
+| Organization short code (3–5 letter, UNIQUE) for Sakha-level identity/correspondence (ORG-PENDING-001) | PENDING — DDL phase |
+| Local Sakha number format + lifecycle (MEM-PENDING-001) | PENDING — DDL phase |
+| Visitor vs. Approved Darshak threshold (ATT-PENDING-001) | PENDING — DDL phase |
 
 ---
 
@@ -482,6 +485,121 @@ shall be reviewed for impact on the ownership matrix, dependency graph, DB Stand
 
 **DOCUMENT STATUS:** FROZEN — PROJECT-WIDE ARCHITECTURAL PRINCIPLES
 
-**VERSION:** 1.0.0
+**VERSION:** 1.1.0
 
 **Note:** Physical implementation details remain subject to the DB Standards, final dependency graph, module table designs, and DDL phase.
+
+---
+
+# 20. Pending Design Notes — DDL Phase
+
+The following design decisions are confirmed directionally but require
+physical schema resolution during the DDL phase. They do not change
+module ownership or introduce new dependencies.
+
+## 20.1 Organization Short Code (ORG-PENDING-001)
+
+**Affects:** Organization, Membership, Administration (Correspondence)
+
+Every organization (primarily Sakhas) shall have a short alphabetic
+code derived from its name:
+
+```text
+Column:   organization_short_code
+Type:     VARCHAR(5), UNIQUE, NOT NULL
+Default:  3 letters; 4 or 5 letters only when shorter code collides
+Examples: EKM (Ekamra), BHB (Bhubaneshwar), KEN (Kendra)
+```
+
+This code is reused as:
+
+1. Prefix in `local_sakha_number` (member identity within Sakha)
+2. Prefix in correspondence reference (`EKM/OUT/2027-28/001`)
+
+The existing `organization_id` format (`SAK0001`, `ANC0001`) remains
+unchanged — it is the system-generated permanent business identifier.
+`organization_short_code` is a separate human-assigned attribute.
+
+**Dependency:** Must freeze before CORR-EXT-001 implementation.
+
+## 20.2 Local Sakha Number Format and Lifecycle (MEM-PENDING-001)
+
+**Affects:** Membership, Organization
+
+### Format
+
+```text
+<organization_short_code> + <8-digit sequence>
+Example: EKM00000001
+```
+
+### Lifecycle
+
+```text
+Member joins Sakha A     → EKM00000001 (ACTIVE)
+Transfer to Sakha B      → EKM00000001 (INACTIVE), BHB00000042 (ACTIVE)
+Returns to Sakha A       → EKM00000001 (REACTIVATED), BHB00000042 (INACTIVE)
+```
+
+### Issuance Rules
+
+| Scenario | Local number issued? |
+|----------|:---:|
+| Home Sakha member | Yes |
+| Approved Darshak (with approval) | Yes (by visited Sakha) |
+| Visitor (≤4 consecutive Sundays, no approval) | No |
+
+### Key Properties
+
+- Assigned by the Sakha (not centrally)
+- Not a global identifier
+- Linked to `sangha_sevi_id` (which is permanent and global)
+- A member may hold multiple ACTIVE local numbers simultaneously
+  (home Sakha + approved Darshak Sakha(s))
+- Parichaya Patra remains at home Sakha for Darshak scenario
+
+**Dependency:** Requires ORG-PENDING-001 (organization_short_code).
+
+## 20.3 Visitor vs. Approved Darshak Threshold (ATT-PENDING-001)
+
+**Affects:** Attendance, Membership
+
+### Visitor (no approval)
+
+```text
+- Attends other Sakha for ≤4 consecutive Sundays
+- No local Sakha number issued
+- Attendance recorded against sangha_sevi_id
+- Portal displays as "Visitor" in that Sakha
+```
+
+### Approved Darshak (with approval)
+
+```text
+- Approval required from visited Sakha
+- Local Sakha number issued
+- Full local number lifecycle applies
+- Parichaya Patra stays at home Sakha
+```
+
+### Threshold Rule
+
+After 4 consecutive Sunday attendances at another Sakha without
+approval, the system shall enforce either:
+
+- Cessation of visitor attendance at that Sakha, OR
+- Initiation of Darshak approval workflow
+
+**Note:** The "4 consecutive" threshold is a business rule. The exact
+enforcement mechanism (system-blocked vs. notification-driven) is a
+DDL/application-phase decision.
+
+---
+
+# 21. Pending Design Notes — Status
+
+| ID | Title | Modules Affected | Blocking? |
+|----|-------|-----------------|:---------:|
+| ORG-PENDING-001 | Organization Short Code | Org, Mem, Admin | Blocks CORR-EXT-001 |
+| MEM-PENDING-001 | Local Sakha Number Format + Lifecycle | Mem, Org | Blocks Membership DDL |
+| ATT-PENDING-001 | Visitor vs. Approved Darshak Threshold | Att, Mem | No (Attendance DDL can proceed without) |
