@@ -759,14 +759,19 @@ The Organization Module does not own duplicate geographic master tables.
 
 ---
 
-# 48. Administrative vs Physical Location
+# 48. Administrative vs Physical Location (FROZEN)
 
-The project source distinguishes:
+The frozen organization type list (8 types, decided 2026-08-28):
 
 ```text
-ANCHALIKA = Administrative Unit
-ZILLA     = Administrative Unit
-SAKHA     = Physical Sangha Location
+KENDRA          = Central Body (unique)
+NILACHALA_KUTIRA = Spiritual Residence (unique)
+SMRUTI_MANDIRA  = Memorial Temple (unique)
+ANCHALIKA       = Administrative Unit (multiple)
+ZILLA           = Administrative Unit (multiple)
+SAKHA           = Physical Sangha Location (multiple)
+SAKHA_ASANA     = Approved Sakha, no own building (multiple)
+PATHA_CHAKRA    = Study Circle (multiple)
 ```
 
 Therefore physical-address requirements shall not automatically be imposed

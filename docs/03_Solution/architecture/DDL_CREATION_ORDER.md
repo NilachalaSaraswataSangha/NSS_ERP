@@ -1,9 +1,10 @@
 # NSS ERP — DDL Creation Order
 
 **Document ID:** SOL-ARCH-010
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Status:** FROZEN
 **Date:** 2026-08-28
+**Amendment:** 2026-08-28 — PIN Code Geographic Model (§12 added)
 **Parent Documents:**
 - SOL-ARCH-009 — Physical FK Dependency Graph
 - SOL-ARCH-008 — Implementation Dependency Order
@@ -379,13 +380,73 @@ principle; the standard establishes the exact format.
 - Does not generate actual PostgreSQL DDL syntax
 - Does not define column types, constraints, or indexes
 - Does not create seed-data catalogues beyond what is already frozen
-- Does not introduce new tables or new FK relationships
 - Does not override module table-design documents
 - Does not make P&E candidate tables executable
 
 ---
 
-# 11. Status
+# 11. Amendment — PIN Code Geographic Model (2026-08-28)
+
+## 11.1 Decision
+
+The Foundation geographic reference hierarchy is extended to include
+PIN codes (postal codes) as a searchable geographic entity with an M:N
+relationship to `city_village`.
+
+## 11.2 Rationale
+
+PIN codes are part of the canonical searchable geographic hierarchy, not
+merely display fields. They support:
+
+- Hierarchical location search
+- Address validation and autocomplete
+- Map visualization ("find nearby Sanghas")
+- Consistent location model across Organization and Person
+
+## 11.3 Tables Added
+
+| Table | Depth | FK Dependencies | Module |
+|-------|------:|-----------------|--------|
+| `postal_code` | 1 | `country` | Foundation |
+| `city_village_postal_code_map` | 4 | `city_village`, `postal_code` | Foundation |
+
+## 11.4 Updated Sequence
+
+```text
+87. postal_code                   Foundation        ← country
+88. city_village_postal_code_map  Foundation        ← city_village, postal_code
+```
+
+`postal_code` is Depth 1 (depends only on `country`, Depth 0).
+`city_village_postal_code_map` is Depth 4 (depends on `city_village` at
+Depth 3 and `postal_code` at Depth 1).
+
+## 11.5 Impact on Global Inventory
+
+- Frozen executable tables: 86 → **88**
+- Foundation tables: 10 → **12**
+- Creation depths: unchanged (still Depth 0 through Depth 7)
+- Cycle-free: YES (no new cycles — both tables are leaf additions)
+- Candidate tables: unchanged (7, Programme & Events)
+
+## 11.6 Organization Dependency (noted, not owned by this document)
+
+`organization` will reference:
+
+```text
+city_village_pk    → city_village (Foundation)
+postal_code        → VARCHAR (denormalized for display/search)
+latitude           → DECIMAL (exact physical location)
+longitude          → DECIMAL (exact physical location)
+```
+
+Latitude/longitude describe the physical location of a specific
+organization, not a geographic reference entity. They remain on
+`organization`, not on Foundation tables.
+
+---
+
+# 12. Status
 
 ```text
 DOCUMENT STATUS:
@@ -395,13 +456,16 @@ DOCUMENT ID:
 SOL-ARCH-010
 
 VERSION:
-1.0.0
+1.1.0
 
 DATE:
 2026-08-28
 
+AMENDMENT:
+PIN Code Geographic Model (2026-08-28)
+
 FROZEN TABLES IN SEQUENCE:
-86
+88
 
 CREATION DEPTHS:
 8 (Depth 0 through Depth 7)
@@ -413,7 +477,7 @@ CANDIDATE (NOT EXECUTABLE):
 7 (Programme & Events)
 
 CYCLE-FREE:
-YES — machine-verified (SOL-ARCH-009 §9.1)
+YES — machine-verified (SOL-ARCH-009 §9.1) + amendment adds no cycles
 
 AUTHORITY:
 This is the DDL creation-order authority for the NSS ERP.
