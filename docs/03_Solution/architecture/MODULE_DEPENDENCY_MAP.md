@@ -1586,7 +1586,7 @@ The next action should **not** be creating Programme & Event tables.
 The next action should be:
 
 ```text
-Review the 21-module dependency map
+Review the 22-module dependency map
         ↓
 Resolve any dependency-order conflicts
         ↓
