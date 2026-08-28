@@ -526,12 +526,31 @@ unchanged — it is the system-generated permanent business identifier.
 
 **Affects:** Membership, Organization
 
-### Format
+### Proposed Format (not frozen)
 
 ```text
 <organization_short_code> + <8-digit sequence>
 Example: EKM00000001
 ```
+
+This is a proposed format. The exact format remains unfrozen until the
+DDL-phase decision.
+
+### Identity Model
+
+The local Sakha number belongs to a **Sakha affiliation**, not directly
+to the member. This three-level chain is architecturally significant
+because the same person may have simultaneous affiliations:
+
+```text
+Sangha Sevi (permanent global identity)
+   └── Sakha Affiliation (home, approved Darshak, etc.)
+         └── Local Sakha Number (issued by that Sakha)
+```
+
+This means the eventual model likely requires a dedicated
+membership/Sakha-affiliation entity rather than inline VARCHAR fields
+in `membership_transfer_history`.
 
 ### Lifecycle
 
@@ -558,11 +577,29 @@ Returns to Sakha A       → EKM00000001 (REACTIVATED), BHB00000042 (INACTIVE)
   (home Sakha + approved Darshak Sakha(s))
 - Parichaya Patra remains at home Sakha for Darshak scenario
 
+### DDL-Phase Resolution Required
+
+The existing `membership_transfer_history` table stores
+`old_local_sakha_number` / `new_local_sakha_number` as simple VARCHAR
+fields. This design cannot support:
+
+- Reactivation on return (number has no status)
+- Multiple simultaneous active numbers (transfer log is event-based)
+- Darshak-issued numbers (no transfer involved)
+
+The exact physical model (dedicated table vs. expanded structure)
+remains unfrozen until the Membership DDL phase.
+
 **Dependency:** Requires ORG-PENDING-001 (organization_short_code).
 
 ## 20.3 Visitor vs. Approved Darshak Threshold (ATT-PENDING-001)
 
 **Affects:** Attendance, Membership
+
+**Classification:** ERP operational refinement — not source-derived.
+The existing DARSHAK_BUSINESS_RULE.md uses "Darshak" as the umbrella
+term. Introducing "Visitor" and "Approved Darshak" as sub-categories
+is a project design decision, not a Bye-Law distinction.
 
 ### Visitor (no approval)
 
@@ -590,9 +627,18 @@ approval, the system shall enforce either:
 - Cessation of visitor attendance at that Sakha, OR
 - Initiation of Darshak approval workflow
 
-**Note:** The "4 consecutive" threshold is a business rule. The exact
-enforcement mechanism (system-blocked vs. notification-driven) is a
-DDL/application-phase decision.
+### Implementation Constraints
+
+- The "4 consecutive" threshold is a business rule. The exact
+  enforcement mechanism (system-blocked vs. notification-driven) is a
+  DDL/application-phase decision.
+- The threshold is **derivable** from existing attendance records
+  (`sangha_sevi_pk` + `attendance_sakha_pk` + consecutive puja dates).
+  No dedicated counter column should be added to the attendance schema
+  unless DDL analysis proves derivation is insufficient.
+- DARSHAK_BUSINESS_RULE.md will need updating to distinguish Visitor
+  vs. Approved Darshak — but that update belongs to the DDL phase,
+  not this document.
 
 ---
 
