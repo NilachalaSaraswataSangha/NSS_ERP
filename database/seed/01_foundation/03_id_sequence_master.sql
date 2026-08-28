@@ -21,7 +21,7 @@ VALUES
     'Person Code',
     'P',
     0,
-    8
+    10
 ),
 (
     'SANGHA_SEVI',
