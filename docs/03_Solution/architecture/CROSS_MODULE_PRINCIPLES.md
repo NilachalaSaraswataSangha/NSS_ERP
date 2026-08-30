@@ -388,7 +388,7 @@ The same one-owner-per-table principle applies to future modules.
 | Correspondence register owned by Administration (CORR-DECISION-003) | FROZEN |
 | Correspondence financial traceability via M:N junction (CORR-ARCH-001) | FROZEN |
 | Correspondence is a reusable cross-module platform capability (CORR-ARCH-002) | FROZEN |
-| Organization short code (3–5 letter, UNIQUE) for Sakha-level identity/correspondence (ORG-PENDING-001) | PENDING — DDL phase |
+| Organization short code (3–5 letter, UNIQUE) for Sakha-level identity/correspondence (ORG-PENDING-001) | FROZEN (2026-08-30) |
 | Local Sakha number format + lifecycle (MEM-PENDING-001) | PENDING — DDL phase |
 | Visitor vs. Approved Darshak threshold (ATT-PENDING-001) | PENDING — DDL phase |
 
@@ -497,9 +497,11 @@ The following design decisions are confirmed directionally but require
 physical schema resolution during the DDL phase. They do not change
 module ownership or introduce new dependencies.
 
-## 20.1 Organization Short Code (ORG-PENDING-001)
+## 20.1 Organization Short Code (ORG-PENDING-001) — FROZEN 2026-08-30
 
 **Affects:** Organization, Membership, Administration (Correspondence)
+
+**Status:** FROZEN
 
 Every organization (primarily Sakhas) shall have a short alphabetic
 code derived from its name:
@@ -516,11 +518,11 @@ This code is reused as:
 1. Prefix in `local_sakha_number` (member identity within Sakha)
 2. Prefix in correspondence reference (`EKM/OUT/2027-28/001`)
 
-The existing `organization_id` format (`SAK0001`, `ANC0001`) remains
+The existing `organization_id` format (`SKH00000001`, `ANC00000001`) remains
 unchanged — it is the system-generated permanent business identifier.
 `organization_short_code` is a separate human-assigned attribute.
 
-**Dependency:** Must freeze before CORR-EXT-001 implementation.
+**Dependency:** CORR-EXT-001 is now unblocked.
 
 ## 20.2 Local Sakha Number Format and Lifecycle (MEM-PENDING-001)
 
@@ -646,6 +648,6 @@ approval, the system shall enforce either:
 
 | ID | Title | Modules Affected | Blocking? |
 |----|-------|-----------------|:---------:|
-| ORG-PENDING-001 | Organization Short Code | Org, Mem, Admin | Blocks CORR-EXT-001 |
+| ORG-PENDING-001 | Organization Short Code | Org, Mem, Admin | FROZEN (2026-08-30) — CORR-EXT-001 unblocked |
 | MEM-PENDING-001 | Local Sakha Number Format + Lifecycle | Mem, Org | Blocks Membership DDL |
 | ATT-PENDING-001 | Visitor vs. Approved Darshak Threshold | Att, Mem | No (Attendance DDL can proceed without) |

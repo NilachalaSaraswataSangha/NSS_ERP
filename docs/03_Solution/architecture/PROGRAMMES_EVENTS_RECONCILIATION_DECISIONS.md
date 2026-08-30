@@ -225,23 +225,45 @@ All remain CANDIDATE until the physical DDL phase.
 
 # 9. Correspondence Extension — CORR-EXT-001
 
-**Status:** Design extension — DDL-phase consideration
+**Status:** FROZEN (2026-08-30) — ORG-PENDING-001 resolved
 
-The existing correspondence reference format (`NSS/IN/YYYY-YY/NNN`)
-supports Kendra-level correspondence. Sakha-level correspondence
-requires an organization-level prefix:
+The correspondence reference format is organization-scoped. Each
+organization (Kendra, Sakha, Anchalika, etc.) maintains its own
+inward and outward correspondence registers with independent
+numbering sequences per financial year.
 
 ```text
-<ORG-CODE>/<DIR>/YYYY-YY/NNN
+<ORG_SHORT_CODE>/<DIR>/YYYY-YY/NNN
 ```
 
-Example: `EKM/OUT/2027-28/001` for Ekamra Sangha outward #1.
+Examples:
 
-### Dependencies
+```text
+EKM/IN/2026-27/001    — Ekamra Sangha inward #1
+EKM/OUT/2026-27/001   — Ekamra Sangha outward #1
+KEN/IN/2026-27/001    — Kendra inward #1
+KEN/OUT/2026-27/042   — Kendra outward #42
+BHB/IN/2026-27/003    — Bhubaneshwar Sangha inward #3
+```
 
-- 3–5 letter organization code convention must freeze before
-  implementing reference numbering (Organization DDL phase)
-- `id_sequence_master` usage becomes per-organization rather than global
+### Key Principles
+
+- Inward and outward maintain **separate numbering sequences**
+- Sequences are **per-organization, per-direction, per-financial-year**
+- The reference identifies the **organization that owns the
+  correspondence register** (not the sender or recipient)
+- Works at **all organization levels**: Kendra, Anchalika, Zilla, Sakha
+- The `<ORG_SHORT_CODE>` is the `organization_short_code` column
+  (VARCHAR(5), UNIQUE) frozen in ORG-PENDING-001
+- `id_sequence_master` usage becomes **per-organization** rather than
+  global — each organization has its own inward and outward counters
+- The exact textual format (`EKM/IN/2026-27/001` vs `EKMIN2026001`
+  or other) is deferred to the application/DDL phase; the
+  **organization-level prefix principle** is frozen
+
+### Dependencies — Resolved
+
+- `organization_short_code` (ORG-PENDING-001): **FROZEN** (2026-08-30)
 - Compatible with existing frozen schema (additive extension)
 
 ### Not a new gate or module

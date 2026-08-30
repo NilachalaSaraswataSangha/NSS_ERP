@@ -38,10 +38,22 @@ Each rule is tagged with its classification.
 
 | Direction | Format | Example |
 |-----------|--------|---------|
-| INWARD | NSS/IN/YYYY-YY/NNN | NSS/IN/2026-27/001 |
-| OUTWARD | NSS/OUT/YYYY-YY/NNN | NSS/OUT/2026-27/001 |
+| INWARD | `<ORG_SHORT_CODE>/IN/YYYY-YY/NNN` | EKM/IN/2026-27/001 |
+| OUTWARD | `<ORG_SHORT_CODE>/OUT/YYYY-YY/NNN` | EKM/OUT/2026-27/001 |
 
-**Classification:** ERP-FROZEN
+Where `<ORG_SHORT_CODE>` is the `organization_short_code` (VARCHAR(5),
+UNIQUE) of the organization that owns the correspondence register.
+
+Additional examples:
+
+```text
+KEN/IN/2026-27/001     — Kendra inward #1
+KEN/OUT/2026-27/042    — Kendra outward #42
+BHB/IN/2026-27/003     — Bhubaneshwar Sangha inward #3
+```
+
+**Classification:** ERP-FROZEN (amended 2026-08-30 per CORR-EXT-001;
+replaces previous `NSS/IN/YYYY-YY/NNN` format)
 
 ## 3.2 Annual Period
 
@@ -54,11 +66,14 @@ Each rule is tagged with its classification.
 ## 3.3 Sequence Allocation
 
 - INWARD and OUTWARD maintain separate sequences
-- Each direction has its own independent counter per annual period
-- Sequence is monotonically increasing within a direction and period
+- Each direction has its own independent counter per organization per annual period
+- Sequence is monotonically increasing within an organization, direction, and period
 - The system shall not intentionally skip numbers during normal registration
+- Each organization (Kendra, Sakha, Anchalika, Zilla, etc.) maintains its own
+  independent correspondence register
 
-**Classification:** ERP-FROZEN
+**Classification:** ERP-FROZEN (amended 2026-08-30 — sequences are
+per-organization, not global)
 
 ## 3.4 Immutability
 
@@ -71,6 +86,7 @@ Each rule is tagged with its classification.
 ## 3.5 Sequence Mechanism
 
 - Reference numbers are generated via Foundation id_sequence_master
+- Sequences are per-organization, per-direction, per-financial-year
 - The exact PostgreSQL sequence strategy (advisory lock, serial, application-managed) is a Table Design decision
 - Concurrency handling (simultaneous registrations) is a Table Design decision
 

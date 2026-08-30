@@ -712,14 +712,16 @@ not assume the type-hierarchy specifics are settled.
   Resolutions under an invented `docs/01_Authoritative_References/NSS/SECTION-J_RESOLUTIONS/`
   folder (no "Section J" exists in the source Bye-Law). This has been corrected — see the
   `01_Authoritative_References/NSS/` detail above.
-- **Three DDL-phase design notes are PENDING, not frozen (new 2026-08-28,
-  `CROSS_MODULE_PRINCIPLES.md` §20-21).** `ORG-PENDING-001` (organization short code format,
-  3–5 letters), `MEM-PENDING-001` (local Sakha number format + a proposed three-level Sangha
+- **Three DDL-phase design notes status (CROSS_MODULE_PRINCIPLES.md §20-21):**
+  `ORG-PENDING-001` (organization short code format, 3–5 letters) — **FROZEN 2026-08-30**.
+  `MEM-PENDING-001` (local Sakha number format + a proposed three-level Sangha
   Sevi → Sakha Affiliation → Local Number identity chain — likely needs a dedicated entity
-  rather than the current inline VARCHAR fields), and `ATT-PENDING-001` (Visitor vs. Approved
-  Darshak threshold, classified ERP-operational not source-derived). ORG-PENDING-001 blocks a
-  later `CORR-EXT-001` correspondence-numbering refinement; MEM-PENDING-001 blocks Membership
-  DDL; ATT-PENDING-001 is non-blocking.
+  rather than the current inline VARCHAR fields) — PENDING.
+  `ATT-PENDING-001` (Visitor vs. Approved Darshak threshold, classified ERP-operational
+  not source-derived) — PENDING, non-blocking.
+  `CORR-EXT-001` (organization-scoped correspondence reference numbering) — **FROZEN
+  2026-08-30**; unblocked by ORG-PENDING-001 freeze. Correspondence format changed from
+  `NSS/IN/YYYY-YY/NNN` to `<ORG_SHORT_CODE>/IN/YYYY-YY/NNN` (per-organization sequences).
 - **One Correspondence Register rule is PENDING** — `CORR-BR-018`'s `relationship_type`
   candidate values for `correspondence_finance_reference` are deferred until Finance's own
   transaction taxonomy is frozen.
