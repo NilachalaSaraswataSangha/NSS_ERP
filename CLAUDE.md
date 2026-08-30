@@ -1683,8 +1683,9 @@ remains v0.1.0 DRAFT with no table frozen DDL.
   `PROGRAMMES_EVENTS_RECONCILIATION_DECISIONS.md` (`SOL-EVT-007`) and the §7 Programmes & Events
   paragraph: all 7 gates closed, table set settled at 7, UPBS/Kishor/Sevak's own event entities
   become common-Event extensions. **Formal Module #21 freeze itself remains open** — see §10.
-- **New (2026-08-28): three DDL-phase design notes are explicitly PENDING, not frozen**
-  (`CROSS_MODULE_PRINCIPLES.md` §20-21) — `ORG-PENDING-001` (organization short code format),
+- **New (2026-08-28): two DDL-phase design notes are explicitly PENDING, not frozen**
+  (`CROSS_MODULE_PRINCIPLES.md` §20-21) — ~~`ORG-PENDING-001` (organization short code format)~~
+  **FROZEN 2026-08-30** (VARCHAR(5) UNIQUE NOT NULL, e.g. ESS/BHB/KEN);
   `MEM-PENDING-001` (local Sakha number format + a proposed three-level Sangha Sevi → Sakha
   Affiliation → Local Number identity chain), `ATT-PENDING-001` (Visitor vs. Approved Darshak
   threshold). Not contradictions, just incomplete design work explicitly deferred to the DDL
@@ -1695,12 +1696,10 @@ remains v0.1.0 DRAFT with no table frozen DDL.
 - **New (2026-08-28): one Assets & Property rule is PENDING** — `AP-066`, whether "sacred
   articles" fall under this module's Asset-custody model or Heritage's cultural-significance
   model, is unresolved. See §7 Assets & Property paragraph.
-- **New (2026-08-28): `IMPLEMENTATION_DEPENDENCY_ORDER.md`'s own closing §79 status summary
-  needs a follow-up fix.** It wasn't updated by the freeze commit (`caa26b5`) and still reads
-  DRAFT/v0.1.0/21-modules, contradicting the document's own header and §44 (both FROZEN/
-  22-modules). A self-inconsistency inside one FROZEN-tagged file, not resolved here since
-  fixing it means editing FROZEN content unilaterally.
-- **New (2026-08-28): `MODULE_DEPENDENCY_MAP.md`'s own §3 module-inventory table needs a
-  follow-up fix.** Its §61 status footer already says 22 modules (including Assets & Property),
-  but §3 itself still lists only 21 rows with no `assets_property` entry — same
-  self-inconsistency pattern as the item above, in a different (still-DRAFT, not FROZEN) file.
+- ~~New (2026-08-28): `IMPLEMENTATION_DEPENDENCY_ORDER.md`'s own closing §79 status summary
+  needs a follow-up fix.~~ — **resolved 2026-08-30**: updated §79 from DRAFT/v0.1.0/21-modules
+  to FROZEN/v1.0.0/22-modules, added Assets & Property, updated PHYSICAL DDL to reflect
+  Foundation Tier 1 completion, corrected NEXT to current state (Foundation API → UI → Tier 2).
+- ~~New (2026-08-28): `MODULE_DEPENDENCY_MAP.md`'s own §3 module-inventory table needs a
+  follow-up fix.~~ — **resolved 2026-08-30**: added row 22 (Assets & Property, Existing) to
+  §3's inventory table, matching the §61 footer's 22-module count.
