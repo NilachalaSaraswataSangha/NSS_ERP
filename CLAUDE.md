@@ -116,6 +116,16 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
 > Verified via `git status` / `git log` / `git branch` — do not trust handoff-doc claims over
 > this without re-verifying, since handoffs go stale.
 
+- **Branch/remotes (updated 2026-08-30, later same day — supersedes the bullet directly below
+  for current branch/HEAD state; that bullet's content-level findings are unaffected and still
+  live).** Committed the Foundation-Vertical-Slice reconciliation + Ekamra short-code fix as
+  `8447c46` on `feature/ref-documentation` (on top of `1d96fb1`), then fast-forward-merged
+  `feature/ref-documentation` into `develop` (clean fast-forward, `fa83e5f..8447c46`, no
+  conflicts — `develop` was already a direct ancestor of the feature branch). Active branch is
+  now `develop` at `8447c46`, working tree clean, **2 commits ahead of `personal/develop`** (not
+  pushed — `git fetch personal` failed in-sandbox with a domain-allowlist 403, consistent with
+  the push/fetch restriction noted in past sessions; push manually from a terminal if needed).
+  `feature/ref-documentation` still exists, untouched, pointing at the same `8447c46`.
 - **Branch/remotes (updated 2026-08-30 — supersedes the 2026-08-28 bullet below for current
   branch/HEAD state; that bullet's fixes are unaffected and still live).** Active branch is
   `feature/ref-documentation` at `1d96fb1`, working tree clean, in sync with
