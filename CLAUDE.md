@@ -121,11 +121,15 @@ pushing, and fast-forward-merging `feature/ref-documentation` into `develop`)
   live).** Committed the Foundation-Vertical-Slice reconciliation + Ekamra short-code fix as
   `8447c46` on `feature/ref-documentation` (on top of `1d96fb1`), then fast-forward-merged
   `feature/ref-documentation` into `develop` (clean fast-forward, `fa83e5f..8447c46`, no
-  conflicts — `develop` was already a direct ancestor of the feature branch). Active branch is
-  now `develop` at `8447c46`, working tree clean, **2 commits ahead of `personal/develop`** (not
+  conflicts — `develop` was already a direct ancestor of the feature branch), then committed a
+  small follow-up (`3f9a525`) recording that merge in this section. Active branch is
+  now `develop` at `3f9a525`, working tree clean, **3 commits ahead of `personal/develop`** (not
   pushed — `git fetch personal` failed in-sandbox with a domain-allowlist 403, consistent with
-  the push/fetch restriction noted in past sessions; push manually from a terminal if needed).
-  `feature/ref-documentation` still exists, untouched, pointing at the same `8447c46`.
+  the push/fetch restriction noted in past sessions; push manually from a terminal if needed). A
+  same-session `/document-project` re-run found no further drift — `git diff --stat 8447c46..HEAD`
+  shows only this file's own `3f9a525` commit, nothing else changed. `feature/ref-documentation`
+  still exists, untouched, pointing at `8447c46` (one commit behind `develop` now — just this
+  file's tracking commit).
 - **Branch/remotes (updated 2026-08-30 — supersedes the 2026-08-28 bullet below for current
   branch/HEAD state; that bullet's fixes are unaffected and still live).** Active branch is
   `feature/ref-documentation` at `1d96fb1`, working tree clean, in sync with
