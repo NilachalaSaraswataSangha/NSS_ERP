@@ -49,7 +49,6 @@ Additional examples:
 ```text
 KEN/IN/2026-27/001     — Kendra inward #1
 KEN/OUT/2026-27/042    — Kendra outward #42
-BHB/IN/2026-27/003     — Bhubaneshwar Sangha inward #3
 ```
 
 **Classification:** ERP-FROZEN (amended 2026-08-30 per CORR-EXT-001;

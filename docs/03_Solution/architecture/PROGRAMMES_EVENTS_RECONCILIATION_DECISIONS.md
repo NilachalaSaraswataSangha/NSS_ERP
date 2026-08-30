@@ -239,11 +239,10 @@ numbering sequences per financial year.
 Examples:
 
 ```text
-EKM/IN/2026-27/001    — Ekamra Sangha inward #1
-EKM/OUT/2026-27/001   — Ekamra Sangha outward #1
+ESS/IN/2026-27/001    — Ekamra Sangha inward #1
+ESS/OUT/2026-27/001   — Ekamra Sangha outward #1
 KEN/IN/2026-27/001    — Kendra inward #1
 KEN/OUT/2026-27/042   — Kendra outward #42
-BHB/IN/2026-27/003    — Bhubaneshwar Sangha inward #3
 ```
 
 ### Key Principles
