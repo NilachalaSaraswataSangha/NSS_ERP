@@ -4,7 +4,7 @@
 -- Seed File: 06_district.sql
 -- Version: 3.0
 -- Authority: SOL-FND-004 §15, SOL-ARCH-010 §8
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: All districts for all Indian states/UTs.
 --       Major subdivisions for other seeded countries.
 -- =====================================================

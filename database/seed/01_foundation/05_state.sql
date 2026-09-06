@@ -4,7 +4,7 @@
 -- Seed File: 05_state.sql
 -- Version: 3.0
 -- Authority: SOL-FND-004 §14, SOL-ARCH-010 §8
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: All states/provinces/territories for all
 --       seeded countries.
 -- =====================================================

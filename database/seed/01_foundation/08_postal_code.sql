@@ -4,7 +4,7 @@
 -- Seed File: 08_postal_code.sql
 -- Version: 1.0
 -- Authority: SOL-FND-004, SOL-ARCH-010 §8
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: Seed postal codes referenced by Organization
 --       seed data. This is a minimal bootstrap set —
 --       full postal code data loading is a future task.

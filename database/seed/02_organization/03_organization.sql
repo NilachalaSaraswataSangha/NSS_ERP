@@ -4,7 +4,7 @@
 -- Seed File: 03_organization.sql
 -- Version: 1.0
 -- Authority: SOL-ARCH-010 §8, SOL-ORG-005 §48
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: Seeds the three unique organizations of NSS.
 --       All three are unique entities — no organization_id
 --       (sequence-generated IDs are for multi-instance types

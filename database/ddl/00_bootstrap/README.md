@@ -33,10 +33,8 @@ frozen in `docs/03_Solution/modules/administration/06_bootstrap_rbac_table_desig
 ## Design Notes
 
 - **`role_master.scope_level`** CHECK constraint allows `KENDRA`/`ANCHALIKA`/`ZILLA`/
-  `SAKHA`/`PATHA_CHAKRA` — 5 values. SOL-BOOT-001 §4.2 and the Administration module's
-  own frozen role catalogue (`05_administration_table_design.md` §8.7) list only 4
-  scope levels and 7 roles, both omitting Patha Chakra. Not yet reconciled — see
-  `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs.
+  `SAKHA`/`PATHA_CHAKRA` — 5 values, matching the 8-role frozen catalogue
+  in SOL-ADMIN-004 §8.7 (5 organizational roles × 5 scope levels + 3 system roles).
 - **`role_permission`** has a reduced audit-column set (no `updated_at`/
   `updated_by_sangha_sevi_pk`) since mappings are never updated in place, only
   soft-deleted and recreated.

@@ -7,7 +7,7 @@
 -- Version: 1.1
 -- Authority: SOL-ARCH-010 Amendment (PIN Code Geographic
 --            Model, 2026-08-28)
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: PIN codes are country-scoped with an explicit
 --       state association. One PIN code can serve
 --       multiple city/villages (M:N via map table).

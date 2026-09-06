@@ -2,14 +2,14 @@
 
 Hand-written PostgreSQL DDL and seed data — the schema authority for the NSS ERP.
 
-**DDL Execution Authority:** PostgreSQL role `nss_admin`
-**Runtime Read/Write:** PostgreSQL role `app_backend`
+**DDL Execution Authority:** PostgreSQL role `nss_db_owner`
+**Runtime Read/Write:** PostgreSQL role `nss_db_backend`
 **Architecture Authority:** SOL-ARCH-010 (DDL Creation Order),
 SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 
-> **Note:** PostgreSQL `nss_admin` is the *database-level* role that owns
+> **Note:** PostgreSQL `nss_db_owner` is the *database-level* role that owns
 > tables and executes DDL/seed scripts. It is **not** the ERP application
-> role `NSS_ADMIN` (which is an RBAC role defined in `role_master` and
+> role `NSS_ERP_ADMIN` (which is an RBAC role defined in `role_master` and
 > enforced by the application layer). See SOL-ARCH-011 §7.2 for the
 > full identity distinction.
 
@@ -20,7 +20,7 @@ SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 ### Full Build (from scratch)
 
 The build follows the bootstrap sequence defined in SOL-ARCH-011.
-Prerequisites (superuser) must complete before the nss_admin phases.
+Prerequisites (superuser) must complete before the nss_db_owner phases.
 
 ```bash
 # ─────────────────────────────────────────────────
@@ -35,39 +35,39 @@ psql -U postgres -d nss_erp  -f database/scripts/01_extensions.sql
 #          Authority: SOL-ARCH-011 §4
 # ─────────────────────────────────────────────────
 for f in database/ddl/00_bootstrap/0*.sql; do
-    psql -U nss_admin -d nss_erp -f "$f"
+    psql -U nss_db_owner -d nss_erp -f "$f"
 done
 
 for f in database/seed/00_bootstrap/0*.sql; do
-    psql -U nss_admin -d nss_erp -f "$f"
+    psql -U nss_db_owner -d nss_erp -f "$f"
 done
 
 # ─────────────────────────────────────────────────
 # Phase 1: Foundation DDL (12 tables, Depths 0–4)
 # ─────────────────────────────────────────────────
 for f in database/ddl/01_foundation/0[2-9]*.sql database/ddl/01_foundation/1*.sql; do
-    psql -U nss_admin -d nss_erp -f "$f"
+    psql -U nss_db_owner -d nss_erp -f "$f"
 done
 
 # ─────────────────────────────────────────────────
 # Phase 2: Foundation Seed Data
 # ─────────────────────────────────────────────────
 for f in database/seed/01_foundation/0*.sql; do
-    psql -U nss_admin -d nss_erp -f "$f"
+    psql -U nss_db_owner -d nss_erp -f "$f"
 done
 
 # ─────────────────────────────────────────────────
 # Phase 3: Organization DDL (3 tables, Depths 0–3)
 # ─────────────────────────────────────────────────
 for f in database/ddl/02_organization/0*.sql; do
-    psql -U nss_admin -d nss_erp -f "$f"
+    psql -U nss_db_owner -d nss_erp -f "$f"
 done
 
 # ─────────────────────────────────────────────────
 # Phase 4: Organization Seed Data
 # ─────────────────────────────────────────────────
 for f in database/seed/02_organization/0*.sql; do
-    psql -U nss_admin -d nss_erp -f "$f"
+    psql -U nss_db_owner -d nss_erp -f "$f"
 done
 
 # ─────────────────────────────────────────────────
@@ -188,7 +188,7 @@ repository root. Each accepts optional positional parameters:
 
 ```
 DB_NAME  (default: nss_erp)
-DB_USER  (default: nss_admin)
+DB_USER  (default: nss_db_owner)
 DB_HOST  (default: localhost)
 DB_PORT  (default: 5432)
 ```
@@ -197,8 +197,8 @@ DB_PORT  (default: 5432)
 
 Run **once** by a PostgreSQL **superuser** (e.g. `postgres`) against
 the `postgres` database. Installs `dblink` (for idempotent database
-creation), creates the `nss_admin` and `app_backend` roles, creates
-the `nss_erp` database, and grants CONNECT to `app_backend`.
+creation), creates the `nss_db_owner` and `nss_db_backend` roles, creates
+the `nss_erp` database, and grants CONNECT to `nss_db_backend`.
 
 Fully idempotent — safe to re-run.
 
@@ -208,8 +208,8 @@ psql -U postgres -d postgres -f database/scripts/00_create_database.sql
 
 **Important:** This creates PostgreSQL-level roles only (`NOLOGIN` —
 grant LOGIN per environment via `ALTER ROLE`). The ERP application
-role `NSS_ADMIN` is a row in `role_master` (Phase 0 seed) and is a
-separate security boundary (SOL-ARCH-011 §7.2). `nss_admin` is
+role `NSS_ERP_ADMIN` is a row in `role_master` (Phase 0 seed) and is a
+separate security boundary (SOL-ARCH-011 §7.2). `nss_db_owner` is
 intentionally not a SUPERUSER.
 
 No credentials are stored in this file. Set passwords externally via
@@ -235,7 +235,7 @@ psql -U postgres -d nss_erp -f database/scripts/01_extensions.sql
 ### 02_build.sh — Full Schema Build
 
 Executes all DDL and seed scripts for currently implemented modules
-in SOL-ARCH-011 phase order. Runs as `nss_admin`.
+in SOL-ARCH-011 phase order. Runs as `nss_db_owner`.
 
 ```bash
 ./database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]

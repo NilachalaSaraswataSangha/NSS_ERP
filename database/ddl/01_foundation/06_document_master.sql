@@ -8,7 +8,7 @@
 -- Sequence: #5 of 87
 -- Version: 1.1
 -- Authority: SOL-ARCH-010, SOL-FND-004 §41, DOC-ARCH-001
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: Logical design from Person module (§54);
 --       physical DDL owned by Foundation.
 --       person_pk and uploaded_by_sangha_sevi_pk are

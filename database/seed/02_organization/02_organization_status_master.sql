@@ -4,7 +4,7 @@
 -- Seed File: 02_organization_status_master.sql
 -- Version: 1.0
 -- Authority: SOL-ORG-005 §15–§16, SOL-ORG-003
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: 6 lifecycle statuses per GOV-002
 -- =====================================================
 

@@ -40,10 +40,15 @@ phase-by-phase execution table):
 end-to-end against a running Postgres instance (Bootstrap RBAC, Foundation, Organization — not
 Person, which is superseded); `database/scripts/03_validate.sh` (same args) then checks row
 counts and FK integrity across those same modules. `database/scripts/00_create_database.sql` is
-a one-time superuser script that creates the `nss_erp` database and the `nss_admin`/`app_backend`
-roles; `database/scripts/01_extensions.sql` installs pgcrypto/pg_trgm/btree_gin in nss_erp
+a one-time superuser script that creates the `nss_erp` database and the `nss_db_owner`/`nss_db_backend`
+roles; `database/scripts/01_extensions.sql` installs pgcrypto/pg_trgm/btree_gin/postgis in nss_erp
 (also superuser). The old repo-root `validate_foundation.sh` (Foundation-only) has been replaced
 by these.
+
+**Role naming convention:** `nss_db_*` = PostgreSQL infrastructure roles (lowercase);
+`NSS_ERP_*` = application RBAC roles in `role_master` (uppercase). PostgreSQL `nss_db_owner`
+owns the database/schema; ERP `NSS_ERP_ADMIN` is an application permission role assigned to
+real users. These are separate security boundaries.
 
 ## Running the Django app
 

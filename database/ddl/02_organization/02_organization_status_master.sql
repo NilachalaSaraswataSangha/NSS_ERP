@@ -7,7 +7,7 @@
 -- Sequence: #8 of 87
 -- Version: 1.0
 -- Authority: SOL-ARCH-010, SOL-ORG-005 §13–§18
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
 CREATE TABLE nss.organization_status_master

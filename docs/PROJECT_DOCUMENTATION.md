@@ -111,9 +111,9 @@ completion but hasn't been updated for Tier 2.
 **`BOOTSTRAP_ARCHITECTURE.md`** (`SOL-ARCH-011`, FROZEN) defines a "Phase 0" that sits *before*
 Tier 1: `role_master`/`permission_master`/`role_permission` have zero FK dependencies, so they
 are created and seeded before Foundation — resolving the same audit-actor circular dependency
-via the same two-pass strategy. It establishes `nss_admin` (PostgreSQL login, DDL-only) as
-distinct from `NSS_ADMIN` (an ERP RBAC role, a `role_master` row) — the two are explicitly not
-equivalent, and `NSS_ADMIN` never bypasses RBAC checks. DDL for all 3 tables exists under
+via the same two-pass strategy. It establishes `nss_db_owner` (PostgreSQL DDL owner) as
+distinct from `NSS_ERP_ADMIN` (an ERP RBAC role, a `role_master` row) — the two are explicitly not
+equivalent, and `NSS_ERP_ADMIN` never bypasses RBAC checks. DDL for all 3 tables exists under
 `database/ddl/00_bootstrap/` and is **implemented and committed** (`feat(bootstrap): Phase 0
 Bootstrap RBAC DDL and seed data`); seed data is partial (`role_master`: 8 roles;
 `permission_master`/`role_permission`: empty, pending the permission catalogue). Ownership of
@@ -177,11 +177,30 @@ Integration test → freeze tier → next tier
 
 ### Key architectural facts per tier
 
-**Tier 0 (Bootstrap):** PostgreSQL `nss_admin` role (database-level DDL owner) is distinct
-from ERP `NSS_ADMIN` role (application RBAC row in `role_master`). Bootstrap RBAC tables
+**Tier 0 (Bootstrap):** PostgreSQL `nss_db_owner` role (database-level DDL owner) is distinct
+from ERP `NSS_ERP_ADMIN` role (application RBAC row in `role_master`). Bootstrap RBAC tables
 (`role_master`, `permission_master`, `role_permission`) are owned by the Administration
 module — "Bootstrap" is a DDL-sequencing label, not a new module. Permission catalogue is
 not yet frozen.
+
+**Tier 0 — RBAC role model (frozen):** The 8 frozen ERP roles (3 SYSTEM + 5 ORGANIZATIONAL)
+are **parallel entries in `role_master`** — there is no role hierarchy or inheritance. A user
+may hold **multiple roles simultaneously** (`user_role` is a junction table, 1:N from
+`user_account`, N:1 to `role_master`). Scope attaches to the **role assignment** (via
+`admin_scope`), not to the person globally — the same person can therefore hold different
+roles with different organizational scopes. Governance position (President, Secretary, etc.)
+is never used as a permission mechanism; role assignment is explicit and independent.
+`NSS_ERP_ADMIN` and `NSS_ERP_KENDRA_ADMIN` initially share the same permission set — the
+distinction is scope (`SYSTEM` vs `KENDRA`), not permissions. The Administration UI may present
+a **composite administrative view** joining member identity, governance, roles, scope, and
+organization — this is a read-model / presentation concern, never a denormalized table
+(SOL-ADMIN-001 §63).
+
+**Implementation principle — cross-platform wrappers (frozen):** The SQL DDL, seed data,
+FastAPI application, and UI are **identical across platforms**. `.sh` (macOS/Linux) and `.ps1`
+(Windows) scripts are developer/operational wrappers only — they must not contain different
+business logic, database statements, or schema definitions. Platform-specific behaviour is
+limited to shell mechanics (variable substitution, exit codes, colour output).
 
 **Tier 2 (Person + Organization):** Person is the central human identity. The global Sangha
 Sevi ID (e.g. `SS000001`) is permanent, unique across NSS, never changes, never reused.
@@ -362,8 +381,8 @@ mapping, backed by `GDR-002`.
 ```
 database/
 ├── scripts/              00_create_database.sql (superuser, postgres DB: creates nss_erp
-│                         database + nss_admin/app_backend roles via dblink),
-│                         01_extensions.sql (superuser, nss_erp: pgcrypto/pg_trgm/btree_gin),
+│                         database + nss_db_owner/nss_db_backend roles via dblink),
+│                         01_extensions.sql (superuser, nss_erp: pgcrypto/pg_trgm/btree_gin/postgis),
 │                         02_build.sh (runs all implemented DDL+seed in phase order),
 │                         03_validate.sh (row-count/FK integrity checks) — replaced the
 │                         old repo-root validate_foundation.sh
@@ -386,8 +405,8 @@ database/
 │   │                     frozen/design specs — see Gotchas
 │   └── 03_person/        person_master_tables.sql (gender/marital_status/address_type masters), person.sql, person_address.sql — superseded prototype (uses per-domain masters, not the `master_data` pattern implemented in `01_foundation/`); will be replaced (see `feature/person-ddl`)
 └── seed/
-    ├── 00_bootstrap/     Partial — `role_master`: 8 roles seeded (includes `PATHA_CHAKRA_ADMIN`,
-    │                     not listed in the frozen role catalogue — see Gotchas);
+    ├── 00_bootstrap/     `role_master`: 8 roles seeded (3 SYSTEM + 5 ORGANIZATIONAL,
+    │                     matching SOL-ADMIN-004 §8.7 frozen catalogue);
     │                     `permission_master`/`role_permission`: empty, pending the permission
     │                     catalogue
     ├── 01_foundation/    Implemented — 7 seed files: 11 master categories, ~40 master data
@@ -441,7 +460,7 @@ database/
 │   ├── CROSS_MODULE_PRINCIPLES.md              (`ARCH-CROSS-001`), v1.1.0, FROZEN — project-wide principles: one-owner-per-table, cross-module reference not duplication, Finance sole-owner of financial transactions, `DOC-ARCH-001` (document_master + field_change_log → Foundation), Correspondence Register decision. Carries 3 explicitly PENDING (not frozen) DDL-phase design notes: org short code, local Sakha number format, Visitor vs. Approved Darshak threshold
 │   ├── FK_DEPENDENCY_GRAPH.md                  (`SOL-ARCH-009`), FROZEN — physical FK dependency graph ("Gate 8") across 86 frozen tables, topologically sorted into 8 depths, zero cycles; resolves the audit-actor circular-dependency problem via a two-pass DDL strategy
 │   ├── DDL_CREATION_ORDER.md                   (`SOL-ARCH-010`), FROZEN — the exact numbered `CREATE TABLE` sequence for all 86 tables ("Gate 9") plus the Pass-2 deferred-constraint list
-│   ├── BOOTSTRAP_ARCHITECTURE.md               (`SOL-ARCH-011`), FROZEN — Phase 0: creates/seeds `role_master`/`permission_master`/`role_permission` (zero FK deps) before Foundation; defines `nss_admin` (PostgreSQL login) ≠ `NSS_ADMIN` (ERP RBAC role); does not change SOL-ARCH-010's depth/sequence or claim table ownership (stays with Administration). Permission catalogue, bootstrap-admin Sangha Sevi identity, and MFA-controlled DB access (future `SOL-ARCH-012`) remain PENDING
+│   ├── BOOTSTRAP_ARCHITECTURE.md               (`SOL-ARCH-011`), FROZEN — Phase 0: creates/seeds `role_master`/`permission_master`/`role_permission` (zero FK deps) before Foundation; defines `nss_db_owner` (PostgreSQL DDL owner) ≠ `NSS_ERP_ADMIN` (ERP RBAC role); does not change SOL-ARCH-010's depth/sequence or claim table ownership (stays with Administration). Permission catalogue, bootstrap-admin Sangha Sevi identity, and MFA-controlled DB access (future `SOL-ARCH-012`) remain PENDING
 │   └── PROGRAMMES_EVENTS_RECONCILIATION_DECISIONS.md (`SOL-EVT-007`), FROZEN — closes all 7 P&E cross-module reconciliation gates; freezes `P&E-ARCH-001`/`002`; candidate table set settled at 7
 ├── database/
 │   └── DATABASE_DESIGN_STANDARDS.md   (`SOL-DB-001`, DRAFT — SOURCE ALIGNED Consolidation) — cross-module DB conventions consolidated from module table-design docs: `_pk` UUID PK convention, audit columns, soft-delete, master-data architecture (generic `master_category`/`master_data` vs domain masters), module ownership boundaries (one owning module per table), cross-module FK principles, DDL build order sketch. **States a `_id` business-identifier convention (`person_id`, `organization_id`, `sangha_sevi_id`) that contradicts the project's already-frozen `_code`-only convention** — see Gotchas/Open questions
@@ -793,16 +812,14 @@ for both.
   & Events candidate tables are explicitly listed in both
   but marked NOT EXECUTABLE pending that module's own formal freeze.
 - **Role catalogue discrepancy between the frozen design docs and the actual Bootstrap RBAC
-  DDL/seed.** `05_administration_table_design.md` §8.7 and `SOL-BOOT-001` §4.2 both describe 7
-  roles / 4 scope levels (`KENDRA`/`ANCHALIKA`/`ZILLA`/`SAKHA`). The actual
-  `database/ddl/00_bootstrap/01_role_master.sql` CHECK constraint and
-  `database/seed/00_bootstrap/02_role_master.sql` seed data implement 8 roles / 5 scope levels,
-  adding `PATHA_CHAKRA_ADMIN`/`PATHA_CHAKRA`. Neither design doc has been updated to match.
-- **`app_backend` PostgreSQL role is referenced but never defined.** `database/README.md`'s
-  header names `app_backend` as the "Runtime Read/Write" role, alongside `nss_admin` ("DDL
+  DDL/seed.** ~~RESOLVED~~ — `05_administration_table_design.md` §8.7 and `SOL-BOOT-001` §4.2
+  now describe 8 roles / 5 scope levels, matching the DDL CHECK constraint and seed data.
+  `NSS_ERP_PATHA_CHAKRA_ADMIN` / `PATHA_CHAKRA` added to the frozen catalogue.
+- **`nss_db_backend` PostgreSQL role is referenced but privileges not defined.** `database/README.md`'s
+  header names `nss_db_backend` as the "Runtime Read/Write" role, alongside `nss_db_owner` ("DDL
   Execution Authority") — but `BOOTSTRAP_ARCHITECTURE.md` (`SOL-ARCH-011`) only formalizes the
-  `nss_admin`/`NSS_ADMIN` distinction and never mentions `app_backend` by name. No document
-  currently defines what privileges `app_backend` has.
+  `nss_db_owner`/`NSS_ERP_ADMIN` distinction and never mentions `nss_db_backend` by name. No document
+  currently defines what privileges `nss_db_backend` has.
 - **Filename collision in `docs/03_Solution/modules/administration/`.**
   `06_bootstrap_rbac_table_design.md` (`SOL-BOOT-001`) and `06_correspondence_register_erd.md`
   (`SOL-ADMIN-006`) share the same leading number — not renamed here, flagging only.
@@ -914,12 +931,10 @@ for both.
   `CLAUDE.md` (`_code`). Needs an explicit correction to `SOL-DB-001` (or a project-wide
   convention change, which seems unlikely given how much existing SQL/documentation already
   uses `_code`).
-- **Reconcile the frozen role catalogue with the actual Bootstrap RBAC implementation** —
-  `05_administration_table_design.md` §8.7 and `SOL-BOOT-001` §4.2 describe 7 roles / 4 scope
-  levels; the actual DDL CHECK constraint and seed data implement 8 roles / 5 scope levels,
-  adding `PATHA_CHAKRA_ADMIN`. Needs a decision on whether to add Patha Chakra to the frozen
-  docs or trim it back out of the DDL/seed. See Gotchas.
-- **Define the `app_backend` PostgreSQL role** — named in `database/README.md`'s header as the
+- ~~**Reconcile the frozen role catalogue with the actual Bootstrap RBAC implementation**~~ —
+  RESOLVED. §8.7 updated to 8 roles / 5 scope levels, adding `NSS_ERP_PATHA_CHAKRA_ADMIN`.
+  Docs and seed now match.
+- **Define the `nss_db_backend` PostgreSQL role** — named in `database/README.md`'s header as the
   runtime read/write role, but no document specifies its actual privileges (table-level grants,
   RLS interaction, etc.). See Gotchas.
 - **Resolve the `06_bootstrap_rbac_table_design.md`/`06_correspondence_register_erd.md`

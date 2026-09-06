@@ -28,7 +28,7 @@ requires tables that don't yet exist during initial database creation.
 
 # 2. Core Principle
 
-`NSS_ADMIN` is the **system-wide ERP administrator role**. It is an
+`NSS_ERP_ADMIN` is the **system-wide ERP administrator role**. It is an
 RBAC role defined in `role_master` and is not itself a person, Sangha
 Sevi, or user account. The role is assigned through `user_role` to an
 authorized Sangha Sevi's ERP user account.
@@ -38,7 +38,7 @@ Sangha Sevi (real person)
   ↓
 user_account
   ↓
-user_role → NSS_ADMIN role
+user_role → NSS_ERP_ADMIN role
   ↓
 admin_scope → NSS-wide
   ↓
@@ -47,14 +47,14 @@ ALL ERP PERMISSIONS
 
 There is no fake, system, or placeholder actor. The initial
 administrator is a real Sangha Sevi who has been assigned the
-`NSS_ADMIN` role. The audit trail identifies the specific Sangha
+`NSS_ERP_ADMIN` role. The audit trail identifies the specific Sangha
 Sevi, not the role itself.
 
 If multiple administrators need all-access:
 
 ```text
-Sangha Sevi A → user_account A → NSS_ADMIN
-Sangha Sevi B → user_account B → NSS_ADMIN
+Sangha Sevi A → user_account A → NSS_ERP_ADMIN
+Sangha Sevi B → user_account B → NSS_ERP_ADMIN
 ```
 
 Both have all ERP permissions, but the audit trail remains
@@ -67,17 +67,17 @@ Change #1002  created_by_sangha_sevi_pk = B
 
 ---
 
-# 3. NSS_ADMIN Permission Model
+# 3. NSS_ERP_ADMIN Permission Model
 
-`NSS_ADMIN` receives all **ERP application permissions** through the
+`NSS_ERP_ADMIN` receives all **ERP application permissions** through the
 **normalized RBAC model**, not through a hard-coded application bypass.
 
-`NSS_ADMIN` does not automatically confer unrestricted PostgreSQL
-database access. The PostgreSQL `nss_admin` role remains a separate
+`NSS_ERP_ADMIN` does not automatically confer unrestricted PostgreSQL
+database access. The PostgreSQL `nss_db_owner` role remains a separate
 technical security boundary (see §7.2).
 
 ```text
-NSS_ADMIN role
+NSS_ERP_ADMIN role
     ↓
 role_permission (all approved permissions)
     ↓
@@ -85,11 +85,11 @@ permission_master
 ```
 
 If a new permission is introduced later, the Administration model
-explicitly assigns it to `NSS_ADMIN` through `role_permission`.
+explicitly assigns it to `NSS_ERP_ADMIN` through `role_permission`.
 Application code shall not contain:
 
 ```text
-if role == NSS_ADMIN then bypass_all_checks
+if role == NSS_ERP_ADMIN then bypass_all_checks
 ```
 
 This keeps the authorization model auditable and consistent.
@@ -114,7 +114,7 @@ DDL:
 
 Seed:
   permission catalogue
-  7 frozen roles
+  8 frozen roles
   role-permission mappings
 ```
 
@@ -175,18 +175,18 @@ DDL:
 These tables cannot be created earlier because of their FK
 dependencies on Person and Organization.
 
-## Phase 5 — Bootstrap NSS_ADMIN Role Assignment
+## Phase 5 — Bootstrap NSS_ERP_ADMIN Role Assignment
 
 ```text
 Seed:
   user_account record for designated administrator
-  user_role assignment → NSS_ADMIN role
+  user_role assignment → NSS_ERP_ADMIN role
   admin_scope → NSS-wide / all-access scope
   Initial password (Argon2 hash, securely supplied — never in Git)
 ```
 
 After this phase, the ERP has an accountable administrator — a real
-Sangha Sevi assigned the `NSS_ADMIN` role.
+Sangha Sevi assigned the `NSS_ERP_ADMIN` role.
 
 ## Phase 6 — Pass 2 Audit-Actor FK Constraints
 
@@ -254,7 +254,7 @@ Pass 1:
   *_by_sangha_sevi_pk FK constraints are NOT enforced
 
 Pass 2:
-  After NSS_ADMIN Sangha Sevi exists →
+  After NSS_ERP_ADMIN Sangha Sevi exists →
   ALTER TABLE ADD CONSTRAINT for all *_by_sangha_sevi_pk FKs
 ```
 
@@ -289,12 +289,12 @@ The seed scripts in Git shall contain:
 
 ---
 
-## 7.1 NSS_ADMIN Account Bootstrap Procedure
+## 7.1 NSS_ERP_ADMIN Account Bootstrap Procedure
 
-The initial `NSS_ADMIN` role assignment shall be created only after the
+The initial `NSS_ERP_ADMIN` role assignment shall be created only after the
 designated administrator has a valid Person and Sangha Sevi identity.
 
-`NSS_ADMIN` is not a PostgreSQL database login and is not a synthetic
+`NSS_ERP_ADMIN` is not a PostgreSQL database login and is not a synthetic
 system actor. It is an ERP RBAC role assigned to a real Sangha Sevi's
 user account through `user_role`.
 
@@ -307,13 +307,13 @@ The bootstrap process is:
        ↓
 3. Create user_account
        ↓
-4. Assign NSS_ADMIN through user_role
+4. Assign NSS_ERP_ADMIN through user_role
        ↓
 5. Establish NSS-wide administrative scope
        ↓
 6. Establish initial credential securely
        ↓
-7. Authenticate as NSS_ADMIN
+7. Authenticate as NSS_ERP_ADMIN
        ↓
 8. Perform subsequent ERP administration and transactions
 ```
@@ -332,18 +332,18 @@ be created for database bootstrap purposes.
 
 **Step 3 — Create the ERP user account.** Create a `user_account`
 record referencing the administrator's Person identity. The account is
-an ERP authentication identity, distinct from the PostgreSQL `nss_admin`
+an ERP authentication identity, distinct from the PostgreSQL `nss_db_owner`
 database role. The account shall not contain embedded role or permission
 information.
 
-**Step 4 — Assign the NSS_ADMIN role.** Create the `user_role`
-assignment linking the user account to the `NSS_ADMIN` role. The role
+**Step 4 — Assign the NSS_ERP_ADMIN role.** Create the `user_role`
+assignment linking the user account to the `NSS_ERP_ADMIN` role. The role
 obtains its authorization through the normalized `role_permission` model.
 No application-level bypass shall be used.
 
 **Step 5 — Establish NSS-wide administrative scope.** Create the
 `admin_scope` record for the bootstrap administrator. The scope
-represents NSS-wide/system-level administration. `NSS_ADMIN` is not
+represents NSS-wide/system-level administration. `NSS_ERP_ADMIN` is not
 restricted to an individual Sakha, Zilla, Anchalika, or other
 organizational scope.
 
@@ -352,7 +352,7 @@ shall be supplied through the secure deployment mechanism defined by
 the credential-security policy. The credential or password hash shall
 never be committed to Git.
 
-**Step 7 — Authenticate as NSS_ADMIN.** The administrator authenticates
+**Step 7 — Authenticate as NSS_ERP_ADMIN.** The administrator authenticates
 through the normal ERP authentication mechanism. The authenticated ERP
 session establishes the current Sangha Sevi actor:
 
@@ -362,7 +362,7 @@ Authenticated User → user_account → Person → Sangha Sevi → sangha_sevi_p
 
 **Step 8 — Perform subsequent ERP transactions.** All subsequent
 administrative operations are executed under the authenticated
-`NSS_ADMIN` identity.
+`NSS_ERP_ADMIN` identity.
 
 ---
 
@@ -372,17 +372,17 @@ The following identities are deliberately distinct:
 
 | Identity | Purpose |
 |----------|---------|
-| PostgreSQL `nss_admin` | Executes DDL, schema installation and controlled database seed scripts |
-| ERP `NSS_ADMIN` | Real Sangha Sevi and all-access ERP administrator |
+| PostgreSQL `nss_db_owner` | Executes DDL, schema installation and controlled database seed scripts |
+| ERP `NSS_ERP_ADMIN` | Real Sangha Sevi and all-access ERP administrator |
 | ERP `user_account` | Authentication identity used by the ERP |
 | Sangha Sevi identity | Authoritative business/person identity used for audit attribution |
 
 ```text
-PostgreSQL nss_admin  ≠  ERP NSS_ADMIN
+PostgreSQL nss_db_owner  ≠  ERP NSS_ERP_ADMIN
 ```
 
 The PostgreSQL account establishes the database environment. The ERP
-`NSS_ADMIN` account performs authenticated business operations.
+`NSS_ERP_ADMIN` account performs authenticated business operations.
 
 Where initialization SQL must establish records before the
 administrator's Sangha Sevi identity exists, those records are part of
@@ -396,11 +396,11 @@ been performed by a fictitious Sangha Sevi.
 ```text
 Phase 0–2: No Sangha Sevi exists
            Audit-actor columns exist but FKs not enforced
-           Records created by PostgreSQL nss_admin (schema installation)
+           Records created by PostgreSQL nss_db_owner (schema installation)
 
-Phase 3:   NSS_ADMIN Sangha Sevi identity becomes available
+Phase 3:   NSS_ERP_ADMIN Sangha Sevi identity becomes available
 
-Phase 5:   NSS_ADMIN user account + role + scope established
+Phase 5:   NSS_ERP_ADMIN user account + role + scope established
 
 Phase 6:   Pass 2 audit-actor FKs enforced
            Precondition: sangha_sevi contains at least one record
@@ -416,11 +416,11 @@ invent an actor identity that did not yet exist.
 
 ## 7.4 Creating Additional ERP Users
 
-Once authenticated as `NSS_ADMIN`, the administrator creates
+Once authenticated as `NSS_ERP_ADMIN`, the administrator creates
 subsequent ERP users through Administration functionality:
 
 ```text
-NSS_ADMIN
+NSS_ERP_ADMIN
    ↓
 Create/identify Person → Sangha Sevi
    ↓
@@ -474,7 +474,7 @@ different execution contexts:
 
 | Context | Actor | Purpose |
 |---------|-------|---------|
-| Controlled deployment | PostgreSQL `nss_admin` | DDL, reference-data seed |
+| Controlled deployment | PostgreSQL `nss_db_owner` | DDL, reference-data seed |
 | Normal ERP operation | Authenticated ERP user | Business transactions with audit attribution |
 
 Seed scripts shall not assume a real ERP user exists before the
@@ -487,42 +487,42 @@ identity and recorded against the corresponding Sangha Sevi actor.
 
 ## 7.7 Transition from Database Bootstrap to Authenticated Operations
 
-The PostgreSQL `nss_admin` account is used **only** for controlled
+The PostgreSQL `nss_db_owner` account is used **only** for controlled
 schema installation and bootstrap operations. Once the real Sangha
-Sevi identity and ERP `NSS_ADMIN` account have been established,
+Sevi identity and ERP `NSS_ERP_ADMIN` account have been established,
 subsequent business/master-data creation and operational transactions
 shall be performed through the authenticated ERP application as
-`NSS_ADMIN`, so that the resulting audit trail identifies the
+`NSS_ERP_ADMIN`, so that the resulting audit trail identifies the
 responsible Sangha Sevi.
 
 The transition point is:
 
 ```text
-Phase 0–4:  PostgreSQL nss_admin
+Phase 0–4:  PostgreSQL nss_db_owner
             Controlled schema + seed operations
             No ERP user exists yet
             Audit-actor columns NULL or unpopulated
 
             ─── TRANSITION POINT ───
 
-Phase 5:    NSS_ADMIN ERP account created
+Phase 5:    NSS_ERP_ADMIN ERP account created
             Authenticated ERP session available
 
-Phase 6+:   ERP NSS_ADMIN
+Phase 6+:   ERP NSS_ERP_ADMIN
             All subsequent data operations through application
             Audit-actor columns populated by application
-            created_by_sangha_sevi_pk = NSS_ADMIN Sangha Sevi
+            created_by_sangha_sevi_pk = NSS_ERP_ADMIN Sangha Sevi
 ```
 
 After the transition:
 
-- Module setup and configuration → through ERP as `NSS_ADMIN`
-- Master data creation/maintenance → through ERP as `NSS_ADMIN`
-- Organizational data operations → through ERP as `NSS_ADMIN`
-- User creation and role assignment → through ERP as `NSS_ADMIN`
+- Module setup and configuration → through ERP as `NSS_ERP_ADMIN`
+- Master data creation/maintenance → through ERP as `NSS_ERP_ADMIN`
+- Organizational data operations → through ERP as `NSS_ERP_ADMIN`
+- User creation and role assignment → through ERP as `NSS_ERP_ADMIN`
 - All operational transactions → through authenticated ERP user
 
-The PostgreSQL `nss_admin` login remains available for future schema
+The PostgreSQL `nss_db_owner` login remains available for future schema
 migrations (DDL changes, new module tables, index additions), but
 shall not be used for business data operations once the ERP
 application layer is operational.
@@ -533,19 +533,19 @@ application layer is operational.
 
 | Decision | Status | Source |
 |----------|--------|--------|
-| NSS_ADMIN is an RBAC role, not an identity | FROZEN | SOL-ARCH-011 §2 |
-| NSS_ADMIN = all ERP application permissions (not DB access) | FROZEN | SOL-ARCH-011 §3 |
+| NSS_ERP_ADMIN is an RBAC role, not an identity | FROZEN | SOL-ARCH-011 §2 |
+| NSS_ERP_ADMIN = all ERP application permissions (not DB access) | FROZEN | SOL-ARCH-011 §3 |
 | Phase 0 bootstrap (3 RBAC tables before Foundation) | FROZEN | SOL-ARCH-011 §4 |
 | Directory: `00_bootstrap/` | FROZEN | SOL-ARCH-011 §5 |
 | No credentials in Git | FROZEN | SOL-ARCH-011 §7 |
-| PostgreSQL nss_admin ≠ ERP NSS_ADMIN | FROZEN | SOL-ARCH-011 §7.2 |
+| PostgreSQL nss_db_owner ≠ ERP NSS_ERP_ADMIN | FROZEN | SOL-ARCH-011 §7.2 |
 | Seed data ≠ ERP transactions (distinct audit contexts) | FROZEN | SOL-ARCH-011 §7.6 |
-| Post-bootstrap operations via authenticated NSS_ADMIN | FROZEN | SOL-ARCH-011 §7.7 |
-| 7 frozen roles (SOL-ADMIN-004 §8.7) | FROZEN | SOL-ADMIN-004 |
+| Post-bootstrap operations via authenticated NSS_ERP_ADMIN | FROZEN | SOL-ARCH-011 §7.7 |
+| 8 frozen roles (SOL-ADMIN-004 §8.7) | FROZEN | SOL-ADMIN-004 |
 | SELF_SERVICE_MEMBER excluded | FROZEN | SOL-ADMIN-004 §8.10 |
 | Permission catalogue | PENDING | Not yet frozen |
 | Person schema | PENDING | Not yet frozen |
-| Bootstrap administrator identity | PENDING | Real Sangha Sevi to receive NSS_ADMIN TBD |
+| Bootstrap administrator identity | PENDING | Real Sangha Sevi to receive NSS_ERP_ADMIN TBD |
 | Privileged DB access via ERP (MFA-controlled) | FUTURE | SOL-ARCH-012 (not yet created) |
 
 ---
@@ -554,7 +554,7 @@ application layer is operational.
 
 - Does not define column-level schema for any table
 - Does not create the permission catalogue
-- Does not identify the specific person who will be the initial NSS_ADMIN
+- Does not identify the specific person who will be the initial NSS_ERP_ADMIN
 - Does not generate PostgreSQL DDL
 - Does not override SOL-ARCH-010 table depth/sequence assignments
 - Does not change the two-pass audit FK strategy

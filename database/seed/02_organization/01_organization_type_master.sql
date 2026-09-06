@@ -4,7 +4,7 @@
 -- Seed File: 01_organization_type_master.sql
 -- Version: 1.0
 -- Authority: SOL-ORG-005 §48, SOL-ORG-002 §27
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: 8 frozen organization types (decided 2026-08-28)
 -- =====================================================
 

@@ -4,7 +4,7 @@
 -- Seed File: 02_master_data.sql
 -- Version: 1.0
 -- Authority: SOL-FND-004 §7, §29
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: References master_category by category_code
 --       using subquery. Requires 01_master_category.sql
 --       to have been executed first.

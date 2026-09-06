@@ -17,7 +17,7 @@
 #
 # Defaults:
 #   DB_NAME  = nss_erp
-#   DB_USER  = nss_admin
+#   DB_USER  = nss_db_owner
 #   DB_HOST  = localhost
 #   DB_PORT  = 5432
 #
@@ -32,7 +32,7 @@
 set -euo pipefail
 
 DB_NAME="${1:-nss_erp}"
-DB_USER="${2:-nss_admin}"
+DB_USER="${2:-nss_db_owner}"
 DB_HOST="${3:-localhost}"
 DB_PORT="${4:-5432}"
 
@@ -57,7 +57,7 @@ log_warn() { echo -e "  ${YELLOW}[WARN]${NC} $1"; warn_count=$((warn_count + 1))
 check_table_exists() {
     local table="$1"
     local result
-    result=$(${PSQL} -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'nss' AND table_name = '${table}');" 2>/dev/null || echo "f")
+    result=$(${PSQL} -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'nss' AND table_name = '${table}');" 2>&1 || echo "f")
     if [ "$result" = "t" ]; then
         log_pass "${table} exists"
     else
@@ -69,7 +69,7 @@ check_row_count() {
     local table="$1"
     local expected="$2"
     local count
-    count=$(${PSQL} -c "SELECT COUNT(*) FROM nss.${table};" 2>/dev/null || echo "ERROR")
+    count=$(${PSQL} -c "SELECT COUNT(*) FROM nss.${table};" 2>&1 || echo "ERROR")
     if [ "$count" = "ERROR" ]; then
         log_fail "${table}: query failed"
     elif [ "$count" -ge "$expected" ] 2>/dev/null; then
@@ -83,7 +83,7 @@ check_no_duplicates() {
     local table="$1"
     local column="$2"
     local dups
-    dups=$(${PSQL} -c "SELECT COUNT(*) FROM (SELECT ${column} FROM nss.${table} GROUP BY ${column} HAVING COUNT(*) > 1) x;" 2>/dev/null || echo "ERROR")
+    dups=$(${PSQL} -c "SELECT COUNT(*) FROM (SELECT ${column} FROM nss.${table} GROUP BY ${column} HAVING COUNT(*) > 1) x;" 2>&1 || echo "ERROR")
     if [ "$dups" = "0" ]; then
         log_pass "${table}: no duplicate ${column}"
     elif [ "$dups" = "ERROR" ]; then
@@ -97,7 +97,7 @@ check_fk_integrity() {
     local label="$1"
     local query="$2"
     local orphans
-    orphans=$(${PSQL} -c "${query}" 2>/dev/null || echo "ERROR")
+    orphans=$(${PSQL} -c "${query}" 2>&1 || echo "ERROR")
     if [ "$orphans" = "0" ]; then
         log_pass "${label}: FK integrity valid"
     elif [ "$orphans" = "ERROR" ]; then
@@ -111,7 +111,7 @@ check_column_exists() {
     local table="$1"
     local column="$2"
     local result
-    result=$(${PSQL} -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'nss' AND table_name = '${table}' AND column_name = '${column}');" 2>/dev/null || echo "f")
+    result=$(${PSQL} -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'nss' AND table_name = '${table}' AND column_name = '${column}');" 2>&1 || echo "f")
     if [ "$result" = "t" ]; then
         log_pass "${table}.${column} present"
     else

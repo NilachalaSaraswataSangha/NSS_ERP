@@ -266,20 +266,33 @@ Historical role assignments must remain interpretable.
 
 ## 8.7 Frozen Role Catalogue
 
-The following seven RBAC roles are frozen:
+The following eight RBAC roles are frozen:
 
 | Role Code | Role Class | Scope | Intended Responsibility |
 |-----------|-----------|-------|------------------------|
-| `NSS_ADMIN` | System administration | NSS-wide | System-level administration and management of ERP authorization/configuration |
-| `KENDRA_ADMIN` | Organizational administration | Kendra | Administrative operations within Kendra scope |
-| `ANCHALIKA_ADMIN` | Organizational administration | Anchalika | Administrative operations within assigned Anchalika scope |
-| `ZILLA_ADMIN` | Organizational administration | Zilla | Administrative operations within assigned Zilla scope |
-| `SAKHA_ADMIN` | Organizational administration | Sakha | Administrative operations within assigned Sakha scope |
-| `AUDITOR` | Oversight / read | Assigned/authorized scope | Audit and review access |
-| `REPORT_VIEWER` | Reporting / read | Assigned/authorized scope | Reporting and read-oriented access |
+| `NSS_ERP_ADMIN` | System administration | NSS-wide | System-level administration and management of ERP authorization/configuration |
+| `NSS_ERP_KENDRA_ADMIN` | Organizational administration | Kendra | Administrative operations within Kendra scope |
+| `NSS_ERP_ANCHALIKA_ADMIN` | Organizational administration | Anchalika | Administrative operations within assigned Anchalika scope |
+| `NSS_ERP_ZILLA_ADMIN` | Organizational administration | Zilla | Administrative operations within assigned Zilla scope |
+| `NSS_ERP_SAKHA_ADMIN` | Organizational administration | Sakha | Administrative operations within assigned Sakha scope |
+| `NSS_ERP_PATHA_CHAKRA_ADMIN` | Organizational administration | Patha Chakra | Administrative operations within assigned Patha Chakra scope |
+| `NSS_ERP_AUDITOR` | Oversight / read | Assigned/authorized scope | Audit and review access |
+| `NSS_ERP_REPORT_VIEWER` | Reporting / read | Assigned/authorized scope | Reporting and read-oriented access |
 
-These roles will become seed data in `role_master` during the
-Administration vertical slice.
+`NSS_ERP_ADMIN` and `NSS_ERP_KENDRA_ADMIN` share the same permission set
+initially. The distinction is scope: `NSS_ERP_ADMIN` is system-scoped,
+`NSS_ERP_KENDRA_ADMIN` is Kendra-scoped. With a single Kendra, the
+effective data access is identical today — the separation preserves the
+architectural boundary for future expansion without inventing different
+permissions prematurely.
+
+Role assignment is independent of governance position. A Kendra Governing
+Body member does not automatically receive `NSS_ERP_KENDRA_ADMIN`; an
+authorized individual who is not a Governing Body member may receive it
+if legitimately authorized to administer that organizational unit.
+
+These roles are seeded in `role_master` during Phase 0 Bootstrap
+(`database/seed/00_bootstrap/02_role_master.sql`).
 
 ---
 
@@ -292,17 +305,17 @@ responsibility** as defined by the NSS Bye-Law.
 ```text
 RBAC Role                    Governance Position
 ─────────                    ───────────────────
-NSS_ADMIN                    President
-KENDRA_ADMIN                 Vice President
-ANCHALIKA_ADMIN              Secretary
-ZILLA_ADMIN                  Assistant Secretary
-SAKHA_ADMIN                  Treasurer
-AUDITOR                      Governing Body Member
-REPORT_VIEWER
+NSS_ERP_ADMIN                    President
+NSS_ERP_KENDRA_ADMIN             Vice President
+NSS_ERP_ANCHALIKA_ADMIN          Secretary
+NSS_ERP_ZILLA_ADMIN              Assistant Secretary
+NSS_ERP_SAKHA_ADMIN              Treasurer
+NSS_ERP_AUDITOR                  Governing Body Member
+NSS_ERP_REPORT_VIEWER
 ```
 
 These are **independent concepts**. A President does not automatically
-receive the `NSS_ADMIN` RBAC role. A `SAKHA_ADMIN` does not
+receive the `NSS_ERP_ADMIN` RBAC role. A `NSS_ERP_SAKHA_ADMIN` does not
 automatically hold a governance position. Any mapping between them
 requires explicit design and is not frozen.
 

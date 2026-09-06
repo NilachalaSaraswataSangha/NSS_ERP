@@ -37,9 +37,9 @@ by earlier files.
 ## Execution Command
 
 ```bash
-# As NSS_ADMIN against the nss_erp database:
+# As nss_db_owner against the nss_erp database:
 for f in database/ddl/01_foundation/0*.sql database/ddl/01_foundation/1*.sql; do
-    psql -U nss_admin -d nss_erp -f "$f"
+    psql -U nss_db_owner -d nss_erp -f "$f"
 done
 ```
 

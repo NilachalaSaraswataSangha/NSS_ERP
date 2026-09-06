@@ -8,7 +8,7 @@
 -- Version: 1.0
 -- Authority: SOL-ARCH-010, SOL-FND-004 §41,
 --            Data Change Architecture (2026-08-26)
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: Shared field-level change tracking.
 --       No FK dependencies — references are stored as
 --       UUID values without constraints to avoid

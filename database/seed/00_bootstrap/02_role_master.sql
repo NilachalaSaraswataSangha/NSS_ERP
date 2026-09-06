@@ -4,61 +4,65 @@
 -- File: 02_role_master.sql (seed)
 -- Seed: 8 frozen roles (SOL-ADMIN-004 §8.7)
 -- Authority: SOL-ARCH-011 §4, SOL-ADMIN-004 §8.7
+--
+-- NAMING CONVENTION:
+--   NSS_ERP_*  = Application RBAC roles (this file)
+--   nss_db_*   = PostgreSQL infrastructure roles (00_create_database.sql)
 -- =====================================================
 
 INSERT INTO nss.role_master
     (role_code, role_name, role_class, scope_level, description, display_order)
 VALUES
-    ('NSS_ADMIN',
-     'NSS Administrator',
+    ('NSS_ERP_ADMIN',
+     'NSS ERP Administrator',
      'SYSTEM',
      NULL,
      'System-wide ERP administrator with all application permissions',
      1),
 
-    ('AUDITOR',
+    ('NSS_ERP_AUDITOR',
      'Auditor',
      'SYSTEM',
      NULL,
      'System-wide read-only auditor for compliance and review',
      2),
 
-    ('REPORT_VIEWER',
+    ('NSS_ERP_REPORT_VIEWER',
      'Report Viewer',
      'SYSTEM',
      NULL,
      'System-wide read-only access to reports and dashboards',
      3),
 
-    ('KENDRA_ADMIN',
+    ('NSS_ERP_KENDRA_ADMIN',
      'Kendra Administrator',
      'ORGANIZATIONAL',
      'KENDRA',
      'Administrative authority scoped to a specific Kendra',
      4),
 
-    ('ANCHALIKA_ADMIN',
+    ('NSS_ERP_ANCHALIKA_ADMIN',
      'Anchalika Administrator',
      'ORGANIZATIONAL',
      'ANCHALIKA',
      'Administrative authority scoped to a specific Anchalika',
      5),
 
-    ('ZILLA_ADMIN',
+    ('NSS_ERP_ZILLA_ADMIN',
      'Zilla Administrator',
      'ORGANIZATIONAL',
      'ZILLA',
      'Administrative authority scoped to a specific Zilla',
      6),
 
-    ('SAKHA_ADMIN',
+    ('NSS_ERP_SAKHA_ADMIN',
      'Sakha Administrator',
      'ORGANIZATIONAL',
      'SAKHA',
      'Administrative authority scoped to a specific Sakha',
      7),
 
-    ('PATHA_CHAKRA_ADMIN',
+    ('NSS_ERP_PATHA_CHAKRA_ADMIN',
      'Patha Chakra Administrator',
      'ORGANIZATIONAL',
      'PATHA_CHAKRA',

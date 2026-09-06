@@ -4,7 +4,7 @@
 -- Seed File: 03_id_sequence_master.sql
 -- Version: 2.0
 -- Authority: SOL-FND-004 §11
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
 INSERT INTO nss.id_sequence_master

@@ -4,7 +4,7 @@
 -- Seed File: 01_master_category.sql
 -- Version: 1.0
 -- Authority: SOL-FND-004 §6.4, §29
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
 INSERT INTO nss.master_category

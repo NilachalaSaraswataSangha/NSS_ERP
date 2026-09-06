@@ -4,7 +4,7 @@
 -- Seed File: 07_system_setting.sql
 -- Version: 1.0
 -- Authority: SOL-FND-004 §10
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: Initial system settings. Values are
 --       illustrative defaults; actual production
 --       values configured during deployment.

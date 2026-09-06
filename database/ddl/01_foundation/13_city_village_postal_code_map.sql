@@ -7,7 +7,7 @@
 -- Version: 1.0
 -- Authority: SOL-ARCH-010 Amendment (PIN Code Geographic
 --            Model, 2026-08-28)
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- Note: M:N relationship between city_village and
 --       postal_code. One PIN code can serve multiple
 --       localities; one locality can have multiple PINs.

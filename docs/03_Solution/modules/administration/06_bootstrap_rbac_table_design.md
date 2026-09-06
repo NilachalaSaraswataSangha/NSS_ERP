@@ -41,7 +41,7 @@ This document covers:
 This document does NOT cover:
 
 - Permission catalogue (PENDING — SOL-ADMIN-004 §9.5)
-- Role seed data (7 frozen roles defined in SOL-ADMIN-004 §8.7)
+- Role seed data (8 frozen roles defined in SOL-ADMIN-004 §8.7)
 - Role-permission mappings (depend on permission catalogue)
 - Tables outside Phase 0 (user_account, user_role, admin_scope, password_history)
 
@@ -77,10 +77,10 @@ All columns follow the established project conventions:
 | # | Column | Type | Null | Default | Description |
 |--:|--------|------|:----:|---------|-------------|
 | 1 | `role_master_pk` | UUID | NO | `gen_random_uuid()` | Technical primary key |
-| 2 | `role_code` | VARCHAR(50) | NO | — | Stable machine identifier (e.g. `NSS_ADMIN`) |
+| 2 | `role_code` | VARCHAR(50) | NO | — | Stable machine identifier (e.g. `NSS_ERP_ADMIN`) |
 | 3 | `role_name` | VARCHAR(100) | NO | — | Human-readable display name |
 | 4 | `role_class` | VARCHAR(30) | NO | — | Classification: `SYSTEM` or `ORGANIZATIONAL` |
-| 5 | `scope_level` | VARCHAR(30) | YES | NULL | Applicable org scope: `KENDRA`, `ANCHALIKA`, `ZILLA`, `SAKHA`, or NULL for system-wide |
+| 5 | `scope_level` | VARCHAR(30) | YES | NULL | Applicable org scope: `KENDRA`, `ANCHALIKA`, `ZILLA`, `SAKHA`, `PATHA_CHAKRA`, or NULL for system-wide |
 | 6 | `description` | TEXT | YES | NULL | Purpose and responsibility summary |
 | 7 | `display_order` | INTEGER | NO | 0 | UI sort order |
 | 8 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | Record creation timestamp |
@@ -99,7 +99,7 @@ All columns follow the established project conventions:
 | `uq_role_master_code` | UNIQUE | `role_code` |
 | `uq_role_master_name` | UNIQUE | `role_name` |
 | `chk_role_master_class` | CHECK | `role_class IN ('SYSTEM', 'ORGANIZATIONAL')` |
-| `chk_role_master_scope_level` | CHECK | `scope_level IS NULL OR scope_level IN ('KENDRA', 'ANCHALIKA', 'ZILLA', 'SAKHA')` |
+| `chk_role_master_scope_level` | CHECK | `scope_level IS NULL OR scope_level IN ('KENDRA', 'ANCHALIKA', 'ZILLA', 'SAKHA', 'PATHA_CHAKRA')` |
 | `chk_role_master_soft_delete` | CHECK | `(is_active = TRUE AND deleted_at IS NULL) OR (is_active = FALSE AND deleted_at IS NOT NULL)` |
 
 ## 4.3 Indexes
@@ -116,10 +116,10 @@ All columns follow the established project conventions:
   references roles by `role_code`, never by `role_name` or
   `role_master_pk` literals.
 
-- `role_class` distinguishes system-wide roles (`SYSTEM`: NSS_ADMIN,
-  AUDITOR, REPORT_VIEWER) from organizational-scope roles
-  (`ORGANIZATIONAL`: KENDRA_ADMIN, ANCHALIKA_ADMIN, ZILLA_ADMIN,
-  SAKHA_ADMIN). This classification is enforced by CHECK constraint,
+- `role_class` distinguishes system-wide roles (`SYSTEM`: NSS_ERP_ADMIN,
+  NSS_ERP_AUDITOR, NSS_ERP_REPORT_VIEWER) from organizational-scope roles
+  (`ORGANIZATIONAL`: NSS_ERP_KENDRA_ADMIN, NSS_ERP_ANCHALIKA_ADMIN, NSS_ERP_ZILLA_ADMIN,
+  NSS_ERP_SAKHA_ADMIN, NSS_ERP_PATHA_CHAKRA_ADMIN). This classification is enforced by CHECK constraint,
   not application code.
 
 - `scope_level` is NULL for system-wide roles. For organizational
@@ -257,21 +257,21 @@ All columns follow the established project conventions:
 
 # 7. Frozen Role Seed Data Reference
 
-The 7 frozen roles (SOL-ADMIN-004 §8.7) will be seeded in Phase 0:
+The 8 frozen roles (SOL-ADMIN-004 §8.7) are seeded in Phase 0
+(`database/seed/00_bootstrap/02_role_master.sql`):
 
 | role_code | role_name | role_class | scope_level |
 |-----------|-----------|------------|-------------|
-| `NSS_ADMIN` | NSS Administrator | `SYSTEM` | NULL |
-| `AUDITOR` | Auditor | `SYSTEM` | NULL |
-| `REPORT_VIEWER` | Report Viewer | `SYSTEM` | NULL |
-| `KENDRA_ADMIN` | Kendra Administrator | `ORGANIZATIONAL` | `KENDRA` |
-| `ANCHALIKA_ADMIN` | Anchalika Administrator | `ORGANIZATIONAL` | `ANCHALIKA` |
-| `ZILLA_ADMIN` | Zilla Administrator | `ORGANIZATIONAL` | `ZILLA` |
-| `SAKHA_ADMIN` | Sakha Administrator | `ORGANIZATIONAL` | `SAKHA` |
+| `NSS_ERP_ADMIN` | NSS ERP Administrator | `SYSTEM` | NULL |
+| `NSS_ERP_AUDITOR` | Auditor | `SYSTEM` | NULL |
+| `NSS_ERP_REPORT_VIEWER` | Report Viewer | `SYSTEM` | NULL |
+| `NSS_ERP_KENDRA_ADMIN` | Kendra Administrator | `ORGANIZATIONAL` | `KENDRA` |
+| `NSS_ERP_ANCHALIKA_ADMIN` | Anchalika Administrator | `ORGANIZATIONAL` | `ANCHALIKA` |
+| `NSS_ERP_ZILLA_ADMIN` | Zilla Administrator | `ORGANIZATIONAL` | `ZILLA` |
+| `NSS_ERP_SAKHA_ADMIN` | Sakha Administrator | `ORGANIZATIONAL` | `SAKHA` |
+| `NSS_ERP_PATHA_CHAKRA_ADMIN` | Patha Chakra Administrator | `ORGANIZATIONAL` | `PATHA_CHAKRA` |
 
 `SELF_SERVICE_MEMBER` is explicitly excluded (SOL-ADMIN-004 §8.10).
-
-The seed SQL will be created after this column design is frozen.
 
 ---
 

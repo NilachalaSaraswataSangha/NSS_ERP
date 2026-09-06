@@ -16,7 +16,7 @@
 #
 # Defaults:
 #   DB_NAME  = nss_erp
-#   DB_USER  = nss_admin
+#   DB_USER  = nss_db_owner
 #   DB_HOST  = localhost
 #   DB_PORT  = 5432
 #
@@ -42,7 +42,7 @@
 set -euo pipefail
 
 DB_NAME="${1:-nss_erp}"
-DB_USER="${2:-nss_admin}"
+DB_USER="${2:-nss_db_owner}"
 DB_HOST="${3:-localhost}"
 DB_PORT="${4:-5432}"
 
@@ -66,11 +66,14 @@ failed=0
 run_sql() {
     local label="$1"
     local file="$2"
+    local output
     total=$((total + 1))
-    if ${PSQL} -f "${file}" > /dev/null 2>&1; then
+    if output=$(${PSQL} -f "${file}" 2>&1); then
         echo -e "  ${GREEN}[OK]${NC}   ${label}"
     else
         echo -e "  ${RED}[FAIL]${NC} ${label}"
+        echo -e "  ${RED}Error:${NC}"
+        echo "${output}" | sed 's/^/         /'
         failed=$((failed + 1))
         echo -e "  ${RED}Aborting — fix the above error before continuing.${NC}"
         exit 1

@@ -437,7 +437,7 @@ records (ADMIN-BR-050).
 
 **Preconditions:**
 - User account exists
-- Scope level is valid (KENDRA / ANCHALIKA / ZILLA / SAKHA — ADMIN-BR-024)
+- Scope level is valid (KENDRA / ANCHALIKA / ZILLA / SAKHA / PATHA_CHAKRA — ADMIN-BR-024)
 - Organizational unit reference is valid (Organization module authority —
   ADMIN-BR-032, ADMIN-BR-033)
 - Authorized administrative user (ADMIN-BR-025)

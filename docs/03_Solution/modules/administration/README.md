@@ -83,12 +83,9 @@ audit-actor FKs deferred to Pass 2).
   `role_master`/`permission_master`/`role_permission` are additionally sequenced as "Phase 0
   Bootstrap RBAC" (`SOL-BOOT-001`, `SOL-ARCH-011`) — created before Foundation for DDL-ordering
   reasons only; ownership doesn't change.
-- **Role catalogue discrepancy.** §8.7's frozen role catalogue and `SOL-BOOT-001` §4.2 both
-  list 7 roles / 4 scope levels (`KENDRA`/`ANCHALIKA`/`ZILLA`/`SAKHA`). The actual
-  `role_master` seed data and DDL CHECK constraint (`database/ddl/00_bootstrap/
-  01_role_master.sql`, `database/seed/00_bootstrap/02_role_master.sql`) implement 8 roles / 5
-  scope levels, adding `PATHA_CHAKRA_ADMIN`/`PATHA_CHAKRA`. Not yet reconciled — see
-  `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs.
+- **Role catalogue — reconciled.** §8.7 updated to 8 roles / 5 scope levels, matching
+  the DDL CHECK constraint and seed data. `NSS_ERP_PATHA_CHAKRA_ADMIN` / `PATHA_CHAKRA`
+  added to the frozen catalogue.
 - **Correspondence Register (`CORR-DECISION-003`, `CORR-ARCH-001`/`002`, frozen)** —
   Administration owns a generic inward/outward official-communication register (registration,
   reference numbering, sender/recipient, subject, medium, status/follow-up), explicitly *not* a
@@ -100,6 +97,10 @@ audit-actor FKs deferred to Pass 2).
 - Role + Scope model for effective access; **Position ≠ Role** and **Membership ≠ Role** are
   explicit boundaries (a Governance body position or a membership category never implies an
   application permission by itself).
+- **Composite Administrative View (§63, frozen UI principle):** The Administration UI may
+  present a read-only composite joining member identity, governance assignment, ERP role,
+  scope, and organization — constructed via JOIN/API, never a denormalized table. Authoritative
+  data stays in the owning entities.
 - No `role_history`/`scope_history`/`permission_group` tables frozen.
 
 ## Note — design/code gap

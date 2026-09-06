@@ -4,7 +4,7 @@
 -- File: 01_extensions.sql
 -- Version: 2.0
 -- Authority: SOL-ARCH-010, SOL-FND-004
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

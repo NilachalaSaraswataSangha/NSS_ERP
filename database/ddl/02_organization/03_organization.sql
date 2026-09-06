@@ -9,7 +9,7 @@
 -- Sequence: #33 of 87
 -- Version: 1.1
 -- Authority: SOL-ARCH-010, SOL-ORG-005 §19–§52
--- Owner: NSS_ADMIN
+-- Owner: NSS_ERP_ADMIN
 --
 -- Note: Self-referencing FK (parent_organization_pk)
 --       is included in CREATE TABLE since the table

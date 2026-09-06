@@ -62,8 +62,8 @@ Overall solution architecture documentation (cross-module, above the per-module 
   and seeds `role_master`/`permission_master`/`role_permission` (zero FK dependencies) before
   Foundation, resolving the audit-actor circular dependency (audit columns need a `sangha_sevi`
   identity that itself depends on tables that don't exist yet at that point). Establishes the
-  `nss_admin` (PostgreSQL login, DDL-only) vs. `NSS_ADMIN` (ERP RBAC role, a `role_master` row)
-  distinction — the two are explicitly not equivalent, and `NSS_ADMIN` never bypasses RBAC
+  `nss_db_owner` (PostgreSQL DDL owner) vs. `NSS_ERP_ADMIN` (ERP RBAC role, a `role_master` row)
+  distinction — the two are explicitly not equivalent, and `NSS_ERP_ADMIN` never bypasses RBAC
   checks. Does not change SOL-ARCH-010's depth/sequence assignments or claim table ownership —
   ownership of the 3 tables remains with Administration
   (`docs/03_Solution/modules/administration/05_administration_table_design.md` §2). Permission

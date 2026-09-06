@@ -113,6 +113,7 @@ KENDRA
 ANCHALIKA
 ZILLA
 SAKHA
+PATHA_CHAKRA
 ```
 
 Therefore:
@@ -342,6 +343,7 @@ KENDRA
 ANCHALIKA
 ZILLA
 SAKHA
+PATHA_CHAKRA
 ```
 
 ---
@@ -1058,7 +1060,47 @@ matrix is defined centrally in the Administration/RBAC module.
 
 ---
 
-# 63. Status
+# 63. Composite Administrative View (UI Principle — Frozen)
+
+**Decision:** The Administration UI may provide a **composite administrative
+view** joining Sangha Sevi / member identity, governance assignment, ERP role
+assignment, organizational scope, and organization details. This view is a
+presentation / read-model concern and must not introduce a denormalized or
+duplicate source-of-truth table.
+
+Authoritative data remains in the respective entities:
+
+```text
+Sangha Sevi / Member
+        │
+        ├──────────── Governance Assignment
+        │                    │
+        │                    └── Organization
+        │
+        └── user_account
+                │
+                └── user_role
+                       │
+                       ├── role_master
+                       │
+                       └── admin_scope
+                              │
+                              └── organization
+```
+
+The view is constructed via JOIN / API aggregation at query time. No
+physical table is created for this composite.
+
+**Classification:** UI / read-model principle (ERP-DESIGN). Does not alter
+the frozen database architecture.
+
+**Source:** Explicit design decision — role ≠ governance position
+(SOL-ADMIN-004 §8.7), multiple roles per user (`user_role` junction),
+scope attached to role assignment (`admin_scope`).
+
+---
+
+# 64. Status
 
 DOCUMENT STATUS:
 
