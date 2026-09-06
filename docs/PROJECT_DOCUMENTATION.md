@@ -445,7 +445,7 @@ database/
 │   ├── foundation/         01-04 overview/erd/business_rules/table_design, v1.0.0 SOURCE ALIGNED — describes 10 tables: the original 8 (master_category, master_data, system_setting, id_sequence_master, country, state, district, city_village) plus `document_master` and `field_change_log`, Foundation-owned shared infrastructure (`DOC-ARCH-001`, `CROSS_MODULE_PRINCIPLES.md`). **Same name, different scope from `backend/foundation/`** (which implements Person/Organization/Address). **Implemented in SQL** — all 10 designed tables have DDL under `database/ddl/01_foundation/`, plus 2 more the design doc doesn't describe yet (`postal_code`, `city_village_postal_code_map`) — see Gotchas
 │   ├── administration/     10 files (5 RBAC/Bootstrap docs + 1 Bootstrap RBAC column-level design + 4 Correspondence Register docs) — v1.0.0/v1.2.0 SOURCE ALIGNED — **8 Administration-owned tables**: the 5 RBAC tables (role_master, permission_master, role_permission, user_role, admin_scope — the first 3 also sequenced as "Phase 0 Bootstrap RBAC," `SOL-BOOT-001`/`SOL-ARCH-011`, DDL implemented and committed) plus 3 Correspondence Register tables (correspondence, correspondence_document, correspondence_finance_reference — `CORR-DECISION-003`); `user_account`/`password_history` are exclusively Authentication-owned per the Table Ownership Declaration; no backend/administration/ app. **Filename collision:** `06_bootstrap_rbac_table_design.md` and `06_correspondence_register_erd.md` share the same number — see Gotchas
 │   ├── authentication/     Solution-layer "Authentication & Security", 5 files — v1.0.0 SOURCE ALIGNED — ERD still shows 7 tables, but exclusive ownership is only `user_account`+`password_history`; the other 5 RBAC tables are exclusively Administration-owned and appear here only for evaluation, not management. Argon2/JWT/session/Aadhaar-encryption/RLS as principles. **Different schema from** the real `backend/authentication/` Django app (Role/UserRole/LoginAudit) — same folder name, unreconciled designs
-│   ├── governance/         Solution-layer ERP module, distinct from docs/00_Project_Governance/, 5 files — v1.0.0 SOURCE ALIGNED — Unified Body Governance Model (body_type_master, body_master, position_master, body_member_assignment, acting_position_assignment) + election entities (election, election_nomination, election_vote, election_result), 9 tables. **Freezes the Mahila Parichalana Mandali term at 3 years** (`04_governance_business_rules.md` GOV-BR-031) **and, per `03_governance_lifecycle.md`, a formal consensus→election→election-table reconstitution process** — both directly conflicting with mahila/'s own frozen **2-year** term (MAH-040) and its consensus-only reconstitution process; unreconciled, see Gotchas/Open questions. `backend/governance/` remains an empty stub
+│   ├── governance/         Solution-layer ERP module, distinct from docs/00_Project_Governance/, 5 files — v1.0.0 SOURCE ALIGNED — Unified Body Governance Model (body_type_master, body_master, position_master, body_member_assignment, acting_position_assignment) + election entities (election, election_nomination, election_vote, election_result), 9 tables. **Freezes the Mahila Parichalana Mandali term at 3 years** (`04_governance_business_rules.md` GOV-BR-036) **and, per `03_governance_lifecycle.md`, a formal consensus→election→election-table reconstitution process** — both directly conflicting with mahila/'s own frozen **2-year** term (MAH-040) and its consensus-only reconstitution process; unreconciled, see Gotchas/Open questions. `backend/governance/` remains an empty stub
 │   ├── publications/       7 files (overview/erd/business_rules/table_design/functional_design/ui_workflow/notification_purchase_design), v1.0.0 SOURCE ALIGNED + USER REQUIREMENTS — zero new tables, reuses Heritage's nss_publication/publication_type_master/publication_language_master; no backend/publications/ app
 │   ├── upbs/               01-04, v1.0.0 SOURCE ALIGNED — 7 tables (upbs_event, upbs_registration, delegate_card, prasad_patra, accommodation_allocation, camp_master, guest_reference); Day 1/2/3 ops + volunteer structure explicitly PENDING; no backend/upbs/ app
 │   ├── reports/            01-04, v1.0.0 SOURCE ALIGNED — 5 metadata/configuration-only tables (report_category_master, report_definition, report_filter_definition, dashboard, dashboard_widget); consumes but never duplicates other modules' data; no backend/reports/ app
@@ -462,8 +462,8 @@ database/
 │   ├── DEVELOPER_REFERENCE_GUIDE.md   per-module "which doc to read before coding" matrix
 │   ├── PROGRAMME_EVENT_DOMAIN_MODEL.md         (`SOL-EVT-001`) — domain model for Programmes & Events, feeding the `programmes_events` module
 │   ├── EVENT_ENTITY_RECONCILIATION.md          (`SOL-EVT-002`) — reconciles that domain model against UPBS/Kishor/Sevak/Mahila/Finance/Attendance's own event-shaped entities
-│   ├── MODULE_DEPENDENCY_MAP.md                (`SOL-ARCH-007`) — dependency map (hard FK/runtime/domain integrations), PROPOSED not frozen (v0.1.0); internally inconsistent on module count — its status footer says 22 modules (incl. Assets & Property), its own inventory table still lists only 21 rows
-│   ├── IMPLEMENTATION_DEPENDENCY_ORDER.md      (`SOL-ARCH-008`), `IMPLEMENTATION-TIER-001` — 12-tier build order across all 22 modules, FROZEN (Assets & Property in Tier 6). Note: closing §79 status summary still reads DRAFT/v0.1.0/21-modules against the header/§44 — an internal inconsistency, not fixed here
+│   ├── MODULE_DEPENDENCY_MAP.md                (`SOL-ARCH-007`) — dependency map (hard FK/runtime/domain integrations), PROPOSED not frozen (v0.1.0); its §3 inventory table now lists all 22 modules (incl. Assets & Property), matching its own status footer — the prior 21-vs-22 inconsistency was fixed by commit `1d96fb1`
+│   ├── IMPLEMENTATION_DEPENDENCY_ORDER.md      (`SOL-ARCH-008`), `IMPLEMENTATION-TIER-001` — 12-tier build order across all 22 modules, FROZEN (Assets & Property in Tier 6). §79's DRAFT/v0.1.0/21-modules status text was fixed by commit `1d96fb1` (now reads FROZEN/v1.0.0/22-modules) — but §79 still says `PHYSICAL DDL: FOUNDATION TIER 1 COMPLETE` / `NEXT: TIER 2`, not reflecting that Tier 2 Organization DDL is now also implemented (see "Current position" above)
 │   ├── PROGRAMMES_EVENTS_CROSS_MODULE_REVIEW.md (`SOL-EVT-006`), v1.1.0, FROZEN — final compatibility review for Module #21 against every other module; no hard conflicts; open ownership/migration-strategy risks it originally flagged were resolved by the file below
 │   ├── CROSS_MODULE_PRINCIPLES.md              (`ARCH-CROSS-001`), v1.1.0, FROZEN — project-wide principles: one-owner-per-table, cross-module reference not duplication, Finance sole-owner of financial transactions, `DOC-ARCH-001` (document_master + field_change_log → Foundation), Correspondence Register decision. Carries 3 explicitly PENDING (not frozen) DDL-phase design notes: org short code, local Sakha number format, Visitor vs. Approved Darshak threshold
 │   ├── FK_DEPENDENCY_GRAPH.md                  (`SOL-ARCH-009`), FROZEN — physical FK dependency graph ("Gate 8") across 86 frozen tables, topologically sorted into 8 depths, zero cycles; resolves the audit-actor circular-dependency problem via a two-pass DDL strategy
@@ -744,8 +744,8 @@ for both.
   `relationship_type` candidate values) is explicitly PENDING until Finance's own transaction
   taxonomy is frozen.
 - **Mahila Parichalana Mandali term length disagrees across two frozen module docs.**
-  `docs/03_Solution/modules/governance/04_governance_business_rules.md` (GOV-BR-031, "Mahila
-  3-Year Term | FROZEN") sets the Mandali's term at **3 years**;
+  `docs/03_Solution/modules/governance/04_governance_business_rules.md` (GOV-BR-036, "Mahila
+  Term | FROZEN") sets the Mandali's term at **3 years**;
   `docs/03_Solution/modules/mahila/04_mahila_business_rules.md` (MAH-040, "Two-Year Term")
   freezes it at **2 years**. Both are marked FROZEN in their own module. Flagged here, not
   resolved, since picking a winner is a design decision this pass shouldn't make unilaterally.
@@ -759,7 +759,31 @@ for both.
   module table-design docs suggests it absorbed the newer module docs' inconsistent `_id` usage
   (the same `person_id`/`person_code` conflict tracked for the Person module) rather than the
   actual frozen DDL convention — worth a human decision on which document is wrong before any
-  new DDL is authored against `SOL-DB-001`'s stated convention.
+  new DDL is authored against `SOL-DB-001`'s stated convention. Separately, `SOL-DB-001` §31
+  ("Schema Naming") also states "All tables reside in the `public` schema... No schema-per-module
+  decision has been frozen" — stale since commit `764b643` namespaced every table under a
+  dedicated `nss` schema (see "Database schema" above); this document needs both corrections.
+- **Governance layer has an unresolved `GOV-ORG-00X` rule-ID collision, producing ambiguous
+  citations.** `docs/00_Project_Governance/GOV/GOV-001_Project_Governance_Principles.md` §4 and
+  `GOV-002_Organizational_Governance_Standard.md` §5 each independently define their own
+  `GOV-ORG-001`–`004` (GOV-001: Statutory Authority / Governance Hierarchy / Rule Authority /
+  Separation of Governance and Implementation; GOV-002: Apex Organizational Governance Principle
+  / Statutory Authority Precedence / Organizational Hierarchy Integrity / Authoritative Document
+  Recognition — plus GOV-001 has a 5th, `GOV-ORG-005` Traceability Principle, that GOV-002 has no
+  counterpart for). `GDR-002_Creation_of_the_REF-MS_Authoritative_Reference_Family.md` (lines
+  38-39) cites `GOV-ORG-001/002` and `GOV-ORG-004` meaning GOV-002's rules, while
+  `GDR-004_Governance_Authority_Structure_Clarification.md` (line 55) cites `GOV-ORG-004` meaning
+  GOV-001's "Separation of Governance and Implementation" — the same ID pointing at two different
+  normative rules depending on which GDR you're reading. Not fixed here — renumbering either
+  document's rule IDs is a governance content decision, not a drift correction; flagging only.
+- **`STD/05_security_standards.md` §9's RBAC table vocabulary has drifted from both its own
+  sibling standard and the implemented schema.** It lists RBAC core tables as `user_account`,
+  `role`, `permission`, `role_permission`, `user_role` — but `STD/02_naming_conventions.md` §8
+  mandates an `entity_master` suffix for master/lookup tables (its own sibling document's
+  convention), and the actual DDL (`database/ddl/00_bootstrap/`) plus the newer
+  `docs/03_Solution/security/SECURITY_ARCHITECTURE.md` §4.3 both correctly use `role_master`,
+  `permission_master`, `role_permission`, `user_role`, `admin_scope`. Not fixed here — `STD/`
+  is part of the frozen Governance Baseline; flagging for a human correction pass.
 - **Six lifecycle documents restate Person-death-cascade rules instead of citing the existing
   lifecycle standards.** `person/03_person_lifecycle.md` (SOL-PER-005),
   `family/03_family_lifecycle.md` (SOL-FAM-005), `governance/03_governance_lifecycle.md`

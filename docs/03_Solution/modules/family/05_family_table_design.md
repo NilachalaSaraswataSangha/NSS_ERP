@@ -7,9 +7,9 @@
 | Item | Value |
 |---|---|
 | Document Name | Family Table Design |
-| Document ID | SOL-FAM-004 |
+| Document ID | SOL-FAM-005 |
 | Domain | Family |
-| Repository Path | docs/03_Solution/modules/family/04_family_table_design.md |
+| Repository Path | docs/03_Solution/modules/family/05_family_table_design.md |
 | Version | 1.0.0 |
 | Status | DRAFT |
 | Parent Document | 01_family_module_overview.md |

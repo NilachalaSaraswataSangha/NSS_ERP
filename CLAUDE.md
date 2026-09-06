@@ -36,14 +36,17 @@ phase-by-phase execution table):
 5. `03_person/*` — superseded prototype, will be rewritten; don't build on it
 6. `database/seed/` mirrors the same folder order
 
-`database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]` runs all implemented DDL+seed
-end-to-end against a running Postgres instance (Bootstrap RBAC, Foundation, Organization — not
-Person, which is superseded); `database/scripts/03_validate.sh` (same args) then checks row
-counts and FK integrity across those same modules. `database/scripts/00_create_database.sql` is
-a one-time superuser script that creates the `nss_erp` database and the `nss_db_owner`/`nss_db_backend`
-roles; `database/scripts/01_extensions.sql` installs pgcrypto/pg_trgm/btree_gin/postgis in nss_erp
-(also superuser). The old repo-root `validate_foundation.sh` (Foundation-only) has been replaced
-by these.
+`database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]` (`.ps1` equivalent for
+Windows) runs all implemented DDL+seed end-to-end against a running Postgres instance
+(Bootstrap RBAC, Foundation, Organization — not Person, which is superseded);
+`database/scripts/03_validate.sh`/`.ps1` (same args) then checks row counts and FK integrity
+across those same modules. `database/scripts/00_create_database.sql` is a one-time superuser
+script that creates the `nss_erp` database and the `nss_db_owner`/`nss_db_backend` roles (both
+`LOGIN`, no password set — set one via `ALTER ROLE ... PASSWORD` before use);
+`database/scripts/01_extensions.sql` installs pgcrypto/pg_trgm/btree_gin/postgis in nss_erp and
+creates the `nss` schema (also superuser) — all tables live under `nss.*`, not `public`; the
+database's default `search_path` is `nss, public`. The old repo-root `validate_foundation.sh`
+(Foundation-only) has been replaced by these.
 
 **Role naming convention:** `nss_db_*` = PostgreSQL infrastructure roles (lowercase);
 `NSS_ERP_*` = application RBAC roles in `role_master` (uppercase). PostgreSQL `nss_db_owner`

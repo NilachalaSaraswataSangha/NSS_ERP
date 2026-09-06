@@ -133,8 +133,8 @@ database/
 ├── scripts/
 │   ├── 00_create_database.sql   Create DB + roles + dblink (superuser, postgres DB)
 │   ├── 01_extensions.sql        Install extensions (superuser, nss_erp DB)
-│   ├── 02_build.sh              Full schema build (all implemented phases)
-│   └── 03_validate.sh           Post-build validation (all modules)
+│   ├── 02_build.sh              Full schema build (all implemented phases) — .ps1 equivalent for Windows
+│   └── 03_validate.sh           Post-build validation (all modules) — .ps1 equivalent for Windows
 ├── ddl/
 │   ├── 00_bootstrap/     3 RBAC tables (Depths 0–1) — IMPLEMENTED
 │   ├── 01_foundation/    12 tables (Depths 0–4) — IMPLEMENTED
