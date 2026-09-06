@@ -28,11 +28,15 @@ Purpose: Business rules for centralized RBAC + organizational scope. No module-s
 permission architectures permitted — e.g. Sevak-specific rules explicitly delegate to this
 central framework rather than inventing their own.
 
-05_administration_table_design.md — Version 1.1.0
+05_administration_table_design.md — Version 1.2.0
 Purpose: Physical table design. Contains the **Table Ownership Declaration (Frozen)**
 that splits RBAC-adjacent tables exclusively between this module and Authentication (see Key
 facts below). §8.7–8.10 add the frozen role catalogue, Role ≠ Governance Position, and
-permission-matrix status.
+permission-matrix status. §8.11 adds the Parallel Administrative Role Model: the six
+organizational/system admin roles are parallel, not inherited — holding a wider-scoped role is
+never a prerequisite for a narrower one or vice versa — with per-role eligibility criteria
+(`NSS_ERP_ADMIN` requires a valid Parichay Patra and system-wide authorization, independent of
+Governing Body membership) and a multi-role-assignment example.
 
 06_bootstrap_rbac_table_design.md (`SOL-BOOT-001`) — Version 1.0.0, DRAFT — COLUMN FREEZE
 CANDIDATE. Purpose: column-level physical design for `role_master`/`permission_master`/

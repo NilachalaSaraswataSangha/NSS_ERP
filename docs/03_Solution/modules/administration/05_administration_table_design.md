@@ -1,9 +1,12 @@
 # NSS ERP — Administration Table Design
 
 **Document ID:** SOL-ADMIN-004
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Status:** DRAFT — SOURCE ALIGNED
-**Amendment:** §8.7–8.10 — Frozen Role Catalogue, Role ≠ Position, Permission Matrix Status
+**Amendment:** §8.7–8.10 — Frozen Role Catalogue, Role ≠ Position, Permission Matrix Status;
+§8.11 (v1.2.0) — Parallel Administrative Role Model: the six organizational/system admin roles
+are parallel, not inherited; per-role eligibility criteria (incl. Parichay Patra eligibility for
+`NSS_ERP_ADMIN`, independent of Governing Body membership); multi-role-assignment example
 **Module:** Administration
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -279,12 +282,21 @@ The following eight RBAC roles are frozen:
 | `NSS_ERP_AUDITOR` | Oversight / read | Assigned/authorized scope | Audit and review access |
 | `NSS_ERP_REPORT_VIEWER` | Reporting / read | Assigned/authorized scope | Reporting and read-oriented access |
 
-`NSS_ERP_ADMIN` and `NSS_ERP_KENDRA_ADMIN` share the same permission set
-initially. The distinction is scope: `NSS_ERP_ADMIN` is system-scoped,
-`NSS_ERP_KENDRA_ADMIN` is Kendra-scoped. With a single Kendra, the
-effective data access is identical today — the separation preserves the
-architectural boundary for future expansion without inventing different
-permissions prematurely.
+All six organizational/system administrative roles (`NSS_ERP_ADMIN`,
+`NSS_ERP_KENDRA_ADMIN`, `NSS_ERP_ANCHALIKA_ADMIN`, `NSS_ERP_ZILLA_ADMIN`,
+`NSS_ERP_SAKHA_ADMIN`, `NSS_ERP_PATHA_CHAKRA_ADMIN`) share the same
+administrative permission set initially. The only distinction between
+them is **scope**, not capability: `NSS_ERP_ADMIN` is system-wide,
+each other administrative role is scoped to its named organizational
+unit. Kendra is a singleton — there is, and will only ever be, one
+Kendra — so `NSS_ERP_ADMIN` and `NSS_ERP_KENDRA_ADMIN` cover identical
+effective data today. The two roles are kept separate not for future
+data-scope growth but because they represent two distinct **assignment
+authorities**: `NSS_ERP_ADMIN` is granted on system-wide authorization
+to any eligible member (Parichay Patra basis), while
+`NSS_ERP_KENDRA_ADMIN` is granted through Kendra's own Governing Body
+administration path — see §8.11 for the full parallel-role model and
+eligibility rules.
 
 Role assignment is independent of governance position. A Kendra Governing
 Body member does not automatically receive `NSS_ERP_KENDRA_ADMIN`; an
@@ -343,6 +355,87 @@ catalogue and shall not be seeded into `role_master`.
 
 If a member self-service role is required in the future, it must be
 separately proposed, evaluated, and frozen before inclusion.
+
+---
+
+## 8.11 Parallel Administrative Role Model (Not Inherited)
+
+The six organizational/system administrative roles form a **parallel**
+structure, not a hierarchy or inheritance chain. Holding a
+wider-scoped role (e.g. `NSS_ERP_ADMIN`) is never a prerequisite for,
+and never automatically grants, a narrower-scoped role (e.g.
+`NSS_ERP_SAKHA_ADMIN`) or vice versa. Each is a separate row in
+`role_master`, assigned independently via `user_role`, with its scope
+recorded independently via `admin_scope`.
+
+```text
+                  ADMINISTRATIVE ACCESS
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+     NSS_ERP_ADMIN              Organizational Admin
+     System-wide                       │
+                                       │
+                 ┌─────────────┬───────┼──────────────┐
+                 │             │       │              │
+              KENDRA       ANCHALIKA  ZILLA         SAKHA
+                 │             │       │              │
+                 └─────────────┴───────┴──────────────┘
+                              │
+                         PATHA CHAKRA
+```
+
+### Eligibility per role
+
+| Role | Who may receive it |
+|---|---|
+| `NSS_ERP_ADMIN` | Any NSS member holding a valid Parichay Patra, when system-wide administration is authorized. Governing Body membership is **not** a prerequisite. |
+| `NSS_ERP_KENDRA_ADMIN` | Kendra Governing Body members, or another individual authorized to administer Kendra. |
+| `NSS_ERP_ANCHALIKA_ADMIN` | Anchalika Governing Body members, or another authorized individual. |
+| `NSS_ERP_ZILLA_ADMIN` | Zilla Governing Body members, or another authorized individual. |
+| `NSS_ERP_SAKHA_ADMIN` | Sakha Governing Body members, or another authorized individual. |
+| `NSS_ERP_PATHA_CHAKRA_ADMIN` | Authorized Governing Body/organizational individual for that Patha Chakra. |
+| `NSS_ERP_AUDITOR` | Authorized auditor. |
+| `NSS_ERP_REPORT_VIEWER` | Authorized report user. |
+
+Governing Body membership makes a person a natural candidate for the
+role scoped to their own organizational unit, but per §8.8 it is never
+automatic — assignment is always an explicit `user_role` row.
+
+### Assignment chain examples
+
+A Kendra Governing Body member:
+
+```text
+Sangha Sevi → user_account → user_role → NSS_ERP_KENDRA_ADMIN → admin_scope → Kendra
+```
+
+A Sakha Governing Body member:
+
+```text
+Sangha Sevi → user_account → user_role → NSS_ERP_SAKHA_ADMIN → admin_scope → Specific Sakha
+```
+
+An eligible NSS member authorized for full system administration:
+
+```text
+Sangha Sevi → user_account → user_role → NSS_ERP_ADMIN → System-wide
+```
+
+### Multiple simultaneous assignments
+
+A single Sangha Sevi may hold more than one administrative role at
+once, each with its own scope — this is the existing `user_role` (1:N
+from `user_account`) + `admin_scope` (attached per role assignment,
+not per person) architecture already frozen in §11–§12, applied here
+to the organizational-admin role set specifically:
+
+```text
+SS000123
+   ├── NSS_ERP_KENDRA_ADMIN → Kendra
+   ├── NSS_ERP_SAKHA_ADMIN  → Sakha A
+   └── NSS_ERP_AUDITOR      → System
+```
 
 ---
 
@@ -1210,7 +1303,7 @@ DRAFT — SOURCE ALIGNED
 VERSION:
 
 ```
-1.1.0
+1.2.0
 ```
 
 ---
