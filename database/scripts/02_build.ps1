@@ -37,7 +37,7 @@ $SeedBase = "$RepoRoot\database\seed"
 $total = 0
 $failed = 0
 
-function Run-Sql {
+function Invoke-Sql {
     param([string]$Label, [string]$File)
     $script:total++
     $output = & psql -h $DbHost -p $DbPort -U $DbUser -d $DbName -v ON_ERROR_STOP=1 -f $File 2>&1
@@ -65,15 +65,15 @@ Write-Host ""
 
 # Phase 0: Bootstrap RBAC
 Write-Host "[Phase 0] Bootstrap RBAC - DDL" -ForegroundColor Cyan
-Run-Sql "role_master"       "$DdlBase\00_bootstrap\01_role_master.sql"
-Run-Sql "permission_master" "$DdlBase\00_bootstrap\02_permission_master.sql"
-Run-Sql "role_permission"   "$DdlBase\00_bootstrap\03_role_permission.sql"
+Invoke-Sql "role_master"       "$DdlBase\00_bootstrap\01_role_master.sql"
+Invoke-Sql "permission_master" "$DdlBase\00_bootstrap\02_permission_master.sql"
+Invoke-Sql "role_permission"   "$DdlBase\00_bootstrap\03_role_permission.sql"
 Write-Host ""
 
 Write-Host "[Phase 0] Bootstrap RBAC - Seed" -ForegroundColor Cyan
-Run-Sql "permission_master (seed)" "$SeedBase\00_bootstrap\01_permission_master.sql"
-Run-Sql "role_master (seed)"       "$SeedBase\00_bootstrap\02_role_master.sql"
-Run-Sql "role_permission (seed)"   "$SeedBase\00_bootstrap\03_role_permission.sql"
+Invoke-Sql "permission_master (seed)" "$SeedBase\00_bootstrap\01_permission_master.sql"
+Invoke-Sql "role_master (seed)"       "$SeedBase\00_bootstrap\02_role_master.sql"
+Invoke-Sql "role_permission (seed)"   "$SeedBase\00_bootstrap\03_role_permission.sql"
 Write-Host ""
 
 # Phase 1: Foundation DDL
@@ -93,7 +93,7 @@ $foundationDdl = @(
     @("city_village_postal_code_map", "13_city_village_postal_code_map.sql")
 )
 foreach ($entry in $foundationDdl) {
-    Run-Sql $entry[0] "$DdlBase\01_foundation\$($entry[1])"
+    Invoke-Sql $entry[0] "$DdlBase\01_foundation\$($entry[1])"
 }
 Write-Host ""
 
@@ -110,22 +110,22 @@ $foundationSeed = @(
     @("postal_code (seed)",        "08_postal_code.sql")
 )
 foreach ($entry in $foundationSeed) {
-    Run-Sql $entry[0] "$SeedBase\01_foundation\$($entry[1])"
+    Invoke-Sql $entry[0] "$SeedBase\01_foundation\$($entry[1])"
 }
 Write-Host ""
 
 # Phase 3: Organization DDL
 Write-Host "[Phase 3] Organization - DDL (3 tables)" -ForegroundColor Cyan
-Run-Sql "organization_type_master"   "$DdlBase\02_organization\01_organization_type_master.sql"
-Run-Sql "organization_status_master" "$DdlBase\02_organization\02_organization_status_master.sql"
-Run-Sql "organization"               "$DdlBase\02_organization\03_organization.sql"
+Invoke-Sql "organization_type_master"   "$DdlBase\02_organization\01_organization_type_master.sql"
+Invoke-Sql "organization_status_master" "$DdlBase\02_organization\02_organization_status_master.sql"
+Invoke-Sql "organization"               "$DdlBase\02_organization\03_organization.sql"
 Write-Host ""
 
 # Phase 4: Organization Seed
 Write-Host "[Phase 4] Organization - Seed Data" -ForegroundColor Cyan
-Run-Sql "organization_type_master (seed)"   "$SeedBase\02_organization\01_organization_type_master.sql"
-Run-Sql "organization_status_master (seed)" "$SeedBase\02_organization\02_organization_status_master.sql"
-Run-Sql "organization (seed)"               "$SeedBase\02_organization\03_organization.sql"
+Invoke-Sql "organization_type_master (seed)"   "$SeedBase\02_organization\01_organization_type_master.sql"
+Invoke-Sql "organization_status_master (seed)" "$SeedBase\02_organization\02_organization_status_master.sql"
+Invoke-Sql "organization (seed)"               "$SeedBase\02_organization\03_organization.sql"
 Write-Host ""
 
 # Summary
