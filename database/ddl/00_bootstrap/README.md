@@ -41,5 +41,5 @@ frozen in `docs/03_Solution/modules/administration/06_bootstrap_rbac_table_desig
 
 ## Status
 
-Not yet committed to git. DDL is complete for all 3 tables. Seed data is partial —
+DDL is complete and committed for all 3 tables. Seed data is partial —
 see `database/seed/00_bootstrap/README.md`.

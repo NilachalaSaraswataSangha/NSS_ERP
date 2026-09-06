@@ -206,11 +206,11 @@ Fully idempotent — safe to re-run.
 psql -U postgres -d postgres -f database/scripts/00_create_database.sql
 ```
 
-**Important:** This creates PostgreSQL-level roles only (`NOLOGIN` —
-grant LOGIN per environment via `ALTER ROLE`). The ERP application
-role `NSS_ERP_ADMIN` is a row in `role_master` (Phase 0 seed) and is a
-separate security boundary (SOL-ARCH-011 §7.2). `nss_db_owner` is
-intentionally not a SUPERUSER.
+**Important:** This creates PostgreSQL-level roles only (`LOGIN`, no
+password set — set one via `ALTER ROLE ... PASSWORD '...'` before use).
+The ERP application role `NSS_ERP_ADMIN` is a row in `role_master`
+(Phase 0 seed) and is a separate security boundary (SOL-ARCH-011 §7.2).
+`nss_db_owner` is intentionally not a SUPERUSER.
 
 No credentials are stored in this file. Set passwords externally via
 `ALTER ROLE ... PASSWORD '...'` or `.pgpass` / environment variables.

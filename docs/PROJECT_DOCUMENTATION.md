@@ -409,11 +409,12 @@ database/
     │                     matching SOL-ADMIN-004 §8.7 frozen catalogue);
     │                     `permission_master`/`role_permission`: empty, pending the permission
     │                     catalogue
-    ├── 01_foundation/    Implemented — 7 seed files: 11 master categories, ~40 master data
+    ├── 01_foundation/    Implemented — 8 seed files: 11 master categories, ~40 master data
     │                     values (GENDER/MARITAL_STATUS/ADDRESS_TYPE/DOCUMENT_TYPE/
     │                     MEMBERSHIP_TYPE/MEMBERSHIP_STATUS/RELATIONSHIP_TYPE), 9 ID sequences
     │                     (PERSON zero-padded to 10 digits — see Gotchas), 5 countries, 112
-    │                     states, ~770 districts (India only), 5 system settings
+    │                     states, ~770 districts (India only), 5 system settings, 2 postal
+    │                     codes (minimal bootstrap set — full postal code data is a future task)
     ├── 02_organization/  Implemented — 8 organization types, 1 status master, 3 unique named
     │                     organizations (Kendra, Nilachala Kutira, Smruti Mandira)
     └── 03_person/        gender/marital_status/address_type seed rows — superseded prototype, seeds tables that don't exist in the new pattern
