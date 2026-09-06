@@ -42,11 +42,5 @@ ALTER SCHEMA nss OWNER TO nss_db_owner;
 -- Set default search_path so unqualified table names resolve to nss
 ALTER DATABASE nss_erp SET search_path TO nss, public;
 
--- -------------------------------------------------
--- Grant nss_db_owner LOGIN for local development.
--- In production, manage LOGIN/password separately.
--- -------------------------------------------------
-ALTER ROLE nss_db_owner LOGIN;
-
 -- Grant nss_db_owner full privileges on the nss schema
 GRANT ALL ON SCHEMA nss TO nss_db_owner;

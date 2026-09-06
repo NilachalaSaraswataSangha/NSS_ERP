@@ -33,6 +33,15 @@
 -- No credentials are stored here; set passwords externally
 -- via ALTER ROLE or .pgpass / environment variables.
 --
+-- IMPORTANT: After running this script, set passwords for
+-- both roles before proceeding:
+--
+--   ALTER ROLE nss_db_owner PASSWORD 'your_password_here';
+--   ALTER ROLE nss_db_backend PASSWORD 'your_password_here';
+--
+-- Or use .pgpass / PGPASSWORD environment variable.
+-- Never commit real passwords to the repository.
+--
 -- nss_db_owner is intentionally NOT a SUPERUSER. It owns the
 -- NSS ERP database/schema objects without PostgreSQL-wide
 -- superuser privileges.
@@ -51,8 +60,8 @@ CREATE EXTENSION IF NOT EXISTS dblink;
 
 -- -------------------------------------------------
 -- 2. PostgreSQL role: nss_db_owner (DDL / schema owner)
---    NOLOGIN — grant LOGIN separately per environment.
---    NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOINHERIT.
+--    LOGIN, NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOINHERIT.
+--    Password must be set separately per environment.
 -- -------------------------------------------------
 DO $$
 BEGIN
@@ -61,21 +70,24 @@ BEGIN
         WHERE rolname = 'nss_db_owner'
     ) THEN
         CREATE ROLE nss_db_owner
-            NOLOGIN
+            LOGIN
             NOSUPERUSER
             NOCREATEDB
             NOCREATEROLE
             NOINHERIT;
-        RAISE NOTICE 'Role nss_db_owner created.';
+        RAISE NOTICE 'Role nss_db_owner created (LOGIN, no password — set one before use).';
     ELSE
-        RAISE NOTICE 'Role nss_db_owner already exists — skipping.';
+        -- Ensure LOGIN is granted even if role existed from an older script version
+        ALTER ROLE nss_db_owner LOGIN;
+        RAISE NOTICE 'Role nss_db_owner already exists — ensured LOGIN.';
     END IF;
 END
 $$;
 
 -- -------------------------------------------------
 -- 3. PostgreSQL role: nss_db_backend (runtime)
---    NOLOGIN — grant LOGIN separately per environment.
+--    LOGIN, NOSUPERUSER — used by FastAPI application.
+--    Password must be set separately per environment.
 -- -------------------------------------------------
 DO $$
 BEGIN
@@ -84,14 +96,15 @@ BEGIN
         WHERE rolname = 'nss_db_backend'
     ) THEN
         CREATE ROLE nss_db_backend
-            NOLOGIN
+            LOGIN
             NOSUPERUSER
             NOCREATEDB
             NOCREATEROLE
             NOINHERIT;
-        RAISE NOTICE 'Role nss_db_backend created.';
+        RAISE NOTICE 'Role nss_db_backend created (LOGIN, no password — set one before use).';
     ELSE
-        RAISE NOTICE 'Role nss_db_backend already exists — skipping.';
+        ALTER ROLE nss_db_backend LOGIN;
+        RAISE NOTICE 'Role nss_db_backend already exists — ensured LOGIN.';
     END IF;
 END
 $$;
