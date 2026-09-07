@@ -23,6 +23,12 @@ psql -U postgres -d nss_erp -f database/scripts/01_extensions.sql
 
 # Step 5: Validate (as nss_db_owner)
 ./database/scripts/03_validate.sh
+
+# Step 6: Grant backend role read-only access (as nss_db_owner)
+psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
+
+# Step 7: Create api/.env and start the API
+#   See api/ section below
 ```
 
 ### Windows (PowerShell)
@@ -43,6 +49,12 @@ psql -U postgres -d nss_erp -f database\scripts\01_extensions.sql
 
 # Step 5: Validate (as nss_db_owner)
 .\database\scripts\03_validate.ps1
+
+# Step 6: Grant backend role read-only access (as nss_db_owner)
+psql -U nss_db_owner -d nss_erp -f database\scripts\04_grant_backend.sql
+
+# Step 7: Create api\.env and start the API
+#   See api\ section below
 ```
 
 > **Never commit real passwords.** Use `.pgpass` (macOS/Linux) or `%APPDATA%\postgresql\pgpass.conf`
@@ -56,6 +68,7 @@ psql -U postgres -d nss_erp -f database\scripts\01_extensions.sql
 | `01_extensions.sql` | superuser (`postgres`) | `nss_erp` | Installs `pgcrypto`, `pg_trgm`, `btree_gin`, `postgis`. Creates `nss` schema owned by `nss_db_owner`. Idempotent. |
 | `02_build.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Runs all implemented DDL + seed (Bootstrap RBAC, Foundation, Organization). Not idempotent — drop/recreate DB for clean rebuild. |
 | `03_validate.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Post-build checks: table existence, row counts, unique constraints, FK integrity. Run after build; does not execute any DDL/seed. |
+| `04_grant_backend.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_backend` read-only access: `USAGE` on `nss` schema, `SELECT` on all tables, `ALTER DEFAULT PRIVILEGES` for future tables. Idempotent. |
 
 Build and validate scripts accept optional args:
 
@@ -146,3 +159,27 @@ The SQL DDL, seed data, and application code are **identical across platforms**.
 must not contain different business logic, database statements, or schema definitions.
 Platform-specific behaviour is limited to shell mechanics (variable substitution, exit
 codes, colour output). Both wrappers execute the same DDL and seed files in the same order.
+
+## Starting the FastAPI API (after database bootstrap)
+
+After the database is built and validated, grant `nss_db_backend` read access
+and start the API:
+
+```bash
+# Grant backend privileges (step 6)
+psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
+
+# Create api/.env with the nss_db_backend password from step 2
+cat > api/.env << 'EOF'
+DB_NAME=nss_erp
+DB_USER=nss_db_backend
+DB_PASSWORD=your_password_here
+DB_HOST=localhost
+DB_PORT=5432
+EOF
+
+# Start the API (from the repository root)
+uvicorn api.main:app --reload --port 8001
+```
+
+Swagger UI: `http://localhost:8001/docs`
