@@ -301,6 +301,76 @@ Where approval/review semantics are domain-specific, the owning module shall ret
 
 A shared approval table shall be introduced only if a future architectural decision establishes a genuinely common persistent approval model.
 
+## 11.1 Approval Workflow Configuration Principle (APPR-ARCH-001)
+
+**Status:** FROZEN
+
+Approval requirements shall not be represented as a growing collection
+of flat `system_setting` boolean flags (e.g. `PRESIDENT_APPROVAL_REQUIRED`,
+`SECRETARY_APPROVAL_REQUIRED`, `CASHIER_APPROVAL_REQUIRED`, or
+scope-qualified variants such as `SAKHA_PRESIDENT_MEMBERSHIP_APPROVAL`).
+
+Where approval requirements depend on:
+
+* action type (membership admission, fund disbursement, event sanction, asset transfer);
+* organizational level (Kendra, Sakha, Anchalika/Zilla);
+* approving authority (President, Parichalaka, Secretary, Cashier);
+* amount/threshold;
+* approval sequence (initiator → recommender → approver);
+
+the system shall use a dedicated approval-workflow configuration model
+designed against the applicable Bye-Law provisions. The configuration
+shall be introduced in the vertical slice where the relevant business
+process is implemented.
+
+### What This Principle Prohibits
+
+* Adding `*_APPROVAL_REQUIRED` flags to `system_setting`.
+* Pre-populating speculative approval permissions before the module
+  that needs them reaches implementation.
+* Pre-committing to a specific physical schema for the approval model
+  (e.g. `action_type + organization_level → approver_role + sequence`)
+  before requirements are verified against the Bye-Law.
+
+### What This Principle Defers
+
+* The final physical model for approval workflow configuration —
+  thresholds, initiator/recommender distinction, multiple simultaneous
+  approvers, quorum, delegation, and conditional rules may emerge when
+  the actual Bye-Law provisions are inspected.
+* Whether the common model lives in Governance, Administration, or a
+  shared-infrastructure location.
+
+### Source Authority
+
+The **NSS Bye-Law** remains the authority for determining which roles
+approve or recommend which actions at which organizational level.
+
+### Resolution Trigger
+
+When Membership, Governance, Finance, or Programme & Events reaches
+its vertical slice, the actual approval requirements for that module
+shall be identified first, and the common approval workflow
+architecture designed from those concrete requirements.
+
+```text
+CROSS_MODULE_PRINCIPLES.md
+        │
+        └── APPR-ARCH-001 (this principle)
+                         │
+                         ▼
+              Relevant module vertical slice
+                         │
+              ┌──────────┼──────────┐
+              ▼          ▼          ▼
+          Membership  Governance   Finance/Events
+              │          │          │
+              └──────────┼──────────┘
+                         ▼
+              Common approval model
+              designed from Bye-Law rules
+```
+
 ---
 
 # 12. Domain Ownership vs Shared Infrastructure
@@ -381,6 +451,7 @@ The same one-owner-per-table principle applies to future modules.
 | Module-owned `_history` + shared field change log | FROZEN |
 | Audit / Change History / Effective Dating / Migration separation | FROZEN |
 | No universal shared approval table | FROZEN |
+| Approval workflow configuration via dedicated model, not system_setting flags (APPR-ARCH-001) | FROZEN |
 | Effective dating is module-specific where required | FROZEN |
 | Migration lineage required conceptually | FROZEN |
 | Exact Migration physical tables | OPEN — DDL/design phase |
