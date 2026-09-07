@@ -554,9 +554,10 @@ Completed:
   different scope from the `backend/foundation/` Django app). **SQL implements 12 tables** (2
   more than the design doc covers — see Foundation Database Schema above and
   `docs/PROJECT_DOCUMENTATION.md`)
-* Administration Module Design (v1.0.0, SOURCE ALIGNED — 8 Administration-owned tables: 5 RBAC
-  tables plus the Correspondence Register; `user_account`/`password_history` are exclusively
-  Authentication-owned)
+* Administration Module Design (v1.0.0/v1.2.0, SOURCE ALIGNED — 8 Administration-owned tables:
+  5 RBAC tables plus the Correspondence Register; table-design doc frozen at v1.2.0 for the
+  parallel administrative role model (`SOL-ADMIN-004`); `user_account`/`password_history` are
+  exclusively Authentication-owned)
 * Authentication & Security Module Design (v1.0.0, SOURCE ALIGNED — exclusively owns
   `user_account`+`password_history`; references but doesn't own Administration's 5 RBAC tables;
   different schema from the real `backend/authentication/` app)
