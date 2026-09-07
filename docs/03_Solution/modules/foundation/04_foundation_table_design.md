@@ -350,7 +350,6 @@ PASSWORD_EXPIRY_DAYS
 MAX_LOGIN_ATTEMPTS
 CURRENT_MEMBERSHIP_YEAR
 DEFAULT_COUNTRY
-PRESIDENT_APPROVAL_REQUIRED
 ```
 
 These examples demonstrate the intended concept; they are not a final

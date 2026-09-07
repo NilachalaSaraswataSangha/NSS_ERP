@@ -344,7 +344,6 @@ Examples previously discussed include:
     MAX_LOGIN_ATTEMPTS
     CURRENT_MEMBERSHIP_YEAR
     DEFAULT_COUNTRY
-    PRESIDENT_APPROVAL_REQUIRED
 
 These are examples, not a final frozen catalogue.
 
