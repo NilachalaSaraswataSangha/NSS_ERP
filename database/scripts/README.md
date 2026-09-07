@@ -169,6 +169,12 @@ and start the API:
 # Grant backend privileges (step 6)
 psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
 
+# Install Python dependencies
+# macOS / Linux:
+python3 -m pip install -r requirements.txt
+# Windows:
+#   py -m pip install -r requirements.txt
+
 # Create api/.env with the nss_db_backend password from step 2
 cat > api/.env << 'EOF'
 DB_NAME=nss_erp
@@ -179,7 +185,19 @@ DB_PORT=5432
 EOF
 
 # Start the API (from the repository root)
-uvicorn api.main:app --reload --port 8001
+# macOS / Linux:
+python3 -m uvicorn api.main:app --reload --port 8001
+# Windows:
+#   py -m uvicorn api.main:app --reload --port 8001
 ```
 
 Swagger UI: `http://localhost:8001/docs`
+
+Tier 0 endpoints (read-only, no authentication):
+
+| Method | URL | Returns |
+|--------|-----|---------|
+| GET | `http://localhost:8001/api/v1/bootstrap/health` | Status + database connectivity |
+| GET | `http://localhost:8001/api/v1/bootstrap/roles` | 8 frozen roles |
+| GET | `http://localhost:8001/api/v1/bootstrap/permissions` | Empty list (by design) |
+| GET | `http://localhost:8001/api/v1/bootstrap/roles/{role_pk}/permissions` | Permissions for a role (empty) |

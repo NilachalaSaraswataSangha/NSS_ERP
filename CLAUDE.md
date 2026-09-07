@@ -10,8 +10,12 @@ repository.
 
 ## Setup
 
-```
-pip install -r requirements.txt
+```bash
+# macOS / Linux
+python3 -m pip install -r requirements.txt
+
+# Windows
+py -m pip install -r requirements.txt
 ```
 
 Create `api/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` — the FastAPI
@@ -56,7 +60,10 @@ real users. These are separate security boundaries.
 ## Running the FastAPI API
 
 ```
-uvicorn api.main:app --reload --port 8001
+# macOS / Linux
+python3 -m uvicorn api.main:app --reload --port 8001
+# Windows
+py -m uvicorn api.main:app --reload --port 8001
 ```
 Run from the **repository root** (not from `api/`). Requires `api/.env` with DB credentials.
 

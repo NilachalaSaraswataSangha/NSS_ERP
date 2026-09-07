@@ -82,11 +82,27 @@ done
 psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
 
 # ─────────────────────────────────────────────────
-# Step 7: Create api/.env and start FastAPI
+# Step 7: Install dependencies, create api/.env,
+#         and start FastAPI
 # ─────────────────────────────────────────────────
+# Install Python dependencies
+# macOS / Linux:
+python3 -m pip install -r requirements.txt
+# Windows:
+#   py -m pip install -r requirements.txt
+
 # Create api/.env with DB_NAME, DB_USER (nss_db_backend),
 # DB_PASSWORD (from step 2), DB_HOST, DB_PORT
-# Then: uvicorn api.main:app --reload --port 8001
+# Then:
+#   macOS / Linux: python3 -m uvicorn api.main:app --reload --port 8001
+#   Windows:       py -m uvicorn api.main:app --reload --port 8001
+#
+# Swagger UI: http://localhost:8001/docs
+# Tier 0 endpoints (read-only, no authentication):
+#   GET http://localhost:8001/api/v1/bootstrap/health
+#   GET http://localhost:8001/api/v1/bootstrap/roles
+#   GET http://localhost:8001/api/v1/bootstrap/permissions
+#   GET http://localhost:8001/api/v1/bootstrap/roles/{role_pk}/permissions
 
 # ─────────────────────────────────────────────────
 # Phase 6+: Person, Auth/Admin remaining, etc.

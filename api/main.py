@@ -8,7 +8,8 @@ Tier 0 Bootstrap API:
   - Connects as nss_db_backend (SELECT-only privileges)
 
 Start with:
-    uvicorn api.main:app --reload --port 8001
+    python3 -m uvicorn api.main:app --reload --port 8001   (macOS/Linux)
+    py -m uvicorn api.main:app --reload --port 8001         (Windows)
     (run from the repository root)
 """
 
