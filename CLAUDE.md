@@ -42,11 +42,13 @@ Windows) runs all implemented DDL+seed end-to-end against a running Postgres ins
 `database/scripts/03_validate.sh`/`.ps1` (same args) then checks row counts and FK integrity
 across those same modules. `database/scripts/00_create_database.sql` is a one-time superuser
 script that creates the `nss_erp` database and the `nss_db_owner`/`nss_db_backend` roles (both
-`LOGIN`, no password set — set one via `ALTER ROLE ... PASSWORD` before use);
+created with `LOGIN`, no password — set one via `ALTER ROLE ... PASSWORD` before first use);
 `database/scripts/01_extensions.sql` installs pgcrypto/pg_trgm/btree_gin/postgis in nss_erp and
 creates the `nss` schema (also superuser) — all tables live under `nss.*`, not `public`; the
-database's default `search_path` is `nss, public`. The old repo-root `validate_foundation.sh`
-(Foundation-only) has been replaced by these.
+database's default `search_path` is `nss, public`. The 5-step bootstrap sequence is:
+`00_create_database.sql` → set passwords → `01_extensions.sql` → `02_build.sh` → `03_validate.sh`
+(see `database/scripts/README.md` for the full phase-by-phase execution table).
+The old repo-root `validate_foundation.sh` (Foundation-only) has been replaced by these.
 
 **Role naming convention:** `nss_db_*` = PostgreSQL infrastructure roles (lowercase);
 `NSS_ERP_*` = application RBAC roles in `role_master` (uppercase). PostgreSQL `nss_db_owner`

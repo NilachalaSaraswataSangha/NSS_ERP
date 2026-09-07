@@ -27,6 +27,11 @@ Prerequisites (superuser) must complete before the nss_db_owner phases.
 # Prerequisites (run as PostgreSQL superuser)
 # ─────────────────────────────────────────────────
 psql -U postgres -d postgres -f database/scripts/00_create_database.sql
+
+# Set passwords for both roles (never commit real passwords)
+psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
+psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
+
 psql -U postgres -d nss_erp  -f database/scripts/01_extensions.sql
 
 # ─────────────────────────────────────────────────

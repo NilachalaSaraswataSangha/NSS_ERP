@@ -388,11 +388,14 @@ mapping, backed by `GDR-002`.
 ```
 database/
 ├── scripts/              00_create_database.sql (superuser, postgres DB: creates nss_erp
-│                         database + nss_db_owner/nss_db_backend roles via dblink),
-│                         01_extensions.sql (superuser, nss_erp: pgcrypto/pg_trgm/btree_gin/postgis),
-│                         02_build.sh (runs all implemented DDL+seed in phase order),
-│                         03_validate.sh (row-count/FK integrity checks) — replaced the
-│                         old repo-root validate_foundation.sh
+│                         database + nss_db_owner/nss_db_backend roles, both LOGIN, no password,
+│                         via dblink),
+│                         01_extensions.sql (superuser, nss_erp: pgcrypto/pg_trgm/btree_gin/postgis,
+│                         nss schema),
+│                         02_build.sh/.ps1 (runs all implemented DDL+seed in phase order),
+│                         03_validate.sh/.ps1 (row-count/FK integrity checks) — replaced the
+│                         old repo-root validate_foundation.sh; see scripts/README.md for the
+│                         full 5-step bootstrap and phase-by-phase execution table
 ├── ddl/
 │   ├── 00_bootstrap/     Implemented, committed — 3 tables: role_master,
 │   │                     permission_master, role_permission (RBAC definitions, created
@@ -513,19 +516,22 @@ are reconstructed directly from `backend/config/settings.py` and `requirements.t
    (Django 6.0.6, psycopg2-binary, django-environ, plus currently-unused fastapi/uvicorn/
    django-htmx/pillow — see Gotchas.)
 
-2. **Database:** provision a PostgreSQL database; `database/scripts/01_extensions.sql`
-   (run as superuser against nss_erp) enables `pgcrypto`, `pg_trgm`, and `btree_gin`.
-   Run the DDL files under
-   `database/ddl/` in numeric folder/file order (`00_bootstrap` — 3 RBAC tables, implemented
-   and committed, seed data partial — → `01_foundation` — 12 tables — →
-   `02_organization` — 3 tables, both implemented and seeded — → `03_person`, superseded
-   prototype, skip it), then load `database/seed/` in the same order (see `database/README.md`
-   for the exact `psql` invocations and full phase-by-phase execution table). `database/scripts/
-   02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]` runs all three implemented modules'
-   DDL+seed end-to-end against a live Postgres instance, and `database/scripts/03_validate.sh`
-   (same args) checks row counts and FK integrity afterward — these replaced the old repo-root
-   `validate_foundation.sh` (Foundation-only, now deleted). Note this raw-SQL schema is **not**
-   currently consumed
+2. **Database (raw-SQL track):** the 5-step bootstrap sequence is documented in
+   `database/scripts/README.md`:
+   1. `00_create_database.sql` (as superuser on `postgres` DB) — creates `nss_erp` database and
+      `nss_db_owner`/`nss_db_backend` roles (both `LOGIN`, no password).
+   2. Set passwords: `ALTER ROLE nss_db_owner PASSWORD '...'; ALTER ROLE nss_db_backend PASSWORD '...';`
+   3. `01_extensions.sql` (as superuser on `nss_erp`) — installs pgcrypto, pg_trgm, btree_gin,
+      postgis; creates `nss` schema owned by `nss_db_owner`.
+   4. `02_build.sh` / `.ps1` (as `nss_db_owner`) — runs all implemented DDL + seed in phase order
+      (Bootstrap RBAC → Foundation → Organization).
+   5. `03_validate.sh` / `.ps1` (as `nss_db_owner`) — post-build checks (table existence, row
+      counts, unique constraints, FK integrity).
+   
+   The build covers 18 tables across 3 modules (3 Bootstrap RBAC + 12 Foundation + 3
+   Organization); `03_person/` is a superseded prototype and is skipped. Cross-platform:
+   `.sh` and `.ps1` wrappers are operationally identical — same SQL, same execution order.
+   Note this raw-SQL schema is **not** currently consumed
    by the Django app (see Architecture) — it exists independently, so setting it up is only
    required if you're working on the SQL/DB-first track rather than the Django app itself.
 
