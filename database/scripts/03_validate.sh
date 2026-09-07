@@ -36,6 +36,13 @@ DB_USER="${2:-nss_db_owner}"
 DB_HOST="${3:-localhost}"
 DB_PORT="${4:-5432}"
 
+# Prompt for password once; export so all psql calls reuse it.
+if [ -z "${PGPASSWORD:-}" ]; then
+    read -rsp "Password for ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}: " PGPASSWORD
+    echo ""
+    export PGPASSWORD
+fi
+
 PSQL="psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} -t -A"
 
 RED='\033[0;31m'

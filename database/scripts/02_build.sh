@@ -51,6 +51,13 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DDL_BASE="${REPO_ROOT}/database/ddl"
 SEED_BASE="${REPO_ROOT}/database/seed"
 
+# Prompt for password once; export so all psql calls reuse it.
+if [ -z "${PGPASSWORD:-}" ]; then
+    read -rsp "Password for ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}: " PGPASSWORD
+    echo ""
+    export PGPASSWORD
+fi
+
 PSQL="psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} -v ON_ERROR_STOP=1"
 
 # -- colours -----------------------------------------------
