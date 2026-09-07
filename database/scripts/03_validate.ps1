@@ -21,6 +21,14 @@ param(
     [int]$DbPort = 5432
 )
 
+# Prompt for password once; export so all psql calls reuse it.
+if (-not $env:PGPASSWORD) {
+    $securePass = Read-Host "Password for ${DbUser}@${DbHost}:${DbPort}/${DbName}" -AsSecureString
+    $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+        [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass)
+    )
+}
+
 $pass_count = 0
 $fail_count = 0
 $warn_count = 0

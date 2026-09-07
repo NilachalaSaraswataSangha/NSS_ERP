@@ -29,6 +29,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Prompt for password once; export so all psql calls reuse it.
+if (-not $env:PGPASSWORD) {
+    $securePass = Read-Host "Password for ${DbUser}@${DbHost}:${DbPort}/${DbName}" -AsSecureString
+    $env:PGPASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+        [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass)
+    )
+}
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path "$ScriptDir\..\..").Path
 $DdlBase = "$RepoRoot\database\ddl"
