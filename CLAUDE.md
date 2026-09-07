@@ -51,6 +51,9 @@ database's default `search_path` is `nss, public`. The 5-step bootstrap sequence
 `00_create_database.sql` → set passwords → `01_extensions.sql` → `02_build.sh` → `03_validate.sh`
 (see `database/scripts/README.md` for the full phase-by-phase execution table).
 The old repo-root `validate_foundation.sh` (Foundation-only) has been replaced by these.
+`.sh`/`.ps1` script pairs must stay operationally identical (same SQL, same execution order,
+same password-prompt behavior) — they're shell-mechanics wrappers only, never a place to add
+platform-specific logic.
 
 **Role naming convention:** `nss_db_*` = PostgreSQL infrastructure roles (lowercase);
 `NSS_ERP_*` = application RBAC roles in `role_master` (uppercase). PostgreSQL `nss_db_owner`
@@ -142,9 +145,10 @@ docs/
 ```
 
 **Git branch policy:** `feature/<work>` → complete & verify → commit → merge into `develop` →
-only then create the next feature branch. `main` advances only via a documented tag+release
-process, never ad-hoc branch sync. Confirm the current branch before making changes — don't
-assume a rename/move succeeded without verifying via `git status`/`git ls-files`.
+only then create the next feature branch. `main` advances only via a documented release: git
+tag + release notes doc (`docs/05_Releases/vX.Y.Z.md`) + GitHub Release, never an ad-hoc branch
+sync. Confirm the current branch before making changes — don't assume a rename/move succeeded
+without verifying via `git status`/`git ls-files`.
 
 **Two git remotes:** `personal` (`github.com/sandeeppanda22/NSS_ERP`, daily dev) → PR →
 `org` (`github.com/NilachalaSaraswataSangha/NSS_ERP`, deploy source). `git fetch`/`push` to

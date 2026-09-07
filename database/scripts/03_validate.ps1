@@ -117,12 +117,12 @@ foreach ($t in $foundationTables) { Check-TableExists $t }
 
 Write-Host "  Row counts:"
 Check-RowCount "master_category" 11
-Check-RowCount "master_data" 40
+Check-RowCount "master_data" 58
 Check-RowCount "id_sequence_master" 9
 Check-RowCount "country" 5
 Check-RowCount "state" 112
 Check-RowCount "district" 700
-Check-RowCount "system_setting" 5
+Check-RowCount "system_setting" 4
 Check-RowCount "postal_code" 2
 
 Write-Host "  Unique constraints:"

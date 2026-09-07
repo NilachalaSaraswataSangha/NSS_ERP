@@ -247,8 +247,12 @@ The ERP application role `NSS_ERP_ADMIN` is a row in `role_master`
 (Phase 0 seed) and is a separate security boundary (SOL-ARCH-011 §7.2).
 `nss_db_owner` is intentionally not a SUPERUSER.
 
-No credentials are stored in this file. Set passwords externally via
-`ALTER ROLE ... PASSWORD '...'` or `.pgpass` / environment variables.
+No credentials for `nss_db_owner`/`nss_db_backend` themselves are stored in this
+file — set their passwords externally via `ALTER ROLE ... PASSWORD '...'` or
+`.pgpass` / environment variables. The script's internal `dblink_exec` call
+(step 4) does hardcode a local-dev placeholder password for the `postgres`
+superuser connection it opens back to itself — change that to your actual
+superuser password before running against a shared/non-local environment.
 
 ### 01_extensions.sql — PostgreSQL Extensions
 

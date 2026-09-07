@@ -44,21 +44,25 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 > **Note:** `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` is the Approved
 > forward-looking decision record — it replaces Bootstrap 5 with Tailwind CSS +
-> DaisyUI + Alpine.js, commits to actually wiring up FastAPI, and adds a hosting/offline plan.
-> None of that is implemented in code yet; the stack below reflects the current codebase.
+> DaisyUI + Alpine.js, and adds a hosting/offline plan. The FastAPI half of that decision
+> is now partially implemented (Tier 0 bootstrap endpoints); the stack below reflects the
+> current codebase.
 
 ## Frontend
 
-* Django Templates
-* Bootstrap 5
-* HTMX *(dependency pinned via `django-htmx`; not yet wired into any template as of the current codebase — see `docs/PROJECT_DOCUMENTATION.md` → Gotchas)*
+* No frontend exists yet — the earlier Django/Bootstrap 5 templates were removed along with
+  the Django prototype. Tailwind CSS + DaisyUI + Alpine.js (per `TECH_STACK_DECISIONS.md`) is
+  the planned direction; 13 static mockups exist under `docs/03_Solution/ui/mockups/`.
 
 ---
 
 ## Backend
 
-* Django
-* FastAPI *(pinned in `requirements.txt`; no FastAPI app/router exists in `backend/` yet — Django views call the ORM directly, see `docs/PROJECT_DOCUMENTATION.md` → Architecture)*
+* FastAPI — the only web/API layer in the codebase (`api/`), currently a Tier 0
+  read-only bootstrap-RBAC API (no ORM, raw `psycopg2`, no auth). See
+  `docs/PROJECT_DOCUMENTATION.md` → Architecture.
+* Django — an earlier prototype existed under `backend/` but was fully archived and removed
+  once the FastAPI direction was adopted; `backend/` is now empty.
 
 ---
 
@@ -70,8 +74,8 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 ## Authentication
 
-* Django Authentication
-* JWT (Future)
+* None yet — Tier 0 is deliberately unauthenticated by design. RBAC/JWT enforcement is planned
+  for a later tier.
 
 ---
 
@@ -95,24 +99,20 @@ design philosophy, ensuring that business rules are frozen before implementation
 # Project Architecture
 
 ```text
-Browser
+Browser / HTTP client
    │
    ▼
-Django Templates
+FastAPI (api/main.py, Tier 0 bootstrap router)
    │
    ▼
-Django Views (function-based; call the ORM directly)
+psycopg2 connection pool (api/database.py) — raw SQL, no ORM
    │
    ▼
-Django ORM
-   │
-   ▼
-PostgreSQL
+PostgreSQL (nss.* schema)
 ```
 
-*(Note: FastAPI is pinned as a dependency but has no app/router wired up yet — the diagram
-above reflects the actual current request path. See `docs/PROJECT_DOCUMENTATION.md` →
-Architecture for the planned two-track Django ORM / raw-SQL-DDL data layer.)*
+*(See `docs/PROJECT_DOCUMENTATION.md` → Architecture for full detail on the FastAPI Tier 0
+implementation and what's still unbuilt.)*
 
 ---
 
@@ -208,17 +208,16 @@ Notes:
 
 # Module Structure
 
-*The sections below describe the full planned module roadmap. Currently only
-**Foundation, Membership, Family, Governance (stub), Attendance (stub), and Founder & Heritage**
-exist as Django apps under `backend/` — Mahila Sangha, Kumari Sangha, Kishor Puja, Sevak
-Sangha, UPBS, Reports & Analytics, Administration, Audit, Backup & Technical, Finance,
-Programmes & Events, and Assets & Property have no app directory yet. Solution-layer design
+*The sections below describe the full planned module roadmap. No module on this list has any
+API/backend implementation yet — the only implemented code is a Tier 0 FastAPI bootstrap-RBAC
+API (`api/`, 4 read-only endpoints) plus SQL DDL for Bootstrap RBAC, Foundation, and
+Organization. An earlier Django prototype briefly implemented parts of Foundation, Membership,
+Family, Governance (stub), Attendance (stub), and Founder & Heritage under `backend/`, but it
+was fully archived and removed once the FastAPI direction was adopted. Solution-layer design
 documentation (overview/ERD/lifecycle/business-rules/table-design) is complete for essentially
-every module on this roadmap — ahead of, and not yet reconciled with, any backend
-implementation. **Programmes & Events is the one exception**: still DRAFT, explicitly not
-frozen, though its cross-module reconciliation gates are closed and its candidate table set has
-settled. Two modules (Foundation, Authentication & Security) share a name with an existing
-`backend/` app but design an unrelated schema — see `docs/PROJECT_DOCUMENTATION.md` → Gotchas.
+every module on this roadmap — ahead of, and not yet reconciled with, any code implementation.
+**Programmes & Events is the one exception**: still DRAFT, explicitly not frozen, though its
+cross-module reconciliation gates are closed and its candidate table set has settled.
 See `docs/PROJECT_DOCUMENTATION.md` for the current, code-verified status of each.*
 
 ## Foundation
@@ -528,30 +527,34 @@ Completed:
 * Person Database Schema (partial — `person`/`person_address` implemented; the docs' `person_id`
   naming doesn't match the DDL's `person_code`)
 * Foundation Database Schema ("Foundation Vertical Slice" — 12 tables + full seed data under
-  `database/ddl/01_foundation/`/`database/seed/01_foundation/` — still zero Django code)
+  `database/ddl/01_foundation/`/`database/seed/01_foundation/` — no API layer consumes it yet)
 * Organization Database Schema ("Organization Vertical Slice" — 3 tables
   (`organization_type_master`, `organization_status_master`, `organization`) + full seed data
   under `database/ddl/02_organization/`/`database/seed/02_organization/`, matching the frozen
-  generic structure exactly — still zero Django code. Combined with Foundation and Bootstrap
-  RBAC: **18 tables implemented** — see `database/README.md`)
+  generic structure exactly — no API layer consumes it yet. Combined with Foundation and
+  Bootstrap RBAC: **18 tables implemented** — see `database/README.md`)
 * Bootstrap RBAC DDL (`role_master`/`permission_master`/`role_permission`, `SOL-BOOT-001`/
   `SOL-ARCH-011` — DDL implemented and committed; `role_master` seeded with 8 roles,
   the other two empty pending the permission catalogue; ownership stays with Administration,
   see `docs/PROJECT_DOCUMENTATION.md` → Gotchas for a role-catalogue discrepancy this surfaced)
+* FastAPI Tier 0 Bootstrap API (`api/` — 4 read-only endpoints: health check, roles,
+  permissions, role→permissions; no auth, no ORM, raw `psycopg2` against `nss.*`, connects as
+  `nss_db_backend`; the Django prototype that previously lived under `backend/` was archived
+  and removed)
 * Global Location Model
 * Membership Module Design
 * Family Module Design
 * Attendance Module Design (Review Workflow Frozen)
-* Founder & Heritage Module Design (v1.0.0, SOURCE ALIGNED — 8 tables designed; backend
-  implements only 1, `founder_master`)
+* Founder & Heritage Module Design (v1.0.0, SOURCE ALIGNED — 8 tables designed; zero
+  implementation exists for any of them)
 * Kumari Sangha Module Design (v1.0.0, SOURCE ALIGNED)
 * Kishor Puja Module Design (v1.0.0, SOURCE ALIGNED — Guardian Model frozen v2.1)
 * Mahila Sangha Module Design (v2.1.0, Bye-Law-aligned governance model)
 * Sevak Sangha Module Design (partially frozen — table design only; see
   `docs/PROJECT_DOCUMENTATION.md`)
 * Foundation Module Design (v1.0.0, SOURCE ALIGNED — describes 10 tables: the original 8
-  master-data/geography/sequence tables plus `document_master` + `field_change_log`; same name,
-  different scope from the `backend/foundation/` Django app). **SQL implements 12 tables** (2
+  master-data/geography/sequence tables plus `document_master` + `field_change_log`).
+  **SQL implements 12 tables** (2
   more than the design doc covers — see Foundation Database Schema above and
   `docs/PROJECT_DOCUMENTATION.md`)
 * Administration Module Design (v1.0.0/v1.2.0, SOURCE ALIGNED — 8 Administration-owned tables:
@@ -560,7 +563,7 @@ Completed:
   exclusively Authentication-owned)
 * Authentication & Security Module Design (v1.0.0, SOURCE ALIGNED — exclusively owns
   `user_account`+`password_history`; references but doesn't own Administration's 5 RBAC tables;
-  different schema from the real `backend/authentication/` app)
+  no corresponding API/backend implementation exists yet)
 * Governance Module Design (v1.0.0, SOURCE ALIGNED — Unified Body Governance Model + Elections,
   9 tables; freezes the Mahila Parichalana Mandali term at 3 years, conflicting with the Mahila
   module's own frozen 2-year term — unreconciled, see `docs/PROJECT_DOCUMENTATION.md`)
@@ -582,10 +585,10 @@ Completed:
 
 Current Focus:
 
-* Reconciling Solution-layer design docs with actual Django/SQL implementation across all 22
+* Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
   documented modules — every module now has a complete (or largely complete) design. Two
   modules have real SQL implementation (Foundation: 12 tables; Organization: 3 tables) — 15
-  tables total, still zero corresponding Django code for either. No release doc has been
+  tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. No release doc has been
   created yet for either the module-documentation backlog or the Foundation/Organization SQL
   implementation.
 
@@ -594,8 +597,9 @@ Next Release Target:
 ```text
 Not yet decided — the module-documentation backlog (organization through sevak) is now largely
 complete at the design level, and backend/database implementation has begun on the SQL track
-(Bootstrap RBAC + Foundation + Organization vertical slices, 18 tables total). No release has
-been cut for either slice yet. See docs/PROJECT_DOCUMENTATION.md → Open questions / TODOs.
+(Bootstrap RBAC + Foundation + Organization vertical slices, 18 tables total) plus a Tier 0
+FastAPI bootstrap-RBAC API. No release has been cut for either slice yet.
+See docs/PROJECT_DOCUMENTATION.md → Open questions / TODOs.
 ```
 
 ---
@@ -605,7 +609,11 @@ been cut for either slice yet. See docs/PROJECT_DOCUMENTATION.md → Open questi
 ```text
 NSS_ERP
 │
-├── backend
+├── api
+│   ├── routers
+│   └── schemas
+│
+├── backend                (empty — earlier Django prototype archived and removed)
 │
 ├── database
 │   ├── ddl

@@ -18,22 +18,23 @@ Heritage.
 
 The project follows a **Constitution First → Governance → Requirements → Solution →
 Implementation** philosophy, and for delivery, **Database First → API First → UI First**: raw
-SQL schema is designed and frozen before Django models are written, and Django models before
-UI. That philosophy is visible directly in the repo — the `person` and `organization` modules
-both have hand-written SQL DDL that predates any Django migrations-as-source-of-truth story,
-though several of Organization's own design decisions remain open (see Gotchas).
+SQL schema is designed and frozen before API endpoints/schemas are written, and API endpoints
+before UI. That philosophy is visible directly in the repo — the `person` and `organization`
+modules both have hand-written SQL DDL that predates any API-layer consumption, though several
+of Organization's own design decisions remain open (see Gotchas).
 
-The codebase today is an early-stage skeleton: a working Django login + dashboard + person-list
-flow, five real Django data models (`foundation`, `authentication`, `family`, `membership`,
-`heritage`), a growing raw-SQL PostgreSQL schema (Bootstrap RBAC: 3 tables; Foundation: 12
-tables; Organization: 3 tables — 18 tables implemented and committed in total, plus a
-superseded Person prototype; see the `database/` detail below), and an extensive, mature
-governance/documentation corpus that is significantly ahead of
-the code. Solution-layer design documentation (`docs/03_Solution/modules/`) is complete or
-near-complete across 22 module folders — with zero corresponding backend/SQL work beyond the
-five Django apps and the Foundation/Organization DDL noted above. Two Solution-layer module
-folders (`foundation`, `authentication`) share a name with an existing `backend/` Django app but
-describe an entirely different scope/schema — see Conventions & gotchas.
+The codebase today is an early-stage skeleton: a Tier 0 FastAPI application (`api/`) exposing 4
+read-only bootstrap-RBAC endpoints (no ORM, no auth, raw `psycopg2` against `nss.*`), a growing
+raw-SQL PostgreSQL schema (Bootstrap RBAC: 3 tables; Foundation: 12 tables; Organization: 3
+tables — 18 tables implemented and committed in total, plus a superseded Person prototype; see
+the `database/` detail below), and an extensive, mature governance/documentation corpus that is
+significantly ahead of the code. Solution-layer design documentation
+(`docs/03_Solution/modules/`) is complete or near-complete across 22 module folders — with zero
+corresponding API/SQL work beyond the Tier 0 bootstrap endpoints and the
+Foundation/Organization DDL noted above. A Django prototype (`backend/`) previously existed
+covering `foundation`, `authentication`, `family`, `membership`, and `heritage`, but was fully
+archived and removed (`chore: archive and remove Django prototype`) once the FastAPI direction
+was adopted — `backend/` is now an empty directory.
 `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md` states an `_id` business-identifier
 convention that contradicts the project's actual frozen `_code`-only convention — see
 Conventions & gotchas. `programmes_events` is the one module not tagged SOURCE ALIGNED (still
@@ -42,59 +43,51 @@ DRAFT, not frozen), though its cross-module reconciliation is complete.
 ## Architecture
 
 ```
-Browser
+Browser / HTTP client
    │
    ▼
-Django Templates (Bootstrap 5, server-rendered)
+FastAPI (api/main.py, Tier 0 bootstrap router)
    │
    ▼
-Django Views (function-based only; no DRF/FastAPI wiring yet)
+psycopg2 connection pool (api/database.py) — raw SQL, no ORM
    │
    ▼
-Django ORM  ──(parallel, not yet connected)──  raw SQL DDL (database/ddl/)
-   │
-   ▼
-PostgreSQL
+PostgreSQL (nss.* schema, hand-written DDL under database/ddl/)
 ```
 
-- **Web layer:** Django (`backend/`), server-rendered templates with Bootstrap 5. No FastAPI
-  code exists yet despite `fastapi`/`starlette`/`uvicorn` being pinned in `requirements.txt` —
-  they are currently unused dependencies (see Gotchas).
-- **Data layer:** two parallel tracks that are not yet unified:
-  1. **Django ORM models**, each app with its own `models.py` and migrations, using Django's
-     default integer/auto PKs and the built-in `auth.User` for login (no custom user model).
-  2. **Hand-written PostgreSQL DDL** under `database/ddl/`, following the project's own
-     UUID-`_pk` + business-`_code` convention (see Conventions & Gotchas). This is the
-     "real" intended schema per the governance/standards docs, but the Django apps do **not**
-     read from or write to these tables — the two schemas currently describe overlapping but
-     distinct designs for `Person`/`Organization` (e.g. Django's `foundation.Person` has
-     auto-increment PK and a plain `gender` CharField; the SQL `person` table has a UUID PK,
-     `person_code`, and a `gender_pk` FK to `gender_master`; Django's `foundation.Organization`
-     has no hierarchy at all, while the SQL `organization` table is self-referencing).
-- **Auth:** Django's built-in session auth + `django.contrib.auth.models.User`, function-based
-  `login_view` (`backend/authentication/views.py`). No RBAC/JWT/OTP is implemented yet, even
-  though `docs/00_Project_Governance/STD/05_security_standards.md` specifies a full RBAC +
-  Row-Level-Security model.
+- **Web/API layer:** FastAPI (`api/`), the only web/API layer in the codebase — the earlier
+  Django prototype (`backend/`) has been fully removed. `api/main.py` builds the `FastAPI` app
+  and includes a single router (`api/routers/bootstrap.py`, prefix `/api/v1/bootstrap`); Swagger
+  UI is served at `/docs`. No middleware (no CORS, no auth) is registered.
+- **Data layer:** a single track — **hand-written PostgreSQL DDL** under `database/ddl/`,
+  following the project's own UUID-`_pk` + business-`_code` convention (see Conventions &
+  Gotchas). This is the "real" schema per the governance/standards docs, and it is now actually
+  consumed — read-only — by the FastAPI Tier 0 endpoints via raw parameterized SQL (no ORM). No
+  API layer yet reads/writes `person`/`organization` outside of the bootstrap RBAC tables
+  (`role_master`, `permission_master`, `role_permission`).
+- **Auth:** none. Tier 0 is explicitly read-only, unauthenticated, by design — RBAC/JWT/OTP
+  enforcement is deferred to a later tier, even though
+  `docs/00_Project_Governance/STD/05_security_standards.md` specifies a full RBAC +
+  Row-Level-Security model as the eventual target.
 - **Governance/documentation layer:** a large, independently-maintained set of governance
   standards (`docs/00_Project_Governance/`) and authoritative legal reference documents
   (`docs/01_Authoritative_References/`) that define the rules the eventual system must follow.
   This layer is far more mature than the code.
 
-**Approved future direction (SOLUTION layer, not yet implemented in code):**
+**Approved future direction (SOLUTION layer, partially implemented in code):**
 `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` is the authoritative technology decision
-record and **supersedes the diagram above once code catches up** — it replaces Bootstrap 5 with
-Tailwind CSS + DaisyUI + Alpine.js (HTMX retained), commits to actually wiring up FastAPI
-(currently pinned-but-unused, see Gotchas), pins exact versions (Django 6.0.6, FastAPI 0.136.3),
-and adds a hosting plan (Neon.dev for PostgreSQL, Render.com for the app). **Mobile strategy:**
-the app's own mobile client is Flutter, targeting Android + iOS from day one (Hive/Drift for
-offline local storage, syncing via a Dart background isolate, FCM for push). The web app itself
-still uses IndexedDB/Service-Worker offline support for on-site event registration in the
-browser — a parallel, not exclusive, path to the Flutter app.
+record — Django 6 + FastAPI/Uvicorn API layer + Flutter mobile. The FastAPI half is now
+partially wired up (Tier 0 bootstrap endpoints); Django, the Tailwind/DaisyUI/Alpine.js web UI
+migration, and the Flutter mobile client remain unbuilt. **Mobile strategy:** the app's own
+mobile client is Flutter, targeting Android + iOS from day one (Hive/Drift for offline local
+storage, syncing via a Dart background isolate, FCM for push). The web app itself still uses
+IndexedDB/Service-Worker offline support for on-site event registration in the browser — a
+parallel, not exclusive, path to the Flutter app.
 `docs/03_Solution/architecture/DEVELOPER_REFERENCE_GUIDE.md` is a companion per-module "which
-doc to read before coding" matrix across the REF→AUTH→GOV→REQ→SOLUTION→CODE chain. Until
-`backend/` is actually migrated, treat everything in this "Architecture" section above as the
-current CODE-layer reality and the Tech Stack Decisions doc as the approved target — don't
-assume one from the other.
+doc to read before coding" matrix across the REF→AUTH→GOV→REQ→SOLUTION→CODE chain. Treat
+everything in this "Architecture" section above as the current CODE-layer reality and the Tech
+Stack Decisions doc as the approved target for what's not yet built — don't assume one from the
+other.
 
 **Pre-DDL architecture gates (all FROZEN):**
 `docs/03_Solution/architecture/IMPLEMENTATION_DEPENDENCY_ORDER.md` (`IMPLEMENTATION-TIER-001`,
@@ -252,8 +245,9 @@ ledgers.
 
 Tier 0 (Bootstrap) and Tier 1 (Foundation) DB phases are **implemented**. Tier 2
 (Organization) DB phase is **implemented**. Tier 2 (Person) DB phase is **pending** (the
-`03_person/` DDL is a superseded prototype awaiting rewrite). All API and UI phases remain
-**unimplemented** across all tiers.
+`03_person/` DDL is a superseded prototype awaiting rewrite). Tier 0's API phase is
+**implemented** (4 read-only bootstrap-RBAC endpoints in `api/routers/bootstrap.py`). All other
+API phases and all UI phases remain **unimplemented** across all tiers.
 
 ### Database schema
 
@@ -266,10 +260,12 @@ names, FK references, and index targets.
 
 ```
 NSS_ERP/
-├── backend/                     Django project (see below)
+├── api/                          FastAPI application (Tier 0 bootstrap endpoints, see below)
+├── backend/                      Empty — the earlier Django prototype was archived and removed
 ├── database/
 │   ├── ddl/                     Hand-written PostgreSQL schema, numbered by module
-│   └── seed/                    Reference/lookup data matching the DDL
+│   ├── seed/                    Reference/lookup data matching the DDL
+│   └── scripts/                 Executable bootstrap/build/validate/grant scripts (see below)
 ├── docs/
 │   ├── PROJECT_DOCUMENTATION.md This file
 │   ├── 00_Project_Governance/   AUTH/ GOV/ GDR/ STD/ — governance framework + engineering standards
@@ -284,7 +280,8 @@ NSS_ERP/
 │   │                            audit, backup_technical, finance, programmes_events,
 │   │                            assets_property) + architecture/ui/infrastructure/standards/
 │   │                            database/security content populated (see detail below); only
-│   │                            api/ remains empty scaffolding
+│   │                            docs/03_Solution/api/ remains empty scaffolding (distinct from
+│   │                            the real, implemented root-level `api/` code folder)
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
@@ -293,31 +290,40 @@ NSS_ERP/
 └── README.md                     Project pitch / high-level status
 ```
 
-`database/scripts/` holds the executable bootstrap/build/validate scripts (`00_create_database.sql`,
-`01_extensions.sql`, `02_build.sh`, `03_validate.sh`) that replaced the old repo-root `validate_foundation.sh`
-(deleted) — see the `database/` detail below.
+`database/scripts/` holds the executable bootstrap/build/validate/grant scripts
+(`00_create_database.sql`, `01_extensions.sql`, `02_build.sh`/`.ps1`, `03_validate.sh`/`.ps1`,
+`04_grant_backend.sql`) that replaced the old repo-root `validate_foundation.sh` (deleted) — see
+the `database/` detail below.
 
-### `backend/` — Django project detail
+### `api/` — FastAPI application detail
 
 ```
-backend/
-├── config/            Django project config: settings.py, urls.py, asgi.py, wsgi.py
-├── authentication/    Role, UserRole, LoginAudit models; login_view; wired into INSTALLED_APPS + urls
-├── dashboard/         kendra_dashboard view only; NOT in INSTALLED_APPS but IS wired into urls.py (works because it has no models)
-├── foundation/        OrganizationType, Organization, Address, Person models; person_list/person_detail views; wired into INSTALLED_APPS + urls
-├── family/            FamilyGroup, FamilyMembership models; wired into INSTALLED_APPS; NO urls.py — unreachable via HTTP, admin-only
-├── membership/        MembershipType, MembershipStatus, SanghaSevi models; wired into INSTALLED_APPS; NO urls.py — unreachable via HTTP
-├── governance/        Stub only — empty models.py/views.py, no urls.py, not in INSTALLED_APPS
-├── attendance/        Stub only — empty models.py/views.py, no urls.py, not in INSTALLED_APPS
-├── heritage/          Founder singleton model (one-record-only, undeletable); wired into INSTALLED_APPS; NO urls.py — admin-only
-├── static/            css/app.css (NSS color theme), js/app.js (empty placeholder)
-├── templates/         base/ (base.html, login_base.html, navbar.html, sidebar.html), auth/, dashboard/, foundation/
-└── manage.py
+api/
+├── main.py             FastAPI app entry point — builds `app`, includes the bootstrap router,
+│                       closes the DB pool on shutdown. Run with:
+│                       `python3 -m uvicorn api.main:app --reload --port 8001` (from repo root)
+├── config.py           Settings: DB_NAME/DB_USER/DB_PASSWORD (required), DB_HOST (default
+│                       localhost), DB_PORT (default 5432), API_PORT (default 8001) — read from
+│                       `api/.env` via python-dotenv; `Settings.validate()` raises if any
+│                       required var is missing
+├── database.py         psycopg2 `SimpleConnectionPool` (1-5 conns), connects as `nss_db_backend`
+│                       (read-only in Tier 0); `get_connection()` is a FastAPI generator
+│                       dependency; `check_connection()` backs the /health endpoint
+├── routers/
+│   └── bootstrap.py    4 endpoints under `/api/v1/bootstrap` — no auth, no ORM, raw
+│                       parameterized SQL against `nss.role_master`/`permission_master`/
+│                       `role_permission` (see Key workflows below)
+└── schemas/
+    └── bootstrap.py    Pydantic response models (RoleResponse, PermissionResponse,
+                         HealthResponse); audit columns deliberately excluded from the contract
 ```
 
-Modules referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishor`, `sevak`,
-`publications`, `upbs`, `reports`, `administration`) **do not exist yet** as Django apps — they
-are planned, not scaffolded.
+This is the only web/API layer in the codebase. `backend/` (the earlier Django prototype
+covering `foundation`, `authentication`, `family`, `membership`, `heritage`) was fully archived
+and removed once the FastAPI direction was adopted; the directory is now empty. Modules
+referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishor`, `sevak`,
+`publications`, `upbs`, `reports`, `administration`) **do not exist yet** in either `api/` or
+any other code form — they are planned, not scaffolded.
 
 ### `docs/01_Authoritative_References/NSS/` detail
 
@@ -393,9 +399,11 @@ database/
 │                         01_extensions.sql (superuser, nss_erp: pgcrypto/pg_trgm/btree_gin/postgis,
 │                         nss schema),
 │                         02_build.sh/.ps1 (runs all implemented DDL+seed in phase order),
-│                         03_validate.sh/.ps1 (row-count/FK integrity checks) — replaced the
-│                         old repo-root validate_foundation.sh; see scripts/README.md for the
-│                         full 5-step bootstrap and phase-by-phase execution table
+│                         03_validate.sh/.ps1 (row-count/FK integrity checks),
+│                         04_grant_backend.sql (grants nss_db_backend read-only SELECT on all
+│                         nss.* tables, for the FastAPI API layer) — replaced the old repo-root
+│                         validate_foundation.sh; see scripts/README.md for the full
+│                         database-to-running-API sequence and phase-by-phase execution table
 ├── ddl/
 │   ├── 00_bootstrap/     Implemented, committed — 3 tables: role_master,
 │   │                     permission_master, role_permission (RBAC definitions, created
@@ -419,11 +427,11 @@ database/
     │                     matching SOL-ADMIN-004 §8.7 frozen catalogue);
     │                     `permission_master`/`role_permission`: empty, pending the permission
     │                     catalogue
-    ├── 01_foundation/    Implemented — 8 seed files: 11 master categories, ~40 master data
+    ├── 01_foundation/    Implemented — 8 seed files: 11 master categories, 58 master data
     │                     values (GENDER/MARITAL_STATUS/ADDRESS_TYPE/DOCUMENT_TYPE/
     │                     MEMBERSHIP_TYPE/MEMBERSHIP_STATUS/RELATIONSHIP_TYPE), 9 ID sequences
     │                     (PERSON zero-padded to 10 digits — see Gotchas), 5 countries, 112
-    │                     states, ~770 districts (India only), 5 system settings, 2 postal
+    │                     states, ~770 districts (India only), 4 system settings, 2 postal
     │                     codes (minimal bootstrap set — full postal code data is a future task)
     ├── 02_organization/  Implemented — 8 organization types, 1 status master, 3 unique named
     │                     organizations (Kendra, Nilachala Kutira, Smruti Mandira)
@@ -437,26 +445,26 @@ database/
 ├── modules/
 │   ├── organization/     01_module_overview/02_erd/03_lifecycle/04_business_rules/05_table_design (v1.1.0, GOVERNANCE ALIGNED); walks back the ANCHALIKA/ZILLA/SAKHA/PATHA_CHAKRA type-to-type parent matrix to an OPEN item — only the generic apex + self-referencing 3-table structure is frozen. Implemented in SQL, matching that generic structure — but the implemented `organization_code` column (VARCHAR(10), nullable) doesn't match `ORG-PENDING-001`'s frozen `organization_short_code` spec (VARCHAR(5), NOT NULL), and seeded type codes (`ANCHALIKA_SANGHA` etc.) don't match this doc's short forms (`ANCHALIKA` etc.) — see Gotchas
 │   ├── person/            same pattern + README.md, v1.0.0 SOURCE ALIGNED, 5 files — **1 table** (`person` only — `document_master` is Foundation-owned); docs name the business identifier `person_id`, conflicting with the implemented DDL's `person_code` (see Gotchas); address/Aadhaar/photo/blood-group explicitly left OPEN despite `person_address` already existing in SQL
-│   ├── membership/         01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — richer than backend/membership/models.py (see Gotchas)
-│   ├── family/             5 files, frozen 4-table design — richer than backend/family/models.py (see Gotchas)
+│   ├── membership/         01-05 overview/erd/lifecycle/business_rules/table_design, all DRAFT — no corresponding API/backend code exists yet (see Gotchas)
+│   ├── family/             5 files, frozen 4-table design — no corresponding API/backend code exists yet (see Gotchas)
 │   ├── attendance/         6 files (business_rules/table_design/review_workflow at slots 04/05/06, FROZEN) + DARSHAK_BUSINESS_RULE.md (see below) — zero corresponding backend code
-│   ├── heritage/           01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED — 8 tables designed (founder_master + teachings/objectives/milestones/publications/office-bearers + 2 lookup masters); `backend/heritage/` implements only founder_master, no urls.py
-│   ├── kumari/             01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED (document-Status DRAFT) — KM000001 ID format; no backend/kumari/ app
-│   ├── kishor/            01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED (document-Status DRAFT) — KH000001 ID format + frozen v2.1 Guardian Model (Guardian must independently qualify via `sangha_sevi` identity); no backend/kishor/ app
-│   ├── mahila/             01-05 overview/erd/lifecycle/business_rules/table_design, v2.1.0 — one body, two names (Mahila Governing Body = Mahila Parichalana Mandali); freezes the Mandali term at 2 years (MAH-040); no backend/mahila/ app
-│   ├── sevak/              01-06 core sequence (only 06_table_design FROZEN, rest DRAFT/consolidation-in-progress) + sangha/, seva/, events/ subdocs; core SEV-001..040; no backend/sevak/ app
-│   ├── foundation/         01-04 overview/erd/business_rules/table_design, v1.0.0 SOURCE ALIGNED — describes 10 tables: the original 8 (master_category, master_data, system_setting, id_sequence_master, country, state, district, city_village) plus `document_master` and `field_change_log`, Foundation-owned shared infrastructure (`DOC-ARCH-001`, `CROSS_MODULE_PRINCIPLES.md`). **Same name, different scope from `backend/foundation/`** (which implements Person/Organization/Address). **Implemented in SQL** — all 10 designed tables have DDL under `database/ddl/01_foundation/`, plus 2 more the design doc doesn't describe yet (`postal_code`, `city_village_postal_code_map`) — see Gotchas
-│   ├── administration/     10 files (5 RBAC/Bootstrap docs + 1 Bootstrap RBAC column-level design + 4 Correspondence Register docs) — v1.0.0/v1.2.0 SOURCE ALIGNED — **8 Administration-owned tables**: the 5 RBAC tables (role_master, permission_master, role_permission, user_role, admin_scope — the first 3 also sequenced as "Phase 0 Bootstrap RBAC," `SOL-BOOT-001`/`SOL-ARCH-011`, DDL implemented and committed) plus 3 Correspondence Register tables (correspondence, correspondence_document, correspondence_finance_reference — `CORR-DECISION-003`); `user_account`/`password_history` are exclusively Authentication-owned per the Table Ownership Declaration; no backend/administration/ app. **Filename collision:** `06_bootstrap_rbac_table_design.md` and `06_correspondence_register_erd.md` share the same number — see Gotchas
-│   ├── authentication/     Solution-layer "Authentication & Security", 5 files — v1.0.0 SOURCE ALIGNED — ERD still shows 7 tables, but exclusive ownership is only `user_account`+`password_history`; the other 5 RBAC tables are exclusively Administration-owned and appear here only for evaluation, not management. Argon2/JWT/session/Aadhaar-encryption/RLS as principles. **Different schema from** the real `backend/authentication/` Django app (Role/UserRole/LoginAudit) — same folder name, unreconciled designs
-│   ├── governance/         Solution-layer ERP module, distinct from docs/00_Project_Governance/, 5 files — v1.0.0 SOURCE ALIGNED — Unified Body Governance Model (body_type_master, body_master, position_master, body_member_assignment, acting_position_assignment) + election entities (election, election_nomination, election_vote, election_result), 9 tables. **Freezes the Mahila Parichalana Mandali term at 3 years** (`04_governance_business_rules.md` GOV-BR-036) **and, per `03_governance_lifecycle.md`, a formal consensus→election→election-table reconstitution process** — both directly conflicting with mahila/'s own frozen **2-year** term (MAH-040) and its consensus-only reconstitution process; unreconciled, see Gotchas/Open questions. `backend/governance/` remains an empty stub
-│   ├── publications/       7 files (overview/erd/business_rules/table_design/functional_design/ui_workflow/notification_purchase_design), v1.0.0 SOURCE ALIGNED + USER REQUIREMENTS — zero new tables, reuses Heritage's nss_publication/publication_type_master/publication_language_master; no backend/publications/ app
-│   ├── upbs/               01-04, v1.0.0 SOURCE ALIGNED — 7 tables (upbs_event, upbs_registration, delegate_card, prasad_patra, accommodation_allocation, camp_master, guest_reference); Day 1/2/3 ops + volunteer structure explicitly PENDING; no backend/upbs/ app
-│   ├── reports/            01-04, v1.0.0 SOURCE ALIGNED — 5 metadata/configuration-only tables (report_category_master, report_definition, report_filter_definition, dashboard, dashboard_widget); consumes but never duplicates other modules' data; no backend/reports/ app
-│   ├── audit/              01-04, v1.0.0 SOURCE ALIGNED — 2 tables (audit_master, system_event_log); no backend/audit/ app
-│   ├── backup_technical/   01-04, v1.0.0 SOURCE ALIGNED — 2 tables (backup_master, restore_history); no corresponding Django app
-│   ├── finance/            01-05 design/erd/business_rules/table_design/lifecycle, v1.0.0 SOURCE ALIGNED (ERD tagged DRAFT — LOGICAL DESIGN) — 7 tables (financial_year, financial_scope, fund_master, financial_transaction, financial_receipt, financial_payment, financial_transfer); derives from REF-003-F[A]/[b]/[c] and REF-MS-7(i)-(iii); Financial Scope Independence principle (FIN-ARCH-001) keeps Financial Scope distinct from Organization; correctly follows the project's `_code` business-identifier convention (contrast with the `_id`/`_code` conflict below); business rules FIN-BR-001–068; no backend/finance/ app
-│   ├── programmes_events/  Module #21, 01-05 overview/erd/lifecycle/business_rules/table_design, v0.1.0 DRAFT — the one module NOT tagged SOURCE ALIGNED; "ARCHITECTURALLY JUSTIFIED" per its cross-module review but "FORMAL MODULE FREEZE PENDING." Programme Type → Event Instance two-level model (Organization ≠ Event Location; Patha Chakra = Organization Type, not Event/Programme Type). **7 candidate common tables**: `programme_type`, `event`, `event_day`, `event_session`, `event_registration`, `event_location`, `event_history` — all cross-module reconciliation gates closed (`SOL-EVT-007`) but still none frozen DDL. Backed by 7 cross-module architecture docs — see `architecture/` below. No `backend/programmes_events/` app
-│   └── assets_property/    Module #22, 01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 DRAFT — SOURCE ALIGNED. Manages the physical/administrative record of NSS movable/immovable property and assets: `Property`/`Asset` as primary entities plus `Custodianship`, `Statutory Record`, `Maintenance Record`. 7 tables: `property`, `asset`, `custodianship`, `property_statutory_record`, `maintenance_record`, `property_document`, `asset_document`. 74 business rules (`AP-001`–`AP-074`: 24 CONSTITUTIONAL, 32 ERP, 13 CROSS-MODULE, 5 PENDING). Depends only on Foundation + Person + Organization (no hard FK to Finance); sits at Tier 6 per `IMPLEMENTATION_DEPENDENCY_ORDER.md`. No `backend/assets_property/` app
+│   ├── heritage/           01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED — 8 tables designed (founder_master + teachings/objectives/milestones/publications/office-bearers + 2 lookup masters); zero implementation exists (no API/backend code) for any of the 8 designed tables
+│   ├── kumari/             01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED (document-Status DRAFT) — KM000001 ID format
+│   ├── kishor/            01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 SOURCE ALIGNED (document-Status DRAFT) — KH000001 ID format + frozen v2.1 Guardian Model (Guardian must independently qualify via `sangha_sevi` identity)
+│   ├── mahila/             01-05 overview/erd/lifecycle/business_rules/table_design, v2.1.0 — one body, two names (Mahila Governing Body = Mahila Parichalana Mandali); freezes the Mandali term at 2 years (MAH-040)
+│   ├── sevak/              01-06 core sequence (only 06_table_design FROZEN, rest DRAFT/consolidation-in-progress) + sangha/, seva/, events/ subdocs; core SEV-001..040
+│   ├── foundation/         01-04 overview/erd/business_rules/table_design, v1.0.0 SOURCE ALIGNED — describes 10 tables: the original 8 (master_category, master_data, system_setting, id_sequence_master, country, state, district, city_village) plus `document_master` and `field_change_log`, Foundation-owned shared infrastructure (`DOC-ARCH-001`, `CROSS_MODULE_PRINCIPLES.md`). **Implemented in SQL** — all 10 designed tables have DDL under `database/ddl/01_foundation/`, plus 2 more the design doc doesn't describe yet (`postal_code`, `city_village_postal_code_map`) — see Gotchas
+│   ├── administration/     10 files (5 RBAC/Bootstrap docs + 1 Bootstrap RBAC column-level design + 4 Correspondence Register docs) — v1.0.0/v1.2.0 SOURCE ALIGNED — **8 Administration-owned tables**: the 5 RBAC tables (role_master, permission_master, role_permission, user_role, admin_scope — the first 3 also sequenced as "Phase 0 Bootstrap RBAC," `SOL-BOOT-001`/`SOL-ARCH-011`, DDL implemented and committed) plus 3 Correspondence Register tables (correspondence, correspondence_document, correspondence_finance_reference — `CORR-DECISION-003`); `user_account`/`password_history` are exclusively Authentication-owned per the Table Ownership Declaration. **Filename collision:** `06_bootstrap_rbac_table_design.md` and `06_correspondence_register_erd.md` share the same number — see Gotchas
+│   ├── authentication/     Solution-layer "Authentication & Security", 5 files — v1.0.0 SOURCE ALIGNED — ERD still shows 7 tables, but exclusive ownership is only `user_account`+`password_history`; the other 5 RBAC tables are exclusively Administration-owned and appear here only for evaluation, not management. Argon2/JWT/session/Aadhaar-encryption/RLS as principles. No corresponding API/backend implementation exists yet for any of this module's tables
+│   ├── governance/         Solution-layer ERP module, distinct from docs/00_Project_Governance/, 5 files — v1.0.0 SOURCE ALIGNED — Unified Body Governance Model (body_type_master, body_master, position_master, body_member_assignment, acting_position_assignment) + election entities (election, election_nomination, election_vote, election_result), 9 tables. **Freezes the Mahila Parichalana Mandali term at 3 years** (`04_governance_business_rules.md` GOV-BR-036) **and, per `03_governance_lifecycle.md`, a formal consensus→election→election-table reconstitution process** — both directly conflicting with mahila/'s own frozen **2-year** term (MAH-040) and its consensus-only reconstitution process; unreconciled, see Gotchas/Open questions. No corresponding API/backend implementation exists yet
+│   ├── publications/       7 files (overview/erd/business_rules/table_design/functional_design/ui_workflow/notification_purchase_design), v1.0.0 SOURCE ALIGNED + USER REQUIREMENTS — zero new tables, reuses Heritage's nss_publication/publication_type_master/publication_language_master
+│   ├── upbs/               01-04, v1.0.0 SOURCE ALIGNED — 7 tables (upbs_event, upbs_registration, delegate_card, prasad_patra, accommodation_allocation, camp_master, guest_reference); Day 1/2/3 ops + volunteer structure explicitly PENDING
+│   ├── reports/            01-04, v1.0.0 SOURCE ALIGNED — 5 metadata/configuration-only tables (report_category_master, report_definition, report_filter_definition, dashboard, dashboard_widget); consumes but never duplicates other modules' data
+│   ├── audit/              01-04, v1.0.0 SOURCE ALIGNED — 2 tables (audit_master, system_event_log)
+│   ├── backup_technical/   01-04, v1.0.0 SOURCE ALIGNED — 2 tables (backup_master, restore_history)
+│   ├── finance/            01-05 design/erd/business_rules/table_design/lifecycle, v1.0.0 SOURCE ALIGNED (ERD tagged DRAFT — LOGICAL DESIGN) — 7 tables (financial_year, financial_scope, fund_master, financial_transaction, financial_receipt, financial_payment, financial_transfer); derives from REF-003-F[A]/[b]/[c] and REF-MS-7(i)-(iii); Financial Scope Independence principle (FIN-ARCH-001) keeps Financial Scope distinct from Organization; correctly follows the project's `_code` business-identifier convention (contrast with the `_id`/`_code` conflict below); business rules FIN-BR-001–068
+│   ├── programmes_events/  Module #21, 01-05 overview/erd/lifecycle/business_rules/table_design, v0.1.0 DRAFT — the one module NOT tagged SOURCE ALIGNED; "ARCHITECTURALLY JUSTIFIED" per its cross-module review but "FORMAL MODULE FREEZE PENDING." Programme Type → Event Instance two-level model (Organization ≠ Event Location; Patha Chakra = Organization Type, not Event/Programme Type). **7 candidate common tables**: `programme_type`, `event`, `event_day`, `event_session`, `event_registration`, `event_location`, `event_history` — all cross-module reconciliation gates closed (`SOL-EVT-007`) but still none frozen DDL. Backed by 7 cross-module architecture docs — see `architecture/` below.
+│   └── assets_property/    Module #22, 01-05 overview/erd/lifecycle/business_rules/table_design, v1.0.0 DRAFT — SOURCE ALIGNED. Manages the physical/administrative record of NSS movable/immovable property and assets: `Property`/`Asset` as primary entities plus `Custodianship`, `Statutory Record`, `Maintenance Record`. 7 tables: `property`, `asset`, `custodianship`, `property_statutory_record`, `maintenance_record`, `property_document`, `asset_document`. 74 business rules (`AP-001`–`AP-074`: 24 CONSTITUTIONAL, 32 ERP, 13 CROSS-MODULE, 5 PENDING). Depends only on Foundation + Person + Organization (no hard FK to Finance); sits at Tier 6 per `IMPLEMENTATION_DEPENDENCY_ORDER.md`.
 ├── standards/
 │   └── lifecycle/         SOL-LIFE-001 (PARTICIPATION_LIFECYCLE_RULES.md), SOL-LIFE-002 (PERSON_LIFECYCLE_RULES.md), both FROZEN v1.0.0 — a SOLUTION-layer standards path distinct from the governance-layer docs/00_Project_Governance/STD/, not yet cross-referenced from either README or from the Sevak/Mahila/Kumari module docs that should cite SOL-LIFE-001 (see Gotchas)
 ├── architecture/
@@ -482,7 +490,8 @@ database/
 ├── ui/
 │   ├── README.md
 │   └── mockups/           13 static HTML screens (Tailwind CSS + DaisyUI via CDN, no build step) + README.md; visual targets for Phase 4, not functional prototypes
-└── (api/ still empty scaffolding — no FastAPI code exists in backend/ either)
+└── (docs/03_Solution/api/ still empty scaffolding — the real, implemented FastAPI code lives
+    at the root-level `api/`, not here)
 ```
 
 `docs/03_Solution/modules/attendance/DARSHAK_BUSINESS_RULE.md` records an ERP implementation
@@ -497,26 +506,26 @@ value in the database.
 administration, audit, authentication (Solution-layer), backup_technical, foundation
 (Solution-layer), governance (Solution-layer), publications, reports, upbs, finance,
 programmes_events, and assets_property all have Solution-layer design docs describing schemas
-richer than what exists in code — none has a corresponding Django app except membership,
-family, attendance (stub, no models), and heritage, whose actual models are far thinner than
-their designs (`backend/membership/models.py` has 3 plain-PK models vs. ~10 UUID-keyed tables
-in the design; `backend/family/models.py` has 2 models vs. a frozen 4-table design;
-`backend/heritage/` implements only 1 of 8 designed tables). Don't assume any Solution-layer doc
-describes currently running code.
+richer than what exists in code — **none has any corresponding API/backend implementation at
+all**. The only implemented API surface in the entire codebase is the Tier 0 bootstrap-RBAC
+router (`api/routers/bootstrap.py`), which isn't one of the 22 Solution-layer modules listed
+above. Don't assume any Solution-layer doc describes currently running code.
 
 ## Setup & running
 
-There is no documented setup script, Makefile, or `.env.example` in the repo — the steps below
-are reconstructed directly from `backend/config/settings.py` and `requirements.txt`.
+Setup is documented in `database/README.md` and `database/scripts/README.md`; the steps below
+summarize the full sequence from a clean machine to a running API.
 
-1. **Python dependencies:**
+1. **Python dependencies** (repo root):
    ```
-   pip install -r requirements.txt
+   python3 -m pip install -r requirements.txt   # macOS/Linux
+   py -m pip install -r requirements.txt         # Windows
    ```
-   (Django 6.0.6, psycopg2-binary, django-environ, plus currently-unused fastapi/uvicorn/
-   django-htmx/pillow — see Gotchas.)
+   `requirements.txt` lists FastAPI, Uvicorn, psycopg2-binary, Pydantic, python-dotenv, and
+   their transitive dependencies (Starlette, anyio, click, h11, idna, colorama, etc.) — no
+   Django. It's plain UTF-8 text (a prior UTF-16LE Windows-migration artifact was fixed).
 
-2. **Database (raw-SQL track):** the 5-step bootstrap sequence is documented in
+2. **Database (raw-SQL track):** the bootstrap sequence is documented in
    `database/scripts/README.md`:
    1. `00_create_database.sql` (as superuser on `postgres` DB) — creates `nss_erp` database and
       `nss_db_owner`/`nss_db_backend` roles (both `LOGIN`, no password).
@@ -524,83 +533,81 @@ are reconstructed directly from `backend/config/settings.py` and `requirements.t
    3. `01_extensions.sql` (as superuser on `nss_erp`) — installs pgcrypto, pg_trgm, btree_gin,
       postgis; creates `nss` schema owned by `nss_db_owner`.
    4. `02_build.sh` / `.ps1` (as `nss_db_owner`) — runs all implemented DDL + seed in phase order
-      (Bootstrap RBAC → Foundation → Organization).
+      (Bootstrap RBAC → Foundation → Organization). Prompts once for the `PGPASSWORD` if not
+      already set in the environment.
    5. `03_validate.sh` / `.ps1` (as `nss_db_owner`) — post-build checks (table existence, row
       counts, unique constraints, FK integrity).
-   
+   6. `04_grant_backend.sql` (as `nss_db_owner`) — grants `nss_db_backend` read-only `SELECT` on
+      all `nss.*` tables (plus future tables via `ALTER DEFAULT PRIVILEGES`), for the API layer.
+
    The build covers 18 tables across 3 modules (3 Bootstrap RBAC + 12 Foundation + 3
    Organization); `03_person/` is a superseded prototype and is skipped. Cross-platform:
-   `.sh` and `.ps1` wrappers are operationally identical — same SQL, same execution order.
-   Note this raw-SQL schema is **not** currently consumed
-   by the Django app (see Architecture) — it exists independently, so setting it up is only
-   required if you're working on the SQL/DB-first track rather than the Django app itself.
+   `.sh` and `.ps1` wrappers are operationally identical — same SQL, same execution order, same
+   password-prompt behavior. This raw-SQL schema **is** now consumed — read-only — by the
+   FastAPI Tier 0 endpoints, so this step is required before starting the API.
 
-3. **Django environment file:** create `backend/.env` (read via
-   `environ.Env.read_env(BASE_DIR / '.env')` at `backend/config/settings.py:21`) with:
+3. **API environment file:** create `api/.env` (read via `python-dotenv`'s `load_dotenv()` at
+   `api/config.py:16-17`, which resolves the path as `Path(__file__).resolve().parent / ".env"`
+   — i.e. `api/.env`, not a repo-root `.env`) with:
    ```
-   DB_NAME=...
-   DB_USER=...
-   DB_PASSWORD=...
-   DB_HOST=...
-   DB_PORT=...
+   DB_NAME=nss_erp
+   DB_USER=nss_db_backend
+   DB_PASSWORD=...       # the password you set for nss_db_backend in step 2
+   DB_HOST=localhost
+   DB_PORT=5432
    ```
-   These five (`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`) are read with no
-   defaults (`backend/config/settings.py:92-96`), so the app will fail to start without them.
-   Note Django's own DB connection here is separate from any manual `psql` connection you'd use
-   to run the DDL files in step 2 — they can point at the same or different databases today
-   since nothing links them.
+   `DB_NAME`, `DB_USER`, `DB_PASSWORD` are required with no defaults — `Settings.validate()`
+   (`api/config.py:32-45`) raises `RuntimeError` listing any that are missing. `DB_HOST`
+   defaults to `localhost`, `DB_PORT` to `5432` if omitted.
 
-4. **Run migrations and start the server** (standard Django, from `backend/`):
+4. **Start the API** (from the **repository root**, not from `api/`):
    ```
-   python manage.py migrate
-   python manage.py createsuperuser   # to access /admin/
-   python manage.py runserver
+   python3 -m uvicorn api.main:app --reload --port 8001   # macOS/Linux
+   py -m uvicorn api.main:app --reload --port 8001         # Windows
    ```
+   Swagger UI: `http://localhost:8001/docs`. Tier 0 endpoints (read-only, no authentication):
+   `GET /api/v1/bootstrap/health`, `GET /api/v1/bootstrap/roles`,
+   `GET /api/v1/bootstrap/permissions`, `GET /api/v1/bootstrap/roles/{role_pk}/permissions`.
 
-5. **Log in:** visit `/`, which redirects to `/login/` (`backend/config/urls.py:24-26`,
-   `backend/authentication/urls.py`). After login you land on `/dashboard/`
-   (`LOGIN_REDIRECT_URL` in `backend/config/settings.py:138`).
-
-There is no test runner configured beyond Django's default (`manage.py test`); every app's
-`tests.py` is an empty stub — **no tests exist in the repo today.**
+No test framework or lint/format tooling is configured yet — **no tests exist in the repo
+today.**
 
 ## Configuration
 
 | Setting | Source | Notes |
 |---|---|---|
-| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | `backend/.env` (not committed, no `.env.example`) | Required, no defaults — `backend/config/settings.py:89-98` |
-| `SECRET_KEY` | Hardcoded in `backend/config/settings.py:29` | Dev-only insecure key, not read from env — needs fixing before any real deployment |
-| `DEBUG` | Hardcoded `True` — `settings.py` | No environment-based toggle yet |
-| `ALLOWED_HOSTS` | Hardcoded `[]` — `settings.py` | Fine for local dev only |
-| `LOGIN_URL` / `LOGIN_REDIRECT_URL` / `LOGOUT_REDIRECT_URL` | `settings.py:137-139` | `/login/`, `/dashboard/`, `/login/` |
-| `TIME_ZONE` | `settings.py` | `UTC`, `USE_TZ = True` |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | `api/.env` (not committed, no `.env.example`) | Required, no defaults — `Settings.validate()` raises `RuntimeError` if any is missing (`api/config.py:32-45`) |
+| `DB_HOST` | `api/.env` | Defaults to `localhost` if unset (`api/config.py:26`) |
+| `DB_PORT` | `api/.env` | Defaults to `5432` if unset (`api/config.py:27`) |
+| `API_PORT` | `api/.env` | Defaults to `8001` (`api/config.py:30`) — defined but currently unread; the actual port is hardcoded in the `uvicorn` run command instead, so the two can silently drift if one changes without the other |
 
-No other configuration surface (feature flags, external service credentials, etc.) exists in
-the code yet.
+No other configuration surface (feature flags, external service credentials, `SECRET_KEY`,
+`DEBUG`, `ALLOWED_HOSTS`, etc.) exists in the code — Tier 0 has no auth/session layer at all.
 
 ## Key workflows
 
-### 1. Login → Dashboard
-`GET /` → redirect to `/login/` (`backend/config/urls.py:24-26`) → `login_view`
-(`backend/authentication/views.py:5`) renders `templates/auth/login.html`. On POST, Django's
-`authenticate()`/`login()` run against the stock `User` model; success redirects (hardcoded
-string `/dashboard/`, not `reverse()`) to `dashboard.kendra_dashboard`
-(`backend/dashboard/views.py:4`), which renders `templates/dashboard/kendra_dashboard.html`
-with no context. Failure re-renders the login page with an inline error message. Every login
-attempt is **not** currently recorded to `authentication.LoginAudit` despite that model
-existing — nothing in `login_view` writes to it yet.
+### 1. Health check → DB connectivity
+`GET /api/v1/bootstrap/health` (`api/routers/bootstrap.py:27-39`) calls `check_connection()`
+(`api/database.py:63-80`), which grabs a connection from the `psycopg2` pool, runs `SELECT 1`,
+and returns it — swallowing all exceptions so no credentials/error detail ever leak to the
+client. The endpoint returns `{"status": "ok"/"degraded", "database": "connected"/
+"unreachable"}`. This is the only endpoint that doesn't use the `Depends(get_connection)`
+pattern the other three use.
 
-### 2. Person listing/detail
-`foundation.person_list` (`backend/foundation/views.py:7-24`, `@login_required`) queries
-`Person.objects.filter(is_active=True).order_by("first_name")` and renders
-`templates/foundation/person_list.html`. `foundation.person_detail`
-(`views.py:26-40`) does `get_object_or_404(Person, pk=pk)` and renders
-`templates/foundation/person_detail.html`. Both use Django's own `foundation.Person` model
-(auto PK, plain `gender` CharField) — **not** the richer SQL `person` table in
-`database/ddl/03_person/02_person.sql` (UUID PK, `person_code`, FK to `gender_master`). These
-are two different, currently-unreconciled representations of "Person."
+### 2. Roles / permissions lookup
+`GET /api/v1/bootstrap/roles` (`api/routers/bootstrap.py:42-68`) runs
+`SELECT role_master_pk, role_code, role_name, role_class, scope_level, description,
+display_order, is_active FROM nss.role_master WHERE is_active = TRUE ORDER BY display_order`
+via `Depends(get_connection)`, returning the 8 frozen roles as `RoleResponse` models.
+`GET /api/v1/bootstrap/permissions` mirrors this against `nss.permission_master` (currently
+empty — the permission catalogue isn't frozen yet).
+`GET /api/v1/bootstrap/roles/{role_pk}/permissions` (`api/routers/bootstrap.py:100-152`) first
+verifies the role exists and is active (404 if not), then joins `nss.role_permission` to
+`nss.permission_master` for that role (currently always empty — no role-permission mappings
+exist yet). All three endpoints are unauthenticated, read-only, and connect as `nss_db_backend`
+— they exist to verify the RBAC schema is queryable, not to enforce RBAC yet.
 
-### 3. Person business-ID generation (SQL-schema track, not yet wired to Django)
+### 3. Person business-ID generation (SQL-schema track, not yet wired to any API)
 `database/ddl/01_foundation/04_id_sequence_master.sql` defines an `id_sequence_master` table —
 a registry of `{sequence_code, prefix, current_value, padding_length}` rows, seeded with **9**
 sequences (`database/seed/01_foundation/03_id_sequence_master.sql`): `PERSON`→`P` (padding
@@ -613,7 +620,7 @@ prototype, still uses an older 4-sequence/8-digit assumption) — **but** the cu
 module design doc (`docs/03_Solution/modules/person/05_person_table_design.md`, v1.0.0 SOURCE
 ALIGNED) names this same business identifier `person_id`, not `person_code`. The doc and the
 implemented DDL disagree on the column name; neither has been reconciled to the other yet. **No
-SQL function or trigger and no Django code currently implements the increment/format logic** —
+SQL function or trigger and no API code currently implements the increment/format logic** —
 this table is pure configuration waiting on an implementation.
 
 ### 4. Organization hierarchy (designed; generic structure implemented in SQL)
@@ -626,10 +633,9 @@ explicitly NOT frozen** — the business rules doc's §22 "Rules Explicitly Not 
 both the exact parent-compatibility matrix and the exact `organization_type_master` seed values
 as open items; only the generic apex + self-referencing structure is frozen. **Implemented in
 SQL** at `database/ddl/02_organization/` — the 3-table structure matches the frozen design
-exactly. Django's `foundation.Organization` model remains a much simpler placeholder (no
-hierarchy, no self-reference) that predates this design and is unaffected by the SQL
-implementation. Anyone picking up organization work should treat the design docs as the target
-and the current Django model as a stand-in to be replaced — but should not assume the
+exactly. No API layer exposes Organization data yet — the SQL DDL is currently the only
+code-level representation of Organization at all. Anyone picking up organization work should
+treat the design docs as the target for the eventual API, but should not assume the
 type-hierarchy specifics are settled.
 **Two freezes live outside this module's own doc set, not inside it:** (1) the business rules
 doc's freeze of exactly **8 organization types** — `KENDRA`, `NILACHALA_KUTIRA`,
@@ -656,30 +662,23 @@ for both.
   SOLUTION-layer module docs (e.g. Person's table-design doc, `DATABASE_DESIGN_STANDARDS.md`)
   use `_id` in their own examples instead — that's a doc-side inconsistency, not a convention
   change; follow `_code` for new DDL.
-- **Two parallel, unreconciled Person/Organization schemas.** See Architecture and Key Workflow
-  #2/#4 above — don't assume the Django ORM models and the SQL DDL describe the same tables.
-- **`dashboard`, `governance`, `attendance` are not in `INSTALLED_APPS`**
-  (`backend/config/settings.py:39-51`). `dashboard` still works because `config/urls.py`
-  includes its urlconf directly and it has no models to register; `governance`/`attendance` have
-  no URLs at all and are pure stubs (empty `models.py`/`views.py`, no `urls.py`).
-  `family`/`membership` have real models but no `urls.py` — reachable only via `/admin/` (and
-  only `membership`'s admin is registered). `heritage` is in the same boat: real model
-  (`Founder`), admin-registered, but no `urls.py`.
-- **Dead links in the UI.** `backend/templates/base/sidebar.html` links "Members" and
-  "Families" to `href="#"` — no URL exists for either yet, consistent with the missing
-  `urls.py` files above.
-- **Orphan/empty files.** `backend/templates/dashboard/sakha_dashboard.html` and
-  `backend/static/js/app.js` are both 0 bytes — present as placeholders, not implemented.
-- **Unused dependencies in `requirements.txt`.** `fastapi`, `starlette`, `uvicorn`,
-  `annotated-doc`, `anyio`, `h11`, `django-htmx`, and `pillow` are pinned but have zero usage
-  in `backend/` today (no FastAPI app, no `hx-` template attributes, no `ImageField`). Don't
-  assume their presence means those integrations exist.
+- **Person/Organization exist only as SQL DDL.** No API layer reads/writes them yet outside
+  the Tier 0 bootstrap-RBAC endpoints (`role_master`/`permission_master`/`role_permission`) —
+  the earlier Django ORM track that once described a second, unreconciled version of these
+  tables has been fully removed (see Architecture and Key Workflow #3/#4 above).
+- **`backend/` is empty.** The Django prototype (`config`, `authentication`, `dashboard`,
+  `foundation`, `family`, `membership`, `governance`, `attendance`, `heritage` apps, templates,
+  static files, `manage.py`) was fully archived and removed once the FastAPI direction was
+  adopted. Nothing in this repo references it anymore except historical git commits.
+- **`api/` has no auth, no middleware, and only one router.** `api/main.py` registers no CORS
+  or auth middleware and includes only `api/routers/bootstrap.py`. Tier 0 is deliberately
+  read-only and unauthenticated — don't assume any request-level security exists yet.
 - **Governance/standards docs are far ahead of the code.** `docs/00_Project_Governance/STD/`
   (naming conventions, audit standards, security standards, master data catalog) describes a
   mature target architecture (RBAC tables, RLS, full audit trail with `*_by_sangha_sevi_pk`
-  columns, etc.) that the current `backend/` code does not yet implement — the built-in
-  `auth.User` model and hardcoded dev settings are a long way from that target. Treat the STD
-  docs as the destination, not the current state.
+  columns, etc.) that the current `api/` code does not yet implement — Tier 0 has zero
+  auth/RBAC enforcement by design (deferred to a later tier). Treat the STD docs as the
+  destination, not the current state.
 - **Person module docs vs. Organization module docs.** Both are partially implemented, and both
   disagree with their own SQL on naming — don't confuse "documented" with "built" for either.
   Person's design (`docs/03_Solution/modules/person/`, v1.0.0 SOURCE ALIGNED) is *partially*
@@ -693,7 +692,7 @@ for both.
   frozen `ORG-PENDING-001` spec (`organization_short_code`, `VARCHAR(5)`, `NOT NULL` vs. the
   actual `VARCHAR(10)`, nullable `organization_code`), and the seeded organization-type codes
   don't match the design docs' short forms — see Key Workflow #4.
-- **No tests.** Every Django app's `tests.py` is the default empty stub.
+- **No tests.** No test framework or lint/format tooling is configured yet.
 - **Git remotes.** `git remote -v` shows two remotes: `personal`
   (`github.com/sandeeppanda22/NSS_ERP`, daily dev) and `org`
   (`github.com/NilachalaSaraswataSangha/NSS_ERP`, the production/deploy target).
@@ -707,19 +706,12 @@ for both.
   `STD/README.md` nor any top-level doc cross-references the other standards location, and the
   Sevak/Mahila/Kumari module business-rules docs don't yet cite `SOL-LIFE-001` even though its
   own text says they should reference it rather than duplicate its rules.
-- **Two Solution-layer module folders share a name with an existing `backend/` Django app but
-  describe unrelated schemas.** `docs/03_Solution/modules/foundation/` (describes 10 tables:
-  the original 8 master data/geography/sequence tables plus `document_master` and
-  `field_change_log`) is **not** the same thing as the `backend/foundation/` app (which
-  implements Person/Organization/Address — those live in the separate `person/`/`organization/`
-  Solution folders instead). The implemented `database/ddl/01_foundation/` has 12 tables, 2 more
-  than this design doc describes (`postal_code`, `city_village_postal_code_map`) —
-  implementation is ahead of the design doc for those two, see the Foundation Gotcha below.
-  Likewise `docs/03_Solution/modules/authentication/` (ERD still shows 7 tables, but exclusive
-  ownership is only `user_account`+`password_history`; the other 5 RBAC tables are exclusively
-  owned by `administration/`) is **not** the same schema as the real `backend/authentication/`
-  app (`Role`, `UserRole`, `LoginAudit`). Don't assume either Solution doc set describes the
-  Django app of the same name.
+- **`docs/03_Solution/modules/foundation/` describes more tables than one might expect for
+  "Foundation."** It covers 10 tables: the original 8 master data/geography/sequence tables
+  plus `document_master` and `field_change_log`. The implemented `database/ddl/01_foundation/`
+  has 12 tables, 2 more than this design doc describes (`postal_code`,
+  `city_village_postal_code_map`) — implementation is ahead of the design doc for those two,
+  see the Foundation Gotcha below.
 - **`document_master` is Foundation-owned; RBAC table ownership is split between Authentication
   and Administration** (`CROSS_MODULE_PRINCIPLES.md`, `ARCH-CROSS-001`, FROZEN). `DOC-ARCH-001`
   establishes Foundation as the sole owner of a common `document_master` document registry
@@ -853,19 +845,20 @@ for both.
   DDL/seed.** ~~RESOLVED~~ — `05_administration_table_design.md` §8.7 and `SOL-BOOT-001` §4.2
   now describe 8 roles / 5 scope levels, matching the DDL CHECK constraint and seed data.
   `NSS_ERP_PATHA_CHAKRA_ADMIN` / `PATHA_CHAKRA` added to the frozen catalogue.
-- **`nss_db_backend` PostgreSQL role is referenced but privileges not defined.** `database/README.md`'s
-  header names `nss_db_backend` as the "Runtime Read/Write" role, alongside `nss_db_owner` ("DDL
-  Execution Authority") — but `BOOTSTRAP_ARCHITECTURE.md` (`SOL-ARCH-011`) only formalizes the
-  `nss_db_owner`/`NSS_ERP_ADMIN` distinction and never mentions `nss_db_backend` by name. No document
-  currently defines what privileges `nss_db_backend` has.
+- **`nss_db_backend` PostgreSQL role privileges.** ~~RESOLVED~~ — `database/scripts/04_grant_backend.sql`
+  now grants `nss_db_backend` `USAGE` on schema `nss`, `SELECT` on all existing tables, and
+  (via `ALTER DEFAULT PRIVILEGES`) `SELECT` on future tables — read-only, matching the FastAPI
+  Tier 0 API's own read-only usage. `BOOTSTRAP_ARCHITECTURE.md` (`SOL-ARCH-011`) still only
+  formalizes the `nss_db_owner`/`NSS_ERP_ADMIN` distinction and doesn't mention this role by
+  name, but the privileges themselves are now defined and implemented.
 - **Filename collision in `docs/03_Solution/modules/administration/`.**
   `06_bootstrap_rbac_table_design.md` (`SOL-BOOT-001`) and `06_correspondence_register_erd.md`
   (`SOL-ADMIN-006`) share the same leading number — not renamed here, flagging only.
 
 ## Open questions / TODOs
 
-- **Reconcile Django ORM models with the SQL DDL schema** for `Person` and `Organization`
-  (or decide the SQL DDL track supersedes the current Django models and plan a migration).
+- **Build Tier 2 API endpoints for `Person`/`Organization`** against the SQL DDL — no API layer
+  reads/writes either today; only the Tier 0 bootstrap-RBAC tables are exposed so far.
 - **Reconcile `person_id` (design docs) vs. `person_code` (implemented SQL)** — the Person
   table design doc names the business identifier `person_id`; the actual DDL column is
   `person_code`. See Key Workflow #3.
@@ -878,26 +871,23 @@ for both.
   already implements a multi-address `person_address` table. Don't treat the SQL as a de facto
   frozen decision without reconciling it against the docs' "OPEN" framing.
 - **Implement the `id_sequence_master` increment/formatting logic** (no function, trigger, or
-  Django code currently does this — see Key Workflow #3).
-- **Implement the Founder & Heritage schema beyond `founder_master`** — the v1.0.0 design
-  (`docs/03_Solution/modules/heritage/`) specifies 8 tables; `backend/heritage/` only implements
-  1 (`founder_master`).
-- **Wire up `family`, `membership`, and `heritage` URLs/views** — models exist, nothing is
-  reachable over HTTP yet.
-- **Decide the fate of `governance` and `attendance` apps** — currently pure stubs, not even in
-  `INSTALLED_APPS`.
-- **Add `family` to Django admin** — currently the only real-model app not registered.
-- **Record login attempts** — `authentication.LoginAudit` model exists but `login_view` never
-  writes to it.
-- **Wire up the unused `fastapi`/`starlette`/`uvicorn`/`django-htmx`/`pillow` dependencies** —
-  per `TECH_STACK_DECISIONS.md`, FastAPI is decided to be actually used for JSON APIs/sync
-  endpoints, served via Uvicorn alongside Django. Not yet implemented in code.
-- **Migrate frontend from Bootstrap 5 to Tailwind CSS + DaisyUI + Alpine.js** per the same
-  decision doc — `backend/templates/` still use Bootstrap 5 (see Architecture above); the 13
-  mockups under `docs/03_Solution/ui/mockups/` are the visual target, not yet built into
-  Django templates.
+  API code currently does this — see Key Workflow #3).
+- **Implement the Founder & Heritage schema** — the v1.0.0 design
+  (`docs/03_Solution/modules/heritage/`) specifies 8 tables; zero implementation exists (neither
+  SQL DDL nor an API) for any of them.
+- **Build API endpoints for `family`, `membership`, and `heritage`** — SQL DDL exists for none
+  of these yet either; nothing is reachable over HTTP.
+- **Decide the scope of `governance` and `attendance`** — Solution-layer designs exist for both,
+  but no DDL or API implementation exists yet for either.
+- **Build out the FastAPI application beyond Tier 0** — per `TECH_STACK_DECISIONS.md`, FastAPI
+  is the approved API layer; Tier 0's 4 read-only bootstrap-RBAC endpoints are implemented, but
+  every other tier's API phase (Foundation, Organization, Person, etc.) remains unbuilt.
+- **Build the frontend** (`frontend/`, not yet created) using Tailwind CSS + DaisyUI +
+  Alpine.js per `TECH_STACK_DECISIONS.md` — the 13 mockups under
+  `docs/03_Solution/ui/mockups/` are the visual target; there is no existing frontend to migrate
+  from (the earlier Django/Bootstrap 5 templates were removed with `backend/`).
 - **No `.env.example`** — new contributors have to reverse-engineer required env vars from
-  `settings.py`; consider adding one.
+  `api/config.py`; consider adding one.
 - **`docs/02_Requirements/` and `docs/04_Testing/` are empty scaffolding** — folder structure
   exists (per `AUTH-001`/`GOV-003` repository architecture) but no actual requirements or test
   documentation has been written yet.
@@ -954,12 +944,6 @@ for both.
   the reconstitution process itself (formal election tables vs. consensus-only). Needs an
   explicit decision on which module doc is authoritative (or a joint correction to both) before
   either is implemented — see Gotchas.
-- **Decide whether to rename one side of the `foundation`/`authentication` naming collisions**
-  — the Solution-layer `docs/03_Solution/modules/foundation/` and `.../authentication/` module
-  folders describe different schemas than the identically-named `backend/foundation/` and
-  `backend/authentication/` Django apps. Not urgent (the doc folders are internally consistent
-  and cross-reference the collision), but worth a deliberate naming decision before more code or
-  docs are added under either name.
 - **Add `SOL-LIFE-001`/`SOL-LIFE-002` cross-references to the six lifecycle docs** that
   currently restate death-cascade rules instead of citing them (`person`, `family`,
   `governance`, `attendance`, `authentication`, `administration`) — a future pass could add
@@ -972,9 +956,8 @@ for both.
 - ~~**Reconcile the frozen role catalogue with the actual Bootstrap RBAC implementation**~~ —
   RESOLVED. §8.7 updated to 8 roles / 5 scope levels, adding `NSS_ERP_PATHA_CHAKRA_ADMIN`.
   Docs and seed now match.
-- **Define the `nss_db_backend` PostgreSQL role** — named in `database/README.md`'s header as the
-  runtime read/write role, but no document specifies its actual privileges (table-level grants,
-  RLS interaction, etc.). See Gotchas.
+- ~~**Define the `nss_db_backend` PostgreSQL role**~~ — RESOLVED by
+  `database/scripts/04_grant_backend.sql` (read-only `SELECT` grants). See Gotchas.
 - **Resolve the `06_bootstrap_rbac_table_design.md`/`06_correspondence_register_erd.md`
   filename collision** in `docs/03_Solution/modules/administration/` — both are numbered `06`.
   See Gotchas.

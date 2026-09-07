@@ -177,12 +177,12 @@ done
 
 echo "  Row counts:"
 check_row_count "master_category" 11
-check_row_count "master_data" 40
+check_row_count "master_data" 58
 check_row_count "id_sequence_master" 9
 check_row_count "country" 5
 check_row_count "state" 112
 check_row_count "district" 700
-check_row_count "system_setting" 5
+check_row_count "system_setting" 4
 check_row_count "postal_code" 2
 
 echo "  Unique constraints:"

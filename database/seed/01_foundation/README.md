@@ -191,7 +191,7 @@ populated at runtime as needed.
 
 ### 07_system_setting.sql
 
-Seeds 5 initial system settings into `system_setting`. Values are illustrative
+Seeds 4 initial system settings into `system_setting`. Values are illustrative
 defaults; actual production values are configured during deployment.
 
 | # | `setting_key` | Value | Type | Purpose |
