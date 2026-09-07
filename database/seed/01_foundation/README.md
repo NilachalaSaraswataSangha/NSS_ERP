@@ -200,7 +200,6 @@ defaults; actual production values are configured during deployment.
 | 2 | `DEFAULT_COUNTRY` | `IN` | STRING | Default country code for new records |
 | 3 | `PASSWORD_EXPIRY_DAYS` | `90` | INTEGER | Days before password must be changed |
 | 4 | `MAX_LOGIN_ATTEMPTS` | `5` | INTEGER | Failed logins before account lockout |
-| 5 | `PRESIDENT_APPROVAL_REQUIRED` | `true` | BOOLEAN | Whether President approval is needed for membership actions |
 
 ---
 

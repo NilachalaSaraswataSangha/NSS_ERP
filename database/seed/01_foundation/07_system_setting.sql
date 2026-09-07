@@ -41,10 +41,4 @@ VALUES
     '5',
     'Maximum consecutive failed login attempts before lockout',
     'INTEGER'
-),
-(
-    'PRESIDENT_APPROVAL_REQUIRED',
-    'true',
-    'Whether President approval is required for membership actions',
-    'BOOLEAN'
 );
