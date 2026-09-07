@@ -76,6 +76,19 @@ for f in database/seed/02_organization/0*.sql; do
 done
 
 # ─────────────────────────────────────────────────
+# Step 6: Grant nss_db_backend read-only access
+#         (as nss_db_owner, after build completes)
+# ─────────────────────────────────────────────────
+psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
+
+# ─────────────────────────────────────────────────
+# Step 7: Create api/.env and start FastAPI
+# ─────────────────────────────────────────────────
+# Create api/.env with DB_NAME, DB_USER (nss_db_backend),
+# DB_PASSWORD (from step 2), DB_HOST, DB_PORT
+# Then: uvicorn api.main:app --reload --port 8001
+
+# ─────────────────────────────────────────────────
 # Phase 6+: Person, Auth/Admin remaining, etc.
 #           (not yet implemented)
 # ─────────────────────────────────────────────────
@@ -139,7 +152,8 @@ database/
 │   ├── 00_create_database.sql   Create DB + roles + dblink (superuser, postgres DB)
 │   ├── 01_extensions.sql        Install extensions (superuser, nss_erp DB)
 │   ├── 02_build.sh              Full schema build (all implemented phases) — .ps1 equivalent for Windows
-│   └── 03_validate.sh           Post-build validation (all modules) — .ps1 equivalent for Windows
+│   ├── 03_validate.sh           Post-build validation (all modules) — .ps1 equivalent for Windows
+│   └── 04_grant_backend.sql     Grant nss_db_backend read-only access to nss schema
 ├── ddl/
 │   ├── 00_bootstrap/     3 RBAC tables (Depths 0–1) — IMPLEMENTED
 │   ├── 01_foundation/    12 tables (Depths 0–4) — IMPLEMENTED
