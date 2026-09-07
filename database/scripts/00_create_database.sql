@@ -11,6 +11,10 @@
 --
 --   psql -U postgres -d postgres -f database/scripts/00_create_database.sql
 --
+-- The dblink_exec call below (step 4) uses 'dbname=postgres' to connect
+-- back to the local server. This relies on the invoking psql session's
+-- authentication (peer/trust/password). No separate credentials needed.
+--
 -- This script creates:
 --   1. Extension: dblink (in postgres DB, for idempotent DB creation)
 --   2. Role: nss_db_owner   — owns all schema objects, executes DDL/seed
@@ -112,6 +116,7 @@ $$;
 -- -------------------------------------------------
 -- 4. Database: nss_erp (owned by nss_db_owner)
 --    Idempotent via dblink — safe to re-run.
+--    Connection string hardcoded to localhost/postgres.
 -- -------------------------------------------------
 DO $$
 BEGIN
@@ -119,7 +124,7 @@ BEGIN
         SELECT 1 FROM pg_database WHERE datname = 'nss_erp'
     ) THEN
         PERFORM dblink_exec(
-            'dbname=postgres',
+            'dbname=postgres host=localhost port=5432 user=postgres password=root',
             'CREATE DATABASE nss_erp OWNER nss_db_owner'
         );
         RAISE NOTICE 'Database nss_erp created.';
