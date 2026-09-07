@@ -13,11 +13,9 @@ repository.
 ```
 pip install -r requirements.txt
 ```
-`requirements.txt` is UTF-16LE with CRLF line endings (Windows-migration artifact) — if a tool
-errors reading it, re-save as UTF-8 rather than assuming it's corrupt.
 
-Create `backend/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` — read with
-no defaults at `backend/config/settings.py`, so the app won't start without them.
+Create `api/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` — the FastAPI
+app requires all three DB credentials (no defaults for name/user/password).
 
 ## Database
 
@@ -55,57 +53,51 @@ The old repo-root `validate_foundation.sh` (Foundation-only) has been replaced b
 owns the database/schema; ERP `NSS_ERP_ADMIN` is an application permission role assigned to
 real users. These are separate security boundaries.
 
-## Running the Django app
+## Running the FastAPI API
 
 ```
-cd backend/
-python manage.py migrate
-python manage.py createsuperuser   # for /admin/
-python manage.py runserver
+uvicorn api.main:app --reload --port 8001
 ```
-`/` → redirects to `/login/` → on success, `/dashboard/`.
+Run from the **repository root** (not from `api/`). Requires `api/.env` with DB credentials.
+
+Tier 0 endpoints (read-only, no authentication):
+- `GET /api/v1/bootstrap/health` — liveness probe
+- `GET /api/v1/bootstrap/roles` — 8 frozen roles
+- `GET /api/v1/bootstrap/permissions` — empty by design
+- `GET /api/v1/bootstrap/roles/{role_pk}/permissions` — empty (no mappings)
+
+Interactive docs at `http://localhost:8001/docs` (Swagger UI).
+
+The API connects as `nss_db_backend` (SELECT-only). Run
+`database/scripts/04_grant_backend.sql` as `nss_db_owner` to grant privileges.
 
 ## Tests & lint
 
-`python manage.py test` from `backend/` — every app's `tests.py` is currently the default empty
-stub; there are no real tests yet. Run a single test the standard Django way:
-`python manage.py test <app>.tests.<TestClass>.<test_method>`.
-
-No lint/format tooling is configured (no flake8/black/ruff, no pre-commit). Don't add one
+No test framework or lint/format tooling is configured yet. Don't add one
 unilaterally — raise it as an open question if it's blocking.
 
 ## Architecture
 
-**The one fact that isn't obvious from any single file:** there are two parallel,
-*unreconciled* representations of core entities, and this will bite you if you assume a change
-to one is reflected in the other.
+**Repository layout:**
+```
+NSS_ERP/
+├── api/                    FastAPI Tier 0 API (raw psycopg2, no ORM)
+├── database/               Hand-written PostgreSQL DDL + seed + scripts
+│   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization)
+│   ├── seed/               Seed data (mirrors ddl/ folder order)
+│   └── scripts/            DB creation, build, validate, grant scripts
+├── docs/                   All project documentation
+├── BY-LAW/                 Source reference material
+└── NSS LOGO/               Branding assets
+```
 
-- **Django ORM** (`backend/{authentication,foundation,membership,family,heritage}/models.py`) is
-  what the running app actually uses — auto-increment PKs, plain `gender` CharField, etc.
-- **Hand-written SQL DDL** (`database/ddl/`) — UUID `_pk` columns, `_code` business identifiers,
-  FK-based master data — is the "real" intended schema per the SOLUTION docs
-  (`docs/03_Solution/modules/`), but as of this writing is not read from or written to by any
-  Django code. `00_bootstrap/`, `01_foundation/`, and `02_organization/` are all implemented and
-  committed; Bootstrap RBAC seed data is partial (`role_master` seeded, `permission_master`/
-  `role_permission` empty pending the permission catalogue); nothing else exists yet.
+The **Django prototype** (`backend/`) was removed in the `feature/fastapi-tier0` branch.
+It is preserved in Git history but is no longer part of the active codebase. Django
+authentication is superseded by the NSS ERP authentication architecture (Tier 5).
 
-**Django app structure:** apps live directly under `backend/` (no `apps/` subdirectory):
-`backend/{authentication, foundation, membership, family, heritage, dashboard, governance,
-attendance, config}`. `authentication`, `foundation`, `membership`, `family`, and `heritage`
-have real models; `dashboard`/`governance`/`attendance` are stubs. `INSTALLED_APPS`
-(`backend/config/settings.py`) lists only `heritage`, `foundation`, `membership`, `family`,
-`authentication` — `dashboard` is wired into `config/urls.py` without being in
-`INSTALLED_APPS`. `family`/`membership`/`heritage` have models but no `urls.py` (admin-only).
-Everything else described in the SOLUTION docs (`mahila`, `kumari`, `kishor`, `sevak`,
-`publications`, `upbs`, `reports`, `administration`, etc.) has **no `backend/` app at all** —
-design-only. Check `docs/PROJECT_DOCUMENTATION.md` before assuming otherwise.
-
-**Cross-app model dependency:** `foundation.Person`/`foundation.Organization` are the hub models
-every other real app hangs off — `membership.SanghaSevi` and `family.FamilyMembership` both FK
-directly to `foundation.Person`; `membership` also FKs to `foundation.Organization`.
-`authentication` (FKs only to Django's `auth.User`) and `heritage.Founder` (a standalone
-singleton) are the exceptions. Altering `foundation.Person` has ripple effects across
-`membership`/`family` but never `authentication`/`heritage`.
+**API layer:** `api/` uses FastAPI with raw psycopg2 queries against `nss.*` tables — no ORM,
+no SQLAlchemy, no migration tool. The API connects as `nss_db_backend` (read-only in Tier 0).
+Authentication is deferred to Tier 5; Tier 0 has no auth, no fake auth, no API keys.
 
 **DB naming (SQL DDL track):** tables `snake_case`; internal PK suffix `_pk`; FKs reference
 internal PKs, never business IDs; business/external identifiers use `_code` — **never `_id`**
@@ -137,8 +129,7 @@ docs/
 ├── 01_Authoritative_References/NSS/ , MAHILA_SANGHA/   (source-faithful REF corpus)
 ├── 02_Requirements/                 (scaffolded, empty)
 ├── 03_Solution/modules/<module>/     (per-module design docs — overview/ERD/business-rules/
-│                                      table-design; NOT the same thing as a same-named
-│                                      backend/ Django app — check before assuming overlap)
+│                                      table-design)
 ├── 04_Testing/                      (scaffolded, empty)
 └── 05_Releases/
 ```
@@ -154,6 +145,6 @@ either is commonly blocked in-sandbox by a domain-allowlist restriction — push
 terminal if a sandboxed session can't.
 
 **Approved tech-stack direction** (`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) —
-Django 6 (Templates + Tailwind/DaisyUI/HTMX/Alpine, replacing Bootstrap 5) + FastAPI/Uvicorn API
-layer + Flutter mobile — is **not yet reflected in `backend/`**, which still runs Bootstrap 5
-with no FastAPI wiring. Don't assume code has caught up to that decision record.
+FastAPI/Uvicorn API layer + Tailwind/DaisyUI/HTMX/Alpine UI + Flutter mobile. The API layer
+(`api/`) is implemented starting from Tier 0. The UI layer (`frontend/`, not yet created) will
+be implemented after the API proves out the DB→API vertical slice.
