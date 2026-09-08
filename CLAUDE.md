@@ -78,8 +78,33 @@ Tier 0 endpoints (read-only, no authentication):
 
 Interactive docs at `http://localhost:8001/docs` (Swagger UI).
 
+Bootstrap Verification UI at `http://localhost:8001/` — served from `frontend/` by FastAPI.
+
 The API connects as `nss_db_backend` (SELECT-only). Run
 `database/scripts/04_grant_backend.sql` as `nss_db_owner` to grant privileges.
+
+## Frontend
+
+`frontend/` contains the web UI, served as static files by FastAPI (no separate server, no CORS
+needed). Tier 0 is a Bootstrap Verification UI — not an admin dashboard. It establishes the
+frontend shell that later tiers grow into.
+
+**Tech stack:** Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla `fetch()` for JSON API
+consumption. No React/Vue/Angular. No Node.js build step. No Django templates.
+
+**Structure:**
+```
+frontend/
+├── index.html             Main page (Alpine.js app)
+├── assets/
+│   ├── css/style.css      Minimal custom styles
+│   └── js/app.js          Alpine.js data component + API fetch logic
+```
+
+**Serving:** FastAPI mounts `frontend/assets/` at `/assets` (StaticFiles) and serves
+`frontend/index.html` via an explicit `GET /` route (FileResponse). This avoids shadowing
+`/docs` (Swagger UI) and `/openapi.json`. If `frontend/` doesn't exist on disk, both the
+mount and route are skipped — API-only mode still works.
 
 ## Tests & lint
 
@@ -92,6 +117,7 @@ unilaterally — raise it as an open question if it's blocking.
 ```
 NSS_ERP/
 ├── api/                    FastAPI Tier 0 API (raw psycopg2, no ORM)
+├── frontend/               Web UI (Tailwind/DaisyUI + Alpine.js, served by FastAPI)
 ├── database/               Hand-written PostgreSQL DDL + seed + scripts
 │   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization)
 │   ├── seed/               Seed data (mirrors ddl/ folder order)

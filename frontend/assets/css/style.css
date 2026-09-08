@@ -1,0 +1,10 @@
+/*
+ * NSS ERP — Tier 0 minimal custom styles.
+ * Tailwind/DaisyUI handle the heavy lifting via CDN.
+ * This file is for project-specific overrides only.
+ */
+
+/* Keep the body from showing unstyled content before Alpine initialises */
+[x-cloak] {
+    display: none !important;
+}
