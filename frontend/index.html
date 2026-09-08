@@ -18,10 +18,10 @@
 </head>
 <body class="bg-base-200 min-h-screen">
 
-    <div x-data="bootstrapApp()" x-init="init()" class="container mx-auto max-w-5xl px-4 py-8">
+    <div x-data="bootstrapApp()" x-init="init()" class="container mx-auto max-w-7xl px-4 py-6">
 
         <!-- Header -->
-        <header class="mb-8 flex items-center gap-4">
+        <header class="mb-6 flex items-center gap-4">
             <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-14 w-14 object-contain">
             <div>
                 <h1 class="text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
@@ -29,11 +29,11 @@
             </div>
         </header>
 
-        <!-- System Status -->
-        <section class="card bg-base-100 shadow-sm mb-6">
-            <div class="card-body py-4">
-                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">System Status</h2>
-                <div class="flex items-center gap-2 mt-1">
+        <!-- System Status (centred) -->
+        <section class="card bg-base-100 shadow-sm mb-6 max-w-md mx-auto">
+            <div class="card-body py-3 text-center">
+                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50 justify-center">System Status</h2>
+                <div class="flex items-center justify-center gap-2 mt-1">
                     <template x-if="health.loading">
                         <span class="flex items-center gap-2 text-sm text-base-content/60">
                             <span class="loading loading-spinner loading-xs"></span>
@@ -56,201 +56,201 @@
             </div>
         </section>
 
-        <!-- RBAC Roles -->
-        <section class="card bg-base-100 shadow-sm mb-6">
-            <div class="card-body">
-                <div class="flex items-center justify-between">
-                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">RBAC Roles</h2>
-                    <span class="badge badge-ghost badge-sm" x-text="roles.length + ' roles'"></span>
-                </div>
+        <!-- Three-column grid: Roles | Permissions | Role Permissions -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-                <template x-if="rolesLoading">
-                    <div class="flex justify-center py-6">
-                        <span class="loading loading-spinner loading-md"></span>
+            <!-- RBAC Roles (left) -->
+            <section class="card bg-base-100 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">RBAC Roles</h2>
+                        <span class="badge badge-ghost badge-sm" x-text="roles.length + ' roles'"></span>
                     </div>
-                </template>
 
-                <template x-if="!rolesLoading && rolesError">
-                    <div class="alert alert-error mt-2">
-                        <span class="text-sm">Failed to load roles.</span>
-                    </div>
-                </template>
-
-                <template x-if="!rolesLoading && !rolesError && roles.length > 0">
-                    <div class="overflow-x-auto mt-2">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Class</th>
-                                    <th>Scope</th>
-                                    <th>Active</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="role in roles" :key="role.role_master_pk">
-                                    <tr class="cursor-pointer hover"
-                                        :class="{ 'bg-base-200': selectedRole?.role_master_pk === role.role_master_pk }"
-                                        @click="selectRole(role)">
-                                        <td class="font-mono text-xs" x-text="role.role_code"></td>
-                                        <td x-text="role.role_name"></td>
-                                        <td>
-                                            <span class="badge badge-sm"
-                                                  :class="role.role_class === 'SYSTEM' ? 'badge-primary' : 'badge-secondary'"
-                                                  x-text="role.role_class">
-                                            </span>
-                                        </td>
-                                        <td class="text-sm" x-text="role.scope_level || '—'"></td>
-                                        <td>
-                                            <span x-show="role.is_active" class="text-success">&#10003;</span>
-                                            <span x-show="!role.is_active" class="text-error">&#10007;</span>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </template>
-            </div>
-        </section>
-
-        <!-- Permissions -->
-        <section class="card bg-base-100 shadow-sm mb-6">
-            <div class="card-body">
-                <div class="flex items-center justify-between">
-                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Permissions</h2>
-                    <span class="badge badge-ghost badge-sm" x-text="permissions.length + ' permissions'"></span>
-                </div>
-
-                <template x-if="permissionsLoading">
-                    <div class="flex justify-center py-6">
-                        <span class="loading loading-spinner loading-md"></span>
-                    </div>
-                </template>
-
-                <template x-if="!permissionsLoading && permissionsError">
-                    <div class="alert alert-error mt-2">
-                        <span class="text-sm">Failed to load permissions.</span>
-                    </div>
-                </template>
-
-                <template x-if="!permissionsLoading && !permissionsError && permissions.length === 0">
-                    <div class="py-4">
-                        <p class="text-sm text-base-content/60">No permissions configured yet.</p>
-                        <p class="text-xs text-base-content/40 mt-1">
-                            Permission catalogue is populated progressively as functional modules are implemented.
-                        </p>
-                    </div>
-                </template>
-
-                <template x-if="!permissionsLoading && !permissionsError && permissions.length > 0">
-                    <div class="overflow-x-auto mt-2">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Module</th>
-                                    <th>Active</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="perm in permissions" :key="perm.permission_master_pk">
-                                    <tr>
-                                        <td class="font-mono text-xs" x-text="perm.permission_code"></td>
-                                        <td x-text="perm.permission_name"></td>
-                                        <td>
-                                            <span class="badge badge-outline badge-sm" x-text="perm.module_code"></span>
-                                        </td>
-                                        <td>
-                                            <span x-show="perm.is_active" class="text-success">&#10003;</span>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </template>
-            </div>
-        </section>
-
-        <!-- Role Permissions (interactive) -->
-        <section class="card bg-base-100 shadow-sm mb-6">
-            <div class="card-body">
-                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Role Permissions</h2>
-
-                <template x-if="!selectedRole">
-                    <p class="text-sm text-base-content/60 py-2">
-                        Select a role from the table above to view its permissions.
-                    </p>
-                </template>
-
-                <template x-if="selectedRole">
-                    <div class="mt-2">
-                        <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm mb-4">
-                            <div>
-                                <span class="text-base-content/50">Role:</span>
-                                <span class="font-mono font-semibold" x-text="selectedRole.role_code"></span>
-                            </div>
-                            <div>
-                                <span class="text-base-content/50">Class:</span>
-                                <span x-text="selectedRole.role_class"></span>
-                            </div>
-                            <div>
-                                <span class="text-base-content/50">Scope:</span>
-                                <span x-text="selectedRole.scope_level || '—'"></span>
-                            </div>
+                    <template x-if="rolesLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
                         </div>
+                    </template>
 
-                        <template x-if="rolePermsLoading">
-                            <div class="flex items-center gap-2 py-2">
-                                <span class="loading loading-spinner loading-xs"></span>
-                                <span class="text-sm text-base-content/60">Loading permissions...</span>
-                            </div>
-                        </template>
+                    <template x-if="!rolesLoading && rolesError">
+                        <div class="alert alert-error mt-2">
+                            <span class="text-sm">Failed to load roles.</span>
+                        </div>
+                    </template>
 
-                        <template x-if="!rolePermsLoading && rolePermsError">
-                            <div class="alert alert-error">
-                                <span class="text-sm">Failed to load role permissions.</span>
-                            </div>
-                        </template>
-
-                        <template x-if="!rolePermsLoading && !rolePermsError && rolePermissions.length === 0">
-                            <p class="text-sm text-base-content/60">No permissions assigned.</p>
-                        </template>
-
-                        <template x-if="!rolePermsLoading && !rolePermsError && rolePermissions.length > 0">
-                            <div class="overflow-x-auto">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>Code</th>
-                                            <th>Name</th>
-                                            <th>Module</th>
+                    <template x-if="!rolesLoading && !rolesError && roles.length > 0">
+                        <div class="overflow-x-auto mt-2">
+                            <table class="table table-xs">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Name</th>
+                                        <th>Class</th>
+                                        <th>Scope</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="role in roles" :key="role.role_master_pk">
+                                        <tr class="cursor-pointer hover"
+                                            :class="{ 'bg-base-200': selectedRole?.role_master_pk === role.role_master_pk }"
+                                            @click="selectRole(role)">
+                                            <td class="font-mono text-xs" x-text="role.role_code"></td>
+                                            <td class="text-xs" x-text="role.role_name"></td>
+                                            <td>
+                                                <span class="badge badge-xs"
+                                                      :class="role.role_class === 'SYSTEM' ? 'badge-primary' : 'badge-secondary'"
+                                                      x-text="role.role_class">
+                                                </span>
+                                            </td>
+                                            <td class="text-xs" x-text="role.scope_level || '—'"></td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="perm in rolePermissions" :key="perm.permission_master_pk">
-                                            <tr>
-                                                <td class="font-mono text-xs" x-text="perm.permission_code"></td>
-                                                <td x-text="perm.permission_name"></td>
-                                                <td>
-                                                    <span class="badge badge-outline badge-sm" x-text="perm.module_code"></span>
-                                                </td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </template>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Permissions (centre) -->
+            <section class="card bg-base-100 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Permissions</h2>
+                        <span class="badge badge-ghost badge-sm" x-text="permissions.length + ' permissions'"></span>
                     </div>
-                </template>
-            </div>
-        </section>
+
+                    <template x-if="permissionsLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="!permissionsLoading && permissionsError">
+                        <div class="alert alert-error mt-2">
+                            <span class="text-sm">Failed to load permissions.</span>
+                        </div>
+                    </template>
+
+                    <template x-if="!permissionsLoading && !permissionsError && permissions.length === 0">
+                        <div class="py-4">
+                            <p class="text-sm text-base-content/60">No permissions configured yet.</p>
+                            <p class="text-xs text-base-content/40 mt-1">
+                                Permission catalogue is populated progressively as functional modules are implemented.
+                            </p>
+                        </div>
+                    </template>
+
+                    <template x-if="!permissionsLoading && !permissionsError && permissions.length > 0">
+                        <div class="overflow-x-auto mt-2">
+                            <table class="table table-xs">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Name</th>
+                                        <th>Module</th>
+                                        <th>Active</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="perm in permissions" :key="perm.permission_master_pk">
+                                        <tr>
+                                            <td class="font-mono text-xs" x-text="perm.permission_code"></td>
+                                            <td class="text-xs" x-text="perm.permission_name"></td>
+                                            <td>
+                                                <span class="badge badge-outline badge-xs" x-text="perm.module_code"></span>
+                                            </td>
+                                            <td>
+                                                <span x-show="perm.is_active" class="text-success">&#10003;</span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Role Permissions (right, interactive) -->
+            <section class="card bg-base-100 shadow-sm">
+                <div class="card-body p-4">
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Role Permissions</h2>
+
+                    <template x-if="!selectedRole">
+                        <p class="text-sm text-base-content/60 py-2">
+                            Select a role from the left to view its permissions.
+                        </p>
+                    </template>
+
+                    <template x-if="selectedRole">
+                        <div class="mt-2">
+                            <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-3">
+                                <div>
+                                    <span class="text-base-content/50">Role:</span>
+                                    <span class="font-mono font-semibold" x-text="selectedRole.role_code"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Class:</span>
+                                    <span x-text="selectedRole.role_class"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Scope:</span>
+                                    <span x-text="selectedRole.scope_level || '—'"></span>
+                                </div>
+                            </div>
+
+                            <template x-if="rolePermsLoading">
+                                <div class="flex items-center gap-2 py-2">
+                                    <span class="loading loading-spinner loading-xs"></span>
+                                    <span class="text-sm text-base-content/60">Loading permissions...</span>
+                                </div>
+                            </template>
+
+                            <template x-if="!rolePermsLoading && rolePermsError">
+                                <div class="alert alert-error">
+                                    <span class="text-sm">Failed to load role permissions.</span>
+                                </div>
+                            </template>
+
+                            <template x-if="!rolePermsLoading && !rolePermsError && rolePermissions.length === 0">
+                                <p class="text-sm text-base-content/60">No permissions assigned.</p>
+                            </template>
+
+                            <template x-if="!rolePermsLoading && !rolePermsError && rolePermissions.length > 0">
+                                <div class="overflow-x-auto">
+                                    <table class="table table-xs">
+                                        <thead>
+                                            <tr>
+                                                <th>Code</th>
+                                                <th>Name</th>
+                                                <th>Module</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="perm in rolePermissions" :key="perm.permission_master_pk">
+                                                <tr>
+                                                    <td class="font-mono text-xs" x-text="perm.permission_code"></td>
+                                                    <td class="text-xs" x-text="perm.permission_name"></td>
+                                                    <td>
+                                                        <span class="badge badge-outline badge-xs" x-text="perm.module_code"></span>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+        </div>
 
         <!-- Footer -->
-        <footer class="text-center text-xs text-base-content/30 mt-8">
+        <footer class="text-center text-xs text-base-content/30 mt-6">
             <p>&copy; 2026 Nilachala Saraswata Sangha. All rights reserved.</p>
         </footer>
 
