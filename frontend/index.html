@@ -18,7 +18,7 @@
 </head>
 <body class="bg-base-200 min-h-screen">
 
-    <div x-data="bootstrapApp()" x-init="init()" class="container mx-auto max-w-screen-2xl px-4 py-6 2xl:px-8">
+    <div x-data="bootstrapApp()" x-init="init()" class="mx-auto px-6 py-6 lg:px-10 2xl:px-16">
 
         <!-- Header -->
         <header class="mb-6 flex items-center gap-4">
@@ -60,19 +60,11 @@
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6">
 
             <!-- RBAC Roles (left) -->
-            <section class="card bg-base-100 shadow-sm" x-data="{ expanded: false }">
+            <section class="card bg-base-100 shadow-sm">
                 <div class="card-body p-4 xl:p-6">
                     <div class="flex items-center justify-between">
                         <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">RBAC Roles</h2>
-                        <div class="flex items-center gap-2">
-                            <button class="btn btn-ghost btn-xs text-base-content/40"
-                                    @click="expanded = !expanded"
-                                    :title="expanded ? 'Compact view' : 'Expand columns'">
-                                <span x-text="expanded ? '⇤' : '⇥'" class="text-sm"></span>
-                                <span class="text-xs" x-text="expanded ? 'Compact' : 'Expand'"></span>
-                            </button>
-                            <span class="badge badge-ghost badge-sm" x-text="roles.length + ' roles'"></span>
-                        </div>
+                        <span class="badge badge-ghost badge-sm" x-text="roles.length + ' roles'"></span>
                     </div>
 
                     <template x-if="rolesLoading">
@@ -94,10 +86,8 @@
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>
-                                        <th>Description</th>
                                         <th>Class</th>
                                         <th>Scope</th>
-                                        <th>Order</th>
                                         <th>Active</th>
                                     </tr>
                                 </thead>
@@ -107,11 +97,7 @@
                                             :class="{ 'bg-base-200': selectedRole?.role_master_pk === role.role_master_pk }"
                                             @click="selectRole(role)">
                                             <td class="font-mono text-xs whitespace-nowrap" x-text="role.role_code" :title="role.role_code"></td>
-                                            <td class="text-xs whitespace-nowrap" x-text="role.role_name" :title="role.role_name"></td>
-                                            <td class="text-xs"
-                                                :class="expanded ? 'whitespace-normal' : 'max-w-[200px] truncate'"
-                                                :title="role.description"
-                                                x-text="role.description || '—'"></td>
+                                            <td class="text-xs" x-text="role.role_name" :title="role.role_name"></td>
                                             <td>
                                                 <span class="badge badge-xs"
                                                       :class="role.role_class === 'SYSTEM' ? 'badge-primary' : 'badge-secondary'"
@@ -119,7 +105,6 @@
                                                 </span>
                                             </td>
                                             <td class="text-xs" x-text="role.scope_level || '—'"></td>
-                                            <td class="text-xs text-center" x-text="role.display_order"></td>
                                             <td class="text-center">
                                                 <span x-show="role.is_active" class="text-success">&#10003;</span>
                                                 <span x-show="!role.is_active" class="text-error">&#10007;</span>
@@ -134,19 +119,11 @@
             </section>
 
             <!-- Permissions (centre) -->
-            <section class="card bg-base-100 shadow-sm" x-data="{ expanded: false }">
+            <section class="card bg-base-100 shadow-sm">
                 <div class="card-body p-4 xl:p-6">
                     <div class="flex items-center justify-between">
                         <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Permissions</h2>
-                        <div class="flex items-center gap-2">
-                            <button class="btn btn-ghost btn-xs text-base-content/40"
-                                    @click="expanded = !expanded"
-                                    :title="expanded ? 'Compact view' : 'Expand columns'">
-                                <span x-text="expanded ? '⇤' : '⇥'" class="text-sm"></span>
-                                <span class="text-xs" x-text="expanded ? 'Compact' : 'Expand'"></span>
-                            </button>
-                            <span class="badge badge-ghost badge-sm" x-text="permissions.length + ' permissions'"></span>
-                        </div>
+                        <span class="badge badge-ghost badge-sm" x-text="permissions.length + ' permissions'"></span>
                     </div>
 
                     <template x-if="permissionsLoading">
@@ -177,9 +154,7 @@
                                     <tr>
                                         <th>Code</th>
                                         <th>Name</th>
-                                        <th>Description</th>
                                         <th>Module</th>
-                                        <th>Order</th>
                                         <th>Active</th>
                                     </tr>
                                 </thead>
@@ -187,15 +162,10 @@
                                     <template x-for="perm in permissions" :key="perm.permission_master_pk">
                                         <tr>
                                             <td class="font-mono text-xs whitespace-nowrap" x-text="perm.permission_code" :title="perm.permission_code"></td>
-                                            <td class="text-xs whitespace-nowrap" x-text="perm.permission_name" :title="perm.permission_name"></td>
-                                            <td class="text-xs"
-                                                :class="expanded ? 'whitespace-normal' : 'max-w-[200px] truncate'"
-                                                :title="perm.description"
-                                                x-text="perm.description || '—'"></td>
+                                            <td class="text-xs" x-text="perm.permission_name" :title="perm.permission_name"></td>
                                             <td>
                                                 <span class="badge badge-outline badge-xs" x-text="perm.module_code"></span>
                                             </td>
-                                            <td class="text-xs text-center" x-text="perm.display_order"></td>
                                             <td class="text-center">
                                                 <span x-show="perm.is_active" class="text-success">&#10003;</span>
                                                 <span x-show="!perm.is_active" class="text-error">&#10007;</span>
@@ -210,17 +180,9 @@
             </section>
 
             <!-- Role Permissions (right, interactive) -->
-            <section class="card bg-base-100 shadow-sm" x-data="{ expanded: false }">
+            <section class="card bg-base-100 shadow-sm">
                 <div class="card-body p-4 xl:p-6">
-                    <div class="flex items-center justify-between">
-                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Role Permissions</h2>
-                        <button class="btn btn-ghost btn-xs text-base-content/40"
-                                @click="expanded = !expanded"
-                                :title="expanded ? 'Compact view' : 'Expand columns'">
-                            <span x-text="expanded ? '⇤' : '⇥'" class="text-sm"></span>
-                            <span class="text-xs" x-text="expanded ? 'Compact' : 'Expand'"></span>
-                        </button>
-                    </div>
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Role Permissions</h2>
 
                     <template x-if="!selectedRole">
                         <p class="text-sm text-base-content/60 py-2">
@@ -269,9 +231,7 @@
                                             <tr>
                                                 <th>Code</th>
                                                 <th>Name</th>
-                                                <th>Description</th>
                                                 <th>Module</th>
-                                                <th>Order</th>
                                                 <th>Active</th>
                                             </tr>
                                         </thead>
@@ -279,15 +239,10 @@
                                             <template x-for="perm in rolePermissions" :key="perm.permission_master_pk">
                                                 <tr>
                                                     <td class="font-mono text-xs whitespace-nowrap" x-text="perm.permission_code" :title="perm.permission_code"></td>
-                                                    <td class="text-xs whitespace-nowrap" x-text="perm.permission_name" :title="perm.permission_name"></td>
-                                                    <td class="text-xs"
-                                                        :class="expanded ? 'whitespace-normal' : 'max-w-[200px] truncate'"
-                                                        :title="perm.description"
-                                                        x-text="perm.description || '—'"></td>
+                                                    <td class="text-xs" x-text="perm.permission_name" :title="perm.permission_name"></td>
                                                     <td>
                                                         <span class="badge badge-outline badge-xs" x-text="perm.module_code"></span>
                                                     </td>
-                                                    <td class="text-xs text-center" x-text="perm.display_order"></td>
                                                     <td class="text-center">
                                                         <span x-show="perm.is_active" class="text-success">&#10003;</span>
                                                         <span x-show="!perm.is_active" class="text-error">&#10007;</span>
