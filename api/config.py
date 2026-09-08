@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 # Load .env from the api/ directory if present
 _env_path = Path(__file__).resolve().parent / ".env"
-load_dotenv(_env_path)
+load_dotenv(_env_path, encoding="utf-8-sig")
 
 
 class Settings:
