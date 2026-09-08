@@ -464,6 +464,7 @@ v0.3.0.md
 v0.4.0.md
 v0.5.0.md
 v0.5.1.md
+v0.6.0.md
 ```
 
 ---
@@ -516,6 +517,22 @@ Person Database Schema Complete
 * Person Address Schema
 * International Mobile Support
 * Address Mapping Model
+
+---
+
+## v0.6.0
+
+Full-Stack Tier 0 — Documentation, Database, API, UI, and Deployment
+
+* 22-module solution documentation complete (overview, ERD, lifecycle, business rules, table design)
+* 5 architecture documents frozen (SOL-ARCH-007 through SOL-ARCH-011)
+* 18-table database implementation (Bootstrap RBAC + Foundation + Organization vertical slices)
+* FastAPI Tier 0 bootstrap API (4 read-only endpoints)
+* Bootstrap Verification UI (responsive 3-column layout, Tailwind + DaisyUI + Alpine.js)
+* Render.com + Neon.dev deployment configuration
+* Project governance standards and authoritative reference corpus
+* NSS-WIDE scope for SYSTEM roles
+* Terminology corrections (Kishor, Bye-Law, statutory)
 
 ---
 
@@ -603,11 +620,8 @@ Current Focus:
 Next Release Target:
 
 ```text
-Not yet decided — the module-documentation backlog (organization through sevak) is now largely
-complete at the design level, and backend/database implementation has begun on the SQL track
-(Bootstrap RBAC + Foundation + Organization vertical slices, 18 tables total) plus a Tier 0
-FastAPI bootstrap-RBAC API. No release has been cut for either slice yet.
-See docs/PROJECT_DOCUMENTATION.md → Open questions / TODOs.
+v0.7.0 — Membership/Family DDL vertical slices, Tier 1 API endpoints for Person/Organization,
+reconcile remaining design-to-DDL gaps.
 ```
 
 ---
@@ -651,10 +665,10 @@ See `docs/PROJECT_DOCUMENTATION.md` for the full, code-verified breakdown of eac
 # Current Stable Version
 
 ```text
-v0.5.1
+v0.6.0
 ```
 
-Person Database Schema Complete
+Full-Stack Tier 0 — Documentation, Database, API, UI, and Deployment
 
 ---
 
