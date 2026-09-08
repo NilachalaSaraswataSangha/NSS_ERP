@@ -617,11 +617,54 @@ Current Focus:
   created yet for either the module-documentation backlog or the Foundation/Organization SQL
   implementation.
 
+---
+
+# Tier-Wise Implementation Status
+
+Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter Mobile**.
+
+| Tier | Modules | Focus | DB | API | Web UI | Mobile |
+|------|---------|-------|----|-----|--------|--------|
+| **0** | Bootstrap RBAC | Infrastructure bootstrap — `role_master`, `permission_master`, `role_permission` (3 tables) | Done | Done (4 endpoints) | Done (Bootstrap Verification) | -- |
+| **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Not started | Not started | -- |
+| **2** | Organization | Org types, statuses, self-referencing hierarchy (3 tables) | Done | Not started | Not started | -- |
+| **3** | Person | Person identity, contact, address (2 tables designed) | Superseded (rewrite pending) | Not started | Not started | -- |
+| **4** | Family, Membership | Family groups/relationships + membership registration/approval/transfer/lifecycle | Not started | Not started | Not started | -- |
+| **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | Not started | Not started | Not started | -- |
+| **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
+| **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
+| **8** | Kumari Sangha, Kishor Puja | Youth modules — KM/KH identity, annual events, guardian assignment, SS transition | Not started | Not started | Not started | -- |
+| **9** | Mahila Sangha, Sevak Sangha | Mahila governance (unified body model), Sevak volunteer/training/seva | Not started | Not started | Not started | -- |
+| **10** | UPBS, Finance | UPBS event operations (registration, delegate cards, prasad patra) + financial transactions | Not started | Not started | Not started | -- |
+| **11** | Publications, Reports, Audit, Backup | Cross-cutting — publication catalogue, reporting metadata, audit trail, backup records | Not started | Not started | Not started | -- |
+| **12** | Programmes & Events | Common event framework (DRAFT, not frozen) — programme types, event instances, sessions | Not started | Not started | Not started | -- |
+
+**Legend:**
+- **Done** — implemented and merged to `develop`
+- **Superseded** — v0.5.1 Person DDL exists but uses per-domain masters; needs rewrite against Foundation's `master_category`/`master_data` pattern
+- **Not started** — design docs complete, no implementation yet
+- **--** — Mobile (Flutter) starts after Web UI stabilizes per tier; no mobile work planned until core tiers (0-5) have working web UIs
+
+Tier ordering is driven by FK dependencies — each tier only depends on tables from earlier tiers. Tier 12 (Programmes & Events) is last because it remains DRAFT and cross-cuts nearly everything.
+
+**Release convention:** one git tag per completed tier. Each tag is merged to `main` with a
+release document under `docs/05_Releases/` before the next tier begins.
+
+| Release | Tier | Scope |
+|---------|------|-------|
+| v0.6.0 | Tier 0 | Bootstrap RBAC — DB + API + UI + deployment (**released**) |
+| v0.7.0 | Tier 1 | Foundation — API + Web UI (DB already done) |
+| v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) |
+| v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI |
+| v0.10.0 | Tier 4 | Family + Membership — full vertical slice |
+| v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
+| ... | Tier 6-12 | One tag per tier through Tier 12 |
+
 Next Release Target:
 
 ```text
-v0.7.0 — Membership/Family DDL vertical slices, Tier 1 API endpoints for Person/Organization,
-reconcile remaining design-to-DDL gaps.
+v0.7.0 — Tier 1 Foundation: API endpoints for master data / geography / ID sequences,
+Web UI views, reconcile Foundation design docs with 12-table DDL.
 ```
 
 ---
