@@ -36,18 +36,46 @@ frontend/
 
 ### index.html
 
-The single-page application entry point. Contains four UI sections,
-each rendered by Alpine.js directives bound to the `bootstrapApp()`
-data component defined in `app.js`.
+The single-page application entry point. Uses a two-tier layout designed
+to fit all sections on a single screen without scrolling:
 
-| Section | HTML Comment | API Endpoint Consumed | What It Shows |
-|---------|-------------|----------------------|---------------|
-| **Header** | `<!-- Header -->` | — | NSS logo, "Nilachala Saraswata Sangha", "Tier 0 — Bootstrap Verification" |
-| **System Status** | `<!-- System Status -->` | `GET /api/v1/bootstrap/health` | Three-state indicator: "Checking..." (spinner), "Database Connected" (green badge), or "Database Unavailable" (red badge). Never exposes raw database errors. |
-| **RBAC Roles** | `<!-- RBAC Roles -->` | `GET /api/v1/bootstrap/roles` | Table of all active roles (code, name, class, scope, active status) with a counter badge. Rows are clickable — selecting a role triggers the Role Permissions section. SYSTEM-class roles show a primary badge; ORGANIZATIONAL-class roles show a secondary badge. |
-| **Permissions** | `<!-- Permissions -->` | `GET /api/v1/bootstrap/permissions` | Table of all active permissions with a counter badge. In Tier 0 this is intentionally empty — the UI displays an explanatory message: "No permissions configured yet. Permission catalogue is populated progressively as functional modules are implemented." |
-| **Role Permissions** | `<!-- Role Permissions (interactive) -->` | `GET /api/v1/bootstrap/roles/{role_pk}/permissions` | Displays permissions assigned to the selected role. Before any role is selected: "Select a role from the table above to view its permissions." After selection: shows role code, class, scope, and a permissions table (empty in Tier 0 — "No permissions assigned."). Clicking the same role again deselects it (toggle). |
-| **Footer** | `<!-- Footer -->` | — | Copyright notice: "© 2026 Nilachala Saraswata Sangha. All rights reserved." |
+1. **System Status** — centred card at the top (narrow, `max-w-md mx-auto`)
+2. **Responsive grid** below:
+   - Left: RBAC Roles (clickable rows)
+   - Centre: Permissions (catalogue)
+   - Right: Role Permissions (drill-down on role click)
+
+The grid adapts to screen width:
+
+| Screen | Breakpoint | Layout |
+|--------|-----------|--------|
+| Mobile (< 768px) | default | 1 column (stacked) |
+| Tablet (768px–1279px) | `md` | 2 columns (Role Permissions wraps below) |
+| Desktop (≥ 1280px) | `xl` | 3 columns (all side by side) |
+
+Layout fills the full viewport width with progressive side padding
+(`px-6` mobile, `lg:px-10` tablet, `2xl:px-16` large desktop). No
+max-width cap — tables stretch dynamically with the screen.
+
+Each section is rendered by Alpine.js directives bound to the
+`bootstrapApp()` data component defined in `app.js`.
+
+| Section | Position | API Endpoint Consumed | What It Shows |
+|---------|----------|----------------------|---------------|
+| **Header** | Top, full width | — | NSS logo, "Nilachala Saraswata Sangha", "Tier 0 — Bootstrap Verification" |
+| **System Status** | Top, centred | `GET /api/v1/bootstrap/health` | Three-state indicator: "Checking..." (spinner), "Database Connected" (green badge), or "Database Unavailable" (red badge). Never exposes raw database errors. |
+| **RBAC Roles** | Left column | `GET /api/v1/bootstrap/roles` | Table: Code, Name, Class (badge), Scope, Active (✓/✗). Counter badge. Rows are clickable — selecting a role triggers the Role Permissions column. SYSTEM-class roles show a primary badge; ORGANIZATIONAL-class roles show a secondary badge. |
+| **Permissions** | Centre column | `GET /api/v1/bootstrap/permissions` | Table: Code, Name, Module (badge), Active (✓/✗). Counter badge. In Tier 0 this is intentionally empty — the UI displays an explanatory message. |
+| **Role Permissions** | Right column | `GET /api/v1/bootstrap/roles/{role_pk}/permissions` | Table: Code, Name, Module (badge), Active (✓/✗). Before selection: prompt text. After: role detail header (code, class, scope) + permissions table. Toggle deselect on same role. |
+| **Footer** | Bottom, full width | — | Copyright notice: "© 2026 Nilachala Saraswata Sangha. All rights reserved." |
+
+**Table features:**
+- `table-sm` density (DaisyUI) — readable without being cramped
+- Hover tooltips via `:title` binding on Code and Name cells
+- `overflow-x-auto` wrapper per table — horizontal scroll on very narrow screens
+- Active column: ✓ (green) for active, ✗ (red) for inactive
+- Card padding scales: `p-4` base, `xl:p-6` on desktop
+- Grid gap scales: `gap-4` base, `xl:gap-6` on desktop
 
 **CDN dependencies (loaded in `<head>`):**
 
