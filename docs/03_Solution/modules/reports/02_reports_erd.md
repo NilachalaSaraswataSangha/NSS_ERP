@@ -1,7 +1,7 @@
 # NSS ERP — Reports & Analytics Reporting Architecture
 
 **Document ID:** SOL-RPT-002
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** DRAFT — SOURCE ALIGNED
 **Module:** Reports & Analytics
 **Parent System:** Nilachala Saraswata Sangha ERP
@@ -250,7 +250,6 @@ authoritative source data
 The exact implementation may be:
 
 ```
-Django QuerySet
 SQL View
 PostgreSQL View
 Materialized View
@@ -258,7 +257,9 @@ Reporting Service
 Aggregation Service
 ```
 
-No one implementation is frozen yet.
+No one implementation is frozen yet. (No ORM/Django QuerySet — the project's approved
+architecture is raw psycopg2 with hand-written SQL, no ORM; see
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`.)
 
 ---
 
@@ -979,12 +980,13 @@ Report Definition
 The physical implementation may reside in:
 
 ```
-Django
-PostgreSQL
-FastAPI/reporting service
+PostgreSQL (views/queries)
+FastAPI (reporting endpoints/service)
 ```
 
-according to the final API architecture.
+according to the final API architecture (FastAPI + raw psycopg2, no ORM — see
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`; Django is not part of the approved
+architecture).
 
 ---
 
@@ -1559,7 +1561,15 @@ DRAFT — SOURCE ALIGNED
 VERSION:
 
 ```
-1.0.0
+1.0.1
+```
+
+CHANGE LOG:
+
+```
+1.0.1 — §11 and §48 removed Django (QuerySet / generic "Django") as a listed implementation
+        option — the project's approved architecture is FastAPI + raw psycopg2, no ORM (see
+        docs/03_Solution/architecture/TECH_STACK_DECISIONS.md); Django is not a live option.
 ```
 
 ---

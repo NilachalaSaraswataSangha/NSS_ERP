@@ -1,8 +1,9 @@
 # NSS ERP Audit Module
 
-Status: DRAFT — SOURCE ALIGNED, v1.0.0. Full Solution design complete (4 files); there is no
-`backend/audit/` Django app. Cross-cutting audit/traceability capability — not a business
-module in its own right.
+Status: DRAFT — SOURCE ALIGNED, v1.0.0. Full Solution design complete (4 files); no Audit code
+exists yet — the Django prototype was removed entirely in the Django-to-FastAPI migration, and
+Audit never had even a `backend/audit/` stub. Cross-cutting audit/traceability capability — not
+a business module in its own right.
 
 ---
 
@@ -39,5 +40,4 @@ two tables.
 ## Current Status
 
 Design Complete · ERD Complete · Business Rules Drafted (SOURCE ALIGNED) · Table Design
-Drafted (SOURCE ALIGNED) · SQL Implementation Not Started · `backend/audit/` Django app does
-not exist yet
+Drafted (SOURCE ALIGNED) · SQL Implementation Not Started · no API endpoints implemented yet

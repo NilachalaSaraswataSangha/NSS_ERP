@@ -1,10 +1,11 @@
 # NSS ERP Administration Module
 
 Status: DRAFT — SOURCE ALIGNED, v1.0.0/v0.1.0 (lifecycle doc). Full Solution design is 10
-files (6 core, including the Bootstrap RBAC column design, + 4 Correspondence Register); there
-is no `backend/administration/` Django app — `backend/authentication/` currently implements a
-much simpler `Role`/`UserRole`/`LoginAudit` model set that predates this design (see Note
-below).
+files (6 core, including the Bootstrap RBAC column design, + 4 Correspondence Register). No
+Administration application code exists yet — the Django prototype (`backend/`), which once
+included a placeholder `authentication.Role`/`UserRole`/`LoginAudit` model set, was removed
+entirely (see Note below); the active architecture is FastAPI + raw psycopg2, and only
+Bootstrap RBAC (`role_master`/`permission_master`/`role_permission`) has real DDL so far.
 
 ---
 
@@ -107,13 +108,14 @@ audit-actor FKs deferred to Pass 2).
   data stays in the owning entities.
 - No `role_history`/`scope_history`/`permission_group` tables frozen.
 
-## Note — design/code gap
+## Note — historical design/code gap
 
-`backend/authentication/models.py` implements `Role`, `UserRole`, `LoginAudit` — a much
-simpler, unrelated placeholder schema (plain auto-increment PKs, no `permission_master`/
-`admin_scope` concept) that predates and does not match this design. There is no
-`backend/administration/` app; if one is scaffolded later it should target this design rather
-than extend the current `authentication.Role` model as-is.
+The removed Django prototype's `backend/authentication/models.py` implemented `Role`,
+`UserRole`, `LoginAudit` — a much simpler, unrelated placeholder schema (plain auto-increment
+PKs, no `permission_master`/`admin_scope` concept) that predated and did not match this
+design. `backend/` (and that placeholder schema with it) was removed entirely in the
+Django-to-FastAPI migration; any future Administration API implementation should target this
+design directly, built on FastAPI + raw psycopg2 against the DDL in `database/ddl/00_bootstrap/`.
 
 ---
 
@@ -127,4 +129,5 @@ ALIGNED) · Table Design Drafted (SOURCE ALIGNED) · Correspondence Register ful
 `role_permission`): DDL implemented and committed; seed data partial** (`role_master`: 8
 roles; the other two: empty, pending the permission catalogue) · remaining 5 tables (2 RBAC +
 3 Correspondence Register): SQL Implementation Not Started ·
-`backend/administration/` Django app does not exist yet
+no Administration API endpoints implemented yet (Tier 0 FastAPI covers only Bootstrap RBAC
+read-only endpoints)

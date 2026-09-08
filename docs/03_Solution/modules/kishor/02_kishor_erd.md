@@ -1642,7 +1642,6 @@ CHECK constraints
 UNIQUE constraints
 Indexes
 Triggers
-Django migrations
 ```
 
 Those belong to the physical database design stage.

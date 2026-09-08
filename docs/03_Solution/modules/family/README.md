@@ -1,9 +1,8 @@
 # NSS ERP Family Module
 
-Status: DRAFT — full Solution design complete, **not yet implemented in SQL or reconciled with
-Django code**. The `backend/family/` Django app already has real models (`FamilyGroup`,
-`FamilyMembership`); see `backend/family/README.md`. The design below describes a richer,
-frozen 4-table set — see Note below.
+Status: DRAFT — full Solution design complete, **not yet implemented in SQL**. No `backend/`
+Django app exists anymore (the Django prototype was fully removed from the codebase); the design
+below describes a frozen 4-table set — see Note below.
 
 ---
 
@@ -51,7 +50,6 @@ SQL Implementation Not Started
 
 ## Note
 
-`backend/family/models.py` currently has only `FamilyGroup` and `FamilyMembership` — no
-`family_head_history` or `family_transition_history` equivalents exist in code yet. Same
-two-track gap already tracked for `organization`/`person` in `docs/PROJECT_DOCUMENTATION.md` →
-Conventions & gotchas.
+No implementation of this design exists yet. The previous Django prototype's `FamilyGroup` and
+`FamilyMembership` models have been removed along with the rest of `backend/` — there is nothing
+to reconcile against.

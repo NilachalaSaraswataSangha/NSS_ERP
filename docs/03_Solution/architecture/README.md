@@ -5,12 +5,15 @@ Overall solution architecture documentation (cross-module, above the per-module 
 
 ## Files
 
-- **`TECH_STACK_DECISIONS.md`** (v1.2) — Approved technology decision record: database
-  (PostgreSQL on Neon.dev), backend (Django 6.0.6 + FastAPI 0.136.3 on Render.com/Uvicorn),
-  frontend (Tailwind CSS + DaisyUI + HTMX + Alpine.js, replacing Bootstrap 5), mobile strategy
+- **`TECH_STACK_DECISIONS.md`** (v1.3) — Approved technology decision record: database
+  (PostgreSQL on Neon.dev), backend (FastAPI 0.136.3 on Render.com/Uvicorn — sole framework, no
+  ORM, raw psycopg2; Django was implemented as an early prototype and removed in v1.3's
+  Django-to-FastAPI migration), frontend (static HTML served by FastAPI + Tailwind CSS + DaisyUI
+  + Alpine.js, replacing Django Templates + HTMX), mobile strategy
   (`TECH-MOB-001`, FROZEN: Flutter, Android + iOS from day one, Hive/Drift offline
   storage — supersedes the previous PWA-first/Capacitor/conditional-Flutter position), git
-  remotes/deployment flow, and rejected alternatives.
+  remotes/deployment flow, and rejected alternatives (including Django, now that it's been tried
+  and departed from).
 - **`DEVELOPER_REFERENCE_GUIDE.md`** — Per-module "which document to read before coding" matrix
   following the REF → AUTH → GOV → REQ → SOLUTION → CODE → TEST → RELEASE lifecycle order.
 - **`PROGRAMME_EVENT_DOMAIN_MODEL.md`** (`SOL-EVT-001`) — Domain model for Programmes & Events:
@@ -89,10 +92,15 @@ Overall solution architecture documentation (cross-module, above the per-module 
   `event_registration` included). The tables themselves remain CANDIDATE, not frozen DDL, pending
   Module #21's own formal freeze — see `docs/03_Solution/modules/programmes_events/README.md`.
 
-This is mostly the **approved target**, not yet the current code — `backend/` still runs
-Bootstrap 5 templates with no FastAPI wiring. Bootstrap RBAC (3 tables, `SOL-ARCH-011`),
-Foundation (12 tables), and Organization (3 tables) are all implemented and committed against
-`SOL-ARCH-009`/`010`'s DDL sequence; Bootstrap RBAC's seed data remains partial (`role_master`
+This is now largely the **current code**, not just an approved target — the Django-to-FastAPI
+migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django prototype under `backend/` was
+fully archived and removed, and FastAPI is the sole, implemented API layer (`api/` — Tier 0
+read-only bootstrap-RBAC endpoints, no auth, no ORM) serving a Tailwind/DaisyUI/Alpine.js
+frontend (`frontend/`'s Tier 0 Bootstrap Verification UI) as static files. Deployment
+infrastructure (`render.yaml`, `render_build.sh`, targeting Render.com + Neon.dev) exists but has
+not yet run in production. Bootstrap RBAC (3 tables, `SOL-ARCH-011`), Foundation (12 tables), and
+Organization (3 tables) are all implemented and committed against `SOL-ARCH-009`/`010`'s DDL
+sequence; Bootstrap RBAC's seed data remains partial (`role_master`
 seeded, `permission_master`/`role_permission` empty pending the permission catalogue).
 `PROGRAMME_EVENT_DOMAIN_MODEL.md` and `EVENT_ENTITY_RECONCILIATION.md` remain PROPOSED/DRAFT;
 `MODULE_DEPENDENCY_MAP.md` (`SOL-ARCH-007`) remains DRAFT overall. `IMPLEMENTATION_DEPENDENCY_

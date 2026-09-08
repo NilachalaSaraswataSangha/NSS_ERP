@@ -1,7 +1,7 @@
 # NSS ERP — Reports & Analytics Business Rules
 
 **Document ID:** SOL-RPT-003
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** DRAFT — SOURCE ALIGNED
 **Module:** Reports & Analytics
 **Parent System:** Nilachala Saraswata Sangha ERP
@@ -41,9 +41,10 @@ Rules in this document are classified as:
 Reports & Analytics shall remain a dedicated ERP module.
 
 The project module hierarchy explicitly identifies Reports & Analytics as a
-separate module and Django application:
-
-    backend/apps/reports
+separate module, implemented per the project's approved backend architecture
+(FastAPI + raw psycopg2 — see `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`;
+the module was described against a Django `backend/apps/reports` layout in an earlier,
+now-superseded architecture — no such app was ever built and none exists today).
 
 The initial reporting scope includes:
 
@@ -1431,7 +1432,15 @@ DRAFT — SOURCE ALIGNED
 VERSION:
 
 ```
-1.0.0
+1.0.1
+```
+
+CHANGE LOG:
+
+```
+1.0.1 — RPT-BR-001 removed the stale Django backend/apps/reports reference (Django prototype
+        removed project-wide; no such app was ever built). Reports remains a dedicated module,
+        now implemented per the approved FastAPI + raw psycopg2 architecture.
 ```
 
 ---

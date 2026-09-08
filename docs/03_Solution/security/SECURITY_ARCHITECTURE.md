@@ -1,7 +1,7 @@
 # NSS ERP — Security Architecture
 
 **Document ID:** SOL-SEC-001
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** DRAFT — SOURCE ALIGNED (Cross-Reference)
 **Scope:** Security Architecture Map
 **Parent System:** Nilachala Saraswata Sangha ERP
@@ -226,10 +226,10 @@ Exact FK ordering remains open (see DATABASE_DESIGN_STANDARDS.md § 35).
 4. Authentication DDL (user_account, password_history)
 5. Administration DDL (RBAC tables — depends on Auth)
 6. Audit DDL (audit_master, system_event_log)
-7. Django security middleware
-8. FastAPI security dependencies
-9. Row-Level Security policies
-10. UI authorization checks
+7. FastAPI security dependencies (Tier 0 has no auth by design — deferred to Tier 5;
+   see CLAUDE.md and TECH_STACK_DECISIONS.md — no Django, no Django middleware)
+8. Row-Level Security policies
+9. UI authorization checks
 ```
 
 ---
@@ -265,7 +265,12 @@ DOCUMENT STATUS:
 DRAFT — SOURCE ALIGNED (Cross-Reference)
 
 VERSION:
-1.0.0
+1.0.1
+
+CHANGE LOG:
+1.0.1 — §8 removed the stale "Django security middleware" step (Django prototype removed
+        project-wide per CLAUDE.md / TECH_STACK_DECISIONS.md v1.3); FastAPI security
+        dependencies is now the sole framework-security step.
 ```
 
 This document maps existing security architecture. It does not introduce

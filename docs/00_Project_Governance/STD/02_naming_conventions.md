@@ -1,8 +1,13 @@
 # NSS ERP Naming Conventions
 
-Version: 1.0
+Version: 1.1
 
 Status: FROZEN
+
+> **2026-09-08 update:** Section 1 and Section 17 updated — Django was tried as an early
+> prototype and fully removed (`git log` commit `f12489d`); the backend is now FastAPI-only with
+> no ORM, so there are no Django Models. Section 17 retitled to cover Python data-model naming
+> (Pydantic schemas in `api/schemas/`) instead. All other sections unchanged.
 
 ---
 
@@ -12,7 +17,7 @@ This document defines naming standards for:
 
 * Database Objects
 * SQL Scripts
-* Django Models
+* Python Data Models (Pydantic schemas)
 * APIs
 * UI Components
 * Git Branches
@@ -327,7 +332,7 @@ Use leading numbers to preserve execution order.
 
 ---
 
-# 17. Django Model Naming
+# 17. Python Data Model Naming
 
 Format:
 

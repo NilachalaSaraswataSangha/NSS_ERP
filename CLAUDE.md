@@ -3,10 +3,11 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this
 repository.
 
-> This file is a concise reference, not a running log — don't append session-by-session
-> narrative to it. If a decision needs to be recorded permanently, it belongs in
-> `docs/00_Project_Governance/GDR/` (once ratified) or in the relevant module's own SOLUTION
-> doc.
+> This is a terse operating reference, not the deep doc — that's `docs/PROJECT_DOCUMENTATION.md`
+> (code-verified architecture, tier-by-tier plan, directory detail, gotchas). Read that before
+> proposing schema/module-layout changes. Don't append session-by-session narrative to this file;
+> permanent decisions belong in `docs/00_Project_Governance/GDR/` (once ratified) or the relevant
+> module's own SOLUTION doc.
 
 ## Setup
 
@@ -23,47 +24,33 @@ app requires all three DB credentials (no defaults for name/user/password).
 
 ## Database
 
-Hand-written PostgreSQL DDL under `database/ddl/`, numeric folder order, executed via `psql`
-(no migration tool for this track — see `database/README.md` for the exact commands and full
-phase-by-phase execution table):
+Hand-written PostgreSQL DDL under `database/ddl/`, numeric folder order, executed via `psql` (no
+migration tool for this track). Bootstrap sequence (full commands and rationale in
+`database/scripts/README.md` and `docs/PROJECT_DOCUMENTATION.md` → Setup & running):
 
-1. `00_bootstrap/*` — 3 RBAC tables (`role_master`, `permission_master`, `role_permission`),
-   created before Foundation since they have no FK dependencies — **DDL implemented and
-   committed**; seed data partial (`role_master`: 8 roles seeded; `permission_master`/
-   `role_permission`: empty, blocked on the permission catalogue being frozen)
-2. Extensions (`pgcrypto`, `pg_trgm`, `btree_gin`, `postgis`) — in `database/scripts/01_extensions.sql`
-3. `01_foundation/*` — 12 tables (master data, sequences, geography) — **implemented, seeded**
-4. `02_organization/*` — 3 tables (`organization_type_master`, `organization_status_master`,
-   `organization`) — **implemented, seeded**
-5. `03_person/*` — superseded prototype, will be rewritten; don't build on it
-6. `database/seed/` mirrors the same folder order
+1. `00_create_database.sql` (superuser) — creates `nss_erp` DB + `nss_db_owner`/`nss_db_backend`
+   roles, then set their passwords via `ALTER ROLE ... PASSWORD`.
+2. `01_extensions.sql` (superuser) — installs pgcrypto/pg_trgm/btree_gin/postgis, creates the
+   `nss` schema (all tables live under `nss.*`, not `public`; `search_path` is `nss, public`).
+3. `database/scripts/02_build.sh`/`.ps1` (as `nss_db_owner`) — runs all implemented DDL+seed in
+   phase order: `00_bootstrap` (RBAC, 3 tables, seeded 8 roles) → `01_foundation` (12 tables,
+   seeded) → `02_organization` (3 tables, seeded). `03_person` is a superseded prototype — not
+   run, don't build on it.
+4. `database/scripts/03_validate.sh`/`.ps1` — row-count/FK integrity checks.
+5. `database/scripts/04_grant_backend.sql` (as `nss_db_owner`) — grants `nss_db_backend`
+   read-only `SELECT`, needed before the API can connect.
 
-`database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]` (`.ps1` equivalent for
-Windows) runs all implemented DDL+seed end-to-end against a running Postgres instance
-(Bootstrap RBAC, Foundation, Organization — not Person, which is superseded);
-`database/scripts/03_validate.sh`/`.ps1` (same args) then checks row counts and FK integrity
-across those same modules. `database/scripts/00_create_database.sql` is a one-time superuser
-script that creates the `nss_erp` database and the `nss_db_owner`/`nss_db_backend` roles (both
-created with `LOGIN`, no password — set one via `ALTER ROLE ... PASSWORD` before first use);
-`database/scripts/01_extensions.sql` installs pgcrypto/pg_trgm/btree_gin/postgis in nss_erp and
-creates the `nss` schema (also superuser) — all tables live under `nss.*`, not `public`; the
-database's default `search_path` is `nss, public`. The 5-step bootstrap sequence is:
-`00_create_database.sql` → set passwords → `01_extensions.sql` → `02_build.sh` → `03_validate.sh`
-(see `database/scripts/README.md` for the full phase-by-phase execution table).
-The old repo-root `validate_foundation.sh` (Foundation-only) has been replaced by these.
-`.sh`/`.ps1` script pairs must stay operationally identical (same SQL, same execution order,
-same password-prompt behavior) — they're shell-mechanics wrappers only, never a place to add
-platform-specific logic.
+`.sh`/`.ps1` script pairs must stay operationally identical — shell-mechanics wrappers only,
+never a place for platform-specific logic.
 
 **Role naming convention:** `nss_db_*` = PostgreSQL infrastructure roles (lowercase);
-`NSS_ERP_*` = application RBAC roles in `role_master` (uppercase). PostgreSQL `nss_db_owner`
-owns the database/schema; ERP `NSS_ERP_ADMIN` is an application permission role assigned to
-real users. These are separate security boundaries.
+`NSS_ERP_*` = application RBAC roles in `role_master` (uppercase) — separate security
+boundaries.
 
-**Deployment (Render.com):** `render.yaml` + `render_build.sh` (repo root) duplicate the
-Bootstrap RBAC → Foundation → Organization DDL/seed sequence directly via `psql` (not by
-calling `database/scripts/02_build.sh`) so it can run idempotently as a Render build step —
-keep them in sync with `02_build.sh` if that phase order changes. Not yet run in production.
+**Deployment (Render.com):** `render.yaml` + `render_build.sh` (repo root) duplicate the same
+DDL/seed sequence directly via `psql` as an idempotent Render build step — keep in sync with
+`02_build.sh` if phase order changes. Points at an external Neon.dev Postgres instance (no
+managed DB declared in `render.yaml` itself). Not yet run in production.
 
 ## Running the FastAPI API
 
@@ -81,40 +68,20 @@ Tier 0 endpoints (read-only, no authentication):
 - `GET /api/v1/bootstrap/permissions` — empty by design
 - `GET /api/v1/bootstrap/roles/{role_pk}/permissions` — empty (no mappings)
 
-Interactive docs at `http://localhost:8001/docs` (Swagger UI).
-
-Bootstrap Verification UI at `http://localhost:8001/` — served from `frontend/` by FastAPI.
-
-The API connects as `nss_db_backend` (SELECT-only). Run
-`database/scripts/04_grant_backend.sql` as `nss_db_owner` to grant privileges.
+Swagger UI at `/docs`; Bootstrap Verification UI at `/` (served from `frontend/` by FastAPI).
+The API connects as `nss_db_backend` (SELECT-only).
 
 ## Frontend
 
-`frontend/` contains the web UI, served as static files by FastAPI (no separate server, no CORS
-needed). Tier 0 is a Bootstrap Verification UI — not an admin dashboard. It establishes the
-frontend shell that later tiers grow into.
-
-**Tech stack:** Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla `fetch()` for JSON API
-consumption. No React/Vue/Angular. No Node.js build step. No Django templates.
-
-**Structure:**
-```
-frontend/
-├── index.html             Main page (Alpine.js app)
-├── assets/
-│   ├── css/style.css      Minimal custom styles
-│   └── js/app.js          Alpine.js data component + API fetch logic
-```
-
-**Serving:** FastAPI mounts `frontend/assets/` at `/assets` (StaticFiles) and serves
-`frontend/index.html` via an explicit `GET /` route (FileResponse). This avoids shadowing
-`/docs` (Swagger UI) and `/openapi.json`. If `frontend/` doesn't exist on disk, both the
-mount and route are skipped — API-only mode still works.
+`frontend/` — a Tier 0 Bootstrap Verification UI (not an admin dashboard), served as static
+files by FastAPI: Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla `fetch()`. No
+React/Vue/Angular, no Node.js build step, no Django templates. See `frontend/README.md` for the
+full file/function reference.
 
 ## Tests & lint
 
-No test framework or lint/format tooling is configured yet. Don't add one
-unilaterally — raise it as an open question if it's blocking.
+No test framework or lint/format tooling is configured yet. Don't add one unilaterally — raise
+it as an open question if it's blocking.
 
 ## Architecture
 
@@ -132,48 +99,31 @@ NSS_ERP/
 └── NSS LOGO/               Branding assets
 ```
 
-The **Django prototype** (`backend/`) was removed in the `feature/fastapi-tier0` branch.
-It is preserved in Git history but is no longer part of the active codebase. Django
-authentication is superseded by the NSS ERP authentication architecture (Tier 5).
-
-**API layer:** `api/` uses FastAPI with raw psycopg2 queries against `nss.*` tables — no ORM,
-no SQLAlchemy, no migration tool. The API connects as `nss_db_backend` (read-only in Tier 0).
-Authentication is deferred to Tier 5; Tier 0 has no auth, no fake auth, no API keys.
+`backend/` (the earlier Django prototype) was fully removed once the FastAPI direction was
+adopted — it's preserved in Git history only, the directory is now empty. `api/` (FastAPI, raw
+psycopg2, no ORM/SQLAlchemy/migration tool) is the only API layer; authentication is deferred to
+Tier 5 — Tier 0 has no auth, no fake auth, no API keys.
 
 **DB naming (SQL DDL track):** tables `snake_case`; internal PK suffix `_pk`; FKs reference
 internal PKs, never business IDs; business/external identifiers use `_code` — **never `_id`**
-(some newer SOLUTION-layer docs under `docs/03_Solution/modules/` use `_id` in examples; that
-contradicts the implemented DDL and is a known, tracked inconsistency — trust the DDL, not every
-doc example). Audit columns: `created_at/created_by_sangha_sevi_pk`,
-`updated_at/updated_by_sangha_sevi_pk`, `deleted_at/deleted_by_sangha_sevi_pk`, `is_active`
-(soft delete — history is never hard-deleted).
+(some newer SOLUTION-layer docs under `docs/03_Solution/modules/` use `_id` in examples; that's
+a known, tracked inconsistency — trust the DDL, not every doc example). Audit columns:
+`created_at/created_by_sangha_sevi_pk`, `updated_at/updated_by_sangha_sevi_pk`,
+`deleted_at/deleted_by_sangha_sevi_pk`, `is_active` (soft delete — history is never
+hard-deleted).
 
-**Governance Baseline is frozen** (`docs/00_Project_Governance/{AUTH,GOV,GDR,STD}/`) — AUTH vs
-GOV separation, REF architecture, governance lifecycle, stable identifier model, GDR model, NSS
-apex authority, parent-child org model, REF source-preservation rule are settled and not an
-active design discussion. `docs/01_Authoritative_References/` holds source-faithful transcripts
-of the NSS Bye-Law and Mahila Sangha Bye-Law (`REF-*`/`REF-MS-*`) — never paraphrase or
-"correct" these, editorial notes only if explicitly marked as such.
+**Governance Baseline is frozen** (`docs/00_Project_Governance/{AUTH,GOV,GDR,STD}/`) — not an
+active design discussion; don't redesign without an explicit governance decision.
+`docs/01_Authoritative_References/` holds source-faithful transcripts of the NSS and Mahila
+Sangha Bye-Laws (`REF-*`/`REF-MS-*`) — never paraphrase or "correct" these.
 
-**Frozen project-wide principles** (don't redesign around these without an explicit governance
-decision): Person ≠ Member · Family First Model · History Never Deleted · Master Data Driven ·
-By-Law Supremacy · Documentation First · Configuration Over Hardcoding · Permanent Business
-Identifiers · Soft Delete + Audit Trail · Unified Body Governance Model · One Person = One
-Membership = One Sangha Sevi ID.
+**Frozen project-wide principles:** Person ≠ Member · Family First Model · History Never
+Deleted · Master Data Driven · By-Law Supremacy · Documentation First · Configuration Over
+Hardcoding · Permanent Business Identifiers · Soft Delete + Audit Trail · Unified Body
+Governance Model · One Person = One Membership = One Sangha Sevi ID.
 
-**Documentation layout:**
-```
-docs/
-├── PROJECT_DOCUMENTATION.md        ← deep, code-verified reference; read before proposing
-│                                      schema/module-layout changes
-├── 00_Project_Governance/{AUTH, GOV, GDR, STD}/
-├── 01_Authoritative_References/NSS/ , MAHILA_SANGHA/   (source-faithful REF corpus)
-├── 02_Requirements/                 (scaffolded, empty)
-├── 03_Solution/modules/<module>/     (per-module design docs — overview/ERD/business-rules/
-│                                      table-design)
-├── 04_Testing/                      (scaffolded, empty)
-└── 05_Releases/
-```
+**Documentation layout:** see `docs/README.md` for the index;
+`docs/PROJECT_DOCUMENTATION.md` is the deep reference (architecture, tier plan, gotchas).
 
 **Git branch policy:** `feature/<work>` → complete & verify → commit → merge into `develop` →
 only then create the next feature branch. `main` advances only via a documented release: git
@@ -186,8 +136,7 @@ without verifying via `git status`/`git ls-files`.
 either is commonly blocked in-sandbox by a domain-allowlist restriction — push manually from a
 terminal if a sandboxed session can't.
 
-**Approved tech-stack direction** (`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) —
-FastAPI/Uvicorn API layer + Tailwind/DaisyUI/HTMX/Alpine UI + Flutter mobile. The API layer
-(`api/`) and a first UI layer (`frontend/`, Tier 0 Bootstrap Verification UI — see the Frontend
-section above) are both implemented starting from Tier 0; the full admin-dashboard UI and the
-Flutter mobile client remain unbuilt.
+**Approved tech-stack direction:** FastAPI/Uvicorn (sole backend framework — Django was tried as
+an early prototype and fully removed) + Tailwind/DaisyUI/Alpine (no HTMX in Tier 0) + Flutter
+mobile (unbuilt). See `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` (v1.3) and
+`docs/PROJECT_DOCUMENTATION.md` → Architecture for full detail.

@@ -56,7 +56,7 @@ Suppose you need to implement **membership transfer**:
 3. GOV  → Read GOV-ORG-003 (hierarchy integrity) — transfer must maintain parent-child integrity
 4. REQ  → Read/create the membership transfer requirement document
 5. SOLUTION → Design the transfer table, API endpoint, UI flow
-6. CODE → Implement Django model, FastAPI endpoint, HTMX form
+6. CODE → Implement hand-written SQL DDL, FastAPI endpoint, Alpine.js UI
 7. TEST → Test that transfer respects all constraints (org hierarchy, membership status, audit trail)
 8. RELEASE → Document in release notes
 ```
@@ -190,7 +190,7 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 | | 3. Lifecycle | `docs/03_Solution/modules/kumari/03_kumari_lifecycle.md` |
 | | 4. Business Rules (v1.0.0, SOURCE ALIGNED, KUM-001–KUM-080) | `docs/03_Solution/modules/kumari/04_kumari_business_rules.md` |
 | | 5. Table Design (5 tables: kumari_sangha, kumari_membership, kumari_activity, kumari_activity_participant, kumari_membership_transition) | `docs/03_Solution/modules/kumari/05_kumari_table_design.md` |
-| | 6. Existing DDL | none — no `backend/kumari/` app yet |
+| | 6. Existing DDL | none yet |
 
 ---
 
@@ -203,7 +203,7 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 | | 3. Lifecycle | `docs/03_Solution/modules/kishor/03_kishor_lifecycle.md` |
 | | 4. Business Rules (v1.0.0, SOURCE ALIGNED, KISH-001–KISH-100, Guardian Model frozen v2.1) | `docs/03_Solution/modules/kishor/04_kishor_business_rules.md` |
 | | 5. Table Design (4 tables: kishor_participant, kishor_event, kishor_event_registration, kishor_membership_transition) | `docs/03_Solution/modules/kishor/05_kishor_table_design.md` |
-| | 6. Existing DDL | none — no `backend/kishor/` app yet |
+| | 6. Existing DDL | none yet |
 
 ---
 
@@ -218,7 +218,7 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 | | 5. Business Rules | `docs/03_Solution/modules/sevak/05_sevak_business_rules.md` |
 | | 6. Table Design (FROZEN — the only Frozen doc in this module) | `docs/03_Solution/modules/sevak/06_sevak_table_design.md` |
 | | 7. Sangha/Seva/Events subdocs | `docs/03_Solution/modules/sevak/{sangha,seva,events}/` |
-| | 8. Existing DDL | none — no `backend/sevak/` app yet |
+| | 8. Existing DDL | none yet |
 
 ---
 
@@ -230,8 +230,8 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 | | 2. ERD | `docs/03_Solution/modules/heritage/02_founder_heritage_erd.md` |
 | | 3. Lifecycle | `docs/03_Solution/modules/heritage/03_founder_heritage_lifecycle.md` |
 | | 4. Business Rules (HER-001–HER-100) | `docs/03_Solution/modules/heritage/04_founder_heritage_business_rules.md` |
-| | 5. Table Design (8 tables — only `founder_master` implemented in backend) | `docs/03_Solution/modules/heritage/05_founder_heritage_table_design.md` |
-| | 6. Existing model (`founder_master` only) | `backend/heritage/models.py` |
+| | 5. Table Design (8 tables — none implemented yet) | `docs/03_Solution/modules/heritage/05_founder_heritage_table_design.md` |
+| | 6. Existing DDL | none — the earlier Django prototype's `founder_master` model was removed with `backend/`; no SQL DDL exists yet for any of the 8 tables |
 | | 7. Heritage Module README (app status) | `docs/03_Solution/modules/heritage/README.md` |
 
 ---
@@ -264,7 +264,7 @@ If at step 1 you find the bye-law says nothing about transfer, you **cannot inve
 | Never code a business rule from memory | Trace to REF or mark as explicit ERP implementation decision |
 | Never modify a frozen module without GDR | Person, Organization, Membership identity, Family foundation are all frozen |
 | Complete current feature branch before creating next | Git branch policy (`CLAUDE.md`) |
-| DDL is authoritative, Django models must match it | Two-track reconciliation (`CLAUDE.md`) |
+| DDL is authoritative, no ORM competes with it | No-ORM principle (`CLAUDE.md`, `TECH_STACK_DECISIONS.md` §2) |
 | Business IDs use `_code` suffix, never `_id` | DDL naming convention |
 | FKs reference internal `_pk`, never business codes | Referential integrity standard |
 | Every table needs audit columns | `created_at`, `updated_at`, `deleted_at`, `is_active` |

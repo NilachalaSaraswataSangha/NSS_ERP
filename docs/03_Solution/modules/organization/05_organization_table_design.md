@@ -1,7 +1,7 @@
 # NSS ERP — Organization Table Design
 
 **Document ID:** SOL-ORG-005  
-**Version:** 1.3.0  
+**Version:** 1.3.1  
 **Status:** DRAFT — GOVERNANCE ALIGNED  
 **Module:** Organization  
 **Parent System:** Nilachala Saraswata Sangha ERP
@@ -319,7 +319,8 @@ It represents:
 | Column                   |    Required | Key    | Description                                |
 | ------------------------ | ----------: | ------ | ------------------------------------------ |
 | `organization_pk`        |         Yes | PK     | Internal primary key                       |
-| `organization_id`        |         Yes | UNIQUE | Permanent business identifier              |
+| `organization_id`        |  Conditional | UNIQUE | Business identifier (multi-instance org types; NULL for organizations identified by `organization_code` alone — see `README.md` open item on `organization_code`/`organization_short_code`) |
+| `organization_code`      | Conditional | UNIQUE | Short organization code (implemented as `organization_code` VARCHAR(10), nullable — not yet reconciled with the frozen `organization_short_code` VARCHAR(5) NOT NULL spec; see `README.md`) |
 | `organization_name`      |         Yes | —      | Human-readable organization name           |
 | `organization_type_pk`   |         Yes | FK     | Organization type                          |
 | `organization_status_pk` |         Yes | FK     | Current lifecycle status                   |
@@ -1230,6 +1231,7 @@ TOTAL                            3
 ├──────────────────────────────────┤
 │ organization_pk PK               │
 │ organization_id UNIQUE           │
+│ organization_code UNIQUE         │
 │ organization_name                │
 │ organization_type_pk FK          │
 │ organization_status_pk FK        │
@@ -1274,6 +1276,7 @@ The Organization entity therefore contains five major logical areas:
 1. Identity
    organization_pk
    organization_id
+   organization_code
    organization_name
 
 2. Classification
@@ -1463,9 +1466,13 @@ DOCUMENT STATUS:
 DRAFT — GOVERNANCE ALIGNED
 
 VERSION:
-1.3.0
+1.3.1
 
 CHANGE LOG:
+1.3.1 — Added the `organization_code` column to the logical column list, box diagram, and
+        identity summary (it exists in the implemented DDL but was missing from this document);
+        corrected `organization_id` to Conditional/nullable to match the implemented DDL (was
+        marked Required — see README.md open item on organization_code/organization_short_code).
 1.3.0 — Reconciled location fields with Foundation geography:
         postal_code (VARCHAR) → postal_code_pk (FK to postal_code);
         added city_village_pk (FK to city_village);

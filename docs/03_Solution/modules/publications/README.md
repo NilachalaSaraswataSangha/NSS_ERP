@@ -49,5 +49,7 @@ Buy/Purchase workflow — explicitly deferred, not frozen.
 
 Design Complete · ERD Complete · Business Rules Drafted (SOURCE ALIGNED + USER REQUIREMENTS) ·
 Table Design Drafted (zero new tables) · Functional/UI/Notification design drafted · SQL
-Implementation Not Started (rides on Heritage's tables, which are themselves not implemented
-beyond `founder_master`) · `backend/publications/` Django app does not exist yet
+Implementation Not Started (rides on Heritage's tables, which have **no SQL implementation at
+all** — the old Django `founder_master` model was removed along with the rest of `backend/`; see
+`docs/03_Solution/modules/heritage/README.md`) · `backend/publications/` Django app does not
+exist yet

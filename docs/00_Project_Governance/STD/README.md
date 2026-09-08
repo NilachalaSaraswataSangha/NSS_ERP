@@ -5,11 +5,12 @@ than the AUTH/GOV/GDR governance-process documents; this is what the current cod
 to converge on.
 
 - `01_project_standards.md` — core principles (Person≠Member, Family First, History Never
-  Deleted, etc.), tech stack, DB principles (UUID PKs + business IDs, soft delete only), audit
-  columns, security principles, dev workflow, deployment environments.
+  Deleted, etc.), tech stack (v1.1: FastAPI-only, no ORM, Render.com/Neon.dev — Django was tried
+  and fully removed), DB principles (UUID PKs + business IDs, soft delete only), audit columns,
+  security principles, dev workflow, deployment environments.
 - `02_naming_conventions.md` — snake_case tables, `_pk`/business-identifier conventions,
-  FK/index/constraint/sequence naming, SQL file naming, Django PascalCase models, kebab-case
-  APIs, git branch naming.
+  FK/index/constraint/sequence naming, SQL file naming, PascalCase Python data models (v1.1:
+  retitled from "Django Models" since Django was removed), kebab-case APIs, git branch naming.
 - `03_master_data_catalog.md` — catalog of planned master/lookup tables across the whole
   system (geography, organization, membership, family, governance, attendance, RBAC, workflow,
   publications/heritage, Kumari/Kishor/Sevak, UPBS, finance) with example seed values — spans

@@ -53,13 +53,15 @@ module-specific permission system.
 
 ---
 
-# 3. Django Application
+# 3. API Ownership
 
-The project application structure includes:
-
-    backend/apps/administration
-
-Administration therefore has its own Django application.
+Administration is one of the top-level module boundaries in the frozen
+module hierarchy above. Per the approved stack
+(`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`), there is no Django
+application structure — the API layer is FastAPI with raw psycopg2 against
+hand-written DDL, with no per-module ORM app. Administration's own routes and
+DDL (`database/ddl/00_bootstrap/` for the Bootstrap RBAC tables; the remainder
+not yet implemented) will live under `api/` when built, not as a Django app.
 
 ---
 
@@ -1028,13 +1030,9 @@ Detailed Physical Schema
 # 62. Source Alignment
 
 The frozen NSS module hierarchy explicitly identifies Administration as a
-top-level ERP module and includes:
-
-```
-backend/apps/administration
-```
-
-in the Django application structure.
+top-level ERP module. There is no per-module Django application structure —
+Administration's API surface, when built, is FastAPI routes and raw-SQL
+queries under `api/`, per `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`.
 
 The project source identifies Administration as responsible for:
 

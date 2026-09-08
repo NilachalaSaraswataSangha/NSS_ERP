@@ -1146,7 +1146,6 @@ It does not define:
 * ALTER TABLE
 * SQL indexes
 * SQL triggers
-* Django migrations
 
 ---
 

@@ -1302,7 +1302,6 @@ ALTER TABLE
 CREATE INDEX
 CREATE TRIGGER
 CREATE SEQUENCE
-Django migration
 ```
 
 Those belong to the physical database implementation stage.

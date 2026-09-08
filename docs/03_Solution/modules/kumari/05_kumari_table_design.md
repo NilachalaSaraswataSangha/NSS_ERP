@@ -24,7 +24,7 @@ This document defines:
 - Historical requirements
 - Common-module reuse
 
-This document does not define PostgreSQL SQL or Django migrations.
+This document does not define PostgreSQL SQL.
 
 ---
 

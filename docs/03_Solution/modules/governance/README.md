@@ -1,8 +1,9 @@
 # NSS ERP Governance Module
 
 Status: DRAFT — SOURCE ALIGNED, v1.0.0/v0.1.0 (lifecycle doc). Full Solution design now 5 files;
-`backend/governance/` remains a pure Django app stub (empty `models.py`/`views.py`, no
-`urls.py`, not in `INSTALLED_APPS`).
+no code implementation exists yet (the Django prototype, which never had more than an empty
+`governance` app stub, was removed from the repository entirely — see
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`).
 
 **Not to be confused with `docs/00_Project_Governance/`**, which governs the *project itself*
 (AUTH/GOV/GDR/STD documents, the Governance Baseline) — this folder is the ERP *business
@@ -75,5 +76,4 @@ authentication, administration) — see `docs/PROJECT_DOCUMENTATION.md` → "Ope
 
 Design Complete · ERD Complete · Lifecycle Documented (SOL-GOV-005, cross-reference gap above)
 · Business Rules Drafted (SOURCE ALIGNED) · Table Design
-Drafted (SOURCE ALIGNED) · SQL Implementation Not Started · `backend/governance/` remains an
-empty stub, not in `INSTALLED_APPS`
+Drafted (SOURCE ALIGNED) · SQL Implementation Not Started · no code implementation exists yet

@@ -100,13 +100,13 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 | DDL | `ddl/01_foundation/03_system_setting.sql` | `system_setting` | 0 |
 | DDL | `ddl/01_foundation/04_id_sequence_master.sql` | `id_sequence_master` | 0 |
 | DDL | `ddl/01_foundation/05_country.sql` | `country` | 0 |
-| DDL | `ddl/01_foundation/06_document_master.sql` | `document_master` | 1 |
-| DDL | `ddl/01_foundation/07_field_change_log.sql` | `field_change_log` | 1 |
+| DDL | `ddl/01_foundation/06_document_master.sql` | `document_master` | 0 |
+| DDL | `ddl/01_foundation/07_field_change_log.sql` | `field_change_log` | 0 |
 | DDL | `ddl/01_foundation/08_master_data.sql` | `master_data` | 1 |
-| DDL | `ddl/01_foundation/09_state.sql` | `state` | 2 |
-| DDL | `ddl/01_foundation/10_district.sql` | `district` | 3 |
+| DDL | `ddl/01_foundation/09_state.sql` | `state` | 1 |
+| DDL | `ddl/01_foundation/10_district.sql` | `district` | 2 |
 | DDL | `ddl/01_foundation/11_city_village.sql` | `city_village` | 3 |
-| DDL | `ddl/01_foundation/12_postal_code.sql` | `postal_code` | 3 |
+| DDL | `ddl/01_foundation/12_postal_code.sql` | `postal_code` | 2 |
 | DDL | `ddl/01_foundation/13_city_village_postal_code_map.sql` | `city_village_postal_code_map` | 4 |
 
 ### Phase 2 — Foundation Seed Data
@@ -176,6 +176,7 @@ python3 -m pip install -r requirements.txt
 #   py -m pip install -r requirements.txt
 
 # Create api/.env with the nss_db_backend password from step 2
+# macOS / Linux:
 cat > api/.env << 'EOF'
 DB_NAME=nss_erp
 DB_USER=nss_db_backend
@@ -183,6 +184,21 @@ DB_PASSWORD=your_password_here
 DB_HOST=localhost
 DB_PORT=5432
 EOF
+```
+
+Windows (PowerShell):
+
+```powershell
+@"
+DB_NAME=nss_erp
+DB_USER=nss_db_backend
+DB_PASSWORD=your_password_here
+DB_HOST=localhost
+DB_PORT=5432
+"@ | Out-File -Encoding utf8 api\.env
+```
+
+```bash
 
 # Start the API (from the repository root)
 # macOS / Linux:

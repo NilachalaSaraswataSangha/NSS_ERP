@@ -1,8 +1,14 @@
 # NSS ERP Project Standards
 
-Version: 1.0
+Version: 1.1
 
 Status: FROZEN
+
+> **2026-09-08 update:** Section 3 (Technology Stack) updated to match the ratified
+> `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` (v1.3): Django was tried as an early
+> prototype and fully removed (see `git log` commit `f12489d`, "chore: archive and remove Django
+> prototype"); FastAPI is now the sole backend framework, with no ORM. All other sections
+> unchanged.
 
 ---
 
@@ -40,17 +46,15 @@ PostgreSQL
 
 ## Backend
 
-Django
-
-FastAPI
+FastAPI (sole backend framework, no ORM — raw SQL against hand-written DDL)
 
 ## Frontend
 
-Django Templates
+Tailwind CSS
 
-Bootstrap 5
+DaisyUI
 
-HTMX
+Alpine.js
 
 ## Development Tools
 
@@ -62,11 +66,9 @@ DBeaver
 
 ## Infrastructure
 
-Ubuntu Linux
+Render.com (application hosting)
 
-Docker
-
-Nginx
+Neon.dev (managed PostgreSQL)
 
 ---
 

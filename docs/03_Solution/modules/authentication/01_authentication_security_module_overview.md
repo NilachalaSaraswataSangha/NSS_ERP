@@ -936,10 +936,7 @@ The project technology architecture identifies:
 
 ```
 PostgreSQL
-Django
 FastAPI
-Docker
-Nginx
 Ubuntu
 ```
 

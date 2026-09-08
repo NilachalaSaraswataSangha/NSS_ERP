@@ -84,9 +84,11 @@ design philosophy, ensuring that business rules are frozen before implementation
 ## Deployment
 
 * Render.com — `render.yaml` (repo root) defines a free-tier web service (`uvicorn
-  api.main:app`) plus a managed PostgreSQL database; `render_build.sh` installs Python deps and
-  runs the DB bootstrap (DDL + seed) on first deploy only, skipping it on subsequent deploys if
-  `nss.role_master` already exists.
+  api.main:app`). It does not provision a database itself; `DB_NAME`/`DB_USER`/`DB_PASSWORD`/
+  `DB_HOST`/`DB_PORT` are set manually in the Render dashboard, pointing at an external Neon.dev
+  PostgreSQL instance. `render_build.sh` installs Python deps and runs the DB bootstrap (DDL +
+  seed) on first deploy only, skipping it on subsequent deploys if `nss.role_master` already
+  exists.
 
 ---
 

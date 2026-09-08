@@ -48,8 +48,9 @@ added at the Table Design stage to implement the Foundation `document_master` li
 
 ## Backend/DDL reality
 
-No corresponding `backend/` Django app and no `database/ddl/` implementation — design only,
-same as every other module except membership/family/heritage.
+No corresponding FastAPI routes and no `database/ddl/` implementation — design only, same as
+every module besides Bootstrap RBAC, Foundation, and Organization (the only areas implemented
+under `database/ddl/` so far).
 
 ## Not yet reconciled
 

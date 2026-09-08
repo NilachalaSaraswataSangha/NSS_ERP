@@ -1,7 +1,7 @@
 # NSS ERP — Reports & Analytics Module Overview
 
 **Document ID:** SOL-RPT-001
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** DRAFT — SOURCE ALIGNED
 **Module:** Reports & Analytics
 **Parent System:** Nilachala Saraswata Sangha ERP
@@ -1172,12 +1172,12 @@ UPBS Reports
 
 
 
-The frozen top-level module hierarchy includes Reports as a separate module
-with its own Django application:
-
-```
-backend/apps/reports
-```
+The frozen top-level module hierarchy includes Reports as a separate module,
+implemented per the project's approved backend architecture (FastAPI + raw
+psycopg2 — see `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`; an
+earlier, now-superseded architecture described this as a Django
+`backend/apps/reports` app, but no such app was ever built and none exists
+today).
 
 
 
@@ -1194,7 +1194,15 @@ DRAFT — SOURCE ALIGNED
 VERSION:
 
 ```
-1.0.0
+1.0.1
+```
+
+CHANGE LOG:
+
+```
+1.0.1 — §79 removed the stale Django backend/apps/reports reference (Django prototype removed
+        project-wide; no such app was ever built). Reports remains a separate module, now
+        implemented per the approved FastAPI + raw psycopg2 architecture.
 ```
 
 ---

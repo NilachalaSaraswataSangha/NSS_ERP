@@ -44,8 +44,9 @@ not supersede either Bye-Law — where a conflict exists, the authoritative prov
 
 ## Backend/DDL reality
 
-No corresponding `backend/` Django app and no `database/ddl/` implementation — design only,
-same as every other module except membership/family/heritage.
+No `backend/` app (the Django prototype was fully removed from the codebase) and no
+`database/ddl/` implementation — design only, same as every other module except Bootstrap RBAC,
+Foundation, and Organization.
 
 ## Not yet reconciled
 

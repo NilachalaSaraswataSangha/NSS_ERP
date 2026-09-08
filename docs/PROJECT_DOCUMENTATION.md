@@ -86,12 +86,15 @@ Browser
   This layer is far more mature than the code.
 
 **Approved future direction (SOLUTION layer, partially implemented in code):**
-`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` is the authoritative technology decision
-record — Django 6 + FastAPI/Uvicorn API layer + Flutter mobile. The FastAPI half is now
-partially wired up (Tier 0 bootstrap endpoints), and the Tailwind/DaisyUI/Alpine.js web UI
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` (v1.3) is the authoritative technology
+decision record — FastAPI/Uvicorn is now the sole backend framework (the earlier Django
+prototype was implemented, then fully archived and removed as part of v1.3's
+Django-to-FastAPI migration) + Tailwind/DaisyUI/Alpine.js UI + Flutter mobile. The FastAPI half is
+now partially wired up (Tier 0 bootstrap endpoints), and the Tailwind/DaisyUI/Alpine.js web UI
 direction now has a first real implementation (`frontend/`'s Tier 0 Bootstrap Verification UI,
-not yet the full admin dashboard the mockups describe); Django and the Flutter mobile client
-remain unbuilt. **Mobile strategy:** the app's own
+not yet the full admin dashboard the mockups describe); the Flutter mobile client remains
+unbuilt, and `render.yaml`/`render_build.sh` declare a Render.com + Neon.dev deployment that has
+not yet run in production. **Mobile strategy:** the app's own
 mobile client is Flutter, targeting Android + iOS from day one (Hive/Drift for offline local
 storage, syncing via a Dart background isolate, FCM for push). The web app itself still uses
 IndexedDB/Service-Worker offline support for on-site event registration in the browser — a
@@ -301,7 +304,8 @@ NSS_ERP/
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
 ├── render.yaml                    Render.com Infrastructure-as-Code — free-tier web service
-│                                   (`uvicorn api.main:app`) + managed PostgreSQL database
+│                                   (`uvicorn api.main:app`); does not provision a database — DB
+│                                   env vars point to an externally-managed Neon.dev instance
 ├── render_build.sh                 Render build hook — installs deps, runs DB bootstrap
 │                                   (idempotent — skips DDL/seed if already bootstrapped)
 ├── requirements.txt              Python dependencies (pip, not pinned to a venv tool)
@@ -516,7 +520,10 @@ database/
 │   └── lifecycle/         SOL-LIFE-001 (PARTICIPATION_LIFECYCLE_RULES.md), SOL-LIFE-002 (PERSON_LIFECYCLE_RULES.md), both FROZEN v1.0.0 — a SOLUTION-layer standards path distinct from the governance-layer docs/00_Project_Governance/STD/, not yet cross-referenced from either README or from the Sevak/Mahila/Kumari module docs that should cite SOL-LIFE-001 (see Gotchas)
 ├── architecture/
 │   ├── README.md
-│   ├── TECH_STACK_DECISIONS.md        v1.2 — approved SOLUTION-layer tech decision; Mobile Strategy (`TECH-MOB-001`, FROZEN — Flutter Android+iOS replaces PWA-first/Capacitor) — see Architecture section above
+│   ├── TECH_STACK_DECISIONS.md        v1.3 — approved SOLUTION-layer tech decision; Django-to-FastAPI
+│   │                                   migration (FastAPI is now the sole backend framework, no ORM);
+│   │                                   Mobile Strategy (`TECH-MOB-001`, FROZEN — Flutter Android+iOS
+│   │                                   replaces PWA-first/Capacitor) — see Architecture section above
 │   ├── DEVELOPER_REFERENCE_GUIDE.md   per-module "which doc to read before coding" matrix
 │   ├── PROGRAMME_EVENT_DOMAIN_MODEL.md         (`SOL-EVT-001`) — domain model for Programmes & Events, feeding the `programmes_events` module
 │   ├── EVENT_ENTITY_RECONCILIATION.md          (`SOL-EVT-002`) — reconciles that domain model against UPBS/Kishor/Sevak/Mahila/Finance/Attendance's own event-shaped entities
@@ -622,12 +629,16 @@ No test framework or lint/format tooling is configured yet — **no tests exist 
 today.**
 
 **Deployment (Render.com):** `render.yaml` (repo root) is Render's Infrastructure-as-Code
-manifest — a free-tier web service running `uvicorn api.main:app --host 0.0.0.0 --port $PORT`
-plus a managed PostgreSQL database (`nss-erp-db`), with `DB_NAME`/`DB_USER`/`DB_PASSWORD`/
-`DB_HOST`/`DB_PORT` wired automatically from the database service. `render_build.sh` runs on
-every deploy: installs `requirements.txt`, then checks whether `nss.role_master` already
-exists — if not, it creates the `nss` schema, best-effort installs `pgcrypto`/`pg_trgm`/
-`btree_gin` (some may be unavailable on Render's free tier; `postgis` isn't attempted), and runs
+manifest — defines a single free-tier web service running `uvicorn api.main:app --host 0.0.0.0
+--port $PORT`. It does **not** define a managed Render Postgres database service:
+`DB_NAME`/`DB_USER`/`DB_PASSWORD`/`DB_HOST`/`DB_PORT` (plus an apparently-unused
+`DATABASE_URL` — `api/config.py` only reads the five individual vars, never a connection-string
+env var) are declared as `sync: false` env vars that must be set manually in the Render
+dashboard, pointing at an external Neon.dev PostgreSQL instance (per `TECH_STACK_DECISIONS.md`
+§1/§6) — not provisioned by this file. `render_build.sh` runs on every deploy: installs
+`requirements.txt`, then checks whether `nss.role_master` already exists on that Neon database —
+if not, it creates the `nss` schema, best-effort installs `pgcrypto`/`pg_trgm`/
+`btree_gin` (some may be unavailable on Neon's free tier; `postgis` isn't attempted), and runs
 the same DDL+seed phases as `database/scripts/02_build.sh` (Bootstrap RBAC → Foundation →
 Organization) directly via `psql`. This makes deploys idempotent — a redeploy with an
 already-bootstrapped database skips DDL/seed entirely. Neither file has run in production yet
@@ -981,6 +992,13 @@ for both.
   doc uses the short forms `ANCHALIKA`/`ZILLA`/`SAKHA` (`SAKHA_ASANA`/`PATHA_CHAKRA` already
   match). Needs a decision on which form is authoritative before this seed data or the design
   docs are extended further.
+- **Seeded organization status includes `SUSPENDED`, contradicting the frozen business rule
+  that excludes it.** `database/seed/02_organization/02_organization_status_master.sql` seeds
+  6 statuses including `SUSPENDED`, but `03_organization_lifecycle.md` §81 ("No Unsupported
+  States") and `04_organization_business_rules.md` ORG-BR-059 ("No Unsupported Status") both
+  explicitly list `SUSPENDED` as an example of a status the design does **not** introduce
+  without an approved governance change. Needs a decision on whether the seed data should drop
+  `SUSPENDED` or the business rule/lifecycle docs should be updated to approve it.
 - **Resolve whether the two top-level `database/ddl/README.md`/`database/seed/README.md`
   files should keep existing at all.** `database/README.md`'s own execution-order section
   already covers everything they cover, via the per-module READMEs — they may be redundant

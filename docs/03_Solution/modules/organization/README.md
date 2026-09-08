@@ -61,7 +61,7 @@ Table Design GOVERNANCE ALIGNED · **SQL Implemented** (3 tables, seeded)
 `database/ddl/02_organization/` implements `organization_type_master`,
 `organization_status_master`, and `organization` — matching the frozen generic structure exactly
 (self-referencing `parent_organization_pk`, address inline, no `organization_address` table, no
-stored `hierarchical_level` column). Two things this does **not** resolve, both still open:
+stored `hierarchical_level` column). Three things this does **not** resolve, all still open:
 
 - **`organization_code` vs. `organization_short_code`.** `ORG-PENDING-001`
   (`CROSS_MODULE_PRINCIPLES.md` §20.1) froze a column named `organization_short_code`,
@@ -72,13 +72,23 @@ stored `hierarchical_level` column). Two things this does **not** resolve, both 
   02_organization/01_organization_type_master.sql` seeds `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/
   `SAKHA_SANGHA` (plus `SAKHA_ASANA`/`PATHA_CHAKRA`, which do match) — this doc and
   `04_organization_business_rules.md` describe the short forms `ANCHALIKA`/`ZILLA`/`SAKHA`.
+- **Seeded status includes `SUSPENDED`, which the docs explicitly say is unsupported.**
+  `database/seed/02_organization/02_organization_status_master.sql` seeds 6 statuses including
+  `SUSPENDED`. But `03_organization_lifecycle.md` §81 ("No Unsupported States") and
+  `04_organization_business_rules.md` ORG-BR-059 ("No Unsupported Status") both explicitly list
+  `SUSPENDED` as an example status the design does **not** introduce without an approved
+  governance change. The seed data and the frozen business rule currently contradict each other
+  — not reconciled here.
 
-See `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs for both.
+See `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs for all three.
 
 ---
 
 ## Note
 
-Django's `foundation.Organization` model (`backend/foundation/models.py`) is a much simpler
-placeholder that predates this design (no hierarchy, no self-reference) — see
-`docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas before extending it.
+A prior Django prototype (`backend/foundation/models.py`, a much simpler `Organization`
+placeholder — no hierarchy, no self-reference) predated this design but was removed along with
+the rest of the Django prototype (`backend/`) — see CLAUDE.md and
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`. It is preserved in Git history only,
+not on disk. The real implementation is now the SQL DDL at `database/ddl/02_organization/`
+(see "SQL Implementation" above), not any Django model.

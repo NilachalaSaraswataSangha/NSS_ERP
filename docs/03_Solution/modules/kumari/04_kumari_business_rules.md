@@ -1090,7 +1090,6 @@ It does not define:
 * CREATE TABLE
 * ALTER TABLE
 * SQL constraints
-* Django migrations
 
 ---
 

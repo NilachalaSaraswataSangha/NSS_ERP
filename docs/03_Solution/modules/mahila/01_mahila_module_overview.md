@@ -890,8 +890,6 @@ At this stage:
 
 ```text
 No SQL schema is being generated.
-No migrations are being generated.
-No Django models are being generated.
 No PostgreSQL DDL is being generated.
 ```
 
@@ -961,20 +959,17 @@ will describe the intended physical data model without generating SQL.
 
 # 47. Status
 
-This document is:
-
 ```text
-DRAFT — BYE-LAW RECONCILIATION
+DOCUMENT STATUS:
+DRAFT — BYE-LAW ALIGNED
+
+VERSION:
+2.1.0
 ```
 
-It becomes eligible for freeze only after:
+The Mahila Governing Body / Mahila Parichalana Mandali is treated as **one body** throughout this document.
 
-1. Existing Mahila documents are reconciled.
-2. Mahila ERD is completed.
-3. Lifecycle rules are completed.
-4. Business rules are consolidated.
-5. Cross-module dependencies are reviewed.
-6. Authoritative-source traceability is verified.
+The verified Bye-Law remains the authoritative statutory source.
 
 ---
 

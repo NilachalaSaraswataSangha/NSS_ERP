@@ -1,8 +1,8 @@
 # NSS ERP Kishor Puja Module
 
-Status: DRAFT — full Solution design complete; there is still no `backend/kishor/` Django app.
-Kishor Puja is modeled as an annual event/activity for boys (not a permanent org unit like
-Kumari Sangha), reusing the existing Person/Family foundation.
+Status: DRAFT — full Solution design complete; no FastAPI/DDL implementation exists yet for this
+module. Kishor Puja is modeled as an annual event/activity for boys (not a permanent org unit
+like Kumari Sangha), reusing the existing Person/Family foundation.
 
 ---
 
@@ -45,5 +45,5 @@ Purpose: Physical table design — `kishor_participant`, `kishor_event`,
 ## Current Status
 
 Design Complete · ERD Complete · Lifecycle Documented · Business Rules Drafted (Guardian Model
-Frozen) · Table Design Drafted · SQL Implementation Not Started · `backend/kishor/` Django app
-does not exist yet
+Frozen) · Table Design Drafted · SQL Implementation Not Started · no FastAPI/DDL implementation
+exists yet

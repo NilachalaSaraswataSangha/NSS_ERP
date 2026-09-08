@@ -56,6 +56,11 @@ btree_gin          — GIN indexing for combined queries
 The actual `CREATE EXTENSION` list is finalized during DDL authoring.
 Additional extensions may be adopted but must be documented.
 
+**As implemented** (`database/scripts/01_extensions.sql`, DDL-authoring phase now
+complete for Bootstrap/Foundation/Organization): `pgcrypto` (not `uuid-ossp`) for
+`gen_random_uuid()` PK defaults, `pg_trgm`, `btree_gin`, and `postgis` (added, not
+listed above) for geospatial types/indexes/functions.
+
 ---
 
 # 4. Technical Primary Key Convention
@@ -644,6 +649,12 @@ All tables reside in the `public` schema unless a future architectural
 decision establishes module-specific schemas.
 
 No schema-per-module decision has been frozen.
+
+**As implemented** (`database/scripts/01_extensions.sql`): a single project-wide `nss`
+schema (not module-specific, and not `public`) was created and owns all implemented
+tables — `public` is reserved for extensions. The database's default `search_path` is
+`nss, public`. This supersedes the "public schema" default stated above; it is still not
+a schema-per-module design.
 
 ---
 

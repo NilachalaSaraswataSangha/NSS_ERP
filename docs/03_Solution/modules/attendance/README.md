@@ -1,9 +1,8 @@
 # NSS ERP Attendance Module
 
-Status: DRAFT design complete (Review Workflow FROZEN) — `backend/attendance/` remains a pure
-Django app stub (empty `models.py`/`views.py`, no `urls.py`, not in `INSTALLED_APPS`), so this
-is greenfield design with zero corresponding code yet — a wider code/doc gap than
-membership/family, which at least have partial models.
+Status: DRAFT design complete (Review Workflow FROZEN) — no Attendance code exists yet (the
+Django prototype, which once had an empty `backend/attendance/` app stub, was removed entirely
+in the Django-to-FastAPI migration); this is greenfield design with zero corresponding code.
 
 ---
 
@@ -56,4 +55,5 @@ Table Design Drafted
 
 Review Workflow Frozen
 
-SQL Implementation Not Started — `backend/attendance/` has no models at all yet
+SQL Implementation Not Started — no `database/ddl/` tables and no API endpoints exist for
+Attendance yet

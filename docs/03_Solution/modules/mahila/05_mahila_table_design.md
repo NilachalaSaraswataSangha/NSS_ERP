@@ -32,8 +32,6 @@ It does not create:
 
 - SQL
 - PostgreSQL DDL
-- Django migrations
-- database migration scripts
 - implementation code
 
 ---

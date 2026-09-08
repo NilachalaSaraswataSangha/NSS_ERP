@@ -1,10 +1,12 @@
 # NSS ERP Membership Module
 
-Status: DRAFT — full Solution design complete, **not yet implemented in SQL or reconciled with
-Django code**. The `backend/membership/` Django app already has real models (`MembershipType`,
-`MembershipStatus`, `SanghaSevi` — plain integer PKs, no audit/soft-delete columns); see
-`backend/membership/README.md`. The design below describes a much richer intended schema — see
-Note below.
+Status: DRAFT — full Solution design complete, **not yet implemented in SQL**. A prior Django
+prototype app (`backend/membership/`, with plain-integer-PK models `MembershipType`,
+`MembershipStatus`, `SanghaSevi` and no audit/soft-delete columns) existed early in the project
+but was removed along with the rest of the Django prototype (`backend/`) — see CLAUDE.md and
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`. It is preserved in Git history only,
+not on disk. The design below describes a much richer intended schema than that removed
+prototype ever had — see Note below.
 
 ---
 
@@ -50,9 +52,9 @@ SQL Implementation Not Started
 
 ## Note
 
-`backend/membership/models.py` (`MembershipType`, `MembershipStatus`, `SanghaSevi`) is a much
-simpler placeholder that predates this design — plain auto-increment PKs, no UUID, no
+The removed `backend/membership/models.py` (`MembershipType`, `MembershipStatus`, `SanghaSevi`)
+was a much simpler placeholder that predated this design — plain auto-increment PKs, no UUID, no
 `created_by_sangha_sevi_pk`-style audit trail, and none of the ~10 supporting history/journey
 tables in `05_membership_table_design.md`. Same two-track gap already tracked for
 `organization`/`person` in `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas — don't
-assume the Django model and this design describe the same schema.
+assume the removed Django model and this design describe the same schema.

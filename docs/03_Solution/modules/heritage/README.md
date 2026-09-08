@@ -1,7 +1,7 @@
 # NSS ERP Founder & Heritage Module
 
 Status: DRAFT — SOURCE ALIGNED (Solution design complete, v1.0.0). SQL implementation not
-started for 7 of 8 designed tables — see Note below.
+started for any of the 8 designed tables — see Note below.
 
 Complete 5-document Solution-level design set, following the same
 `01_module_overview` / `02_erd` / `03_lifecycle` / `04_business_rules` / `05_table_design`
@@ -25,7 +25,9 @@ multiple editions, digitization support), `historical_office_bearer`, `publicati
 
 ## Note — design/code gap
 
-`backend/heritage/` (see `backend/heritage/README.md`) currently implements **only**
-`founder_master`, via the `Founder` singleton model (`backend/heritage/models.py`) with no
-`urls.py`/views. The other 7 tables designed here have no backend representation yet. Future
-entities beyond this frozen scope are explicitly excluded per the business rules document.
+No code implementation exists yet for any of the 8 designed tables. The Django prototype, which
+previously implemented only `founder_master` as a `Founder` singleton model, was removed from
+the repository entirely (see `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) — the
+Heritage module has no representation in the current FastAPI/hand-written-DDL codebase. Future
+entities beyond this frozen 8-table scope are explicitly excluded per the business rules
+document.

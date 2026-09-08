@@ -93,6 +93,30 @@ python3 -m pip install -r requirements.txt
 
 # Create api/.env with DB_NAME, DB_USER (nss_db_backend),
 # DB_PASSWORD (from step 2), DB_HOST, DB_PORT
+# macOS / Linux:
+cat > api/.env << 'EOF'
+DB_NAME=nss_erp
+DB_USER=nss_db_backend
+DB_PASSWORD=your_password_here
+DB_HOST=localhost
+DB_PORT=5432
+EOF
+```
+
+Windows (PowerShell):
+
+```powershell
+@"
+DB_NAME=nss_erp
+DB_USER=nss_db_backend
+DB_PASSWORD=your_password_here
+DB_HOST=localhost
+DB_PORT=5432
+"@ | Out-File -Encoding utf8 api\.env
+```
+
+```bash
+#
 # Then:
 #   macOS / Linux: python3 -m uvicorn api.main:app --reload --port 8001
 #   Windows:       py -m uvicorn api.main:app --reload --port 8001

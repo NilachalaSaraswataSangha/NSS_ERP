@@ -41,17 +41,25 @@ deliberately does **not** invent a final design for these; see `05_person_table_
 
 ## Known discrepancies — flagged, not resolved here
 
+- **`database/ddl/03_person/` is a superseded prototype, not the target implementation.** It
+  uses per-domain master tables (`gender_master`, `marital_status_master`, `address_type_master`)
+  instead of the generic `master_category`/`master_data` pattern implemented in
+  `database/ddl/01_foundation/`, and will be rewritten against that pattern (see
+  `database/ddl/03_person/README.md`, `database/README.md` "Superseded Artifacts", and
+  `CLAUDE.md`). Don't build on it, and don't treat the discrepancies below as things to reconcile
+  against it — they describe a prototype that itself will be discarded.
 - **Business identifier naming:** this doc set names the business identifier `person_id`
-  (`05_person_table_design.md` §7-9), but the already-implemented DDL
+  (`05_person_table_design.md` §7-9), but the superseded prototype DDL
   (`database/ddl/03_person/02_person.sql`) names the column `person_code`
   (`uq_person_code`, `idx_person_code`) — matching the project-wide `_code` convention for
-  business identifiers. Needs reconciliation before either is treated as final.
-- **Address model:** this doc set marks the address structure OPEN (see above), but
-  `database/ddl/03_person/03_person_address.sql` already implements a `person_address` table
-  supporting multiple addresses per person with one enforced primary
-  (`uq_person_primary_address`). The DDL is ahead of what the current design docs claim is
-  decided — don't assume multi-address support is a closed design decision just because it's
-  implemented.
+  business identifiers. Needs reconciliation before either is treated as final; the rewrite
+  against the generic Foundation master-data pattern is the point at which this should be
+  settled, not a patch to the current prototype.
+- **Address model:** this doc set marks the address structure OPEN (see above), but the
+  superseded prototype's `database/ddl/03_person/03_person_address.sql` already implements a
+  `person_address` table supporting multiple addresses per person with one enforced primary
+  (`uq_person_primary_address`). Don't assume multi-address support is a closed design decision
+  just because a (superseded) prototype implements it.
 
 ## Ownership reassignment
 
@@ -69,9 +77,11 @@ itself still has no SQL counterpart anywhere, under either module.
 
 Design Complete · ERD Complete · Lifecycle Documented (SOL-PER-005) · Business Rules Complete
 (SOURCE ALIGNED) · Table Design Complete (SOURCE ALIGNED, now 1 table — see Ownership
-reassignment above) · SQL Implementation Partial —
+reassignment above) · SQL Implementation: **superseded prototype only** —
 `database/ddl/03_person/` implements `person` and `person_address` (using `person_code`, not
-`person_id`).
+`person_id`) against a per-domain master-table pattern that predates the Foundation
+`master_category`/`master_data` pattern; it will be rewritten, not extended (see Known
+discrepancies above and `CLAUDE.md`).
 
 ---
 

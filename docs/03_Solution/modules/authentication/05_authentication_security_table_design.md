@@ -266,7 +266,7 @@ Passwords shall never be stored as plaintext.
 
 The project security baseline identifies Argon2 password hashing.
 
-The final Django implementation shall use the approved secure password
+The final API implementation shall use the approved secure password
 hashing mechanism.
 
 ---
@@ -998,7 +998,7 @@ this table-design baseline.
 
 The project security architecture identifies Argon2 password hashing.
 
-The exact Django password configuration belongs to the implementation/API
+The exact password-hashing configuration belongs to the implementation/API
 security design.
 
 ---
@@ -1092,8 +1092,6 @@ ERD
 Table Design
       ↓
 PostgreSQL DDL
-      ↓
-ORM
       ↓
 API
       ↓

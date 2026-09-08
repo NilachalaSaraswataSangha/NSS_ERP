@@ -1,9 +1,10 @@
 # NSS ERP Authentication & Security Module
 
 Status: DRAFT — SOURCE ALIGNED, v1.0.0/v0.1.0 (lifecycle doc). Full Solution design is 5
-files. The `backend/authentication/` Django app already has real models (`Role`, `UserRole`,
-`LoginAudit`) and a working login view — see `backend/authentication/README.md` — but they are
-a different, simpler schema than the one designed here (see Note below).
+files. No implementation exists yet: the Django prototype (`backend/`), which previously had a
+simpler `Role`/`UserRole`/`LoginAudit` schema, was fully removed from the codebase; there is no
+`database/ddl/` implementation of this design either. Authentication is a Tier 5 concern — the
+current Tier 0 FastAPI API has no authentication at all.
 
 **Naming note:** this Solution-layer document set (`SOL-AUTH-001`…`005`) is unrelated to the
 governance-layer `AUTH-001` under `docs/00_Project_Governance/AUTH/` (the Authoritative
@@ -53,12 +54,11 @@ and RBAC management in Administration.
 
 ## Note — design/code gap
 
-`backend/authentication/models.py` currently implements `Role`, `UserRole`, `LoginAudit` (plain
-auto-increment PKs, FK to Django's built-in `auth.User`) — none of `user_account`,
-`password_history`, `permission_master`, `role_permission`, or `admin_scope` from this design
-exist in code. `LoginAudit` is a rough precursor to a future `login_history` concept, but this
-design doc explicitly does not freeze that table yet. Treat the current Django models as a
-placeholder to be replaced, not an implementation of this design.
+None of `user_account`, `password_history`, `permission_master`, `role_permission`, or
+`admin_scope` from this design exist in code yet. The previous Django prototype's
+`Role`/`UserRole`/`LoginAudit` models (plain auto-increment PKs, FK to Django's built-in
+`auth.User`) have been removed along with the rest of `backend/` — there is nothing to reconcile
+against.
 
 ---
 
@@ -67,5 +67,4 @@ placeholder to be replaced, not an implementation of this design.
 Design Complete · ERD Complete · Lifecycle Documented (SOL-AUTH-005 — does not yet
 cross-reference `SOL-LIFE-001`/`002`, see `docs/PROJECT_DOCUMENTATION.md` → "Open questions /
 TODOs") · Business Rules Drafted (SOURCE
-ALIGNED) · Table Design Drafted (SOURCE ALIGNED) · SQL Implementation Not Started ·
-`backend/authentication/` exists but implements an unrelated, simpler schema
+ALIGNED) · Table Design Drafted (SOURCE ALIGNED) · SQL Implementation Not Started

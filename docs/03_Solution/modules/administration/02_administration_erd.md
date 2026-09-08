@@ -1068,7 +1068,9 @@ admin_scope
 with the RBAC entities used as the basis for centralized access control.
 
 The Administration module is explicitly part of the frozen top-level module
-hierarchy and the Django application structure.
+hierarchy. There is no Django application structure — per
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`, the API layer is
+FastAPI with raw psycopg2, no ORM.
 
 The Sevak rules explicitly state that Sevak uses the existing ERP RBAC plus
 organizational scope and that the detailed permission matrix is defined

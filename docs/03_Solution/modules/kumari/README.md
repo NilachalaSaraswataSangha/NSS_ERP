@@ -1,8 +1,8 @@
 # NSS ERP Kumari Sangha Module
 
-Status: DRAFT — full Solution design complete; there is still no `backend/kumari/` Django app.
-Kumari Sangha is a permanent developmental institution for unmarried girls, distinct from NSS
-Membership, reusing the existing Person/Family foundation.
+Status: DRAFT — full Solution design complete; no FastAPI/DDL implementation exists yet for this
+module. Kumari Sangha is a permanent developmental institution for unmarried girls, distinct
+from NSS Membership, reusing the existing Person/Family foundation.
 
 ---
 
@@ -45,4 +45,4 @@ Purpose: Physical table design — `kumari_sangha`, `kumari_membership`, `kumari
 ## Current Status
 
 Design Complete · ERD Complete · Lifecycle Documented · Business Rules Drafted · Table Design
-Drafted · SQL Implementation Not Started · `backend/kumari/` Django app does not exist yet
+Drafted · SQL Implementation Not Started · no FastAPI/DDL implementation exists yet

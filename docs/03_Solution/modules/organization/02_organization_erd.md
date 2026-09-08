@@ -1,7 +1,7 @@
 # NSS ERP — Organization ERD
 
 **Document ID:** SOL-ORG-002
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** DRAFT — SOURCE ALIGNED
 **Module:** Organization
 **Parent System:** Nilachala Saraswata Sangha ERP
@@ -66,13 +66,17 @@ erDiagram
         UUID organization_type_pk FK
         UUID organization_status_pk FK
         VARCHAR organization_id
+        VARCHAR organization_code
         VARCHAR organization_name
         VARCHAR address_line_1
         VARCHAR address_line_2
         UUID district_pk FK
         UUID state_pk FK
         UUID country_pk FK
-        VARCHAR postal_code
+        UUID city_village_pk FK
+        UUID postal_code_pk FK
+        NUMERIC latitude
+        NUMERIC longitude
     }
 
     ORGANIZATION_TYPE_MASTER {
@@ -449,10 +453,14 @@ ORGANIZATION
     ├── district_pk
     ├── state_pk
     ├── country_pk
-    └── postal_code
+    ├── city_village_pk
+    ├── postal_code_pk
+    ├── latitude
+    └── longitude
 ```
 
-This is the revised v1 design. 
+This is the revised v1 design (§4 fields reconciled with Foundation geography — see
+`05_organization_table_design.md` v1.3.0 changelog). 
 
 ---
 
@@ -463,18 +471,26 @@ Where location master tables are used:
 ```text
 organization.district_pk
         ↓
-district_master
+district
 
 organization.state_pk
         ↓
-state_master
+state
 
 organization.country_pk
         ↓
-country_master
+country
+
+organization.city_village_pk
+        ↓
+city_village
+
+organization.postal_code_pk
+        ↓
+postal_code
 ```
 
-These are common Foundation/Location domains.
+These are common Foundation/Location domains (`database/ddl/01_foundation/`).
 
 They are not Organization-owned master tables.
 
@@ -739,9 +755,9 @@ erDiagram
 
     ORGANIZATION ||--o{ ORGANIZATION : "parent-child"
 
-    DISTRICT_MASTER ||--o{ ORGANIZATION : "district"
-    STATE_MASTER ||--o{ ORGANIZATION : "state"
-    COUNTRY_MASTER ||--o{ ORGANIZATION : "country"
+    DISTRICT ||--o{ ORGANIZATION : "district"
+    STATE ||--o{ ORGANIZATION : "state"
+    COUNTRY ||--o{ ORGANIZATION : "country"
 
     ORGANIZATION {
         UUID organization_pk PK
@@ -749,13 +765,17 @@ erDiagram
         UUID organization_type_pk FK
         UUID organization_status_pk FK
         VARCHAR organization_id
+        VARCHAR organization_code
         VARCHAR organization_name
         VARCHAR address_line_1
         VARCHAR address_line_2
         UUID district_pk FK
         UUID state_pk FK
         UUID country_pk FK
-        VARCHAR postal_code
+        UUID city_village_pk FK
+        UUID postal_code_pk FK
+        NUMERIC latitude
+        NUMERIC longitude
     }
 
     ORGANIZATION_TYPE_MASTER {
@@ -817,13 +837,17 @@ erDiagram
         UUID organization_type_pk FK
         UUID organization_status_pk FK
         VARCHAR organization_id
+        VARCHAR organization_code
         VARCHAR organization_name
         VARCHAR address_line_1
         VARCHAR address_line_2
         UUID district_pk FK
         UUID state_pk FK
         UUID country_pk FK
-        VARCHAR postal_code
+        UUID city_village_pk FK
+        UUID postal_code_pk FK
+        NUMERIC latitude
+        NUMERIC longitude
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
@@ -1137,7 +1161,14 @@ DOCUMENT STATUS:
 DRAFT — SOURCE ALIGNED
 
 VERSION:
-1.0.0
+1.0.1
+
+CHANGE LOG:
+1.0.1 — Reconciled entity attribute lists with 05_organization_table_design.md v1.3.0 and the
+        implemented DDL (database/ddl/02_organization/03_organization.sql): added
+        organization_code, city_village_pk, postal_code_pk, latitude, longitude; removed the
+        stale VARCHAR postal_code column; corrected district/state/country FK target names
+        (district, state, country — not district_master/state_master/country_master).
 ```
 
 ---

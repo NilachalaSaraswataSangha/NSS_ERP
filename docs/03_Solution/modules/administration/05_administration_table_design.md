@@ -1241,8 +1241,6 @@ Table Design
       ↓
 PostgreSQL DDL
       ↓
-ORM
-      ↓
 API
       ↓
 UI

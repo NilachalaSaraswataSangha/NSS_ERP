@@ -1,7 +1,7 @@
 # NSS ERP Mahila Sangha Module
 
 Status: DRAFT — BYE-LAW ALIGNED, Version 2.1.0 across all 5 documents. Full Solution design
-complete; there is still no `backend/mahila/` Django app. Mahila members use the same
+complete; no FastAPI/DDL implementation exists yet for this module. Mahila members use the same
 Probationary/Regular/Associate membership framework as everyone else — no separate membership
 system.
 
@@ -39,5 +39,5 @@ successor takes over.
 ## Current Status
 
 Design Complete · ERD Complete · Lifecycle Documented · Business Rules Drafted (governance model
-corrected v2.0.0 → v2.1.0) · Table Design Drafted · SQL Implementation Not Started ·
-`backend/mahila/` Django app does not exist yet
+corrected v2.0.0 → v2.1.0) · Table Design Drafted · SQL Implementation Not Started · no
+FastAPI/DDL implementation exists yet

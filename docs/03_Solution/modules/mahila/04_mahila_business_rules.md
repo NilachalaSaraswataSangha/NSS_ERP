@@ -1458,9 +1458,7 @@ This document does not define:
 ```text
 SQL
 PostgreSQL DDL
-Django models
 FastAPI routes
-Migrations
 UI implementation
 ```
 
