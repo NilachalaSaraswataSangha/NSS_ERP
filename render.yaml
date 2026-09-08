@@ -1,0 +1,32 @@
+# render.yaml — Render.com Infrastructure-as-Code
+# Defines the NSS ERP Tier 0 web service.
+#
+# Database is hosted on Neon.dev (per TECH_STACK_DECISIONS.md §1).
+# DB credentials are set as environment variables in the Render
+# dashboard, pointing to the Neon PostgreSQL instance.
+#
+# Docs: https://docs.render.com/infrastructure-as-code
+
+services:
+  - type: web
+    name: nss-erp
+    runtime: python
+    plan: free
+    buildCommand: ./render_build.sh
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      # Set these in Render dashboard → Environment, pointing to Neon.dev
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12.4"

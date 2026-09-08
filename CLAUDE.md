@@ -60,6 +60,11 @@ platform-specific logic.
 owns the database/schema; ERP `NSS_ERP_ADMIN` is an application permission role assigned to
 real users. These are separate security boundaries.
 
+**Deployment (Render.com):** `render.yaml` + `render_build.sh` (repo root) duplicate the
+Bootstrap RBAC → Foundation → Organization DDL/seed sequence directly via `psql` (not by
+calling `database/scripts/02_build.sh`) so it can run idempotently as a Render build step —
+keep them in sync with `02_build.sh` if that phase order changes. Not yet run in production.
+
 ## Running the FastAPI API
 
 ```
@@ -183,5 +188,6 @@ terminal if a sandboxed session can't.
 
 **Approved tech-stack direction** (`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) —
 FastAPI/Uvicorn API layer + Tailwind/DaisyUI/HTMX/Alpine UI + Flutter mobile. The API layer
-(`api/`) is implemented starting from Tier 0. The UI layer (`frontend/`, not yet created) will
-be implemented after the API proves out the DB→API vertical slice.
+(`api/`) and a first UI layer (`frontend/`, Tier 0 Bootstrap Verification UI — see the Frontend
+section above) are both implemented starting from Tier 0; the full admin-dashboard UI and the
+Flutter mobile client remain unbuilt.

@@ -50,9 +50,11 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 ## Frontend
 
-* No frontend exists yet — the earlier Django/Bootstrap 5 templates were removed along with
-  the Django prototype. Tailwind CSS + DaisyUI + Alpine.js (per `TECH_STACK_DECISIONS.md`) is
-  the planned direction; 13 static mockups exist under `docs/03_Solution/ui/mockups/`.
+* Tailwind CSS + DaisyUI (CDN) + Alpine.js (CDN) — no build step, no framework.
+* `frontend/` implements a Tier 0 "Bootstrap Verification UI" (not yet the full admin
+  dashboard) served as static files by FastAPI; see `frontend/README.md` for the full
+  file/function reference. 13 static mockups for later tiers exist under
+  `docs/03_Solution/ui/mockups/`.
 
 ---
 
@@ -81,9 +83,10 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 ## Deployment
 
-* Ubuntu
-* Nginx
-* Gunicorn
+* Render.com — `render.yaml` (repo root) defines a free-tier web service (`uvicorn
+  api.main:app`) plus a managed PostgreSQL database; `render_build.sh` installs Python deps and
+  runs the DB bootstrap (DDL + seed) on first deploy only, skipping it on subsequent deploys if
+  `nss.role_master` already exists.
 
 ---
 
@@ -541,6 +544,9 @@ Completed:
   permissions, role→permissions; no auth, no ORM, raw `psycopg2` against `nss.*`, connects as
   `nss_db_backend`; the Django prototype that previously lived under `backend/` was archived
   and removed)
+* Tier 0 Bootstrap Verification UI (`frontend/` — Tailwind CSS + DaisyUI + Alpine.js, no build
+  step, served as static files by FastAPI; 4 sections: system status, RBAC roles, permissions,
+  interactive role→permissions drill-down)
 * Global Location Model
 * Membership Module Design
 * Family Module Design
@@ -612,6 +618,9 @@ NSS_ERP
 ├── api
 │   ├── routers
 │   └── schemas
+│
+├── frontend                (Tier 0 Bootstrap Verification UI, served by FastAPI)
+│   └── assets
 │
 ├── backend                (empty — earlier Django prototype archived and removed)
 │

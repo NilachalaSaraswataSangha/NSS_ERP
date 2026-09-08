@@ -43,22 +43,33 @@ DRAFT, not frozen), though its cross-module reconciliation is complete.
 ## Architecture
 
 ```
-Browser / HTTP client
+Browser
    │
-   ▼
-FastAPI (api/main.py, Tier 0 bootstrap router)
-   │
-   ▼
-psycopg2 connection pool (api/database.py) — raw SQL, no ORM
-   │
-   ▼
-PostgreSQL (nss.* schema, hand-written DDL under database/ddl/)
+   ├──→ GET /              FastAPI (api/main.py) → FileResponse(frontend/index.html)
+   ├──→ GET /assets/*       FastAPI StaticFiles mount → frontend/assets/
+   └──→ GET /api/v1/...     FastAPI (api/routers/bootstrap.py)
+                                │
+                                ▼
+                    psycopg2 connection pool (api/database.py) — raw SQL, no ORM
+                                │
+                                ▼
+                    PostgreSQL (nss.* schema, hand-written DDL under database/ddl/)
 ```
 
 - **Web/API layer:** FastAPI (`api/`), the only web/API layer in the codebase — the earlier
-  Django prototype (`backend/`) has been fully removed. `api/main.py` builds the `FastAPI` app
-  and includes a single router (`api/routers/bootstrap.py`, prefix `/api/v1/bootstrap`); Swagger
-  UI is served at `/docs`. No middleware (no CORS, no auth) is registered.
+  Django prototype (`backend/`) has been fully removed. `api/main.py` builds the `FastAPI` app,
+  includes a single router (`api/routers/bootstrap.py`, prefix `/api/v1/bootstrap`), and (if
+  `frontend/` exists on disk) mounts `frontend/assets/` at `/assets` and serves
+  `frontend/index.html` via an explicit `GET /` route — mounting at `/assets` rather than `/`
+  avoids shadowing FastAPI's own `/docs` (Swagger UI) and `/openapi.json`. No middleware (no
+  CORS, no auth) is registered.
+- **Frontend layer:** `frontend/` — a single-page Tier 0 "Bootstrap Verification UI" (not an
+  admin dashboard), built with Tailwind CSS + DaisyUI (CDN) and Alpine.js (CDN), no build step,
+  no framework. `frontend/assets/js/app.js` defines one Alpine data component
+  (`bootstrapApp()`) that fetches `/api/v1/bootstrap/{health,roles,permissions}` in parallel on
+  load and drives 4 UI sections (system status, RBAC roles, permissions, an interactive
+  role→permissions drill-down). See `frontend/README.md` for the full file/function/state
+  reference. Served entirely by FastAPI — no separate frontend server, no CORS needed.
 - **Data layer:** a single track — **hand-written PostgreSQL DDL** under `database/ddl/`,
   following the project's own UUID-`_pk` + business-`_code` convention (see Conventions &
   Gotchas). This is the "real" schema per the governance/standards docs, and it is now actually
@@ -77,8 +88,10 @@ PostgreSQL (nss.* schema, hand-written DDL under database/ddl/)
 **Approved future direction (SOLUTION layer, partially implemented in code):**
 `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` is the authoritative technology decision
 record — Django 6 + FastAPI/Uvicorn API layer + Flutter mobile. The FastAPI half is now
-partially wired up (Tier 0 bootstrap endpoints); Django, the Tailwind/DaisyUI/Alpine.js web UI
-migration, and the Flutter mobile client remain unbuilt. **Mobile strategy:** the app's own
+partially wired up (Tier 0 bootstrap endpoints), and the Tailwind/DaisyUI/Alpine.js web UI
+direction now has a first real implementation (`frontend/`'s Tier 0 Bootstrap Verification UI,
+not yet the full admin dashboard the mockups describe); Django and the Flutter mobile client
+remain unbuilt. **Mobile strategy:** the app's own
 mobile client is Flutter, targeting Android + iOS from day one (Hive/Drift for offline local
 storage, syncing via a Dart background isolate, FCM for push). The web app itself still uses
 IndexedDB/Service-Worker offline support for on-site event registration in the browser — a
@@ -261,6 +274,8 @@ names, FK references, and index targets.
 ```
 NSS_ERP/
 ├── api/                          FastAPI application (Tier 0 bootstrap endpoints, see below)
+├── frontend/                      Tier 0 Bootstrap Verification UI, served as static files by
+│                                   FastAPI (see below)
 ├── backend/                      Empty — the earlier Django prototype was archived and removed
 ├── database/
 │   ├── ddl/                     Hand-written PostgreSQL schema, numbered by module
@@ -285,6 +300,10 @@ NSS_ERP/
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
 │   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
+├── render.yaml                    Render.com Infrastructure-as-Code — free-tier web service
+│                                   (`uvicorn api.main:app`) + managed PostgreSQL database
+├── render_build.sh                 Render build hook — installs deps, runs DB bootstrap
+│                                   (idempotent — skips DDL/seed if already bootstrapped)
 ├── requirements.txt              Python dependencies (pip, not pinned to a venv tool)
 ├── CLAUDE.md                     AI-agent operating memory/context (terse, instruction-oriented)
 └── README.md                     Project pitch / high-level status
@@ -300,7 +319,9 @@ the `database/` detail below.
 ```
 api/
 ├── main.py             FastAPI app entry point — builds `app`, includes the bootstrap router,
-│                       closes the DB pool on shutdown. Run with:
+│                       mounts `frontend/assets/` at `/assets` and serves `frontend/index.html`
+│                       at `/` (both skipped if `frontend/` doesn't exist — API-only mode still
+│                       works), closes the DB pool on shutdown. Run with:
 │                       `python3 -m uvicorn api.main:app --reload --port 8001` (from repo root)
 ├── config.py           Settings: DB_NAME/DB_USER/DB_PASSWORD (required), DB_HOST (default
 │                       localhost), DB_PORT (default 5432), API_PORT (default 8001) — read from
@@ -318,12 +339,38 @@ api/
                          HealthResponse); audit columns deliberately excluded from the contract
 ```
 
-This is the only web/API layer in the codebase. `backend/` (the earlier Django prototype
+This is the only API layer in the codebase. `backend/` (the earlier Django prototype
 covering `foundation`, `authentication`, `family`, `membership`, `heritage`) was fully archived
 and removed once the FastAPI direction was adopted; the directory is now empty. Modules
 referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishor`, `sevak`,
 `publications`, `upbs`, `reports`, `administration`) **do not exist yet** in either `api/` or
 any other code form — they are planned, not scaffolded.
+
+### `frontend/` — Bootstrap Verification UI detail
+
+```
+frontend/
+├── index.html          Single-page app entry point — 4 sections (system status, RBAC roles,
+│                        permissions, interactive role→permissions drill-down), Alpine.js
+│                        directives bound to `bootstrapApp()` (declared via `x-data`)
+├── assets/
+│   ├── css/style.css   One rule: hides `[x-cloak]` elements until Alpine.js initializes
+│   ├── img/nss-logo.png NSS logo, copied from `NSS LOGO/logooo.png`
+│   └── js/app.js        Defines `bootstrapApp()` — Alpine data component with health/roles/
+│                        permissions/selectedRole state and fetch methods against
+│                        `/api/v1/bootstrap/*` (relative paths, `API_BASE = "/api/v1/bootstrap"`)
+└── README.md            Full file/function/state-property reference — see it directly for
+                          detail rather than duplicating it here
+```
+
+Not an admin dashboard — a Tier 0 "Bootstrap Verification UI" whose job is to prove the
+database→API→frontend chain end to end. Tech stack is Tailwind CSS + DaisyUI + Alpine.js, all
+via CDN — no Node.js build step, no framework, no Django templates. Served entirely by FastAPI
+(see `api/` detail above); there is no separate frontend server or CORS configuration. Every
+fetch method in `app.js` follows the same pattern: set loading/error state → try/fetch/parse →
+catch sets an error flag (never exposes raw error text to the UI) → finally clears loading.
+Authentication UI is deferred to Tier 5 — by design, Tier 0 has no login, session, or
+credentials anywhere in this folder.
 
 ### `docs/01_Authoritative_References/NSS/` detail
 
@@ -565,12 +612,26 @@ summarize the full sequence from a clean machine to a running API.
    python3 -m uvicorn api.main:app --reload --port 8001   # macOS/Linux
    py -m uvicorn api.main:app --reload --port 8001         # Windows
    ```
-   Swagger UI: `http://localhost:8001/docs`. Tier 0 endpoints (read-only, no authentication):
+   Swagger UI: `http://localhost:8001/docs`. Bootstrap Verification UI: `http://localhost:8001/`
+   (served from `frontend/`, skipped automatically if that directory doesn't exist). Tier 0
+   endpoints (read-only, no authentication):
    `GET /api/v1/bootstrap/health`, `GET /api/v1/bootstrap/roles`,
    `GET /api/v1/bootstrap/permissions`, `GET /api/v1/bootstrap/roles/{role_pk}/permissions`.
 
 No test framework or lint/format tooling is configured yet — **no tests exist in the repo
 today.**
+
+**Deployment (Render.com):** `render.yaml` (repo root) is Render's Infrastructure-as-Code
+manifest — a free-tier web service running `uvicorn api.main:app --host 0.0.0.0 --port $PORT`
+plus a managed PostgreSQL database (`nss-erp-db`), with `DB_NAME`/`DB_USER`/`DB_PASSWORD`/
+`DB_HOST`/`DB_PORT` wired automatically from the database service. `render_build.sh` runs on
+every deploy: installs `requirements.txt`, then checks whether `nss.role_master` already
+exists — if not, it creates the `nss` schema, best-effort installs `pgcrypto`/`pg_trgm`/
+`btree_gin` (some may be unavailable on Render's free tier; `postgis` isn't attempted), and runs
+the same DDL+seed phases as `database/scripts/02_build.sh` (Bootstrap RBAC → Foundation →
+Organization) directly via `psql`. This makes deploys idempotent — a redeploy with an
+already-bootstrapped database skips DDL/seed entirely. Neither file has run in production yet
+as of this writing; treat them as declared-but-unverified infrastructure.
 
 ## Configuration
 
@@ -882,10 +943,10 @@ for both.
 - **Build out the FastAPI application beyond Tier 0** — per `TECH_STACK_DECISIONS.md`, FastAPI
   is the approved API layer; Tier 0's 4 read-only bootstrap-RBAC endpoints are implemented, but
   every other tier's API phase (Foundation, Organization, Person, etc.) remains unbuilt.
-- **Build the frontend** (`frontend/`, not yet created) using Tailwind CSS + DaisyUI +
-  Alpine.js per `TECH_STACK_DECISIONS.md` — the 13 mockups under
-  `docs/03_Solution/ui/mockups/` are the visual target; there is no existing frontend to migrate
-  from (the earlier Django/Bootstrap 5 templates were removed with `backend/`).
+- **Grow the frontend beyond Tier 0** — `frontend/`'s Bootstrap Verification UI (Tailwind +
+  DaisyUI + Alpine.js, no build step) proves the database→API→frontend chain end to end, but it
+  isn't the full admin dashboard; the 13 mockups under `docs/03_Solution/ui/mockups/` remain the
+  visual target for later tiers, and login/session UI is deferred to Tier 5.
 - **No `.env.example`** — new contributors have to reverse-engineer required env vars from
   `api/config.py`; consider adding one.
 - **`docs/02_Requirements/` and `docs/04_Testing/` are empty scaffolding** — folder structure
