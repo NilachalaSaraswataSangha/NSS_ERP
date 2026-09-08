@@ -28,7 +28,9 @@ The 8 seeded roles match the frozen catalogue in SOL-ADMIN-004 §8.7
 (updated to 8 roles / 5 scope levels). `NSS_ERP_PATHA_CHAKRA_ADMIN`
 (scope `PATHA_CHAKRA`) was added to both the seed and the design doc
 to align with the organizational hierarchy and the `scope_level` CHECK
-constraint on `role_master`.
+constraint on `role_master`. The 3 SYSTEM roles carry `scope_level = 'NSS-WIDE'`
+(an explicit value, not NULL) — the CHECK constraint on `role_master` was widened
+accordingly.
 
 Role assignment is independent of governance position — see §8.7 for
 the full rationale.

@@ -1,7 +1,7 @@
 # NSS ERP — Phase 0 Bootstrap RBAC Table Design
 
 **Document ID:** SOL-BOOT-001
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** DRAFT — COLUMN FREEZE CANDIDATE
 **Module:** Bootstrap RBAC (Phase 0)
 **Parent Documents:**
@@ -10,6 +10,12 @@
 - SOL-ADMIN-004 — Administration Table Design (§8–10)
 
 **Parent System:** Nilachala Saraswata Sangha ERP
+
+> **2026-09-08 update (v1.0.1):** `scope_level` gained an explicit `NSS-WIDE` value —
+> the 3 SYSTEM roles are now seeded with `scope_level = 'NSS-WIDE'` instead of NULL, and
+> the CHECK constraint was widened accordingly (`database/ddl/00_bootstrap/01_role_master.sql`,
+> `database/seed/00_bootstrap/02_role_master.sql`). NULL remains valid for any future
+> unscoped role but no frozen role uses it anymore.
 
 ---
 
@@ -80,7 +86,7 @@ All columns follow the established project conventions:
 | 2 | `role_code` | VARCHAR(50) | NO | — | Stable machine identifier (e.g. `NSS_ERP_ADMIN`) |
 | 3 | `role_name` | VARCHAR(100) | NO | — | Human-readable display name |
 | 4 | `role_class` | VARCHAR(30) | NO | — | Classification: `SYSTEM` or `ORGANIZATIONAL` |
-| 5 | `scope_level` | VARCHAR(30) | YES | NULL | Applicable org scope: `KENDRA`, `ANCHALIKA`, `ZILLA`, `SAKHA`, `PATHA_CHAKRA`, or NULL for system-wide |
+| 5 | `scope_level` | VARCHAR(30) | YES | NULL | Applicable org scope: `NSS-WIDE`, `KENDRA`, `ANCHALIKA`, `ZILLA`, `SAKHA`, `PATHA_CHAKRA` |
 | 6 | `description` | TEXT | YES | NULL | Purpose and responsibility summary |
 | 7 | `display_order` | INTEGER | NO | 0 | UI sort order |
 | 8 | `created_at` | TIMESTAMPTZ | NO | `CURRENT_TIMESTAMP` | Record creation timestamp |
@@ -99,7 +105,7 @@ All columns follow the established project conventions:
 | `uq_role_master_code` | UNIQUE | `role_code` |
 | `uq_role_master_name` | UNIQUE | `role_name` |
 | `chk_role_master_class` | CHECK | `role_class IN ('SYSTEM', 'ORGANIZATIONAL')` |
-| `chk_role_master_scope_level` | CHECK | `scope_level IS NULL OR scope_level IN ('KENDRA', 'ANCHALIKA', 'ZILLA', 'SAKHA', 'PATHA_CHAKRA')` |
+| `chk_role_master_scope_level` | CHECK | `scope_level IS NULL OR scope_level IN ('NSS-WIDE', 'KENDRA', 'ANCHALIKA', 'ZILLA', 'SAKHA', 'PATHA_CHAKRA')` |
 | `chk_role_master_soft_delete` | CHECK | `(is_active = TRUE AND deleted_at IS NULL) OR (is_active = FALSE AND deleted_at IS NOT NULL)` |
 
 ## 4.3 Indexes
@@ -122,10 +128,11 @@ All columns follow the established project conventions:
   NSS_ERP_SAKHA_ADMIN, NSS_ERP_PATHA_CHAKRA_ADMIN). This classification is enforced by CHECK constraint,
   not application code.
 
-- `scope_level` is NULL for system-wide roles. For organizational
-  roles, it identifies the organizational scope at which the role
-  operates. This is metadata about the role's intended scope — the
-  actual scope assignment is in `admin_scope` (Phase 4).
+- `scope_level` is `NSS-WIDE` for the 3 system-wide roles (an explicit value, not NULL — the
+  CHECK constraint still permits NULL for future roles with no defined scope, but none of the
+  8 frozen roles use it). For organizational roles, it identifies the organizational scope at
+  which the role operates. This is metadata about the role's intended scope — the actual scope
+  assignment is in `admin_scope` (Phase 4).
 
 - `display_order` follows the Foundation master-table convention.
 
@@ -262,9 +269,9 @@ The 8 frozen roles (SOL-ADMIN-004 §8.7) are seeded in Phase 0
 
 | role_code | role_name | role_class | scope_level |
 |-----------|-----------|------------|-------------|
-| `NSS_ERP_ADMIN` | NSS ERP Administrator | `SYSTEM` | NULL |
-| `NSS_ERP_AUDITOR` | Auditor | `SYSTEM` | NULL |
-| `NSS_ERP_REPORT_VIEWER` | Report Viewer | `SYSTEM` | NULL |
+| `NSS_ERP_ADMIN` | NSS ERP Administrator | `SYSTEM` | `NSS-WIDE` |
+| `NSS_ERP_AUDITOR` | Auditor | `SYSTEM` | `NSS-WIDE` |
+| `NSS_ERP_REPORT_VIEWER` | Report Viewer | `SYSTEM` | `NSS-WIDE` |
 | `NSS_ERP_KENDRA_ADMIN` | Kendra Administrator | `ORGANIZATIONAL` | `KENDRA` |
 | `NSS_ERP_ANCHALIKA_ADMIN` | Anchalika Administrator | `ORGANIZATIONAL` | `ANCHALIKA` |
 | `NSS_ERP_ZILLA_ADMIN` | Zilla Administrator | `ORGANIZATIONAL` | `ZILLA` |

@@ -279,8 +279,8 @@ The following eight RBAC roles are frozen:
 | `NSS_ERP_ZILLA_ADMIN` | Organizational administration | Zilla | Administrative operations within assigned Zilla scope |
 | `NSS_ERP_SAKHA_ADMIN` | Organizational administration | Sakha | Administrative operations within assigned Sakha scope |
 | `NSS_ERP_PATHA_CHAKRA_ADMIN` | Organizational administration | Patha Chakra | Administrative operations within assigned Patha Chakra scope |
-| `NSS_ERP_AUDITOR` | Oversight / read | Assigned/authorized scope | Audit and review access |
-| `NSS_ERP_REPORT_VIEWER` | Reporting / read | Assigned/authorized scope | Reporting and read-oriented access |
+| `NSS_ERP_AUDITOR` | Oversight / read | NSS-wide | Audit and review access |
+| `NSS_ERP_REPORT_VIEWER` | Reporting / read | NSS-wide | Reporting and read-oriented access |
 
 All six organizational/system administrative roles (`NSS_ERP_ADMIN`,
 `NSS_ERP_KENDRA_ADMIN`, `NSS_ERP_ANCHALIKA_ADMIN`, `NSS_ERP_ZILLA_ADMIN`,

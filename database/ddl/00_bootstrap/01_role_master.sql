@@ -62,7 +62,7 @@ CREATE TABLE nss.role_master
         (
             scope_level IS NULL
             OR
-            scope_level IN ('KENDRA', 'ANCHALIKA', 'ZILLA', 'SAKHA', 'PATHA_CHAKRA')
+            scope_level IN ('NSS-WIDE', 'KENDRA', 'ANCHALIKA', 'ZILLA', 'SAKHA', 'PATHA_CHAKRA')
         ),
 
     CONSTRAINT chk_role_master_soft_delete

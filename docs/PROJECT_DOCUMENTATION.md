@@ -354,17 +354,20 @@ any other code form — they are planned, not scaffolded.
 
 ```
 frontend/
-├── index.html          Single-page app entry point — 4 sections (system status, RBAC roles,
-│                        permissions, interactive role→permissions drill-down), Alpine.js
-│                        directives bound to `bootstrapApp()` (declared via `x-data`)
+├── index.html          Single-page app entry point — a centred System Status card above a
+│                        responsive grid (1 column mobile, 2 tablet/`md`, 3 desktop/`xl`) of
+│                        RBAC Roles / Permissions / Role Permissions cards; viewport-width
+│                        container (no max-width cap), Alpine.js directives bound to
+│                        `bootstrapApp()` (declared via `x-data`)
 ├── assets/
 │   ├── css/style.css   One rule: hides `[x-cloak]` elements until Alpine.js initializes
 │   ├── img/nss-logo.png NSS logo, copied from `NSS LOGO/logooo.png`
 │   └── js/app.js        Defines `bootstrapApp()` — Alpine data component with health/roles/
 │                        permissions/selectedRole state and fetch methods against
 │                        `/api/v1/bootstrap/*` (relative paths, `API_BASE = "/api/v1/bootstrap"`)
-└── README.md            Full file/function/state-property reference — see it directly for
-                          detail rather than duplicating it here
+└── README.md            Full file/function/state-property reference, including the grid's
+                          responsive breakpoint table — see it directly for detail rather than
+                          duplicating it here
 ```
 
 Not an admin dashboard — a Tier 0 "Bootstrap Verification UI" whose job is to prove the
@@ -764,6 +767,12 @@ for both.
   frozen `ORG-PENDING-001` spec (`organization_short_code`, `VARCHAR(5)`, `NOT NULL` vs. the
   actual `VARCHAR(10)`, nullable `organization_code`), and the seeded organization-type codes
   don't match the design docs' short forms — see Key Workflow #4.
+- **`.env` loading tolerates a Windows BOM.** `api/config.py:17` calls
+  `load_dotenv(_env_path, encoding="utf-8-sig")` rather than plain UTF-8 — some Windows editors
+  save `api/.env` with a UTF-8 BOM, which previously caused `DB_NAME` (the first key) to be
+  silently misread and `Settings.validate()` to report it missing. Mirrors the earlier
+  `requirements.txt` UTF-16LE fix noted in Setup & running above — a recurring Windows-encoding
+  class of bug in this repo.
 - **No tests.** No test framework or lint/format tooling is configured yet.
 - **Git remotes.** `git remote -v` shows two remotes: `personal`
   (`github.com/sandeeppanda22/NSS_ERP`, daily dev) and `org`

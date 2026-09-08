@@ -32,9 +32,10 @@ frozen in `docs/03_Solution/modules/administration/06_bootstrap_rbac_table_desig
 
 ## Design Notes
 
-- **`role_master.scope_level`** CHECK constraint allows `KENDRA`/`ANCHALIKA`/`ZILLA`/
-  `SAKHA`/`PATHA_CHAKRA` — 5 values, matching the 8-role frozen catalogue
-  in SOL-ADMIN-004 §8.7 (5 organizational roles × 5 scope levels + 3 system roles).
+- **`role_master.scope_level`** CHECK constraint allows `NSS-WIDE`/`KENDRA`/`ANCHALIKA`/
+  `ZILLA`/`SAKHA`/`PATHA_CHAKRA` — 6 values, matching the 8-role frozen catalogue
+  in SOL-ADMIN-004 §8.7 (5 organizational roles × 5 org scope levels + 3 system roles, all
+  three explicitly scoped `NSS-WIDE` rather than left NULL).
 - **`role_permission`** has a reduced audit-column set (no `updated_at`/
   `updated_by_sangha_sevi_pk`) since mappings are never updated in place, only
   soft-deleted and recreated.
