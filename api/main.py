@@ -1,9 +1,9 @@
 """
 NSS ERP — FastAPI application entry point.
 
-Tier 0 Bootstrap + Tier 1 Foundation API + Frontend:
-  - Read-only endpoints for RBAC and Foundation data verification
-  - Serves frontend/ static files (Verification UI)
+Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization API + Frontend:
+  - Read-only endpoints for RBAC, Foundation, and Organization data verification
+  - Serves frontend/ static files (Verification UIs)
   - No authentication (Tier 5)
   - No ORM — raw psycopg2 against nss.* schema
   - Connects as nss_db_backend (SELECT-only privileges)
@@ -20,9 +20,11 @@ Start with:
     (run from the repository root)
 
 URLs:
-    http://localhost:8001/          -> Bootstrap Verification UI
-    http://localhost:8001/docs      -> Swagger UI (OpenAPI)
-    http://localhost:8001/api/v1/   -> API endpoints
+    http://localhost:8001/              -> Bootstrap Verification UI
+    http://localhost:8001/foundation    -> Foundation Verification UI
+    http://localhost:8001/organization  -> Organization Verification UI
+    http://localhost:8001/docs          -> Swagger UI (OpenAPI)
+    http://localhost:8001/api/v1/       -> API endpoints
 """
 
 from contextlib import asynccontextmanager
@@ -40,7 +42,7 @@ from slowapi.util import get_remote_address
 from api.config import settings
 from api.database import close_pool
 from api.middleware import add_security_headers
-from api.routers import bootstrap, foundation
+from api.routers import bootstrap, foundation, organization
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -64,7 +66,7 @@ app = FastAPI(
     version="0.1.0",
     description=(
         "Nilachala Saraswata Sangha ERP — "
-        "Tier 0 Bootstrap + Tier 1 Foundation API. "
+        "Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization API. "
         "Read-only verification endpoints."
     ),
     lifespan=lifespan,
@@ -97,6 +99,7 @@ app.middleware("http")(add_security_headers)
 # ── API routes ───────────────────────────────────────────────────────────
 app.include_router(bootstrap.router)
 app.include_router(foundation.router)
+app.include_router(organization.router)
 
 # ── Frontend ─────────────────────────────────────────────────────────────
 # Serve static assets at /assets/*, index.html at /
@@ -122,3 +125,11 @@ if _FRONTEND_DIR.is_dir():
         async def serve_foundation():
             """Serve the Foundation Verification UI."""
             return FileResponse(str(_foundation_path))
+
+    _organization_path = _FRONTEND_DIR / "organization.html"
+    if _organization_path.is_file():
+
+        @app.get("/organization", include_in_schema=False)
+        async def serve_organization():
+            """Serve the Organization Verification UI."""
+            return FileResponse(str(_organization_path))

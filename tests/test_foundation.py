@@ -455,3 +455,70 @@ class TestFoundationUI:
         r = client.get("/foundation")
         assert r.status_code == 200
         assert "text/html" in r.headers.get("content-type", "")
+
+    def test_page_contains_title(self, client):
+        """Page title includes 'Foundation Verification'."""
+        html = client.get("/foundation").text
+        assert "Foundation Verification" in html
+
+    def test_page_contains_branding(self, client):
+        """Page contains the correct organization name."""
+        html = client.get("/foundation").text
+        assert "Nilachala Saraswata Sangha" in html
+
+    def test_page_loads_alpine_js(self, client):
+        """Page includes Alpine.js CDN script with SRI hash."""
+        html = client.get("/foundation").text
+        assert "alpinejs" in html
+        assert "integrity=" in html
+
+    def test_page_loads_daisyui(self, client):
+        """Page includes DaisyUI CSS with SRI hash."""
+        html = client.get("/foundation").text
+        assert "daisyui" in html
+        assert "integrity=" in html
+
+    def test_page_loads_tailwind(self, client):
+        """Page includes Tailwind CSS Play CDN."""
+        html = client.get("/foundation").text
+        assert "cdn.tailwindcss.com" in html
+
+    def test_page_loads_foundation_js(self, client):
+        """Page includes the foundation.js Alpine component."""
+        html = client.get("/foundation").text
+        assert "foundation.js" in html
+
+    def test_page_has_alpine_data_binding(self, client):
+        """Page has x-data binding to foundationApp()."""
+        html = client.get("/foundation").text
+        assert 'x-data="foundationApp()"' in html
+
+    def test_page_has_nav_links(self, client):
+        """Page navigation includes links to all tier UIs."""
+        html = client.get("/foundation").text
+        assert 'href="/"' in html
+        assert 'href="/foundation"' in html
+        assert 'href="/organization"' in html
+
+    def test_page_has_four_tabs(self, client):
+        """Page contains the four expected tab labels."""
+        html = client.get("/foundation").text
+        assert "Master Data" in html
+        assert "System Config" in html
+        assert "Geographic" in html
+        assert "Runtime Tables" in html
+
+    def test_page_has_system_status_section(self, client):
+        """Page includes the System Status health check section."""
+        html = client.get("/foundation").text
+        assert "System Status" in html
+
+    def test_page_has_nss_logo(self, client):
+        """Page references the NSS logo image."""
+        html = client.get("/foundation").text
+        assert "nss-logo.png" in html
+
+    def test_page_has_copyright_footer(self, client):
+        """Page has a copyright footer."""
+        html = client.get("/foundation").text
+        assert "All rights reserved" in html

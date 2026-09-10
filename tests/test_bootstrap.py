@@ -123,3 +123,77 @@ class TestRolePermissions:
         """Requesting permissions with a malformed UUID returns 422."""
         response = client.get("/api/v1/bootstrap/roles/not-a-uuid/permissions")
         assert response.status_code == 422
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UI ROUTE
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestBootstrapUI:
+    """GET / — serves the Bootstrap Verification UI page."""
+
+    def test_page_returns_200(self, client):
+        """The / route serves HTML."""
+        r = client.get("/")
+        assert r.status_code == 200
+        assert "text/html" in r.headers.get("content-type", "")
+
+    def test_page_contains_title(self, client):
+        """Page title includes 'Bootstrap Verification'."""
+        html = client.get("/").text
+        assert "Bootstrap Verification" in html
+
+    def test_page_contains_branding(self, client):
+        """Page contains the correct organization name."""
+        html = client.get("/").text
+        assert "Nilachala Saraswata Sangha" in html
+
+    def test_page_loads_alpine_js(self, client):
+        """Page includes Alpine.js CDN script with SRI hash."""
+        html = client.get("/").text
+        assert "alpinejs" in html
+        assert "integrity=" in html
+
+    def test_page_loads_daisyui(self, client):
+        """Page includes DaisyUI CSS with SRI hash."""
+        html = client.get("/").text
+        assert "daisyui" in html
+        assert "integrity=" in html
+
+    def test_page_loads_tailwind(self, client):
+        """Page includes Tailwind CSS Play CDN."""
+        html = client.get("/").text
+        assert "cdn.tailwindcss.com" in html
+
+    def test_page_loads_app_js(self, client):
+        """Page includes the app.js Alpine component."""
+        html = client.get("/").text
+        assert "app.js" in html
+
+    def test_page_has_alpine_data_binding(self, client):
+        """Page has x-data binding to bootstrapApp()."""
+        html = client.get("/").text
+        assert 'x-data="bootstrapApp()"' in html
+
+    def test_page_has_nav_links(self, client):
+        """Page navigation includes links to all tier UIs."""
+        html = client.get("/").text
+        assert 'href="/"' in html
+        assert 'href="/foundation"' in html
+        assert 'href="/organization"' in html
+
+    def test_page_has_system_status_section(self, client):
+        """Page includes the System Status health check section."""
+        html = client.get("/").text
+        assert "System Status" in html
+
+    def test_page_has_nss_logo(self, client):
+        """Page references the NSS logo image."""
+        html = client.get("/").text
+        assert "nss-logo.png" in html
+
+    def test_page_has_copyright_footer(self, client):
+        """Page has a copyright footer."""
+        html = client.get("/").text
+        assert "All rights reserved" in html
