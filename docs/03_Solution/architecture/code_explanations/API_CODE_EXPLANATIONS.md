@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | API_CODE_EXPLANATIONS                    |
-| Version     | 1.0                                      |
+| Version     | 1.1                                      |
 | Scope       | All source files under `api/` and `tests/` |
-| Status      | Complete                                 |
+| Status      | Complete (updated: Tier 2 Organization)   |
 
 ---
 
@@ -55,7 +55,7 @@ Response returns to the client (security headers/CORS/rate-limit already applied
 way — see SECURITY_CODE_EXPLANATIONS.md)
 ```
 
-Every router handler in `bootstrap.py`/`foundation.py` follows this exact same shape:
+Every router handler in `bootstrap.py`/`foundation.py`/`organization.py` follows this exact same shape:
 `Depends(get_connection)` → parameterized SQL → zip into dicts → unpack into a schema class.
 Once you've read one endpoint in §2.4/§2.5, every other endpoint in the file is the same pattern
 with a different table and a different response model — that repetition is deliberate, not
@@ -2034,8 +2034,351 @@ marking `api/` as a package.
 there is no code to show for either. Their mere presence is what makes `api.routers` and
 `api.schemas` importable as packages; they contribute no code, re-exports, or `__all__`
 declarations. Everything imported from these packages elsewhere in the codebase is imported by
-its explicit submodule path (e.g. `from api.routers import bootstrap, foundation`, not `from
-api.routers import router`), so there was never a need to populate these files with re-exports.
+its explicit submodule path (e.g. `from api.routers import bootstrap, foundation, organization`,
+not `from api.routers import router`), so there was never a need to populate these files with
+re-exports.
+
+---
+
+### 2.9 `api/routers/organization.py`
+
+**Requirement**
+
+Tier 2 exposes 6 read-only GET endpoints across 3 Organization tables
+(`organization_type_master`, `organization_status_master`, `organization`) so the
+Organization Verification UI and any consumer can browse type/status catalogues, list and
+detail organizations with full resolved context (type name, status name, parent name,
+geographic names), view an organization's direct children, and traverse the complete
+organizational hierarchy as a flat list with depth. The `organization` table FKs into 5
+Foundation geographic tables (country, state, district, city_village, postal_code) — all
+nullable, so every geographic column is resolved via `LEFT JOIN` rather than `JOIN`.
+Without this file, the 3 Organization DDL tables would have no HTTP surface at all.
+
+**Line-by-line**
+
+Lines 1–15 — module docstring:
+
+```python
+"""
+Organization API router — Tier 2 read-only endpoints.
+
+6 GET endpoints across 3 Organization tables. No authentication.
+nss_db_backend connects with SELECT-only privileges.
+
+Endpoint groups:
+  - Reference:   types, statuses
+  - Core:        organizations (list, detail, children)
+  - Navigation:  hierarchy (recursive CTE tree)
+
+Organization depends on Foundation tables (country, state, district,
+city_village, postal_code) for address resolution — these are LEFT
+JOINed since address fields are nullable.
+"""
+```
+
+States "6 GET endpoints across 3 Organization tables," names the three endpoint groups
+(Reference / Core / Navigation), and notes the LEFT JOIN dependency on Foundation
+geographic tables.
+
+Lines 17–19:
+
+```python
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+```
+
+Same imports as `foundation.py`: `UUID` for path parameters, `APIRouter` for grouping,
+`Depends` for connection injection, `HTTPException` for 404 responses, `Query` for optional
+filter parameters.
+
+Lines 21–27:
+
+```python
+from api.database import get_connection
+from api.schemas.organization import (
+    OrganizationHierarchyNodeResponse,
+    OrganizationResponse,
+    OrganizationStatusResponse,
+    OrganizationTypeResponse,
+)
+```
+
+All 4 response models used by this router.
+
+Line 29:
+
+```python
+router = APIRouter(prefix="/api/v1/organization", tags=["organization"])
+```
+
+Separate prefix and Swagger tag from the bootstrap and foundation routers.
+
+Lines 34–46 — helpers:
+
+```python
+def _rows_to_models(cur, model_class):
+    """Convert cursor results to a list of Pydantic models."""
+    columns = [desc[0] for desc in cur.description]
+    return [model_class(**dict(zip(columns, row))) for row in cur.fetchall()]
+
+
+def _row_to_model(cur, model_class):
+    """Convert a single cursor result to a Pydantic model, or None."""
+    columns = [desc[0] for desc in cur.description]
+    row = cur.fetchone()
+    if row is None:
+        return None
+    return model_class(**dict(zip(columns, row)))
+```
+
+Identical to the helpers in `foundation.py` — the same "cursor → Pydantic" bridge. These
+are **not** imported from `foundation.py`; each router file owns its own copy, keeping the
+modules independently self-contained (no cross-router import dependency).
+
+Lines 51–96 — shared SQL fragment:
+
+```python
+_ORG_SELECT = """
+    SELECT o.organization_pk,
+           o.organization_id,
+           o.organization_name,
+           o.organization_code,
+           ot.organization_type_pk,
+           ot.organization_type_code,
+           ot.organization_type_name,
+           os.organization_status_pk,
+           os.organization_status_code,
+           os.organization_status_name,
+           o.parent_organization_pk,
+           p.organization_name AS parent_organization_name,
+           o.address_line_1,
+           o.address_line_2,
+           o.district_pk,
+           d.district_name,
+           o.state_pk,
+           s.state_name,
+           o.country_pk,
+           c.country_name,
+           o.city_village_pk,
+           cv.city_village_name,
+           o.postal_code_pk,
+           pc.postal_code,
+           o.latitude,
+           o.longitude,
+           o.is_active
+    FROM   nss.organization o
+    JOIN   nss.organization_type_master ot
+           ON ot.organization_type_pk = o.organization_type_pk
+    JOIN   nss.organization_status_master os
+           ON os.organization_status_pk = o.organization_status_pk
+    LEFT JOIN nss.organization p
+           ON p.organization_pk = o.parent_organization_pk
+    LEFT JOIN nss.district d
+           ON d.district_pk = o.district_pk
+    LEFT JOIN nss.state s
+           ON s.state_pk = o.state_pk
+    LEFT JOIN nss.country c
+           ON c.country_pk = o.country_pk
+    LEFT JOIN nss.city_village cv
+           ON cv.city_village_pk = o.city_village_pk
+    LEFT JOIN nss.postal_code pc
+           ON pc.postal_code_pk = o.postal_code_pk
+"""
+```
+
+A module-level constant holding the reusable SELECT + FROM + JOIN block shared by the list,
+detail, and children endpoints. This is the Organization router's equivalent of
+`foundation.py`'s inline `base_sql` fragments, but factored into a single constant because
+all three endpoints use the exact same 27-column, 8-join query shape and only differ in
+their WHERE clause.
+
+The 8 JOINs:
+- 2 × `JOIN` (inner) — `organization_type_master` and `organization_status_master`: every
+  organization row has exactly one type and one status, so inner joins are correct.
+- 6 × `LEFT JOIN` — `organization p` (parent, nullable self-FK), `district`, `state`,
+  `country`, `city_village`, `postal_code`: all nullable FK columns, so a `LEFT JOIN`
+  ensures rows with no address or no parent still appear in results.
+
+The aliased column `p.organization_name AS parent_organization_name` resolves the parent's
+display name in the same query, so the UI never needs a separate call to look up a parent.
+
+**Reference Data endpoints (lines 104–135):**
+
+Lines 104–118 — `GET /types`:
+
+```python
+@router.get("/types", response_model=list[OrganizationTypeResponse])
+def list_organization_types(
+    conn=Depends(get_connection),
+) -> list[OrganizationTypeResponse]:
+    """List all active organization types (8 frozen types)."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT organization_type_pk, organization_type_code,
+                   organization_type_name, description,
+                   sort_order, is_active
+            FROM   nss.organization_type_master
+            WHERE  is_active = TRUE
+            ORDER BY sort_order
+        """)
+        return _rows_to_models(cur, OrganizationTypeResponse)
+```
+
+Flat query (no JOIN) against `nss.organization_type_master`, `ORDER BY sort_order`. Returns
+the 8 frozen organization types (KENDRA, NILACHALA_KUTIRA, SMRUTI_MANDIRA,
+ANCHALIKA_SANGHA, ZILLA_SANGHA, SAKHA_SANGHA, SAKHA_ASANA, PATHA_CHAKRA).
+
+Lines 121–135 — `GET /statuses`:
+
+```python
+@router.get("/statuses", response_model=list[OrganizationStatusResponse])
+def list_organization_statuses(
+    conn=Depends(get_connection),
+) -> list[OrganizationStatusResponse]:
+    """List all active organization lifecycle statuses (6 statuses)."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT organization_status_pk, organization_status_code,
+                   organization_status_name, description,
+                   sort_order, is_active
+            FROM   nss.organization_status_master
+            WHERE  is_active = TRUE
+            ORDER BY sort_order
+        """)
+        return _rows_to_models(cur, OrganizationStatusResponse)
+```
+
+Flat query against `nss.organization_status_master`, `ORDER BY sort_order`. Returns the 6
+lifecycle statuses (PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, ARCHIVED).
+
+**Core CRUD-read endpoints (lines 143–223):**
+
+Lines 143–168 — `GET /organizations`:
+
+```python
+@router.get("/organizations", response_model=list[OrganizationResponse])
+def list_organizations(
+    type_code: str | None = Query(None, description="Filter by organization type code"),
+    status_code: str | None = Query(None, description="Filter by organization status code"),
+    conn=Depends(get_connection),
+) -> list[OrganizationResponse]:
+```
+
+Builds the query by appending `WHERE o.is_active = TRUE` to `_ORG_SELECT`, then optionally
+appending `AND ot.organization_type_code = %s` and/or `AND os.organization_status_code =
+%s`. Unlike Foundation's `master-data` (which uses `elif` — mutually exclusive filters),
+here both filters are **independently combinable** with `if`/`if` (not `if`/`elif`) —
+filtering by both type and status simultaneously is valid.
+
+Lines 171–187 — `GET /organizations/{organization_pk}`:
+
+Same `_ORG_SELECT` with a PK filter and `AND o.is_active = TRUE`, 404 if `_row_to_model`
+returns `None`.
+
+Lines 190–223 — `GET /organizations/{organization_pk}/children`:
+
+Two-cursor pattern (same as `bootstrap.py`'s `list_role_permissions`): the first cursor
+verifies the parent organization exists with `SELECT 1 FROM nss.organization WHERE
+organization_pk = %s AND is_active = TRUE`; 404 if missing. The second cursor fetches
+direct children via `WHERE o.parent_organization_pk = %s AND o.is_active = TRUE`. In the
+current seed state (3 root organizations, no children), this always returns an empty list
+for valid parents.
+
+**Hierarchy endpoint (lines 231–288):**
+
+```python
+@router.get("/hierarchy", response_model=list[OrganizationHierarchyNodeResponse])
+def get_organization_hierarchy(
+    conn=Depends(get_connection),
+) -> list[OrganizationHierarchyNodeResponse]:
+```
+
+The most complex query in the codebase. `WITH RECURSIVE org_tree AS (...)` defines a
+recursive CTE with two parts:
+
+- **Anchor member** — selects root organizations (`WHERE o.parent_organization_pk IS NULL
+  AND o.is_active = TRUE`), joining to `organization_type_master` and
+  `organization_status_master` for display names, and hardcoding `0 AS depth`.
+- **Recursive member** — selects children by joining `nss.organization o` to `org_tree t ON
+  t.organization_pk = o.parent_organization_pk`, computing `t.depth + 1` for each child
+  level. PostgreSQL executes this recursively until no new rows are produced.
+
+The final `SELECT * FROM org_tree ORDER BY depth, organization_name` returns the flat list
+sorted breadth-first (all depth-0 roots first, then depth-1 children, etc.). This is
+deliberately a **flat** representation — the UI uses `depthIndent(depth)` (see
+`UI_CODE_EXPLANATIONS.md`) to visually indent nodes, rather than receiving nested JSON.
+
+The recursive CTE uses a **leaner column set** than `_ORG_SELECT` (10 columns vs 27) — no
+address fields, no geographic LEFT JOINs, no parent name resolution — because the hierarchy
+view shows only the organizational structure (name, type, status, depth), not full detail.
+This maps to the dedicated `OrganizationHierarchyNodeResponse` schema (§2.10).
+
+---
+
+### 2.10 `api/schemas/organization.py`
+
+**Requirement**
+
+`api/routers/organization.py` needs 4 typed response models: one for each reference-data
+catalogue (types, statuses), one for the full organization detail (27 fields including 8
+JOINed context fields), and one for the hierarchy tree's leaner node shape (10 fields).
+Without this file the Organization router would have no `response_model=` to validate
+against.
+
+**Line-by-line**
+
+Lines 1–9 — module docstring:
+
+```python
+"""
+Pydantic response models for the Organization API (Tier 2).
+
+All models exclude audit columns (created_at, updated_at, deleted_at)
+per the project's API convention established in Tier 0.
+
+Raw psycopg2 returns dictionaries — no ORM objects — so
+ConfigDict(from_attributes=True) is unnecessary.
+"""
+```
+
+Same audit-column exclusion and ConfigDict note as `schemas/bootstrap.py` and
+`schemas/foundation.py`.
+
+Lines 16–24 — `OrganizationTypeResponse` (6 fields):
+
+Maps 1:1 to `nss.organization_type_master`: `organization_type_pk`, `organization_type_code`,
+`organization_type_name`, `description` (nullable), `sort_order`, `is_active`.
+
+Lines 27–35 — `OrganizationStatusResponse` (6 fields):
+
+Maps 1:1 to `nss.organization_status_master`: `organization_status_pk`,
+`organization_status_code`, `organization_status_name`, `description` (nullable),
+`sort_order`, `is_active`.
+
+Lines 38–86 — `OrganizationResponse` (27 fields):
+
+The largest response model in the codebase. Field groups match the `_ORG_SELECT` column list:
+- 4 core fields (`organization_pk`, `organization_id`, `organization_name`,
+  `organization_code`).
+- 3 classification fields from `organization_type_master` via JOIN.
+- 3 lifecycle fields from `organization_status_master` via JOIN.
+- 2 hierarchy fields (`parent_organization_pk` + `parent_organization_name` via self-LEFT
+  JOIN).
+- 2 inline address fields (`address_line_1`, `address_line_2`).
+- 10 geographic context fields (5 FK PKs + 5 resolved names via LEFT JOINs).
+- 2 coordinate fields (`latitude`, `longitude`).
+- 1 `is_active`.
+
+Every nullable field uses `UUID | None`, `str | None`, or `float | None` — matching the
+LEFT JOIN / nullable-FK reality.
+
+Lines 89–107 — `OrganizationHierarchyNodeResponse` (10 fields):
+
+The leaner shape used by the `/hierarchy` endpoint's recursive CTE. Includes `depth: int`
+(computed by the CTE as `0` for roots, `depth + 1` for children) and the type/status
+display names, but no address/geographic fields. The docstring explicitly notes "Children
+are not nested — the tree is returned flat."
 
 ---
 

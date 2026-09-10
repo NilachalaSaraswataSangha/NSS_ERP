@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|-------------------------------------------|
 | Document    | TESTING_CODE_EXPLANATIONS                 |
-| Version     | 1.0                                       |
+| Version     | 1.1                                       |
 | Scope       | All pytest integration tests under `tests/` |
-| Status      | Complete                                  |
+| Status      | Complete (updated: Tier 2 Organization)   |
 
 ---
 
@@ -30,8 +30,9 @@ verification harness, spanning every other layer document (`API_CODE_EXPLANATION
 testing gets its own dedicated document rather than being folded into whichever layer happens to
 be tested by the largest file.
 
-**64 tests total** across 4 files: `test_bootstrap.py` (9), `test_foundation.py` (47),
-`test_security.py` (8), plus `conftest.py`'s shared fixture (no tests of its own).
+**64 tests total** across 4 files: `test_bootstrap.py` (12 — 9 API + 12 UI), `test_foundation.py`
+(47 — 34 API + 13 UI), `test_organization.py` (48 — 29 API + 15 UI + 3 security + 1 hierarchy
+endpoint), `test_security.py` (8), plus `conftest.py`'s shared fixture (no tests of its own).
 
 ---
 
@@ -932,12 +933,209 @@ an actual cross-origin request.
 
 ---
 
+### 2.5 `tests/test_organization.py`
+
+**Requirement**
+
+The 6 Tier 2 Organization endpoints span 3 tables and rely on non-trivial behaviours —
+8-way JOINed queries with 6 LEFT JOINs for nullable geographic FKs, a recursive CTE for
+hierarchy traversal, combinable type/status filters, parent-existence-checked children
+endpoint, and a 27-field response model — every one of which needs its own regression guard.
+This file is the executable specification for the entire Tier 2 Organization API contract,
+plus UI structure tests for the Organization Verification UI page and security-header
+verification for the Organization endpoints.
+
+**Line-by-line**
+
+```python
+"""
+NSS ERP — Tier 2 Organization API tests.
+
+Integration tests for the 6 Organization GET endpoints across 3 tables.
+Runs against local PostgreSQL (not Neon). The database must be
+bootstrapped with DDL + seed before running.
+
+Endpoint groups tested:
+  1. Reference Data: types, statuses
+  2. Organizations:  list (with filters), detail, children
+  3. Hierarchy:      recursive CTE tree
+  4. UI Route:       /organization serves HTML
+"""
+
+import pytest
+
+
+pytestmark = pytest.mark.integration
+
+BASE = "/api/v1/organization"
+FAKE_UUID = "00000000-0000-0000-0000-000000000000"
+```
+
+Module docstring states "6 Organization GET endpoints across 3 tables," lists the four
+test groups, and notes the database prerequisites. `pytestmark = pytest.mark.integration`
+is the same pattern as the other test files. `BASE` and `FAKE_UUID` are module-level
+constants to avoid repetition — identical to the approach in `test_foundation.py`.
+
+#### `TestOrganizationTypes` (lines 29–70, 4 tests)
+
+| Test | What it checks |
+|---|---|
+| `test_list_returns_200` | `GET /types` → 200, non-empty list |
+| `test_list_has_required_fields` | 6-field `required` set (`organization_type_pk`, `organization_type_code`, `organization_type_name`, `description`, `sort_order`, `is_active`) is a subset of every returned type's keys; asserts `is_active is True` |
+| `test_list_returns_8_frozen_types` | Exactly 8 types; codes == `{KENDRA, NILACHALA_KUTIRA, SMRUTI_MANDIRA, ANCHALIKA_SANGHA, ZILLA_SANGHA, SAKHA_SANGHA, SAKHA_ASANA, PATHA_CHAKRA}` |
+| `test_list_ordered_by_sort_order` | `sort_order` values are in ascending order |
+
+The structure mirrors `TestFoundationCountries` / `TestFoundationStates` — the same
+four-test pattern (200, fields, count+codes, ordering) applied to a different reference
+table.
+
+#### `TestOrganizationStatuses` (lines 73–112, 4 tests)
+
+Same shape as `TestOrganizationTypes`:
+
+| Test | What it checks |
+|---|---|
+| `test_list_returns_200` | `GET /statuses` → 200, non-empty list |
+| `test_list_has_required_fields` | 6-field required set check; asserts `is_active` |
+| `test_list_returns_6_statuses` | Exactly 6; codes == `{PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, ARCHIVED}` |
+| `test_list_ordered_by_sort_order` | `sort_order` values ascending |
+
+#### `TestOrganizations` (lines 120–221, 14 tests)
+
+The largest test class in the file, covering list, filters, detail, and geographic
+resolution:
+
+```python
+def test_list_has_required_fields(self, client):
+    """Each organization has expected fields including JOINed context."""
+    required = {
+        "organization_pk", "organization_id", "organization_name",
+        "organization_code",
+        "organization_type_pk", "organization_type_code",
+        "organization_type_name",
+        "organization_status_pk", "organization_status_code",
+        "organization_status_name",
+        "parent_organization_pk", "parent_organization_name",
+        "address_line_1", "address_line_2",
+        "district_pk", "district_name",
+        "state_pk", "state_name",
+        "country_pk", "country_name",
+        "city_village_pk", "city_village_name",
+        "postal_code_pk", "postal_code",
+        "latitude", "longitude",
+        "is_active",
+    }
+    for org in client.get(f"{BASE}/organizations").json():
+        assert required.issubset(org.keys())
+```
+
+Checks all 27 fields of `OrganizationResponse` are present, including all JOINed context
+fields from type, status, parent, and 5 geographic tables. This is the most comprehensive
+field check in the entire test suite — Foundation's largest response model has 8 fields;
+Organization's has 27.
+
+| Test | What it checks |
+|---|---|
+| `test_list_returns_200` | `GET /organizations` → 200, non-empty |
+| `test_list_has_required_fields` | 27-field required set check |
+| `test_list_returns_3_seeded_orgs` | `len == 3`; codes == `{KEN, NKT, SMR}` |
+| `test_list_all_active` | Every org has `is_active is True` |
+| `test_list_all_roots` | Every org has `parent_organization_pk is None` and `parent_organization_name is None` |
+| `test_filter_by_type_code` | `?type_code=KENDRA` → 1 result with matching type code |
+| `test_filter_by_status_code` | `?status_code=ACTIVE` → every result has matching status code |
+| `test_filter_nonexistent_type_returns_empty` | `?type_code=ZZZZZ_FAKE` → 200 with `[]` |
+| `test_detail_valid_pk` | `GET /organizations/{pk}` → 200, returned `organization_pk` matches |
+| `test_detail_fake_pk_returns_404` | All-zero UUID → 404 |
+| `test_detail_bad_uuid_returns_422` | `"not-a-uuid"` → 422 |
+| `test_detail_has_resolved_country` | Kendra org has `country_name is not None` (LEFT JOIN resolution works) |
+| `test_detail_has_postal_code` | Kendra org has `postal_code is not None` |
+
+The last two tests (`test_detail_has_resolved_country`, `test_detail_has_postal_code`) are
+unique to Organization — they verify that the 6 LEFT JOINs in `_ORG_SELECT` actually resolve
+nullable geographic FK columns to non-NULL display names for the Kendra seed record. If any
+of the 6 LEFT JOINs were accidentally changed to INNER JOINs, the Kendra row (which lacks
+some geographic FKs) would vanish from the result set entirely, causing `test_list_returns_3_seeded_orgs`
+to fail.
+
+#### `TestOrganizationChildren` (lines 229–257, 4 tests)
+
+| Test | What it checks |
+|---|---|
+| `test_children_returns_200` | Valid parent PK → 200, list |
+| `test_children_empty_for_leaf_org` | Seeded root orgs have no children → `[]` |
+| `test_children_fake_pk_returns_404` | All-zero UUID → 404 (parent existence check) |
+| `test_children_bad_uuid_returns_422` | `"not-a-uuid"` → 422 |
+
+The 404 test is critical: the `/organizations/{pk}/children` endpoint first checks that the
+parent exists (a `SELECT` against `nss.organization`), and only then queries for children.
+Without that guard, any UUID — valid or not — would return `200 []`, making it impossible
+to distinguish "org exists but has no children" from "org doesn't exist."
+
+#### `TestHierarchy` (lines 265–298, 4 tests)
+
+| Test | What it checks |
+|---|---|
+| `test_hierarchy_returns_200` | `GET /hierarchy` → 200, non-empty |
+| `test_hierarchy_has_required_fields` | 10-field required set (`organization_pk`, `organization_name`, `organization_code`, `organization_type_code`, `organization_type_name`, `organization_status_code`, `organization_status_name`, `parent_organization_pk`, `depth`, `is_active`) |
+| `test_hierarchy_roots_at_depth_0` | All nodes have `depth == 0` and `parent_organization_pk is None` (only roots seeded) |
+| `test_hierarchy_returns_3_nodes` | Exactly 3 nodes (matching 3 seeded root orgs) |
+
+With only root organizations seeded, the recursive CTE's anchor member returns 3 rows at
+`depth = 0` and the recursive member returns no additional rows. When child organizations
+are seeded in future tiers, `test_hierarchy_roots_at_depth_0` will need updating to account
+for `depth > 0` nodes, but `test_hierarchy_has_required_fields` and the 200/non-empty check
+will remain valid.
+
+#### `TestOrganizationUI` (lines 306–380, 15 tests)
+
+The Organization Verification UI page structure tests. Same pattern as `TestBootstrapUI`
+and `TestFoundationUI` — testing that the HTML page served by the UI route includes
+the expected structural elements:
+
+| Test | What it checks |
+|---|---|
+| `test_organization_page_returns_200` | `GET /organization` → 200, `text/html` content type |
+| `test_page_contains_title` | HTML contains "Organization Verification" |
+| `test_page_contains_branding` | HTML contains "Nilachala Saraswata Sangha" |
+| `test_page_loads_alpine_js` | HTML contains "alpinejs" and "integrity=" (SRI) |
+| `test_page_loads_daisyui` | HTML contains "daisyui" and "integrity=" (SRI) |
+| `test_page_loads_tailwind` | HTML contains "cdn.tailwindcss.com" |
+| `test_page_loads_organization_js` | HTML contains "organization.js" |
+| `test_page_has_alpine_data_binding` | HTML contains `x-data="organizationApp()"` |
+| `test_page_has_nav_links` | HTML contains `href="/"`, `href="/foundation"`, `href="/organization"` (all 3 tiers) |
+| `test_page_has_three_tabs` | HTML contains "Reference Data", "Organizations", "Hierarchy" |
+| `test_page_has_system_status_section` | HTML contains "System Status" |
+| `test_page_has_nss_logo` | HTML contains "nss-logo.png" |
+| `test_page_has_copyright_footer` | HTML contains "2026" and "All rights reserved" |
+
+Two tests are unique to Organization and absent from Bootstrap/Foundation:
+`test_page_has_three_tabs` (verifying the 3-tab structure) and
+`test_page_loads_organization_js` (verifying the tier-specific JS file).
+
+#### `TestOrganizationSecurity` (lines 388–409, 3 tests)
+
+Verifies the security middleware applies to Organization endpoints specifically — the
+cross-tier `test_security.py` only tests Bootstrap/frontend routes:
+
+| Test | What it checks |
+|---|---|
+| `test_org_api_has_security_headers` | `GET /types` → 200, has `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `camera=()` in `Permissions-Policy` |
+| `test_org_api_has_cache_control_no_store` | `GET /organizations` has `Cache-Control: no-store` |
+| `test_org_ui_no_cache_control_no_store` | `GET /organization` (UI page) does NOT have `Cache-Control: no-store` |
+
+The third test (`test_org_ui_no_cache_control_no_store`) is a deliberate inversion: HTML
+pages should be cacheable by the browser, so the middleware's `no-store` header — applied
+only to `/api/` paths — must **not** appear on the UI route. This confirms the path-based
+conditional in `middleware.py` works correctly for Organization routes.
+
+---
+
 ## 3. Cross-references
 
 - **`docs/03_Solution/architecture/code_explanations/API_CODE_EXPLANATIONS.md`** — the
-  routers/schemas that `test_bootstrap.py` and `test_foundation.py` exercise.
+  routers/schemas that `test_bootstrap.py`, `test_foundation.py`, and `test_organization.py` exercise.
 - **`docs/03_Solution/architecture/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** — the
-  middleware that `test_security.py` exercises.
+  middleware that `test_security.py` exercises and that `test_organization.py`'s `TestOrganizationSecurity` class verifies per-tier.
 - **`docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`** — the Tier 1 Foundation API
   contract that `test_foundation.py` is the executable specification for.
 - **`docs/03_Solution/architecture/code_explanations/TIER0_SECURITY_AUDIT.md`** and

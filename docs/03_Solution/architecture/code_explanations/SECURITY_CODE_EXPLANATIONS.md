@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|-------------------------------------------|
 | Document    | SECURITY_CODE_EXPLANATIONS                |
-| Version     | 1.0                                       |
+| Version     | 1.1                                       |
 | Scope       | `api/middleware.py` in full, plus the security-relevant portions of `api/config.py` and `api/main.py`, plus the SRI-pinned CDN assets in `frontend/` |
-| Status      | Complete                                  |
+| Status      | Complete (updated: Tier 2 Organization)   |
 
 ---
 
@@ -40,7 +40,7 @@ Incoming HTTP request
    — is this a cross-origin request? if so, check it against the allow-list
         │
         ▼
-3. Route handler runs (bootstrap.py / foundation.py / the frontend FileResponse — see
+3. Route handler runs (bootstrap.py / foundation.py / organization.py / the frontend FileResponse — see
    API_CODE_EXPLANATIONS.md)
         │
         ▼
@@ -171,6 +171,13 @@ deliberately *not* added and why: `X-XSS-Protection` (obsolete, superseded by CS
 it here without controlling TLS termination would be misleading), and `Content-Security-Policy`
 (deferred — the Tailwind Play CDN injects inline `<style>` tags at runtime, and a strict CSP
 would break the UI before the CDN strategy is finalized).
+
+> **Tier 2 note:** The Organization endpoints (`/api/v1/organization/*`) pass through the exact
+> same middleware stack as Bootstrap and Foundation — no per-tier registration is needed. The
+> path-based `Cache-Control: no-store` conditional (`if request.url.path.startswith("/api/")`)
+> automatically covers all 6 Organization API routes, and the UI route `/organization` is
+> automatically excluded, exactly like `/` and `/foundation`. This is verified by 3 dedicated
+> tests in `test_organization.py::TestOrganizationSecurity`.
 
 ```python
     response = await call_next(request)
@@ -378,11 +385,11 @@ are the last thing applied to every outgoing response no matter which layer gene
 
 ---
 
-### 2.4 CDN Subresource Integrity (SRI) pinning — `frontend/index.html`, `frontend/foundation.html`
+### 2.4 CDN Subresource Integrity (SRI) pinning — `frontend/index.html`, `frontend/foundation.html`, `frontend/organization.html`
 
-*(The rest of both files' markup — body structure, Alpine.js directives, every card/tab — is
-explained in full in `UI_CODE_EXPLANATIONS.md` §2.1 and §2.3. This entry covers only the `<head>`
-CDN block, which is byte-for-byte identical in both files.)*
+*(The rest of all three files' markup — body structure, Alpine.js directives, every card/tab — is
+explained in full in `UI_CODE_EXPLANATIONS.md` §2.1, §2.3, and §2.6. This entry covers only the
+`<head>` CDN block, which is byte-for-byte identical in all three files.)*
 
 **Requirement**
 
@@ -396,8 +403,8 @@ hardening pass, DaisyUI and Alpine.js were both loaded unpinned (`@4`, `@3` — 
 version"), so a compromised or yanked CDN release could silently change what code the browser
 executes on every page load; pinning removes that window entirely.
 
-**Line-by-line** (identical in `frontend/index.html` and `frontend/foundation.html`'s `<head>`
-block):
+**Line-by-line** (identical in `frontend/index.html`, `frontend/foundation.html`, and
+`frontend/organization.html`'s `<head>` block):
 
 ```html
 <!-- Tailwind CSS Play CDN (Tailwind 3.x JIT — generates utility classes in-browser) -->
@@ -449,11 +456,13 @@ both HTML files as part of this same pass — see `UI_CODE_EXPLANATIONS.md` for 
   file-by-file walkthrough of `api/config.py` and `api/main.py`, of which this document covers
   only the security-relevant slices.
 - **`docs/03_Solution/architecture/code_explanations/UI_CODE_EXPLANATIONS.md`** — the full
-  markup-level walkthrough of `frontend/index.html` and `frontend/foundation.html`, including
-  every CDN `<script>`/`<link>` tag this document only summarizes.
+  markup-level walkthrough of `frontend/index.html`, `frontend/foundation.html`, and
+  `frontend/organization.html`, including every CDN `<script>`/`<link>` tag this document only
+  summarizes.
 - **`docs/03_Solution/architecture/code_explanations/TESTING_CODE_EXPLANATIONS.md`** —
-  `tests/test_security.py`'s per-test walkthrough; that file is the executable verification of
-  everything documented here.
+  `tests/test_security.py`'s per-test walkthrough and `tests/test_organization.py`'s
+  `TestOrganizationSecurity` class; those files are the executable verification of everything
+  documented here.
 - **`docs/03_Solution/architecture/code_explanations/TIER0_SECURITY_AUDIT.md`** and
   **`TIER1_SECURITY_AUDIT.md`** — the audit verdicts (pass/fail/advisory status) for the Bootstrap
   and Foundation API surfaces, a different concern from this document's code-level narration.

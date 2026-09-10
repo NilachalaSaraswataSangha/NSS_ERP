@@ -3,9 +3,9 @@
 | Field       | Value                                                                  |
 |-------------|-------------------------------------------------------------------------|
 | Document    | UI_CODE_EXPLANATIONS                                                   |
-| Version     | 1.0                                                                     |
+| Version     | 1.1                                                                     |
 | Scope       | All source files under `frontend/`, excluding binary assets (images)    |
-| Status      | Complete                                                                |
+| Status      | Complete (updated: Tier 2 Organization)                                 |
 
 ---
 
@@ -100,6 +100,271 @@ file):
   complete DOM.
 - The local stylesheet `/assets/css/style.css` (§2.5) is loaded last, after the CDN
   stylesheets, so any override rules in it win on specificity ties.
+
+---
+
+### 2.6 `frontend/organization.html`
+
+**Requirement.** This is the Tier 2 "Organization Verification UI" — the visual proof that
+the 6 read-only `/api/v1/organization/*` endpoints correctly expose the 3 Organization
+tables (organization_type_master, organization_status_master, organization). It is
+structurally parallel to `foundation.html` (same head boilerplate, same System Status card
+reusing the Tier 0 health endpoint, same nav bar with three tier links) and organizes its
+surface area into three tabs: Reference Data, Organizations, and Hierarchy. Mobile-
+responsive from initial implementation (unlike Tiers 0/1, which were retrofitted), using
+the same Tailwind breakpoint patterns (`px-3 sm:px-6`, `text-lg sm:text-2xl`, etc.).
+Served by FastAPI's `GET /organization` route, conditional on the file existing on disk.
+
+**Section-by-section walkthrough:**
+
+**`<head>`:**
+- Same CDN dependency block as `index.html` and `foundation.html`: Tailwind Play CDN,
+  DaisyUI 4.12.14 with SRI (`sha384-iMbeRReqpIEp0z+...`), Alpine.js 3.14.8 with SRI
+  (`sha384-X9kJyAubVxnP0hcA+...`), local `style.css`. Only the `<title>` differs
+  ("— Organization Verification").
+
+**Root component:**
+```html
+<div x-data="organizationApp()" x-init="init()" class="mx-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-10 2xl:px-16">
+```
+- Mobile-first padding: `px-3 py-4` below 640px, `sm:px-6 sm:py-6` from 640px, `lg:px-10`
+  from 1024px, `2xl:px-16` at 1536px+. Calls `organizationApp()` (§2.7).
+
+**Header:** Same layout as `index.html`/`foundation.html` but with mobile-responsive sizing
+(`h-10 w-10 sm:h-14 sm:w-14` for the logo, `text-lg sm:text-2xl` for the title). The nav
+bar has three links: Bootstrap, Foundation, Organization — with Organization styled
+`btn-active`.
+
+**System Status card:** Identical `x-if` triad to the other pages, bound to
+`organizationApp().health`, calling the Tier 0 `/api/v1/bootstrap/health` endpoint.
+
+**Tab bar:**
+```html
+<div class="tabs tabs-boxed bg-base-100 shadow-sm mb-4 inline-flex overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
+    <button class="tab" :class="{ 'tab-active': activeTab === 'reference' }" @click="switchTab('reference')">Reference Data</button>
+    <button class="tab" :class="{ 'tab-active': activeTab === 'organizations' }" @click="switchTab('organizations')">Organizations</button>
+    <button class="tab" :class="{ 'tab-active': activeTab === 'hierarchy' }" @click="switchTab('hierarchy')">Hierarchy</button>
+</div>
+```
+- `overflow-x-auto` with `-mx-3 px-3 sm:mx-0 sm:px-0` makes the tab bar horizontally
+  scrollable on mobile (tab labels don't wrap), while restoring normal margins on larger
+  screens. Same DaisyUI `tabs tabs-boxed` pattern as `foundation.html`.
+
+**Tab 1 — Reference Data:** Two-column grid (`grid-cols-1 xl:grid-cols-2`) with
+Organization Types (8 frozen types) on the left and Organization Statuses (6 lifecycle
+statuses) on the right. Each card follows the standard loading/error/data `x-if` triad.
+Type and status badges use `whitespace-nowrap` on both the `<td>` and `<span>` to prevent
+text spill for long names like "Anchalika Sangha".
+
+**Tab 2 — Organizations:** Filter controls at the top (type and status dropdowns, both
+`x-model`-bound to `selectedTypeFilter`/`selectedStatusFilter`, triggering
+`filterOrganizations()` on change). Below, a responsive table of organizations with
+clickable rows (`@click="selectOrganization(org)"`). When an organization is selected, a
+detail panel appears below the table showing:
+- Full organization metadata (name, code, ID, type, status).
+- Address information (address lines, city/village, district, state, country, postal code).
+- Coordinates (latitude, longitude) if present.
+- Direct children list (fetched via `/organizations/{pk}/children`), with its own
+  loading/empty state handling.
+
+**Tab 3 — Hierarchy:** Flat tree rendering of the recursive CTE result. Each node is
+rendered as a row with indentation controlled by:
+```html
+<div :style="depthIndent(node.depth)" class="flex items-center gap-2">
+```
+- `depthIndent(depth)` returns `padding-left: ${depth * 1.5}rem` — depth 0 (roots) has no
+  indent, depth 1 gets 1.5rem, depth 2 gets 3rem, etc. Each node shows its name,
+  type badge, status badge, and code.
+
+**Footer and script include:** Same copyright footer as the other pages. Loads
+`<script src="/assets/js/organization.js"></script>` at the bottom.
+
+---
+
+### 2.7 `frontend/assets/js/organization.js`
+
+**Requirement.** The client-side state/behaviour layer for `organization.html`, mirroring
+the role `foundation.js` plays for `foundation.html` but scoped to the Organization
+module's 6 API endpoints across 3 tabs. Defines one global factory function,
+`organizationApp()`.
+
+**Full file, 199 lines. Walkthrough:**
+
+```javascript
+const ORG_API = "/api/v1/organization";
+```
+- Same relative-path pattern as `app.js`'s `API_BASE` and `foundation.js`'s `FND_API`.
+
+**State properties** (grouped by the file's own comment banners):
+
+```javascript
+activeTab: "reference",
+health: { loading: true, connected: false },
+```
+- Default tab is `"reference"` (vs Foundation's `"master"`).
+- Same health object shape, reusing the Tier 0 health endpoint.
+
+**Reference Data group:**
+```javascript
+orgTypes: [],
+orgTypesLoading: true,
+orgTypesError: false,
+
+orgStatuses: [],
+orgStatusesLoading: true,
+orgStatusesError: false,
+```
+- Both start `loading: true` because they're fetched eagerly by `init()`.
+
+**Organizations group:**
+```javascript
+organizations: [],
+orgsLoading: true,
+orgsError: false,
+selectedTypeFilter: "",
+selectedStatusFilter: "",
+
+selectedOrg: null,
+orgChildren: [],
+childrenLoading: false,
+childrenError: false,
+```
+- `selectedTypeFilter` and `selectedStatusFilter` are bound via `x-model` to the filter
+  dropdowns. `selectedOrg` drives the detail panel; `orgChildren` holds the children list
+  for the selected organization.
+
+**Hierarchy group:**
+```javascript
+hierarchy: [],
+hierarchyLoading: true,
+hierarchyError: false,
+```
+
+**Init:**
+```javascript
+async init() {
+    await this.fetchHealth();
+    await this.loadReferenceTab();
+},
+```
+- Sequential: health check first, then the default tab's data. Same pattern as
+  `foundation.js`'s `init()`.
+
+**Tab switching and lazy loading:**
+```javascript
+async switchTab(tab) {
+    this.activeTab = tab;
+    if (tab === "reference") await this.loadReferenceTab();
+    else if (tab === "organizations") await this.loadOrganizationsTab();
+    else if (tab === "hierarchy") await this.loadHierarchyTab();
+},
+
+async loadReferenceTab() {
+    if (this.orgTypes.length === 0) await this.fetchOrgTypes();
+    if (this.orgStatuses.length === 0) await this.fetchOrgStatuses();
+},
+
+async loadOrganizationsTab() {
+    if (this.organizations.length === 0) await this.fetchOrganizations();
+},
+
+async loadHierarchyTab() {
+    if (this.hierarchy.length === 0) await this.fetchHierarchy();
+},
+```
+- Same lazy-load-once pattern as `foundation.js`: `array.length === 0` guards prevent
+  re-fetching on tab revisits. This works because all three data sets (types, statuses,
+  organizations, hierarchy) are seeded and never legitimately empty.
+
+**Reference Data fetchers:**
+```javascript
+async fetchOrgTypes() { ... }
+async fetchOrgStatuses() { ... }
+```
+- Standard four-step pattern against `GET ${ORG_API}/types` and `GET ${ORG_API}/statuses`.
+
+**Organization fetchers:**
+```javascript
+async fetchOrganizations() {
+    this.orgsLoading = true;
+    this.orgsError = false;
+    try {
+        let url = `${ORG_API}/organizations`;
+        const params = [];
+        if (this.selectedTypeFilter)
+            params.push(`type_code=${encodeURIComponent(this.selectedTypeFilter)}`);
+        if (this.selectedStatusFilter)
+            params.push(`status_code=${encodeURIComponent(this.selectedStatusFilter)}`);
+        if (params.length) url += `?${params.join("&")}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(res.statusText);
+        this.organizations = await res.json();
+    } catch {
+        this.orgsError = true;
+    } finally {
+        this.orgsLoading = false;
+    }
+},
+```
+- Builds the URL with optional `type_code` and `status_code` query parameters, both
+  `encodeURIComponent`-encoded. Unlike Foundation's `filterByCategory()` which converts
+  empty string to `null`, here empty strings are simply not appended to the params array.
+
+```javascript
+async filterOrganizations() {
+    this.organizations = [];
+    await this.fetchOrganizations();
+},
+```
+- Bound to both filter dropdowns' `@change`. Blanks the array first (so the loading
+  spinner shows), then re-fetches with the current filter values.
+
+```javascript
+async selectOrganization(org) {
+    if (this.selectedOrg?.organization_pk === org.organization_pk) {
+        this.selectedOrg = null;
+        this.orgChildren = [];
+        return;
+    }
+    this.selectedOrg = org;
+    this.childrenLoading = true;
+    this.childrenError = false;
+    this.orgChildren = [];
+
+    try {
+        const res = await fetch(
+            `${ORG_API}/organizations/${org.organization_pk}/children`
+        );
+        if (!res.ok) throw new Error(res.statusText);
+        this.orgChildren = await res.json();
+    } catch {
+        this.childrenError = true;
+    } finally {
+        this.childrenLoading = false;
+    }
+},
+```
+- Same toggle-off guard pattern as `app.js`'s `selectRole()` and `foundation.js`'s
+  geographic drill-down. Clicking the same org again deselects and clears children.
+  Selecting a new org immediately blanks `orgChildren` (preventing stale data flash) and
+  fetches `GET /organizations/{pk}/children`.
+
+**Hierarchy fetcher:**
+```javascript
+async fetchHierarchy() { ... }
+```
+- Standard four-step pattern against `GET ${ORG_API}/hierarchy`.
+
+**Helper:**
+```javascript
+depthIndent(depth) {
+    return `padding-left: ${depth * 1.5}rem`;
+},
+```
+- Returns an inline CSS `padding-left` value proportional to `depth`. Called from the
+  hierarchy tab's `x-for` loop via `:style="depthIndent(node.depth)"`. At depth 0 (roots),
+  returns `padding-left: 0rem`; at depth 1, `1.5rem`; at depth 2, `3rem`; etc.
 
 **Root component (line 20):**
 ```html
