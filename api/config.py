@@ -30,6 +30,14 @@ class Settings:
     API_PORT: int = int(os.environ.get("API_PORT", "8001"))
     DISABLE_DOCS: bool = os.environ.get("DISABLE_DOCS", "").lower() in ("1", "true", "yes")
 
+    # Security
+    CORS_ORIGINS: list[str] = [
+        o.strip()
+        for o in os.environ.get("CORS_ORIGINS", "").split(",")
+        if o.strip()
+    ]
+    RATE_LIMIT: str = os.environ.get("RATE_LIMIT", "60/minute")
+
     def validate(self) -> None:
         """Raise if required settings are missing."""
         missing = []

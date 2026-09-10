@@ -8,29 +8,48 @@ Tier 0 Bootstrap + Tier 1 Foundation API + Frontend:
   - No ORM — raw psycopg2 against nss.* schema
   - Connects as nss_db_backend (SELECT-only privileges)
 
+Security middleware:
+  - CORS: configurable origins via CORS_ORIGINS env var
+  - Rate limiting: configurable via RATE_LIMIT env var (default 60/minute)
+  - Security headers: X-Content-Type-Options, X-Frame-Options, etc.
+  - Docs toggle: DISABLE_DOCS=true hides /docs, /redoc, /openapi.json
+
 Start with:
     python3 -m uvicorn api.main:app --reload --port 8001   (macOS/Linux)
     py -m uvicorn api.main:app --reload --port 8001         (Windows)
     (run from the repository root)
 
 URLs:
-    http://localhost:8001/          → Bootstrap Verification UI
-    http://localhost:8001/docs      → Swagger UI (OpenAPI)
-    http://localhost:8001/api/v1/   → API endpoints
+    http://localhost:8001/          -> Bootstrap Verification UI
+    http://localhost:8001/docs      -> Swagger UI (OpenAPI)
+    http://localhost:8001/api/v1/   -> API endpoints
 """
 
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
 from api.config import settings
 from api.database import close_pool
+from api.middleware import add_security_headers
 from api.routers import bootstrap, foundation
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+
+# ── Rate limiter ─────────────────────────────────────────────────────────
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[settings.RATE_LIMIT],
+)
 
 
 @asynccontextmanager
@@ -54,11 +73,33 @@ app = FastAPI(
     openapi_url=None if settings.DISABLE_DOCS else "/openapi.json",
 )
 
-# API routes
+# ── Security middleware (order matters — outermost runs first) ────────────
+
+# 1. Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# 2. CORS — only add if origins are configured
+if settings.CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET"],
+        allow_headers=["*"],
+    )
+
+# 3. Security headers on every response
+app.middleware("http")(add_security_headers)
+
+
+# ── API routes ───────────────────────────────────────────────────────────
 app.include_router(bootstrap.router)
 app.include_router(foundation.router)
 
-# Frontend: serve static assets at /assets/*, index.html at /
+# ── Frontend ─────────────────────────────────────────────────────────────
+# Serve static assets at /assets/*, index.html at /
 # Mounted at /assets to avoid shadowing /docs and /openapi.json.
 # Root "/" is an explicit route returning index.html.
 if _FRONTEND_DIR.is_dir():

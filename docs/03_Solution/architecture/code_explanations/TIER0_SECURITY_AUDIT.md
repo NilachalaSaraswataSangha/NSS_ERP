@@ -3,7 +3,7 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | TIER0_SECURITY_AUDIT                     |
-| Version     | 1.0                                      |
+| Version     | 1.1                                      |
 | Tier        | 0 — Bootstrap RBAC                       |
 | Status      | Complete                                 |
 
@@ -59,18 +59,18 @@ This audit covers all code in the Tier 0 Bootstrap vertical slice:
 
 All 9 tests pass after this change (0.10s).
 
-### 2.3 ADVISORY — Deployment Hardening (Not Blocking)
+### 2.3 ADVISORY — Deployment Hardening
 
-These items are standard production-hardening concerns, not vulnerabilities in the current codebase. All are addressed at deployment time (Tier 5 or infrastructure layer).
+These items were standard production-hardening concerns identified during the initial audit.
 
-| #  | Area                    | Current State                                   | Recommendation                                     | When          |
-|----|-------------------------|-------------------------------------------------|-----------------------------------------------------|---------------|
-| A1 | CORS Policy             | No CORS middleware configured. Browser same-origin policy applies (frontend served by same FastAPI app). | Add `CORSMiddleware` with explicit `allow_origins` when frontend and API are deployed to different origins. Never use `allow_origins=["*"]`. | Tier 5 / deployment |
-| A2 | Rate Limiting           | No rate limiting on any endpoint. All endpoints are read-only and anonymous. | Add rate limiting via reverse proxy (Nginx, Cloudflare) or FastAPI middleware (`slowapi`) before public exposure. | Deployment |
-| A3 | Security Headers        | No explicit security headers (`X-Content-Type-Options`, `Strict-Transport-Security`, `X-Frame-Options`). | Add via reverse proxy or FastAPI middleware. Render.com adds HSTS on custom domains by default. | Deployment |
-| A4 | CDN Integrity           | Frontend loads Tailwind CSS, DaisyUI, and Alpine.js via CDN (`cdn.jsdelivr.net`, `cdn.tailwindcss.com`) without Subresource Integrity (SRI) hashes. | Add `integrity` and `crossorigin` attributes to CDN `<script>` and `<link>` tags. Low risk for an internal verification UI. | Before public exposure |
-| A5 | `psycopg2-binary`       | Using `psycopg2-binary` (pre-compiled). Fine for development and Render deployment. | Consider `psycopg2` (source build against system `libpq`) for production Linux deployments to receive `libpq` security patches. | Production hardening |
-| A6 | Swagger UI in Production | `/docs`, `/redoc`, `/openapi.json` are accessible by default. `DISABLE_DOCS` toggle added in Tier 1 but should be set in production. | Set `DISABLE_DOCS=true` in Render environment variables. | Deployment |
+| #  | Area                    | Status       | Resolution                                                                                           |
+|----|-------------------------|--------------|------------------------------------------------------------------------------------------------------|
+| A1 | CORS Policy             | **RESOLVED** | `CORSMiddleware` added in `api/main.py`. Origins configured via `CORS_ORIGINS` env var (comma-separated). GET-only. Never `allow_origins=["*"]`. Only activates when origins are configured — no-op locally. |
+| A2 | Rate Limiting           | **RESOLVED** | `slowapi` rate limiter added in `api/main.py`. Default `60/minute`, configurable via `RATE_LIMIT` env var. Per-IP keying via `get_remote_address`. Verified by `test_rate_limit_returns_429`. |
+| A3 | Security Headers        | **RESOLVED** | `api/middleware.py` adds 4 headers to every response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`. `Cache-Control: no-store` applied to `/api/*` routes only (not static assets). `X-XSS-Protection` omitted (obsolete, superseded by CSP). HSTS left to Render. CSP deferred until frontend CDN strategy is finalized (Tailwind Play CDN uses inline styles). |
+| A4 | CDN SRI                 | **PARTIAL**  | DaisyUI 4.12.14 and Alpine.js 3.14.8 have verified `integrity="sha384-..."` + `crossorigin="anonymous"` attributes. Tailwind Play CDN (`cdn.tailwindcss.com`) is a browser JIT compiler — SRI does not apply (content is not a static hash-verifiable resource). Redundant Tailwind 2.x pre-built CSS removed; `@tailwindcss/browser` 4.x removed (was incompatible with DaisyUI 4.x). |
+| A5 | `psycopg2-binary`       | **N/A**      | Deploying directly from `main` to Render. `psycopg2-binary` is the correct choice — Render uses pre-built containers where source-compiling against system `libpq` adds no security benefit. |
+| A6 | Swagger UI in Production | **RESOLVED** | `DISABLE_DOCS` env var toggle added in `api/config.py`. When `DISABLE_DOCS=true`, `/docs`, `/redoc`, and `/openapi.json` all return 404. Set in Render environment variables for production. |
 
 ---
 
@@ -80,7 +80,11 @@ These items are standard production-hardening concerns, not vulnerabilities in t
 
 One fix applied: removed unnecessary `ConfigDict(from_attributes=True)` to align with the project's no-ORM convention.
 
-The 6 advisory items are deployment-hardening concerns appropriate for Tier 5 (authentication / production infrastructure) or the reverse proxy layer. None affect the read-only Bootstrap verification API.
+4 of the 6 advisory items have been resolved — CORS, rate limiting, security headers, and the
+DISABLE_DOCS toggle are all implemented; `psycopg2-binary` is confirmed N/A for Render
+deployments. CDN SRI (A4) remains partial: DaisyUI and Alpine.js have verified integrity
+hashes; Tailwind Play CDN is a JIT compiler where SRI does not apply. CSP is deferred until the
+frontend CDN strategy is finalized.
 
 ### Security Posture Summary
 

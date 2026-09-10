@@ -3,7 +3,7 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | TIER1_SECURITY_AUDIT                     |
-| Version     | 1.0                                      |
+| Version     | 1.1                                      |
 | Tier        | 1 — Foundation                           |
 | Status      | Complete                                 |
 
@@ -42,18 +42,18 @@ This audit covers all code introduced in the Tier 1 Foundation vertical slice:
 | 8  | Database Privilege Scope    | `nss_db_backend` has SELECT-only privileges (`04_grant_backend.sql`). Even if an attacker could inject SQL (they can't — see #1), no INSERT/UPDATE/DELETE would execute. | PASS |
 | 9  | Exception Handling          | Every endpoint uses cursor context managers (`with conn.cursor() as cur`). Connection pooling uses `try/finally` to guarantee connection return (`pool.putconn(conn)`). No connection leak paths. | PASS |
 
-### 2.2 ADVISORY — Deployment Hardening (Not Blocking)
+### 2.2 ADVISORY — Deployment Hardening
 
-These items are standard production-hardening concerns, not vulnerabilities in the current codebase. All are addressed at deployment time (Tier 5 or infrastructure layer), not in application code.
+These items were standard production-hardening concerns identified during the initial audit.
 
-| #  | Area                    | Current State                                   | Recommendation                                     | When          |
-|----|-------------------------|-------------------------------------------------|-----------------------------------------------------|---------------|
-| A1 | CORS Policy             | No CORS middleware configured. Browser same-origin policy applies (frontend served by same FastAPI app). | Add `CORSMiddleware` if the API is consumed by a different origin (e.g. mobile app, separate frontend deployment). | Tier 5 / deployment |
-| A2 | Rate Limiting           | No rate limiting on any endpoint. All endpoints are read-only and anonymous. | Add rate limiting via reverse proxy (Nginx, Cloudflare) or FastAPI middleware (`slowapi`) before public exposure. | Deployment |
-| A3 | Pagination              | List endpoints return all matching rows. Foundation tables are small (8 categories, ~30 states, ~700 districts). | Add `limit`/`offset` or cursor pagination if datasets grow or if this pattern is adopted by larger modules. | When needed |
-| A4 | `psycopg2-binary`       | Using `psycopg2-binary` (pre-compiled, fine for development). | Switch to `psycopg2` (source build against system `libpq`) for production deployments on Linux. Not required for Render.com (which uses pre-built containers). | Production hardening |
-| A5 | Security Headers        | No explicit security headers (`X-Content-Type-Options`, `Strict-Transport-Security`, `X-Frame-Options`, etc.). | Add via reverse proxy or FastAPI middleware. Render.com adds some by default (HSTS on custom domains). | Deployment |
-| A6 | CDN Integrity            | Frontend loads Tailwind, DaisyUI, Alpine.js via CDN (`cdn.jsdelivr.net`, `cdn.tailwindcss.com`) without Subresource Integrity (SRI) hashes. | Add `integrity` and `crossorigin` attributes to CDN script/link tags. Low risk for an internal verification UI. | Before public exposure |
+| #  | Area                    | Status       | Resolution                                                                                           |
+|----|-------------------------|--------------|------------------------------------------------------------------------------------------------------|
+| A1 | CORS Policy             | **RESOLVED** | `CORSMiddleware` added in `api/main.py`. Origins configured via `CORS_ORIGINS` env var (comma-separated). GET-only. Never `allow_origins=["*"]`. Only activates when origins are configured — no-op locally. |
+| A2 | Rate Limiting           | **RESOLVED** | `slowapi` rate limiter added in `api/main.py`. Default `60/minute`, configurable via `RATE_LIMIT` env var. Per-IP keying via `get_remote_address`. Verified by `test_rate_limit_returns_429`. |
+| A3 | Pagination              | **ADVISORY** | List endpoints return all matching rows. Foundation tables are small (8 categories, ~30 states, ~700 districts). Add `limit`/`offset` or cursor pagination if datasets grow or if this pattern is adopted by larger modules. |
+| A4 | `psycopg2-binary`       | **N/A**      | Deploying directly from `main` to Render. `psycopg2-binary` is the correct choice — Render uses pre-built containers where source-compiling against system `libpq` adds no security benefit. |
+| A5 | Security Headers        | **RESOLVED** | `api/middleware.py` adds 4 headers to every response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`. `Cache-Control: no-store` applied to `/api/*` routes only (not static assets). `X-XSS-Protection` omitted (obsolete). CSP deferred until frontend CDN strategy is finalized. HSTS left to Render. |
+| A6 | CDN SRI                 | **PARTIAL**  | DaisyUI 4.12.14 and Alpine.js 3.14.8 have verified `integrity="sha384-..."` + `crossorigin="anonymous"` attributes. Tailwind Play CDN (`cdn.tailwindcss.com`) is a browser JIT compiler — SRI does not apply. Redundant Tailwind 2.x pre-built CSS and incompatible `@tailwindcss/browser` 4.x removed. |
 
 ---
 
@@ -61,7 +61,7 @@ These items are standard production-hardening concerns, not vulnerabilities in t
 
 **No blocking vulnerabilities.** The Tier 1 codebase is safe for local development, integration testing, and deployment to Render/Neon.
 
-The 6 advisory items are deployment-hardening concerns appropriate for Tier 5 (authentication / production infrastructure) or the deployment layer (reverse proxy, CDN config). None affect the read-only Foundation verification API.
+5 of 6 advisory items resolved — CORS, rate limiting, security headers implemented; `psycopg2-binary` confirmed as N/A for Render deployments. CDN SRI is partial: DaisyUI and Alpine.js have verified integrity hashes; Tailwind Play CDN is a JIT compiler where SRI does not apply. Pagination (A3) remains advisory — Foundation tables are small enough that it's not needed yet. CSP is deferred until the frontend CDN strategy is finalized.
 
 ### Security Posture Summary
 
