@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
     <title>Nilachala Saraswata Sangha — Bootstrap Verification</title>
 
     <!-- Tailwind CSS -->
@@ -21,12 +22,18 @@
     <div x-data="bootstrapApp()" x-init="init()" class="mx-auto px-6 py-6 lg:px-10 2xl:px-16">
 
         <!-- Header -->
-        <header class="mb-6 flex items-center gap-4">
-            <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-14 w-14 object-contain">
-            <div>
-                <h1 class="text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
-                <p class="text-sm text-base-content/60">Tier 0 — Bootstrap Verification</p>
+        <header class="mb-6 flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-4">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-14 w-14 object-contain">
+                <div>
+                    <h1 class="text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
+                    <p class="text-sm text-base-content/60">Tier 0 — Bootstrap Verification</p>
+                </div>
             </div>
+            <nav class="flex gap-2">
+                <a href="/" class="btn btn-sm btn-active">Bootstrap</a>
+                <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
+            </nav>
         </header>
 
         <!-- System Status (centred) -->

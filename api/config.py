@@ -28,6 +28,7 @@ class Settings:
 
     # API
     API_PORT: int = int(os.environ.get("API_PORT", "8001"))
+    DISABLE_DOCS: bool = os.environ.get("DISABLE_DOCS", "").lower() in ("1", "true", "yes")
 
     def validate(self) -> None:
         """Raise if required settings are missing."""

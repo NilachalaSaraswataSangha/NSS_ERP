@@ -1,9 +1,9 @@
 """
 NSS ERP — FastAPI application entry point.
 
-Tier 0 Bootstrap API + Frontend:
-  - Read-only endpoints for RBAC verification
-  - Serves frontend/ static files (Bootstrap Verification UI)
+Tier 0 Bootstrap + Tier 1 Foundation API + Frontend:
+  - Read-only endpoints for RBAC and Foundation data verification
+  - Serves frontend/ static files (Verification UI)
   - No authentication (Tier 5)
   - No ORM — raw psycopg2 against nss.* schema
   - Connects as nss_db_backend (SELECT-only privileges)
@@ -26,8 +26,9 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from api.config import settings
 from api.database import close_pool
-from api.routers import bootstrap
+from api.routers import bootstrap, foundation
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -43,14 +44,19 @@ app = FastAPI(
     title="NSS ERP API",
     version="0.1.0",
     description=(
-        "Nilachala Saraswata Sangha ERP — Tier 0 Bootstrap API. "
-        "Read-only RBAC verification endpoints."
+        "Nilachala Saraswata Sangha ERP — "
+        "Tier 0 Bootstrap + Tier 1 Foundation API. "
+        "Read-only verification endpoints."
     ),
     lifespan=lifespan,
+    docs_url=None if settings.DISABLE_DOCS else "/docs",
+    redoc_url=None if settings.DISABLE_DOCS else "/redoc",
+    openapi_url=None if settings.DISABLE_DOCS else "/openapi.json",
 )
 
 # API routes
 app.include_router(bootstrap.router)
+app.include_router(foundation.router)
 
 # Frontend: serve static assets at /assets/*, index.html at /
 # Mounted at /assets to avoid shadowing /docs and /openapi.json.
@@ -67,3 +73,11 @@ if _FRONTEND_DIR.is_dir():
     async def serve_frontend():
         """Serve the Bootstrap Verification UI."""
         return FileResponse(str(_index_path))
+
+    _foundation_path = _FRONTEND_DIR / "foundation.html"
+    if _foundation_path.is_file():
+
+        @app.get("/foundation", include_in_schema=False)
+        async def serve_foundation():
+            """Serve the Foundation Verification UI."""
+            return FileResponse(str(_foundation_path))
