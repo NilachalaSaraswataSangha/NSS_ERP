@@ -3,17 +3,18 @@ NSS ERP — Pydantic response schemas for Bootstrap RBAC endpoints.
 
 These schemas define the API contract. They deliberately exclude
 audit columns (created_at, *_by_sangha_sevi_pk) — those are internal.
+
+Raw psycopg2 returns dictionaries — no ORM objects — so
+ConfigDict(from_attributes=True) is unnecessary.
 """
 
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class RoleResponse(BaseModel):
     """Single role from nss.role_master."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     role_master_pk: UUID
     role_code: str
@@ -27,8 +28,6 @@ class RoleResponse(BaseModel):
 
 class PermissionResponse(BaseModel):
     """Single permission from nss.permission_master."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     permission_master_pk: UUID
     permission_code: str
