@@ -97,21 +97,30 @@ Overall solution architecture documentation (cross-module, above the per-module 
   hierarchical drill-down, no pagination), full endpoint catalogue with example responses, a
   response-schema summary, and an implementation file map. `nss.field_change_log` is explicitly
   deferred to Tier 5 (needs auth) — not part of this contract.
-- **`code_explanations/`** — Line-by-line "how this vertical slice works" walkthroughs, one per
-  tier: `TIER0_VERTICAL_SLICE.md` (v2.0, FROZEN — moved here from this folder's top level, same
-  content), `TIER1_FOUNDATION.md` (v2.0, FROZEN — schemas/router/UI/tests for the Foundation API
-  above), and `TIER1_SECURITY_AUDIT.md` (v1.0, Complete — 9 passed checks incl. SQL-injection,
-  credential-leakage, audit-data-exposure, and privilege-scope guards; 6 advisory/non-blocking
-  deployment-hardening notes, e.g. no CORS/rate-limiting/pagination yet). See
-  `code_explanations/README.md`.
+- **`code_explanations/`** — Two kinds of documents: **per-layer code explanations** — a
+  "requirement + line-by-line" catalogue of every source file in a layer —
+  `API_CODE_EXPLANATIONS.md` (v1.0, Complete — every `api/` file except `middleware.py`),
+  `DATABASE_CODE_EXPLANATIONS.md` (v1.0, Complete — all 41 DDL/seed/script files under
+  `database/`, full column-by-column detail), `UI_CODE_EXPLANATIONS.md` (v1.0, Complete — every
+  `frontend/` source file), `SECURITY_CODE_EXPLANATIONS.md` (v1.0, Complete — `api/middleware.py`
+  in full plus the security-relevant slices of `api/config.py`/`api/main.py` plus SRI-pinned CDN
+  assets), and `TESTING_CODE_EXPLANATIONS.md` (v1.0, Complete — all 64 tests under `tests/`);
+  plus **security audit reports** — `TIER0_SECURITY_AUDIT.md` (v1.1, Complete — 10 checks
+  passed, 1 fix applied, 6 advisory items: 4 resolved/1 partial/1 N/A) and
+  `TIER1_SECURITY_AUDIT.md` (v1.1, Complete — 9 checks passed, 6 advisory items: 3
+  resolved/1 partial/1 advisory/1 N/A), a different concern (findings/verdicts, not code
+  narration). This structure replaces an earlier, now-retired set of per-*tier* walkthroughs
+  (`TIER0_VERTICAL_SLICE.md`, `TIER1_FOUNDATION.md`, `SECURITY_HARDENING.md`) that interleaved
+  the same files' narration across multiple documents. See `code_explanations/README.md`.
 
 This is now largely the **current code**, not just an approved target — the Django-to-FastAPI
 migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django prototype under `backend/` was
 fully archived and removed, and FastAPI is the sole, implemented API layer (`api/` — Tier 0
-read-only bootstrap-RBAC endpoints plus Tier 1 read-only Foundation endpoints, no auth, no ORM)
-serving a Tailwind/DaisyUI/Alpine.js frontend (`frontend/`'s Tier 0 Bootstrap Verification UI
-and Tier 1 Foundation Verification UI) as static files, backed by a 56-test pytest integration
-suite (`tests/`, `pytest.ini`). Deployment
+read-only bootstrap-RBAC endpoints plus Tier 1 read-only Foundation endpoints, no auth, no ORM,
+behind a cross-tier security middleware stack — security headers, opt-in CORS, rate limiting;
+see `SECURITY_CODE_EXPLANATIONS.md` above) serving a Tailwind/DaisyUI/Alpine.js frontend (`frontend/`'s
+Tier 0 Bootstrap Verification UI and Tier 1 Foundation Verification UI) as static files, backed
+by a 64-test pytest integration suite (`tests/`, `pytest.ini`). Deployment
 infrastructure (`render.yaml`, `render_build.sh`, targeting Render.com + Neon.dev) exists but has
 not yet run in production. Bootstrap RBAC (3 tables, `SOL-ARCH-011`), Foundation (12 tables), and
 Organization (3 tables) are all implemented and committed against `SOL-ARCH-009`/`010`'s DDL

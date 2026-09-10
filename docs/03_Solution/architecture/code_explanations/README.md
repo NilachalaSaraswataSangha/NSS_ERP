@@ -1,32 +1,47 @@
 # docs/03_Solution/architecture/code_explanations/
 
-Line-by-line "how this vertical slice actually works" walkthroughs, one per completed tier —
-distinct from `FOUNDATION_API_CONTRACT.md` and the other `architecture/` docs one level up,
-which specify the *contract/design*, not the implementation narrative.
+Two kinds of documents live here:
+
+1. **Per-layer code explanations** — a "requirement + line-by-line" catalogue of every source
+   file in a given layer (API, Database, UI, Security, Testing). Each document exists to answer
+   "why does this file exist, and what exactly does its code do?" for every file it covers.
+2. **Security audit reports** (`TIER0_SECURITY_AUDIT.md`, `TIER1_SECURITY_AUDIT.md`) — a
+   different concern: findings and remediation status from a security review, not code
+   narration.
+
+This structure replaces an earlier, now-retired set of per-*tier* walkthroughs
+(`TIER0_VERTICAL_SLICE.md`, `TIER1_FOUNDATION.md`, `SECURITY_HARDENING.md`) that interleaved the
+same files' narration across multiple documents because each was written when a new tier or
+cross-cutting concern landed. Organizing by layer instead means every source file has exactly one
+home, and the same pattern extends cleanly as new layers are added in the future (e.g. a
+`MOBILE_CODE_EXPLANATIONS.md` once a Flutter client exists).
 
 ## Files
 
-- **`TIER0_VERTICAL_SLICE.md`** (v2.0, release v0.6.0, **FROZEN**) — Full walkthrough of the
-  Tier 0 Bootstrap RBAC vertical slice: 3 DB tables, 8 seeded roles, 4 read-only API endpoints
-  (`api/routers/bootstrap.py`), 1 verification UI (`frontend/index.html`), 9 pytest integration
-  tests (`tests/test_bootstrap.py`). Moved here from this folder's parent directory — same
-  content, new location.
-- **`TIER1_FOUNDATION.md`** (v2.0, release v0.7.0, **FROZEN**) — Same style walkthrough for Tier
-  1 Foundation: 11 Pydantic schemas (`api/schemas/foundation.py`), 17 read-only endpoints
-  (`api/routers/foundation.py`), a 4-tab verification UI (`frontend/foundation.html` +
-  `assets/js/foundation.js`), and 47 pytest integration tests across 13 classes
-  (`tests/test_foundation.py`), including 2 contract-enforcement/security-regression tests. Only
-  covers the API/UI/test layers — Foundation's DDL/seed (12 tables) was done in an earlier
-  phase, see `database/README.md`.
-- **`TIER1_SECURITY_AUDIT.md`** (v1.0, **Complete**) — Security audit scoped to all Tier 1 code
-  (`api/schemas/foundation.py`, `api/routers/foundation.py`, the `api/main.py` router
-  registration, `frontend/foundation.html`, `frontend/assets/js/foundation.js`,
-  `tests/test_foundation.py`). 9 checks passed (SQL injection, credential/`.env` leakage,
-  error/stack-trace leakage, XSS, audit-data exposure, infrastructure-state leak,
-  `nss_db_backend` privilege scope, connection-leak safety); 6 advisory, non-blocking
-  deployment-hardening notes (no CORS middleware, no rate limiting, no pagination,
-  `psycopg2-binary` vs. source `psycopg2` for prod, no security headers, no CDN Subresource
-  Integrity hashes). No blocking vulnerabilities found.
+- **`API_CODE_EXPLANATIONS.md`** (v1.0, Complete) — every file under `api/` except
+  `api/middleware.py` (which lives in the Security doc, since it's exclusively security code):
+  `config.py`, `database.py`, `main.py`, `routers/bootstrap.py`, `routers/foundation.py`,
+  `schemas/bootstrap.py`, `schemas/foundation.py`, and the three package `__init__.py` markers.
+- **`DATABASE_CODE_EXPLANATIONS.md`** (v1.0, Complete) — every hand-written SQL DDL/seed file
+  and build/validate/grant script under `database/` (41 files: 5 scripts, 21 DDL files across
+  Bootstrap/Foundation/Organization/the superseded Person prototype, 15 seed files), full
+  column-by-column detail for DDL, representative sampling (not verbatim row transcription) for
+  large seed files.
+- **`UI_CODE_EXPLANATIONS.md`** (v1.0, Complete) — every file under `frontend/` except binary
+  assets: `index.html`, `foundation.html`, `assets/js/app.js`, `assets/js/foundation.js`,
+  `assets/css/style.css`.
+- **`SECURITY_CODE_EXPLANATIONS.md`** (v1.0, Complete) — `api/middleware.py` in full, plus the
+  security-relevant slices of `api/config.py` (`CORS_ORIGINS`/`RATE_LIMIT`/`DISABLE_DOCS`) and
+  `api/main.py` (the middleware-registration block), plus the SRI-pinned CDN assets in
+  `frontend/`.
+- **`TESTING_CODE_EXPLANATIONS.md`** (v1.0, Complete) — every file under `tests/`:
+  `conftest.py`, `test_bootstrap.py`, `test_foundation.py`, `test_security.py` (64 tests total).
+- **`TIER0_SECURITY_AUDIT.md`** (v1.1, Complete) — security audit scoped to all Tier 0 code.
+  10 checks passed; 1 fix applied (ConfigDict removal); 6 advisory items (4 resolved, 1 partial,
+  1 N/A). No blocking vulnerabilities found.
+- **`TIER1_SECURITY_AUDIT.md`** (v1.1, Complete) — security audit scoped to all Tier 1 code.
+  9 checks passed; 6 advisory items (3 resolved, 1 partial, 1 advisory, 1 N/A).
+  No blocking vulnerabilities found.
 
 See `docs/PROJECT_DOCUMENTATION.md` for the code-verified current state and
 `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md` for the Tier 1 API's formal contract.

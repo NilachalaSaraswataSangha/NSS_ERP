@@ -714,7 +714,9 @@ frontend/
 docs/
   03_Solution/architecture/
     code_explanations/
-      TIER1_FOUNDATION.md  ← Code walkthrough (post-implementation)
+      API_CODE_EXPLANATIONS.md      ← Code walkthrough (post-implementation)
+      SECURITY_CODE_EXPLANATIONS.md ← Middleware/CORS/rate-limit walkthrough
+      TESTING_CODE_EXPLANATIONS.md  ← Test walkthrough
 ```
 
 ---
