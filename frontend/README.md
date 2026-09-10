@@ -1,10 +1,11 @@
 # frontend/
 
-Tier 0 Bootstrap Verification UI for Nilachala Saraswata Sangha.
+Tier 0 Bootstrap Verification UI and Tier 1 Foundation Verification UI for Nilachala Saraswata
+Sangha.
 
-**Purpose:** Verify the Tier 0 database → API → frontend integration.
-This is not an operational administration dashboard. It establishes the
-initial frontend shell that later tiers grow into.
+**Purpose:** Verify the database → API → frontend integration for each tier as it's built.
+Neither page is an operational administration dashboard. Together they establish the frontend
+shell that later tiers grow into.
 
 **Tech stack:** Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla
 `fetch()` for JSON API consumption. No React/Vue/Angular. No Node.js
@@ -19,16 +20,21 @@ separate frontend server, no CORS configuration needed.
 
 ```
 frontend/
-├── index.html              Main HTML page (Alpine.js application)
+├── index.html              Tier 0 Bootstrap Verification UI (Alpine.js application)
+├── foundation.html         Tier 1 Foundation Verification UI (Alpine.js application)
 ├── assets/
 │   ├── css/
 │   │   └── style.css       Minimal project-specific CSS overrides
 │   ├── img/
 │   │   └── nss-logo.png    NSS logo (PNG with transparency)
 │   └── js/
-│       └── app.js          Alpine.js data component + API fetch logic
+│       ├── app.js          Alpine.js data component + API fetch logic for index.html
+│       └── foundation.js   Alpine.js data component + API fetch logic for foundation.html
 └── README.md               This file
 ```
+
+Both pages share the same header pattern with a nav bar linking between `/` ("Bootstrap") and
+`/foundation` ("Foundation"), so either page is one click away from the other.
 
 ---
 
@@ -147,6 +153,57 @@ Every fetch method follows the same structure:
 
 ---
 
+### foundation.html
+
+The Tier 1 Foundation Verification UI entry point, structurally parallel to `index.html`: same
+head boilerplate and System Status card (reusing `GET /api/v1/bootstrap/health`), but with
+"Foundation" active in the nav bar and subtitle "Tier 1 — Foundation Verification". Below the
+status card, a DaisyUI `tabs tabs-boxed` bar with 4 tabs, each lazily loaded on first visit
+(driven by `activeTab` / `switchTab(tab)` in `foundation.js`):
+
+| Tab | Contents |
+|-----|----------|
+| **Master Data** | "Master Categories" table (code/name/description/order/active) + "Master Data Values" table with a category-filter `<select>` (`selectedCategoryCode`, `filterByCategory()`) |
+| **System Config** | "System Settings" table (key/value/type/description) + "ID Sequences" table (code/name/prefix/padding/`formatSample()`-generated sample) — deliberately excludes `current_value` |
+| **Geographic** | Breadcrumb of selected country › state › district, then 4 columns: Countries → States → Districts → Cities/Villages (each a clickable list, `selectCountry()`/`selectState()`/`selectDistrict()`, toggle-deselect on repeat click), plus a Postal Codes section keyed to the selected country; handles "no districts seeded" and "no cities/villages seeded" empty states |
+| **Runtime Tables** | "Document Master" table (type/name/number/MIME/version) with an explanatory empty state; notes that `field_change_log` exists in the DB but isn't exposed in Tier 1 (deferred to Tier 5, needs auth) |
+
+Loads `<script src="/assets/js/foundation.js">` at the bottom.
+
+---
+
+### assets/js/foundation.js
+
+Alpine.js data component for `foundation.html`. Defines one global function:
+`foundationApp()`. Constant `FND_API = "/api/v1/foundation"`.
+
+**State groups:** `activeTab`, `health{loading,connected}` (shared pattern with `app.js`),
+master data (`categories`, `masterData`, `selectedCategoryCode`), config (`settings`,
+`sequences`), geographic (`countries`, `states`+`selectedCountry`, `districts`+`selectedState`,
+`cities`+`selectedDistrict`, `postalCodes`), runtime (`documents`).
+
+**Lifecycle:** `init()` calls `fetchHealth()` then `loadMasterTab()` — only the active tab's
+data loads eagerly; `switchTab()` lazily triggers `loadConfigTab()`/`loadGeoTab()`/
+`loadRuntimeTab()` on first visit to each tab, guarded so repeat switches don't re-fetch.
+
+**API calls** (all relative, all under `${FND_API}` except the shared health check):
+`GET /api/v1/bootstrap/health`, `GET ${FND_API}/categories`,
+`GET ${FND_API}/master-data` (optional `?category_code=`), `GET ${FND_API}/settings`,
+`GET ${FND_API}/sequences`, `GET ${FND_API}/countries`,
+`GET ${FND_API}/states?country_pk=...`, `GET ${FND_API}/postal-codes?country_pk=...` (fetched
+alongside states in `selectCountry()`), `GET ${FND_API}/districts?state_pk=...`,
+`GET ${FND_API}/cities?district_pk=...`, `GET ${FND_API}/documents`. The API also exposes
+per-PK detail routes (`/categories/{pk}`, `/master-data/{pk}`, `/settings/{key}`,
+`/countries/{pk}`, `/states/{pk}`, `/districts/{pk}`, `/postal-code-mappings`) that this UI
+doesn't consume yet.
+
+**Error-handling pattern:** identical to `app.js` — loading=true/error=false → try/fetch/check
+`res.ok`/parse JSON → catch sets error flag only (never exposes raw error text) → finally
+clears loading. `selectCountry()`/`selectState()`/`selectDistrict()` all toggle-deselect:
+clicking the already-selected item clears it and every downstream selection/data.
+
+---
+
 ### assets/css/style.css
 
 Minimal project-specific CSS. Tailwind and DaisyUI handle all styling
@@ -170,28 +227,31 @@ in the repository root. Displayed in the page header at 56 × 56 pixels.
 
 ## How FastAPI Serves This Directory
 
-Defined in `api/main.py`. Two mechanisms, registered only if the
-`frontend/` directory exists on disk:
+Defined in `api/main.py`. Registered only if the respective file/directory
+exists on disk:
 
 | URL Pattern | FastAPI Handler | Serves |
 |-------------|----------------|--------|
-| `GET /` | Explicit route → `FileResponse(frontend/index.html)` | The main HTML page |
-| `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images |
+| `GET /` | Explicit route → `FileResponse(frontend/index.html)` | The Bootstrap Verification UI |
+| `GET /foundation` | Explicit route → `FileResponse(frontend/foundation.html)` | The Foundation Verification UI |
+| `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by both pages) |
 
 **Why not mount at `/`?** A root-level `StaticFiles` mount would shadow
 FastAPI's built-in `/docs` (Swagger UI) and `/openapi.json`. By mounting
-only `/assets/*` and serving `index.html` via an explicit route, all
+only `/assets/*` and serving each page via an explicit route, all
 FastAPI built-in routes remain accessible.
 
 **Graceful degradation:** If `frontend/` does not exist on disk, the
-mount and route are skipped entirely. The API continues to work in
-API-only mode — `/docs` and `/api/v1/*` are unaffected.
+mount and both routes are skipped entirely. If only `foundation.html` is missing, `/` still
+works — the API continues to work in API-only mode — `/docs` and `/api/v1/*` are unaffected.
 
 ---
 
 ## API Endpoints Consumed
 
 All endpoints are read-only. No authentication. No CRUD.
+
+**`index.html` (via `app.js`):**
 
 | Method | URL | Response | Tier 0 State |
 |--------|-----|----------|-------------|
@@ -200,9 +260,29 @@ All endpoints are read-only. No authentication. No CRUD.
 | GET | `/api/v1/bootstrap/permissions` | `PermissionResponse[]` | Empty array (by design) |
 | GET | `/api/v1/bootstrap/roles/{role_pk}/permissions` | `PermissionResponse[]` | Empty array (no mappings); 404 if role not found |
 
-Response schemas are defined in `api/schemas/bootstrap.py`. Audit
-columns (`created_at`, `*_by_sangha_sevi_pk`) are excluded from API
-responses by design.
+Response schemas are defined in `api/schemas/bootstrap.py`.
+
+**`foundation.html` (via `foundation.js`):**
+
+| Method | URL | Response | Tier 1 State |
+|--------|-----|----------|-------------|
+| GET | `/api/v1/bootstrap/health` | `{ status, database }` | Shared with index.html |
+| GET | `/api/v1/foundation/categories` | `CategoryResponse[]` | 11 seeded categories |
+| GET | `/api/v1/foundation/master-data?category_code=` | `MasterDataResponse[]` | 58 seeded values |
+| GET | `/api/v1/foundation/settings` | `SettingResponse[]` | 4 seeded settings |
+| GET | `/api/v1/foundation/sequences` | `SequenceResponse[]` | 9 seeded sequences (`current_value` excluded) |
+| GET | `/api/v1/foundation/countries` | `CountryResponse[]` | 5 seeded countries |
+| GET | `/api/v1/foundation/states?country_pk=` | `StateResponse[]` | 112 seeded states |
+| GET | `/api/v1/foundation/districts?state_pk=` | `DistrictResponse[]` | ~770 seeded districts (India only) |
+| GET | `/api/v1/foundation/cities?district_pk=` | `CityVillageResponse[]` | Empty (no seed data yet) |
+| GET | `/api/v1/foundation/postal-codes?country_pk=` | `PostalCodeResponse[]` | 2 seeded postal codes |
+| GET | `/api/v1/foundation/documents` | `DocumentResponse[]` | Empty (no seed data yet) |
+
+Response schemas are defined in `api/schemas/foundation.py`. `nss.field_change_log` is
+deliberately not exposed by any endpoint — deferred to Tier 5 (needs auth). Full contract:
+`docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`.
+
+Audit columns (`created_at`, `*_by_sangha_sevi_pk`) are excluded from every response by design.
 
 ---
 
@@ -212,8 +292,8 @@ This shell is designed to evolve:
 
 ```
 Tier 0   Bootstrap Verification (current)
-Tier 1   Person / Organization views
-Tier 2   Heritage views
+Tier 1   Foundation Verification (current)
+Tier 2   Organization / Person views
   ...
 Tier 5   Authentication + login/session UI
   ...
@@ -221,5 +301,5 @@ Tier 5   Authentication + login/session UI
 ```
 
 The page structure, CSS framework, and Alpine.js pattern established
-here carry forward. Authentication UI is deferred to Tier 5 — Tier 0
-intentionally has no login, no session, no fake credentials.
+here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-1
+intentionally have no login, no session, no fake credentials.

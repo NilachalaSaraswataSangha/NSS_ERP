@@ -43,7 +43,7 @@
 | Database access | Direct PostgreSQL access (no ORM) | Hand-written DDL is the database source of truth; an ORM/migration layer would compete with it. Tier 0 uses psycopg2; the driver may evolve to psycopg3 or asyncpg if concurrency demands it — the principle is **no ORM**, not a specific driver. |
 | Hosting | Render.com (free tier) | Auto-deploy from GitHub, HTTPS provisioned automatically, no nginx/gunicorn needed |
 | Environment | python-dotenv (`.env` file) | Secrets never in git; Render injects env vars in production |
-| Testing | pytest (to be configured) | Standard Python testing |
+| Testing | pytest, configured (`pytest.ini`, `tests/`) | Integration tests via `fastapi.testclient.TestClient` against a real local Postgres — `pytest`/`httpx` not yet pinned in `requirements.txt` |
 
 ### Why FastAPI, not Django
 

@@ -68,32 +68,57 @@ Tier 0 endpoints (read-only, no authentication):
 - `GET /api/v1/bootstrap/permissions` — empty by design
 - `GET /api/v1/bootstrap/roles/{role_pk}/permissions` — empty (no mappings)
 
-Swagger UI at `/docs`; Bootstrap Verification UI at `/` (served from `frontend/` by FastAPI).
+Tier 1 endpoints (`api/routers/foundation.py`, read-only, no authentication) — 17 endpoints
+across 11 tables under `/api/v1/foundation`: master data (`/categories`, `/master-data`),
+system config (`/settings`, `/sequences` — excludes `current_value`), geography (`/countries`,
+`/states`, `/districts`, `/cities`, `/postal-codes`, `/postal-code-mappings`), and runtime
+(`/documents`). `field_change_log` is deliberately not exposed — deferred to Tier 5 (needs
+auth). Full contract: `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`.
+
+Swagger UI at `/docs` (disable via `DISABLE_DOCS=true` in `api/.env`); Bootstrap Verification UI
+at `/`, Foundation Verification UI at `/foundation` (both served from `frontend/` by FastAPI).
 The API connects as `nss_db_backend` (SELECT-only).
 
 ## Frontend
 
-`frontend/` — a Tier 0 Bootstrap Verification UI (not an admin dashboard), served as static
-files by FastAPI: Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla `fetch()`. No
-React/Vue/Angular, no Node.js build step, no Django templates. See `frontend/README.md` for the
-full file/function reference.
+`frontend/` — a Tier 0 Bootstrap Verification UI (`index.html`, served at `/`) plus a Tier 1
+Foundation Verification UI (`foundation.html`, served at `/foundation`); neither is an admin
+dashboard. Served as static files by FastAPI: Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN),
+vanilla `fetch()`. No React/Vue/Angular, no Node.js build step, no Django templates. See
+`frontend/README.md` for the full file/function reference.
 
 ## Tests & lint
 
-No test framework or lint/format tooling is configured yet. Don't add one unilaterally — raise
-it as an open question if it's blocking.
+pytest is configured (`pytest.ini` at repo root, `tests/` package). Run from the repository
+root:
+
+```
+pytest                    # all tests
+pytest -m integration     # integration-marked tests (currently all of them)
+```
+
+Every test is an integration test — `tests/conftest.py`'s `client` fixture wraps
+`fastapi.testclient.TestClient` against a real local PostgreSQL DB, nothing is mocked — so a
+bootstrapped local database and `api/.env` are required first. `tests/test_bootstrap.py` (9
+tests) and `tests/test_foundation.py` (47 tests) cover the Tier 0 and Tier 1 endpoints
+respectively. `pytest`/`httpx` (required by `TestClient`) aren't yet pinned in
+`requirements.txt` — install them manually if missing. No lint/format tooling is configured
+yet — don't add one unilaterally.
 
 ## Architecture
 
 **Repository layout:**
 ```
 NSS_ERP/
-├── api/                    FastAPI Tier 0 API (raw psycopg2, no ORM)
+├── api/                    FastAPI Tier 0 + Tier 1 API (raw psycopg2, no ORM)
+│   ├── routers/            bootstrap.py (Tier 0), foundation.py (Tier 1)
+│   └── schemas/            bootstrap.py, foundation.py — Pydantic response models
 ├── frontend/               Web UI (Tailwind/DaisyUI + Alpine.js, served by FastAPI)
 ├── database/               Hand-written PostgreSQL DDL + seed + scripts
 │   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization)
 │   ├── seed/               Seed data (mirrors ddl/ folder order)
 │   └── scripts/            DB creation, build, validate, grant scripts
+├── tests/                  pytest integration tests (test_bootstrap.py, test_foundation.py)
 ├── docs/                   All project documentation
 ├── BY-LAW/                 Source reference material
 └── NSS LOGO/               Branding assets
@@ -102,7 +127,7 @@ NSS_ERP/
 `backend/` (the earlier Django prototype) was fully removed once the FastAPI direction was
 adopted — it's preserved in Git history only, the directory is now empty. `api/` (FastAPI, raw
 psycopg2, no ORM/SQLAlchemy/migration tool) is the only API layer; authentication is deferred to
-Tier 5 — Tier 0 has no auth, no fake auth, no API keys.
+Tier 5 — Tiers 0-1 have no auth, no fake auth, no API keys.
 
 **DB naming (SQL DDL track):** tables `snake_case`; internal PK suffix `_pk`; FKs reference
 internal PKs, never business IDs; business/external identifiers use `_code` — **never `_id`**

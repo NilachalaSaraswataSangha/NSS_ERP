@@ -75,8 +75,8 @@ been updated** — it still only covers the original eight tables and omits `doc
 and table-design doc as ahead of the ERD until the ERD is updated to match (not done here — see
 `docs/PROJECT_DOCUMENTATION.md` → "Open questions / TODOs"). Full seed data also exists under
 `database/seed/01_foundation/` — see
-`database/seed/01_foundation/README.md` for exact seeded rows (11 master categories, ~40 master
-data values, 9 ID sequences, 5 countries, 112 states, ~770 districts, 5 system settings).
+`database/seed/01_foundation/README.md` for exact seeded rows (11 master categories, 58 master
+data values, 9 ID sequences, 5 countries, 112 states, ~770 districts, 4 system settings).
 
 ---
 
@@ -85,6 +85,13 @@ data values, 9 ID sequences, 5 countries, 112 states, ~770 districts, 5 system s
 Design Complete · ERD Complete (ERD does not yet cover `document_master`, `field_change_log`,
 `postal_code`, or `city_village_postal_code_map` — see Note above) · Business Rules Drafted
 (SOURCE ALIGNED) · Table Design Drafted (SOURCE ALIGNED, describes all 12 implemented tables) ·
-**SQL Implementation Complete** (12 tables + seed data — see Note above). No code has ever
-consumed it directly (the Django prototype that referenced a same-named but unrelated
-`backend/foundation/` app has since been removed from the repository entirely).
+**SQL Implementation Complete** (12 tables + seed data — see Note above) ·
+**API/UI Implementation Complete for 11 of the 12 tables** — `api/routers/foundation.py`
+exposes 17 read-only endpoints (everything except `field_change_log`, deliberately deferred to
+Tier 5 for auth), consumed by `frontend/foundation.html`'s 4-tab verification UI and verified by
+47 pytest integration tests (`tests/test_foundation.py`); see
+`docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md` and
+`docs/03_Solution/architecture/code_explanations/TIER1_FOUNDATION.md`. The Django prototype that
+once referenced a same-named but unrelated `backend/foundation/` app has since been removed
+from the repository entirely — this module's own SQL is now consumed by a different, current
+code path.

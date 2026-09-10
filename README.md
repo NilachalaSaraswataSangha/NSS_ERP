@@ -51,18 +51,20 @@ design philosophy, ensuring that business rules are frozen before implementation
 ## Frontend
 
 * Tailwind CSS + DaisyUI (CDN) + Alpine.js (CDN) — no build step, no framework.
-* `frontend/` implements a Tier 0 "Bootstrap Verification UI" (not yet the full admin
-  dashboard) served as static files by FastAPI; see `frontend/README.md` for the full
-  file/function reference. 13 static mockups for later tiers exist under
+* `frontend/` implements a Tier 0 "Bootstrap Verification UI" (`index.html`, at `/`) and a
+  Tier 1 "Foundation Verification UI" (`foundation.html`, at `/foundation`) — neither is the
+  full admin dashboard yet — served as static files by FastAPI; see `frontend/README.md` for
+  the full file/function reference. 13 static mockups for later tiers exist under
   `docs/03_Solution/ui/mockups/`.
 
 ---
 
 ## Backend
 
-* FastAPI — the only web/API layer in the codebase (`api/`), currently a Tier 0
-  read-only bootstrap-RBAC API (no ORM, raw `psycopg2`, no auth). See
-  `docs/PROJECT_DOCUMENTATION.md` → Architecture.
+* FastAPI — the only web/API layer in the codebase (`api/`), currently a Tier 0 read-only
+  bootstrap-RBAC API plus a Tier 1 read-only Foundation API (17 endpoints across 11 tables; no
+  ORM, raw `psycopg2`, no auth). See `docs/PROJECT_DOCUMENTATION.md` → Architecture and
+  `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`.
 * Django — an earlier prototype existed under `backend/` but was fully archived and removed
   once the FastAPI direction was adopted; `backend/` is now empty.
 
@@ -549,7 +551,9 @@ Completed:
 * Person Database Schema (partial — `person`/`person_address` implemented; the docs' `person_id`
   naming doesn't match the DDL's `person_code`)
 * Foundation Database Schema ("Foundation Vertical Slice" — 12 tables + full seed data under
-  `database/ddl/01_foundation/`/`database/seed/01_foundation/` — no API layer consumes it yet)
+  `database/ddl/01_foundation/`/`database/seed/01_foundation/` — 11 of the 12 tables are now
+  consumed by the Tier 1 Foundation API, see below; `field_change_log` remains unconsumed,
+  deferred to Tier 5)
 * Organization Database Schema ("Organization Vertical Slice" — 3 tables
   (`organization_type_master`, `organization_status_master`, `organization`) + full seed data
   under `database/ddl/02_organization/`/`database/seed/02_organization/`, matching the frozen
@@ -566,6 +570,14 @@ Completed:
 * Tier 0 Bootstrap Verification UI (`frontend/` — Tailwind CSS + DaisyUI + Alpine.js, no build
   step, served as static files by FastAPI; 4 sections: system status, RBAC roles, permissions,
   interactive role→permissions drill-down)
+* FastAPI Tier 1 Foundation API (`api/routers/foundation.py` — 17 read-only endpoints across
+  11 tables: master data, system settings, ID sequences, geography (country → state → district
+  → city/village + postal codes), and document_master; `field_change_log` deliberately not
+  exposed, deferred to Tier 5; no auth, no ORM, backed by 47 pytest integration tests — see
+  `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`)
+* Tier 1 Foundation Verification UI (`frontend/foundation.html` + `assets/js/foundation.js` —
+  4-tab layout: Master Data, System Config, Geographic drill-down, Runtime Tables)
+* Implemented on the `tier1` branch, not yet merged/released as v0.7.0
 * Global Location Model
 * Membership Module Design
 * Family Module Design
@@ -613,8 +625,9 @@ Current Focus:
 * Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
   documented modules — every module now has a complete (or largely complete) design. Two
   modules have real SQL implementation (Foundation: 12 tables; Organization: 3 tables) — 15
-  tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. No release doc has been
-  created yet for either the module-documentation backlog or the Foundation/Organization SQL
+  tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation additionally has a full
+  Tier 1 API + Web UI (17 endpoints, 47 tests) implemented on the `tier1` branch. No release doc
+  has been created yet for either the module-documentation backlog or the Foundation/Organization SQL
   implementation.
 
 ---
@@ -626,7 +639,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | Tier | Modules | Focus | DB | API | Web UI | Mobile |
 |------|---------|-------|----|-----|--------|--------|
 | **0** | Bootstrap RBAC | Infrastructure bootstrap — `role_master`, `permission_master`, `role_permission` (3 tables) | Done | Done (4 endpoints) | Done (Bootstrap Verification) | -- |
-| **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Not started | Not started | -- |
+| **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Done (17 endpoints) | Done (Foundation Verification) | -- |
 | **2** | Organization | Org types, statuses, self-referencing hierarchy (3 tables) | Done | Not started | Not started | -- |
 | **3** | Person | Person identity, contact, address (2 tables designed) | Superseded (rewrite pending) | Not started | Not started | -- |
 | **4** | Family, Membership | Family groups/relationships + membership registration/approval/transfer/lifecycle | Not started | Not started | Not started | -- |
@@ -653,7 +666,7 @@ release document under `docs/05_Releases/` before the next tier begins.
 | Release | Tier | Scope |
 |---------|------|-------|
 | v0.6.0 | Tier 0 | Bootstrap RBAC — DB + API + UI + deployment (**released**) |
-| v0.7.0 | Tier 1 | Foundation — API + Web UI (DB already done) |
+| v0.7.0 | Tier 1 | Foundation — API + Web UI (DB already done; implemented on `tier1` branch, **not yet released**) |
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) |
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI |
 | v0.10.0 | Tier 4 | Family + Membership — full vertical slice |
@@ -667,6 +680,10 @@ v0.7.0 — Tier 1 Foundation: API endpoints for master data / geography / ID seq
 Web UI views, reconcile Foundation design docs with 12-table DDL.
 ```
 
+The API (17 endpoints, `api/routers/foundation.py`) and Web UI (`frontend/foundation.html`) for
+this target are implemented on the `tier1` branch, backed by 47 pytest integration tests — not
+yet merged/tagged as v0.7.0.
+
 ---
 
 # Repository Structure
@@ -675,10 +692,10 @@ Web UI views, reconcile Foundation design docs with 12-table DDL.
 NSS_ERP
 │
 ├── api
-│   ├── routers
-│   └── schemas
+│   ├── routers              (bootstrap.py, foundation.py)
+│   └── schemas               (bootstrap.py, foundation.py)
 │
-├── frontend                (Tier 0 Bootstrap Verification UI, served by FastAPI)
+├── frontend                (Tier 0 Bootstrap + Tier 1 Foundation Verification UIs, served by FastAPI)
 │   └── assets
 │
 ├── backend                (empty — earlier Django prototype archived and removed)
@@ -687,6 +704,8 @@ NSS_ERP
 │   ├── ddl
 │   ├── seed
 │   └── scripts
+│
+├── tests                  (pytest integration tests)
 │
 ├── docs
 │   ├── 00_Project_Governance
@@ -698,6 +717,7 @@ NSS_ERP
 │
 ├── CLAUDE.md
 ├── README.md
+├── pytest.ini
 └── requirements.txt
 ```
 

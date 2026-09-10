@@ -91,12 +91,27 @@ Overall solution architecture documentation (cross-module, above the per-module 
   organiser-defined). The P&E candidate-table set stands at 7 (`event_day` and
   `event_registration` included). The tables themselves remain CANDIDATE, not frozen DDL, pending
   Module #21's own formal freeze — see `docs/03_Solution/modules/programmes_events/README.md`.
+- **`FOUNDATION_API_CONTRACT.md`** (v1.1, DRAFT) — Tier 1 Foundation read-only API contract:
+  17 endpoints across 11 tables (master data, system config, geography, runtime document
+  metadata), the Tier 0-inherited conventions plus new Tier 1 ones (query-param filtering,
+  hierarchical drill-down, no pagination), full endpoint catalogue with example responses, a
+  response-schema summary, and an implementation file map. `nss.field_change_log` is explicitly
+  deferred to Tier 5 (needs auth) — not part of this contract.
+- **`code_explanations/`** — Line-by-line "how this vertical slice works" walkthroughs, one per
+  tier: `TIER0_VERTICAL_SLICE.md` (v2.0, FROZEN — moved here from this folder's top level, same
+  content), `TIER1_FOUNDATION.md` (v2.0, FROZEN — schemas/router/UI/tests for the Foundation API
+  above), and `TIER1_SECURITY_AUDIT.md` (v1.0, Complete — 9 passed checks incl. SQL-injection,
+  credential-leakage, audit-data-exposure, and privilege-scope guards; 6 advisory/non-blocking
+  deployment-hardening notes, e.g. no CORS/rate-limiting/pagination yet). See
+  `code_explanations/README.md`.
 
 This is now largely the **current code**, not just an approved target — the Django-to-FastAPI
 migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django prototype under `backend/` was
 fully archived and removed, and FastAPI is the sole, implemented API layer (`api/` — Tier 0
-read-only bootstrap-RBAC endpoints, no auth, no ORM) serving a Tailwind/DaisyUI/Alpine.js
-frontend (`frontend/`'s Tier 0 Bootstrap Verification UI) as static files. Deployment
+read-only bootstrap-RBAC endpoints plus Tier 1 read-only Foundation endpoints, no auth, no ORM)
+serving a Tailwind/DaisyUI/Alpine.js frontend (`frontend/`'s Tier 0 Bootstrap Verification UI
+and Tier 1 Foundation Verification UI) as static files, backed by a 56-test pytest integration
+suite (`tests/`, `pytest.ini`). Deployment
 infrastructure (`render.yaml`, `render_build.sh`, targeting Render.com + Neon.dev) exists but has
 not yet run in production. Bootstrap RBAC (3 tables, `SOL-ARCH-011`), Foundation (12 tables), and
 Organization (3 tables) are all implemented and committed against `SOL-ARCH-009`/`010`'s DDL
