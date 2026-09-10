@@ -308,9 +308,8 @@ Tier 0 (Bootstrap) and Tier 1 (Foundation) DB phases are **implemented**. Tier 2
 **implemented** (4 read-only bootstrap-RBAC endpoints in `api/routers/bootstrap.py`). Tier 1's
 API phase (Foundation) is now also **implemented** — 17 read-only endpoints across 11 tables in
 `api/routers/foundation.py`, with a matching Foundation Verification UI
-(`frontend/foundation.html`) and 47 pytest integration tests — committed to the `tier1` branch
-(`feat(foundation): add Tier 1 Foundation vertical slice`), not yet merged to `develop`/`main`
-or tagged as a release (v0.7.0). All other API phases and all other
+(`frontend/foundation.html`) and 47 pytest integration tests — merged to `main` and tagged as
+v0.7.0. All other API phases and all other
 UI phases remain **unimplemented** across all tiers.
 
 ### Database schema
@@ -1168,8 +1167,8 @@ verdicts: `TIER0_SECURITY_AUDIT.md`/`TIER1_SECURITY_AUDIT.md` (both v1.1) in the
   but no DDL or API implementation exists yet for either.
 - **Build out the FastAPI application beyond Tier 0/1** — per `TECH_STACK_DECISIONS.md`,
   FastAPI is the approved API layer; Tier 0's 4 read-only bootstrap-RBAC endpoints and Tier 1's
-  17 read-only Foundation endpoints are implemented (the latter on the `tier1` branch, not yet
-  merged/released), but every other tier's API phase (Organization, Person, etc.) remains
+  17 read-only Foundation endpoints are implemented and released (v0.7.0), but every other
+  tier's API phase (Organization, Person, etc.) remains
   unbuilt.
 - **Grow the frontend beyond Tier 0/1** — `frontend/` now has two verification UIs (Tailwind +
   DaisyUI + Alpine.js, no build step): the Tier 0 Bootstrap Verification UI and the Tier 1

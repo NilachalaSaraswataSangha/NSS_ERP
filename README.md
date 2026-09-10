@@ -606,6 +606,7 @@ v0.4.0.md
 v0.5.0.md
 v0.5.1.md
 v0.6.0.md
+v0.7.0.md
 ```
 
 ---
@@ -677,6 +678,22 @@ Full-Stack Tier 0 — Documentation, Database, API, UI, and Deployment
 
 ---
 
+## v0.7.0
+
+Tier 1 Foundation — API, Web UI, Security Hardening
+
+* FastAPI Tier 1 Foundation API (17 read-only endpoints across 11 tables)
+* Tier 1 Foundation Verification UI (4-tab layout: Master Data, System Config, Geographic
+  drill-down, Runtime Tables)
+* Cross-tier security-hardening middleware (security headers, opt-in CORS, rate limiting via
+  `slowapi`) + CDN Subresource Integrity pinning (DaisyUI, Alpine.js)
+* Test suite grown from 9 to 64 tests (Tier 0 + Tier 1 Foundation + security middleware)
+* `pytest`/`httpx` pinned in `requirements.txt`; both security audit reports updated to v1.1
+* Code-explanation docs reorganized from 3 per-tier files to 5 per-layer files
+  (API/Database/UI/Security/Testing)
+
+---
+
 # Current Development Status
 
 Completed:
@@ -716,7 +733,7 @@ Completed:
   `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`)
 * Tier 1 Foundation Verification UI (`frontend/foundation.html` + `assets/js/foundation.js` —
   4-tab layout: Master Data, System Config, Geographic drill-down, Runtime Tables)
-* Implemented on the `tier1` branch, not yet merged/released as v0.7.0
+* Released as v0.7.0 — merged to `main`
 * Global Location Model
 * Membership Module Design
 * Family Module Design
@@ -765,9 +782,9 @@ Current Focus:
   documented modules — every module now has a complete (or largely complete) design. Two
   modules have real SQL implementation (Foundation: 12 tables; Organization: 3 tables) — 15
   tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation additionally has a full
-  Tier 1 API + Web UI (17 endpoints, 47 tests) implemented on the `tier1` branch. No release doc
-  has been created yet for either the module-documentation backlog or the Foundation/Organization SQL
-  implementation.
+  Tier 1 API + Web UI (17 endpoints, 47 tests), released as v0.7.0. No release doc
+  has been created yet for the Organization SQL implementation or the module-documentation
+  backlog.
 
 ---
 
@@ -805,7 +822,7 @@ release document under `docs/05_Releases/` before the next tier begins.
 | Release | Tier | Scope |
 |---------|------|-------|
 | v0.6.0 | Tier 0 | Bootstrap RBAC — DB + API + UI + deployment (**released**) |
-| v0.7.0 | Tier 1 | Foundation — API + Web UI (DB already done; implemented on `tier1` branch, **not yet released**) |
+| v0.7.0 | Tier 1 | Foundation — API + Web UI + security hardening (DB already done) (**released**) |
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) |
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI |
 | v0.10.0 | Tier 4 | Family + Membership — full vertical slice |
@@ -815,13 +832,9 @@ release document under `docs/05_Releases/` before the next tier begins.
 Next Release Target:
 
 ```text
-v0.7.0 — Tier 1 Foundation: API endpoints for master data / geography / ID sequences,
-Web UI views, reconcile Foundation design docs with 12-table DDL.
+v0.8.0 — Tier 2 Organization: API endpoints for org types, statuses, self-referencing
+hierarchy, Web UI views. DB already complete (3 tables live since v0.6.0).
 ```
-
-The API (17 endpoints, `api/routers/foundation.py`) and Web UI (`frontend/foundation.html`) for
-this target are implemented on the `tier1` branch, backed by 47 pytest integration tests — not
-yet merged/tagged as v0.7.0.
 
 ---
 
@@ -867,10 +880,10 @@ See `docs/PROJECT_DOCUMENTATION.md` for the full, code-verified breakdown of eac
 # Current Stable Version
 
 ```text
-v0.6.0
+v0.7.0
 ```
 
-Full-Stack Tier 0 — Documentation, Database, API, UI, and Deployment
+Tier 1 Foundation — API, Web UI, Security Hardening
 
 ---
 

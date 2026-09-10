@@ -12,3 +12,4 @@ Release notes. Every version includes a git tag, this notes file, and a GitHub r
 | `v0.5.0.md` | Person module design complete |
 | `v0.5.1.md` | Person database schema complete (global location model, person schema, person address schema, international mobile support, address mapping model) |
 | `v0.6.0.md` | Full-Stack Tier 0 — 22-module documentation, 18-table database (Bootstrap RBAC + Foundation + Organization), FastAPI bootstrap API, responsive Bootstrap Verification UI, Render.com + Neon.dev deployment, project governance standards, authoritative reference corpus, NSS-WIDE scope |
+| `v0.7.0.md` | Tier 1 Foundation — 17-endpoint API, 4-tab Foundation Verification UI, cross-tier security-hardening middleware (headers/CORS/rate-limiting/CDN SRI), test suite grown 9→64, code-explanation docs reorganized per-layer |
