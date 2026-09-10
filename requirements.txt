@@ -21,3 +21,7 @@ uvicorn==0.49.0
 slowapi==0.1.10
 limits==5.8.0
 wrapt==2.4.0
+
+# Testing
+pytest==9.1.1
+httpx==0.28.1
