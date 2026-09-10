@@ -25,17 +25,19 @@ of Organization's own design decisions remain open (see Gotchas).
 
 The codebase today is an early-stage skeleton: a Tier 0 + Tier 1 FastAPI application (`api/`)
 exposing 4 read-only bootstrap-RBAC endpoints plus 17 read-only Foundation endpoints (no ORM, no
-auth, raw `psycopg2` against `nss.*`), a growing raw-SQL PostgreSQL schema (Bootstrap RBAC: 3
+auth, raw `psycopg2` against `nss.*`) behind a cross-tier security middleware stack (security
+headers, opt-in CORS, rate limiting — see Architecture below), a growing raw-SQL PostgreSQL
+schema (Bootstrap RBAC: 3
 tables; Foundation: 12 tables; Organization: 3 tables — 18 tables implemented and committed in
 total, plus a superseded Person prototype; see the `database/` detail below), a `tests/` pytest
-suite (56 integration tests against a real local Postgres), and an extensive, mature
+suite (64 integration tests against a real local Postgres), and an extensive, mature
 governance/documentation corpus that is significantly ahead of the code. Solution-layer design
 documentation (`docs/03_Solution/modules/`) is complete or near-complete across 22 module
 folders — with zero corresponding API/SQL work beyond the Tier 0/1 endpoints and the
 Foundation/Organization DDL noted above. A Django prototype (`backend/`) previously existed
 covering `foundation`, `authentication`, `family`, `membership`, and `heritage`, but was fully
 archived and removed (`chore: archive and remove Django prototype`) once the FastAPI direction
-was adopted — `backend/` is now an empty directory.
+was adopted — `backend/` has been fully removed from the repository (the directory no longer exists on disk).
 `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md` states an `_id` business-identifier
 convention that contradicts the project's actual frozen `_code`-only convention — see
 Conventions & gotchas. `programmes_events` is the one module not tagged SOURCE ALIGNED (still
@@ -45,6 +47,10 @@ DRAFT, not frozen), though its cross-module reconciliation is complete.
 
 ```
 Browser
+   │
+   ▼
+Security middleware (api/middleware.py + api/main.py) — rate limiting → CORS (if configured) →
+security headers
    │
    ├──→ GET /              FastAPI (api/main.py) → FileResponse(frontend/index.html)
    ├──→ GET /foundation     FastAPI (api/main.py) → FileResponse(frontend/foundation.html)
@@ -59,6 +65,21 @@ Browser
                     PostgreSQL (nss.* schema, hand-written DDL under database/ddl/)
 ```
 
+- **Security middleware:** registered in `api/main.py`, in order (comments there call out that
+  order matters — outermost registered last runs first): (1) `SlowAPIMiddleware` — global rate
+  limiting via a module-level `Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT])`
+  (default `60/minute`, no per-route `@limiter.limit(...)` decorators, so every route shares one
+  limit); (2) `CORSMiddleware` — only added `if settings.CORS_ORIGINS:` (comma-separated env var,
+  default empty ⇒ middleware never registered at all, `allow_methods=["GET"]`,
+  `allow_credentials=True`, never `allow_origins=["*"]`); (3) `api/middleware.py`'s
+  `add_security_headers` — an `app.middleware("http")` function that sets
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: strict-origin-when-cross-origin`, and
+  `Permissions-Policy: camera=(), microphone=(), geolocation=()` on every response, plus
+  `Cache-Control: no-store` scoped to paths starting `/api/` only (not on `/`, `/foundation`, or
+  `/assets/*`). Deliberately omits `X-XSS-Protection` (obsolete), CSP (deferred — Tailwind Play
+  CDN's inline styles conflict with a strict policy), and HSTS (left to Render's edge TLS). Full
+  line-by-line walkthrough: `docs/03_Solution/architecture/code_explanations/SECURITY_CODE_EXPLANATIONS.md`.
 - **Web/API layer:** FastAPI (`api/`), the only web/API layer in the codebase — the earlier
   Django prototype (`backend/`) has been fully removed. `api/main.py` builds the `FastAPI` app,
   includes two routers (`api/routers/bootstrap.py`, prefix `/api/v1/bootstrap`; and
@@ -67,9 +88,11 @@ Browser
   `GET /` route, plus `frontend/foundation.html` via `GET /foundation` if that file exists —
   mounting at `/assets` rather than `/` avoids shadowing FastAPI's own `/docs` (Swagger UI) and
   `/openapi.json`. Swagger UI/ReDoc/OpenAPI schema can be disabled via `DISABLE_DOCS` in
-  `api/.env`. No middleware (no CORS, no auth) is registered.
+  `api/.env`. The security middleware stack above is registered; there is still no auth
+  middleware.
 - **Frontend layer:** `frontend/` — two single-page views built with Tailwind CSS + DaisyUI
-  (CDN) and Alpine.js (CDN), no build step, no framework: a Tier 0 "Bootstrap Verification UI"
+  (CDN, pinned to `4.12.14` with SRI `integrity`/`crossorigin`) and Alpine.js (CDN, pinned to
+  `3.14.8` with SRI), no build step, no framework: a Tier 0 "Bootstrap Verification UI"
   (`index.html`) and a Tier 1 "Foundation Verification UI" (`foundation.html`), neither an admin
   dashboard. `frontend/assets/js/app.js` defines `bootstrapApp()`, fetching
   `/api/v1/bootstrap/{health,roles,permissions}` in parallel on load and driving 4 UI sections
@@ -77,7 +100,9 @@ Browser
   `frontend/assets/js/foundation.js` defines `foundationApp()`, lazily fetching from
   `/api/v1/foundation/*` per tab across a 4-tab layout (Master Data, System Config, Geographic
   drill-down, Runtime Tables). See `frontend/README.md` for the full file/function/state
-  reference. Served entirely by FastAPI — no separate frontend server, no CORS needed.
+  reference. Served entirely by FastAPI — same-origin, so the frontend itself needs no CORS;
+  `CORSMiddleware` above exists for *other* (cross-origin) API consumers, and is a no-op locally
+  since `CORS_ORIGINS` defaults to empty.
 - **Data layer:** a single track — **hand-written PostgreSQL DDL** under `database/ddl/`,
   following the project's own UUID-`_pk` + business-`_code` convention (see Conventions &
   Gotchas). This is the "real" schema per the governance/standards docs, and it is now consumed
@@ -88,8 +113,12 @@ Browser
   mocked); all tests carry the custom `integration` marker. `test_bootstrap.py` (9 tests) and
   `test_foundation.py` (47 tests, 13 classes) cover every implemented endpoint, plus two
   contract-guard regression tests (`sequences.current_value` never exposed;
-  `/api/v1/foundation/change-log` returns 404/405, not real data). `pytest`/`httpx` aren't yet
-  pinned in `requirements.txt` — see Conventions & gotchas.
+  `/api/v1/foundation/change-log` returns 404/405, not real data); `test_security.py` (8 tests,
+  3 classes) covers the security middleware — 5 header/Cache-Control assertions, 1 rate-limit
+  429 test (loops requests against `/api/v1/bootstrap/health` until the default `60/minute`
+  limit trips, resetting `limiter.reset()` via an autouse fixture between tests), and 2 CORS
+  tests (both asserting *absence* of `Access-Control-Allow-Origin` under the default empty
+  `CORS_ORIGINS`). **64 tests total.**
 - **Auth:** none. Tier 0 is explicitly read-only, unauthenticated, by design — RBAC/JWT/OTP
   enforcement is deferred to a later tier, even though
   `docs/00_Project_Governance/STD/05_security_standards.md` specifies a full RBAC +
@@ -305,7 +334,8 @@ NSS_ERP/
 │   ├── seed/                    Reference/lookup data matching the DDL
 │   └── scripts/                 Executable bootstrap/build/validate/grant scripts (see below)
 ├── tests/                        pytest integration tests (test_bootstrap.py,
-│                                   test_foundation.py, conftest.py) — see Setup & running
+│                                   test_foundation.py, test_security.py, conftest.py) — see
+│                                   Setup & running
 ├── docs/
 │   ├── PROJECT_DOCUMENTATION.md This file
 │   ├── 00_Project_Governance/   AUTH/ GOV/ GDR/ STD/ — governance framework + engineering standards
@@ -345,7 +375,9 @@ the `database/` detail below.
 
 ```
 api/
-├── main.py             FastAPI app entry point — builds `app`, includes both routers, mounts
+├── main.py             FastAPI app entry point — builds `app`, registers the security
+│                       middleware stack (rate limiting, opt-in CORS, security headers — see
+│                       Architecture above), includes both routers, mounts
 │                       `frontend/assets/` at `/assets` and serves `frontend/index.html` at `/`
 │                       and `frontend/foundation.html` at `/foundation` (all skipped if the
 │                       respective file/dir doesn't exist — API-only mode still works), disables
@@ -354,11 +386,18 @@ api/
 │                       `python3 -m uvicorn api.main:app --reload --port 8001` (from repo root)
 ├── config.py           Settings: DB_NAME/DB_USER/DB_PASSWORD (required), DB_HOST (default
 │                       localhost), DB_PORT (default 5432), API_PORT (default 8001),
-│                       DISABLE_DOCS (default false) — read from `api/.env` via python-dotenv;
+│                       DISABLE_DOCS (default false), CORS_ORIGINS (comma-separated, default
+│                       empty ⇒ CORS middleware not registered), RATE_LIMIT (default
+│                       `60/minute`) — read from `api/.env` via python-dotenv;
 │                       `Settings.validate()` raises if any required var is missing
 ├── database.py         psycopg2 `SimpleConnectionPool` (1-5 conns), connects as `nss_db_backend`
 │                       (read-only); `get_connection()` is a FastAPI generator dependency;
 │                       `check_connection()` backs the /health endpoint
+├── middleware.py       `add_security_headers(request, call_next)` — sets
+│                       `X-Content-Type-Options`/`X-Frame-Options`/`Referrer-Policy`/
+│                       `Permissions-Policy` on every response, plus `Cache-Control: no-store`
+│                       scoped to `/api/*` only; registered in `main.py` via
+│                       `app.middleware("http")`
 ├── routers/
 │   ├── bootstrap.py    4 endpoints under `/api/v1/bootstrap` — no auth, no ORM, raw
 │   │                   parameterized SQL against `nss.role_master`/`permission_master`/
@@ -417,9 +456,11 @@ frontend/
 
 Neither page is an admin dashboard — both are Tier-scoped verification UIs proving the
 database→API→frontend chain end to end for their tier. Tech stack is Tailwind CSS + DaisyUI +
-Alpine.js, all via CDN — no Node.js build step, no framework, no Django templates. Served
-entirely by FastAPI (see `api/` detail above); there is no separate frontend server or CORS
-configuration. Every fetch method in both `app.js` and `foundation.js` follows the same
+Alpine.js, all via CDN (DaisyUI/Alpine.js pinned with SRI hashes; Tailwind's Play CDN JIT
+compiler can't be SRI-pinned — see Architecture above) — no Node.js build step, no framework, no
+Django templates. Served entirely by FastAPI (see `api/` detail above); no separate frontend
+server is needed since both pages are same-origin with the API. Every fetch method in both
+`app.js` and `foundation.js` follows the same
 pattern: set loading/error state → try/fetch/parse → catch sets an error flag (never exposes
 raw error text to the UI) → finally clears loading. Authentication UI is deferred to Tier 5 — by
 design, Tiers 0-1 have no login, session, or credentials anywhere in this folder.
@@ -589,13 +630,16 @@ database/
 │   │                                   lookups, no pagination in Tier 1), full endpoint
 │   │                                   catalogue with example responses, response-schema
 │   │                                   summary, error table, implementation file map
-│   └── code_explanations/              Line-by-line "how this vertical slice works" walkthroughs,
-│                                       one per tier — TIER0_VERTICAL_SLICE.md (v2.0, FROZEN;
-│                                       moved here from this folder's top level),
-│                                       TIER1_FOUNDATION.md (v2.0, FROZEN), and
-│                                       TIER1_SECURITY_AUDIT.md (v1.0, Complete — 9 passed
-│                                       checks, 6 advisory/non-blocking deployment-hardening
-│                                       notes); see code_explanations/README.md
+│   └── code_explanations/              Per-layer "requirement + line-by-line" code catalogues —
+│                                       API_CODE_EXPLANATIONS.md, DATABASE_CODE_EXPLANATIONS.md,
+│                                       UI_CODE_EXPLANATIONS.md, SECURITY_CODE_EXPLANATIONS.md,
+│                                       TESTING_CODE_EXPLANATIONS.md (all v1.0, Complete) — plus
+│                                       two security audit reports: TIER0_SECURITY_AUDIT.md
+│                                       (v1.1, Complete — 10 passed, 1 fix applied, 6 advisory [4
+│                                       resolved/1 partial/1 N/A]) and TIER1_SECURITY_AUDIT.md
+│                                       (v1.1, Complete — 9 passed, 6 advisory [3 resolved/1
+│                                       partial/1 advisory/1 N/A]); see
+│                                       code_explanations/README.md
 ├── database/
 │   └── DATABASE_DESIGN_STANDARDS.md   (`SOL-DB-001`, DRAFT — SOURCE ALIGNED Consolidation) — cross-module DB conventions consolidated from module table-design docs: `_pk` UUID PK convention, audit columns, soft-delete, master-data architecture (generic `master_category`/`master_data` vs domain masters), module ownership boundaries (one owning module per table), cross-module FK principles, DDL build order sketch. **States a `_id` business-identifier convention (`person_id`, `organization_id`, `sangha_sevi_id`) that contradicts the project's already-frozen `_code`-only convention** — see Gotchas/Open questions
 ├── security/
@@ -640,9 +684,10 @@ summarize the full sequence from a clean machine to a running API.
    python3 -m pip install -r requirements.txt   # macOS/Linux
    py -m pip install -r requirements.txt         # Windows
    ```
-   `requirements.txt` lists FastAPI, Uvicorn, psycopg2-binary, Pydantic, python-dotenv, and
-   their transitive dependencies (Starlette, anyio, click, h11, idna, colorama, etc.) — no
-   Django. It's plain UTF-8 text (a prior UTF-16LE Windows-migration artifact was fixed).
+   `requirements.txt` lists FastAPI, Uvicorn, psycopg2-binary, Pydantic, python-dotenv,
+   `slowapi`/`limits`/`wrapt` (rate limiting), and their transitive dependencies (Starlette,
+   anyio, click, h11, idna, colorama, etc.) — no Django. It's plain UTF-8 text (a prior
+   UTF-16LE Windows-migration artifact was fixed).
 
 2. **Database (raw-SQL track):** the bootstrap sequence is documented in
    `database/scripts/README.md`:
@@ -697,17 +742,17 @@ summarize the full sequence from a clean machine to a running API.
 5. **Run the tests** (from the repository root, once the database is built per step 2 and
    `api/.env` per step 3):
    ```
-   pytest                    # all tests (56)
+   pytest                    # all tests (64)
    pytest -m integration     # integration-marked tests (currently all of them)
    pytest tests/test_bootstrap.py    # Tier 0 only (9 tests)
    pytest tests/test_foundation.py   # Tier 1 only (47 tests)
+   pytest tests/test_security.py     # cross-tier security middleware only (8 tests)
    ```
    Configured via `pytest.ini` (repo root: `testpaths = tests`, `integration` marker).
    `tests/conftest.py`'s `client` fixture wraps `fastapi.testclient.TestClient(app)` against the
    **real** local Postgres DB set up in step 2 — nothing is mocked, so these are true
    integration tests, not unit tests. `pytest` and `httpx` (required by `TestClient` at import
-   time) are **not** currently listed in `requirements.txt` — install them manually if missing
-   (`pip install pytest httpx`). No lint/format tooling is configured yet.
+   time) are pinned in `requirements.txt`. No lint/format tooling is configured yet.
 
 **Deployment (Render.com):** `render.yaml` (repo root) is Render's Infrastructure-as-Code
 manifest — defines a single free-tier web service running `uvicorn api.main:app --host 0.0.0.0
@@ -734,6 +779,8 @@ as of this writing; treat them as declared-but-unverified infrastructure.
 | `DB_PORT` | `api/.env` | Defaults to `5432` if unset (`api/config.py:27`) |
 | `API_PORT` | `api/.env` | Defaults to `8001` (`api/config.py:30`) — defined but currently unread; the actual port is hardcoded in the `uvicorn` run command instead, so the two can silently drift if one changes without the other |
 | `DISABLE_DOCS` | `api/.env` | Defaults to `false`; when truthy (`1`/`true`/`yes`), disables `/docs`, `/redoc`, and `/openapi.json` on the FastAPI app (`api/main.py`) |
+| `CORS_ORIGINS` | `api/.env` | Comma-separated allowed origins; defaults to empty, in which case `CORSMiddleware` is never registered at all (no CORS headers on any response) |
+| `RATE_LIMIT` | `api/.env` | Defaults to `"60/minute"` (a `slowapi`/`limits`-style rate spec); applied globally via `SlowAPIMiddleware`, not per-route |
 
 No other configuration surface (feature flags, external service credentials, `SECRET_KEY`,
 `DEBUG`, `ALLOWED_HOSTS`, etc.) exists in the code — Tier 0 has no auth/session layer at all.
@@ -833,10 +880,28 @@ endpoints 404 on missing/inactive rows; malformed UUIDs 422 via Pydantic/FastAPI
 validation. Full contract, example responses, and the 11 response-schema fields (incl. every
 deliberately-excluded column) are in
 `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`; a line-by-line implementation
-walkthrough is in `docs/03_Solution/architecture/code_explanations/TIER1_FOUNDATION.md`.
+walkthrough is in `docs/03_Solution/architecture/code_explanations/API_CODE_EXPLANATIONS.md`.
 Verified via 47 pytest integration tests (`tests/test_foundation.py`, 13 classes) plus a
 dedicated security audit (`code_explanations/TIER1_SECURITY_AUDIT.md`) with no blocking
 findings. Consumed by `frontend/foundation.html`'s 4-tab UI (see `frontend/` detail above).
+
+### 6. Security middleware — headers, CORS, rate limiting (cross-tier, implemented)
+Applies to every route in both routers plus the static frontend — see the Architecture diagram
+above for exact registration order (`SlowAPIMiddleware` → `CORSMiddleware` if configured →
+`add_security_headers`). Three independent, individually-toggleable concerns:
+- **Security headers** (`api/middleware.py`) — always on, no config: 4 headers on every
+  response, plus `Cache-Control: no-store` scoped to `/api/*` only (so `/`, `/foundation`, and
+  `/assets/*` remain normally cacheable).
+- **CORS** — off by default (`CORS_ORIGINS` empty); when set, `CORSMiddleware` allows only the
+  listed origins, `GET` only, credentials allowed, never a wildcard origin.
+- **Rate limiting** — on by default (`RATE_LIMIT="60/minute"`), keyed per client IP
+  (`get_remote_address`), enforced globally (no route currently opts in to a different limit).
+`tests/test_security.py` verifies all three (8 tests, 3 classes) — including a real bug it
+caught during development: an earlier version of the middleware configured the `Limiter` but
+never registered `SlowAPIMiddleware`, so the limit was defined but never enforced. Full
+walkthrough: `docs/03_Solution/architecture/code_explanations/SECURITY_CODE_EXPLANATIONS.md`;
+test walkthrough: `TESTING_CODE_EXPLANATIONS.md`; audit
+verdicts: `TIER0_SECURITY_AUDIT.md`/`TIER1_SECURITY_AUDIT.md` (both v1.1) in the same directory.
 
 ## Conventions & gotchas
 
@@ -855,10 +920,12 @@ findings. Consumed by `frontend/foundation.html`'s 4-tab UI (see `frontend/` det
   `foundation`, `family`, `membership`, `governance`, `attendance`, `heritage` apps, templates,
   static files, `manage.py`) was fully archived and removed once the FastAPI direction was
   adopted. Nothing in this repo references it anymore except historical git commits.
-- **`api/` has no auth or middleware; two routers registered.** `api/main.py` registers no CORS
-  or auth middleware and includes `api/routers/bootstrap.py` (Tier 0) and
-  `api/routers/foundation.py` (Tier 1). Both tiers are deliberately read-only and
-  unauthenticated — don't assume any request-level security exists yet.
+- **`api/` has security middleware but still no auth; two routers registered.** `api/main.py`
+  includes `api/routers/bootstrap.py` (Tier 0) and `api/routers/foundation.py` (Tier 1), plus
+  the cross-tier security middleware stack (rate limiting, opt-in CORS, security headers — see
+  Architecture and Key Workflow #6 above). Both tiers remain deliberately read-only and
+  unauthenticated — the new middleware hardens the transport/response layer, it does not add
+  request-level identity or permission checks.
 - **Governance/standards docs are far ahead of the code.** `docs/00_Project_Governance/STD/`
   (naming conventions, audit standards, security standards, master data catalog) describes a
   mature target architecture (RBAC tables, RLS, full audit trail with `*_by_sangha_sevi_pk`
@@ -885,12 +952,12 @@ findings. Consumed by `frontend/foundation.html`'s 4-tab UI (see `frontend/` det
   `requirements.txt` UTF-16LE fix noted in Setup & running above — a recurring Windows-encoding
   class of bug in this repo.
 - **pytest is now configured — no longer "no tests."** `pytest.ini` (repo root) + `tests/`
-  package: `test_bootstrap.py` (9 tests) and `test_foundation.py` (47 tests, 13 classes), all
-  marked `integration`. `tests/conftest.py`'s `client` fixture wraps
+  package: `test_bootstrap.py` (9 tests), `test_foundation.py` (47 tests, 13 classes), and
+  `test_security.py` (8 tests, 3 classes) — **64 total**, all marked `integration`.
+  `tests/conftest.py`'s `client` fixture wraps
   `fastapi.testclient.TestClient` against a **real** local Postgres DB — nothing is mocked, so
   a bootstrapped database + `api/.env` are prerequisites for running them. `pytest` and `httpx`
-  (required by `TestClient` at import time) are not yet listed in `requirements.txt` — a real
-  gap, since `pip install -r requirements.txt` alone won't let the suite run. No lint/format
+  (required by `TestClient` at import time) are pinned in `requirements.txt`. No lint/format
   tooling is configured yet.
 - **Git remotes.** `git remote -v` shows two remotes: `personal`
   (`github.com/sandeeppanda22/NSS_ERP`, daily dev) and `org`
@@ -1050,16 +1117,33 @@ findings. Consumed by `frontend/foundation.html`'s 4-tab UI (see `frontend/` det
   Tier 0 API's own read-only usage. `BOOTSTRAP_ARCHITECTURE.md` (`SOL-ARCH-011`) still only
   formalizes the `nss_db_owner`/`NSS_ERP_ADMIN` distinction and doesn't mention this role by
   name, but the privileges themselves are now defined and implemented.
-- **`docs/03_Solution/architecture/TIER0_VERTICAL_SLICE.md` moved, not deleted.** It now lives
-  at `docs/03_Solution/architecture/code_explanations/TIER0_VERTICAL_SLICE.md`, alongside two
-  new siblings covering the Foundation vertical slice (`TIER1_FOUNDATION.md`) and its security
-  audit (`TIER1_SECURITY_AUDIT.md`) — see the `docs/03_Solution/` detail above.
+- **`code_explanations/` was reorganized from per-tier to per-layer.** The original
+  `TIER0_VERTICAL_SLICE.md`/`TIER1_FOUNDATION.md`/`SECURITY_HARDENING.md` (which interleaved
+  narration of the same files across multiple tier-scoped documents) were retired and replaced
+  by `API_CODE_EXPLANATIONS.md`, `DATABASE_CODE_EXPLANATIONS.md`, `UI_CODE_EXPLANATIONS.md`,
+  `SECURITY_CODE_EXPLANATIONS.md`, and `TESTING_CODE_EXPLANATIONS.md` — one document per layer,
+  each giving every source file in that layer its own "Requirement + Line-by-line" section
+  regardless of which tier introduced it. `TIER0_SECURITY_AUDIT.md`/`TIER1_SECURITY_AUDIT.md`
+  (audit findings, not code narration) were not part of this reorganization and still exist
+  under their original names — see the `docs/03_Solution/` detail above.
 - **Filename collision in `docs/03_Solution/modules/administration/`.**
   `06_bootstrap_rbac_table_design.md` (`SOL-BOOT-001`) and `06_correspondence_register_erd.md`
   (`SOL-ADMIN-006`) share the same leading number — not renamed here, flagging only.
 
 ## Open questions / TODOs
 
+- **`tests/test_security.py`'s docstring claims `DISABLE_DOCS` is verified, but no test actually
+  exercises it** — none of the 8 tests hits `/docs`, `/redoc`, or `/openapi.json`. Either add a
+  test or trim the docstring.
+- **CORS tests only exercise the unconfigured (default-empty `CORS_ORIGINS`) path** —
+  `TestCORS`'s two tests assert `Access-Control-Allow-Origin` is *absent* when no origins are
+  configured; there's no test setting `CORS_ORIGINS` and asserting the header *is* present for
+  an allowed origin, or absent for a non-allowed one.
+- **Both Security Posture Summary ASCII tables** (`TIER0_SECURITY_AUDIT.md`,
+  `TIER1_SECURITY_AUDIT.md`) still list only the original 9-10 checks — neither was updated to
+  add rows for the new CORS/rate-limiting/security-header protections added in
+  `SECURITY_CODE_EXPLANATIONS.md`, even though the advisory tables above them were updated.
+  Cosmetic, not a correctness issue.
 - **Build Tier 2 API endpoints for `Person`/`Organization`** against the SQL DDL — no API layer
   reads/writes either today; only the Tier 0 bootstrap-RBAC tables are exposed so far.
 - **Reconcile `person_id` (design docs) vs. `person_code` (implemented SQL)** — the Person

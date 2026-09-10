@@ -20,7 +20,9 @@ py -m pip install -r requirements.txt
 ```
 
 Create `api/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` — the FastAPI
-app requires all three DB credentials (no defaults for name/user/password).
+app requires all three DB credentials (no defaults for name/user/password). Optional:
+`CORS_ORIGINS` (comma-separated allowed origins), `RATE_LIMIT` (default `60/minute`),
+`DISABLE_DOCS` (disable Swagger/ReDoc).
 
 ## Database
 
@@ -100,10 +102,10 @@ pytest -m integration     # integration-marked tests (currently all of them)
 Every test is an integration test — `tests/conftest.py`'s `client` fixture wraps
 `fastapi.testclient.TestClient` against a real local PostgreSQL DB, nothing is mocked — so a
 bootstrapped local database and `api/.env` are required first. `tests/test_bootstrap.py` (9
-tests) and `tests/test_foundation.py` (47 tests) cover the Tier 0 and Tier 1 endpoints
-respectively. `pytest`/`httpx` (required by `TestClient`) aren't yet pinned in
-`requirements.txt` — install them manually if missing. No lint/format tooling is configured
-yet — don't add one unilaterally.
+tests), `tests/test_foundation.py` (47 tests), and `tests/test_security.py` (8 tests —
+security headers, Cache-Control scoping, rate limiting 429, CORS) cover the Tier 0, Tier 1,
+and cross-tier security middleware respectively. **64 tests total.** No
+lint/format tooling is configured yet — don't add one unilaterally.
 
 ## Architecture
 
@@ -111,6 +113,7 @@ yet — don't add one unilaterally.
 ```
 NSS_ERP/
 ├── api/                    FastAPI Tier 0 + Tier 1 API (raw psycopg2, no ORM)
+│   ├── middleware.py       Security headers + Cache-Control scoping
 │   ├── routers/            bootstrap.py (Tier 0), foundation.py (Tier 1)
 │   └── schemas/            bootstrap.py, foundation.py — Pydantic response models
 ├── frontend/               Web UI (Tailwind/DaisyUI + Alpine.js, served by FastAPI)
@@ -118,16 +121,20 @@ NSS_ERP/
 │   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization)
 │   ├── seed/               Seed data (mirrors ddl/ folder order)
 │   └── scripts/            DB creation, build, validate, grant scripts
-├── tests/                  pytest integration tests (test_bootstrap.py, test_foundation.py)
+├── tests/                  pytest integration tests (test_bootstrap.py, test_foundation.py,
+│                             test_security.py)
 ├── docs/                   All project documentation
 ├── BY-LAW/                 Source reference material
 └── NSS LOGO/               Branding assets
 ```
 
 `backend/` (the earlier Django prototype) was fully removed once the FastAPI direction was
-adopted — it's preserved in Git history only, the directory is now empty. `api/` (FastAPI, raw
+adopted — it no longer exists on disk, only in Git history. `api/` (FastAPI, raw
 psycopg2, no ORM/SQLAlchemy/migration tool) is the only API layer; authentication is deferred to
-Tier 5 — Tiers 0-1 have no auth, no fake auth, no API keys.
+Tier 5 — Tiers 0-1 have no auth, no fake auth, no API keys. Security middleware
+(`api/middleware.py`) provides security headers (X-Content-Type-Options, X-Frame-Options,
+Referrer-Policy, Permissions-Policy), Cache-Control scoping (no-store on `/api/*` only), CORS
+(configurable via `CORS_ORIGINS`), and rate limiting (SlowAPIMiddleware, default 60/minute).
 
 **DB naming (SQL DDL track):** tables `snake_case`; internal PK suffix `_pk`; FKs reference
 internal PKs, never business IDs; business/external identifiers use `_code` — **never `_id`**

@@ -1,10 +1,12 @@
 # docs/04_Testing/
 
-Scaffolded only — no test documentation has been written yet, and no automated tests exist in
-the codebase. No test framework or lint/format tooling is configured yet (see root
-`CLAUDE.md` → Tests & lint). The earlier Django prototype (`backend/`) that this note used to
-reference was removed in the `feature/fastapi-tier0` branch; it is preserved in Git history
-only, not the active codebase.
+Testing documentation scaffolding. The sub-folders below are reserved for formal test
+plans/reports per category — none has content yet.
+
+**Automated tests do exist** in the codebase — `tests/` (repo root) contains **64 integration
+tests** across 3 files, all running against a real local PostgreSQL database via
+`fastapi.testclient.TestClient` (nothing mocked). See `tests/README.md` for the test inventory
+and `docs/03_Solution/architecture/code_explanations/` for the security audit reports.
 
 | Folder | Purpose |
 |---|---|

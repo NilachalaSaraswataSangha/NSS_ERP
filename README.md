@@ -109,7 +109,10 @@ design philosophy, ensuring that business rules are frozen before implementation
 Browser / HTTP client
    │
    ▼
-FastAPI (api/main.py, Tier 0 bootstrap router)
+Security Middleware (CORS, rate limiting, security headers)
+   │
+   ▼
+FastAPI (api/main.py, Tier 0 bootstrap + Tier 1 foundation routers)
    │
    ▼
 psycopg2 connection pool (api/database.py) — raw SQL, no ORM
@@ -118,8 +121,144 @@ psycopg2 connection pool (api/database.py) — raw SQL, no ORM
 PostgreSQL (nss.* schema)
 ```
 
-*(See `docs/PROJECT_DOCUMENTATION.md` → Architecture for full detail on the FastAPI Tier 0
-implementation and what's still unbuilt.)*
+*(See `docs/03_Solution/architecture/code_explanations/` for full line-by-line walkthroughs of
+every source file, organized by layer — `API_CODE_EXPLANATIONS.md`,
+`DATABASE_CODE_EXPLANATIONS.md`, `UI_CODE_EXPLANATIONS.md`, `SECURITY_CODE_EXPLANATIONS.md`,
+`TESTING_CODE_EXPLANATIONS.md`.)*
+
+---
+
+# Getting Started
+
+## Prerequisites
+
+- PostgreSQL 14+ (local or Neon.dev)
+- Python 3.12+ with pip
+- psql CLI (included with PostgreSQL)
+
+## Step 1: Database Setup
+
+### macOS / Linux (bash)
+
+```bash
+# 1a. Create database and roles (as superuser)
+psql -U postgres -d postgres -f database/scripts/00_create_database.sql
+
+# 1b. Set passwords for both roles (as superuser)
+psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
+psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
+
+# 1c. Install extensions and create nss schema (as superuser)
+psql -U postgres -d nss_erp -f database/scripts/01_extensions.sql
+
+# 1d. Build all DDL + seed (as nss_db_owner)
+./database/scripts/02_build.sh
+
+# 1e. Validate (as nss_db_owner)
+./database/scripts/03_validate.sh
+
+# 1f. Grant backend role read-only access (as nss_db_owner)
+psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
+```
+
+### Windows (PowerShell)
+
+```powershell
+# 1a. Create database and roles (as superuser)
+psql -U postgres -d postgres -f database\scripts\00_create_database.sql
+
+# 1b. Set passwords for both roles (as superuser)
+psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
+psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
+
+# 1c. Install extensions and create nss schema (as superuser)
+psql -U postgres -d nss_erp -f database\scripts\01_extensions.sql
+
+# 1d. Build all DDL + seed (as nss_db_owner)
+.\database\scripts\02_build.ps1
+
+# 1e. Validate (as nss_db_owner)
+.\database\scripts\03_validate.ps1
+
+# 1f. Grant backend role read-only access (as nss_db_owner)
+psql -U nss_db_owner -d nss_erp -f database\scripts\04_grant_backend.sql
+```
+
+> **Never commit real passwords.** Use `.pgpass` (macOS/Linux) or `%APPDATA%\postgresql\pgpass.conf`
+> (Windows) for passwordless `psql` connections, or set `PGPASSWORD` in your shell session.
+
+## Step 2: API Setup
+
+```bash
+# Install Python dependencies
+# macOS / Linux:
+python3 -m pip install -r requirements.txt
+# Windows:
+#   py -m pip install -r requirements.txt
+```
+
+Create `api/.env` with the `nss_db_backend` password from Step 1b:
+
+**macOS / Linux:**
+```bash
+cat > api/.env << 'EOF'
+DB_NAME=nss_erp
+DB_USER=nss_db_backend
+DB_PASSWORD=your_password_here
+DB_HOST=localhost
+DB_PORT=5432
+EOF
+```
+
+**Windows (PowerShell):**
+```powershell
+@"
+DB_NAME=nss_erp
+DB_USER=nss_db_backend
+DB_PASSWORD=your_password_here
+DB_HOST=localhost
+DB_PORT=5432
+"@ | Out-File -Encoding utf8 api\.env
+```
+
+## Step 3: Start the API
+
+```bash
+# macOS / Linux:
+python3 -m uvicorn api.main:app --reload --port 8001
+
+# Windows:
+py -m uvicorn api.main:app --reload --port 8001
+```
+
+**URLs:**
+
+| URL | What |
+|-----|------|
+| `http://localhost:8001/` | Bootstrap Verification UI |
+| `http://localhost:8001/foundation` | Foundation Verification UI |
+| `http://localhost:8001/docs` | Swagger UI (OpenAPI) |
+| `http://localhost:8001/api/v1/` | API endpoints |
+
+See `api/README.md` for the full per-tier endpoint list and security-middleware detail.
+
+## Step 4: Run Tests
+
+```bash
+# macOS / Linux:
+python3 -m pytest tests/ -v
+
+# Windows:
+py -m pytest tests/ -v
+```
+
+**64 tests total:** 9 (Tier 0 Bootstrap) + 47 (Tier 1 Foundation) + 8 (Security Middleware). See
+`tests/README.md` for the per-file test inventory.
+
+## Script Reference
+
+See `database/scripts/README.md` for detailed script reference (what each script does, build
+phases, role naming conventions, cross-platform principles).
 
 ---
 

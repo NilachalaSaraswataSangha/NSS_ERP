@@ -83,13 +83,18 @@ Each section is rendered by Alpine.js directives bound to the
 - Card padding scales: `p-4` base, `xl:p-6` on desktop
 - Grid gap scales: `gap-4` base, `xl:gap-6` on desktop
 
-**CDN dependencies (loaded in `<head>`):**
+**CDN dependencies (loaded in `<head>`, identical on both `index.html` and `foundation.html`):**
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| Tailwind CSS | v2 (base) + Play CDN | Utility-first CSS framework |
-| DaisyUI | v4 | Component library (cards, tables, badges, alerts, spinners) |
-| Alpine.js | v3 | Reactive UI state and DOM binding |
+| Tailwind CSS | Play CDN (3.x JIT, unpinned) | Utility-first CSS framework — a browser JIT compiler, so SRI pinning doesn't apply to it |
+| DaisyUI | `4.12.14`, pinned with `integrity`/`crossorigin` (SRI) | Component library (cards, tables, badges, alerts, spinners) |
+| Alpine.js | `3.14.8`, pinned with `integrity`/`crossorigin` (SRI) | Reactive UI state and DOM binding |
+
+The old unpinned `tailwindcss@2` prebuilt CSS and an incompatible `@tailwindcss/browser` 4.x
+build were both removed as part of the security-hardening pass — see
+`docs/03_Solution/architecture/code_explanations/SECURITY_CODE_EXPLANATIONS.md` and
+`UI_CODE_EXPLANATIONS.md` in the same folder.
 
 **How Alpine.js is wired:**
 

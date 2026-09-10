@@ -3,62 +3,9 @@
 Executable bootstrap/build/validate scripts for the raw-SQL DDL track.
 Run from the repository root.
 
-## Execution Order
-
-### macOS / Linux (bash)
-
-```bash
-# Step 1: Create database and roles (as superuser)
-psql -U postgres -d postgres -f database/scripts/00_create_database.sql
-
-# Step 2: Set passwords for both roles (as superuser)
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
-
-# Step 3: Install extensions and create nss schema (as superuser)
-psql -U postgres -d nss_erp -f database/scripts/01_extensions.sql
-
-# Step 4: Build all DDL + seed (as nss_db_owner)
-./database/scripts/02_build.sh
-
-# Step 5: Validate (as nss_db_owner)
-./database/scripts/03_validate.sh
-
-# Step 6: Grant backend role read-only access (as nss_db_owner)
-psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
-
-# Step 7: Create api/.env and start the API
-#   See api/ section below
-```
-
-### Windows (PowerShell)
-
-```powershell
-# Step 1: Create database and roles (as superuser)
-psql -U postgres -d postgres -f database\scripts\00_create_database.sql
-
-# Step 2: Set passwords for both roles (as superuser)
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
-
-# Step 3: Install extensions and create nss schema (as superuser)
-psql -U postgres -d nss_erp -f database\scripts\01_extensions.sql
-
-# Step 4: Build all DDL + seed (as nss_db_owner)
-.\database\scripts\02_build.ps1
-
-# Step 5: Validate (as nss_db_owner)
-.\database\scripts\03_validate.ps1
-
-# Step 6: Grant backend role read-only access (as nss_db_owner)
-psql -U nss_db_owner -d nss_erp -f database\scripts\04_grant_backend.sql
-
-# Step 7: Create api\.env and start the API
-#   See api\ section below
-```
-
-> **Never commit real passwords.** Use `.pgpass` (macOS/Linux) or `%APPDATA%\postgresql\pgpass.conf`
-> (Windows) for passwordless `psql` connections, or set `PGPASSWORD` in your shell session.
+> **Getting started?** See the root `README.md` → **Getting Started** section for the full
+> step-by-step setup sequence (database → API → tests). This file is the detailed script
+> reference.
 
 ## Script Reference
 
@@ -160,60 +107,6 @@ must not contain different business logic, database statements, or schema defini
 Platform-specific behaviour is limited to shell mechanics (variable substitution, exit
 codes, colour output). Both wrappers execute the same DDL and seed files in the same order.
 
-## Starting the FastAPI API (after database bootstrap)
+## Starting the API
 
-After the database is built and validated, grant `nss_db_backend` read access
-and start the API:
-
-```bash
-# Grant backend privileges (step 6)
-psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
-
-# Install Python dependencies
-# macOS / Linux:
-python3 -m pip install -r requirements.txt
-# Windows:
-#   py -m pip install -r requirements.txt
-
-# Create api/.env with the nss_db_backend password from step 2
-# macOS / Linux:
-cat > api/.env << 'EOF'
-DB_NAME=nss_erp
-DB_USER=nss_db_backend
-DB_PASSWORD=your_password_here
-DB_HOST=localhost
-DB_PORT=5432
-EOF
-```
-
-Windows (PowerShell):
-
-```powershell
-@"
-DB_NAME=nss_erp
-DB_USER=nss_db_backend
-DB_PASSWORD=your_password_here
-DB_HOST=localhost
-DB_PORT=5432
-"@ | Out-File -Encoding utf8 api\.env
-```
-
-```bash
-
-# Start the API (from the repository root)
-# macOS / Linux:
-python3 -m uvicorn api.main:app --reload --port 8001
-# Windows:
-#   py -m uvicorn api.main:app --reload --port 8001
-```
-
-Swagger UI: `http://localhost:8001/docs`
-
-Tier 0 endpoints (read-only, no authentication):
-
-| Method | URL | Returns |
-|--------|-----|---------|
-| GET | `http://localhost:8001/api/v1/bootstrap/health` | Status + database connectivity |
-| GET | `http://localhost:8001/api/v1/bootstrap/roles` | 8 frozen roles |
-| GET | `http://localhost:8001/api/v1/bootstrap/permissions` | Empty list (by design) |
-| GET | `http://localhost:8001/api/v1/bootstrap/roles/{role_pk}/permissions` | Permissions for a role (empty) |
+See root `README.md` → **Getting Started** → Steps 2–4 for API setup, startup, and testing.
