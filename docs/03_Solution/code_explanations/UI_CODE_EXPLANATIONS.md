@@ -100,6 +100,13 @@ file):
   complete DOM.
 - The local stylesheet `/assets/css/style.css` (§2.5) is loaded last, after the CDN
   stylesheets, so any override rules in it win on specificity ties.
+- A page-local `<style>` block (identical across `index.html`, `foundation.html`, and
+  `organization.html`) follows the `style.css` link, overriding DaisyUI's default
+  `.badge`/`.badge-xs`/`.badge-sm` padding and defining 6 `.badge-status-*` classes for
+  distinct per-status colors. The padding override affects every badge on this page (the
+  health-status dot and the roles-count badge); the `.badge-status-*` classes themselves are
+  unused here — they only apply to Organization's 6 lifecycle statuses (see §2.6) — but the
+  block is duplicated on all three pages rather than factored into `style.css` itself.
 
 ---
 
@@ -122,6 +129,13 @@ Served by FastAPI's `GET /organization` route, conditional on the file existing 
   DaisyUI 4.12.14 with SRI (`sha384-iMbeRReqpIEp0z+...`), Alpine.js 3.14.8 with SRI
   (`sha384-X9kJyAubVxnP0hcA+...`), local `style.css`. Only the `<title>` differs
   ("— Organization Verification").
+- A page-local `<style>` block (also duplicated in `index.html`/`foundation.html` — see below)
+  overrides DaisyUI's default `.badge`/`.badge-xs`/`.badge-sm` padding (`!important`, since
+  DaisyUI's CDN stylesheet loads after any plain CSS in `style.css` and would otherwise win)
+  and defines 6 `.badge-status-*` classes (`active`/`proposed`/`approved`/`suspended`/
+  `inactive`/`archived`), each a solid background color with white text — replacing DaisyUI's
+  generic semantic badges (`badge-success`/`badge-warning`/`badge-ghost`) so all 6 lifecycle
+  statuses get their own distinct, readable color instead of 3 statuses sharing `badge-ghost`.
 
 **Root component:**
 ```html
@@ -158,14 +172,26 @@ text spill for long names like "Anchalika Sangha".
 
 **Tab 2 — Organizations:** Filter controls at the top (type and status dropdowns, both
 `x-model`-bound to `selectedTypeFilter`/`selectedStatusFilter`, triggering
-`filterOrganizations()` on change). Below, a responsive table of organizations with
-clickable rows (`@click="selectOrganization(org)"`). When an organization is selected, a
-detail panel appears below the table showing:
+`filterOrganizations()` on change — see §2.7 for the full current body, including the
+auto-select-on-single-result behavior). The status `<select>` is `:disabled` (and dimmed via
+`:class="{ 'opacity-40 cursor-not-allowed': ... }"`) whenever the type filter is `KENDRA`,
+`NILACHALA_KUTIRA`, or `SMRUTI_MANDIRA` — each is a unique singleton type with no meaningful
+status dimension. Below, a responsive table of organizations with
+clickable rows (`@click="selectOrganization(org)"`); each row's status badge uses the
+`badge-status-*` classes (one `:class` binding per status code — `active`/`proposed`/
+`approved`/`suspended`/`inactive`/`archived`) rather than DaisyUI's generic semantic badges.
+When an organization is selected, a detail panel appears below the table showing:
 - Full organization metadata (name, code, ID, type, status).
 - Address information (address lines, city/village, district, state, country, postal code).
 - Coordinates (latitude, longitude) if present.
-- Direct children list (fetched via `/organizations/{pk}/children`), with its own
-  loading/empty state handling.
+- A Children section — wrapped in `<template x-if="!['NILACHALA_KUTIRA', 'SMRUTI_MANDIRA',
+  'PATHA_CHAKRA', 'SAKHA_ASANA'].includes(selectedOrg.organization_type_code)">` — entirely
+  hidden for org types that structurally cannot have children (the two unique institutional
+  types, plus `PATHA_CHAKRA` and `SAKHA_ASANA`, both leaf types in the hierarchy). When shown,
+  the children list (fetched via `/organizations/{pk}/children`) has its own loading/empty
+  state handling and, since the fix, the same `badge-status-*` classes as the parent table
+  (previously every child row was hardcoded `badge-status-active`/`badge-success` regardless
+  of its actual status).
 
 **Tab 3 — Hierarchy:** Flat tree rendering of the recursive CTE result. Each node is
 rendered as a row with indentation controlled by:
@@ -174,7 +200,10 @@ rendered as a row with indentation controlled by:
 ```
 - `depthIndent(depth)` returns `padding-left: ${depth * 1.5}rem` — depth 0 (roots) has no
   indent, depth 1 gets 1.5rem, depth 2 gets 3rem, etc. Each node shows its name,
-  type badge, status badge, and code.
+  type badge, and status badge (also using the 6 `badge-status-*` classes, replacing an
+  earlier 3-way `active`/`proposed`/"everything else" `badge-ghost` mapping that collapsed
+  `approved`/`suspended`/`inactive`/`archived` into one indistinguishable grey badge), and
+  code.
 
 **Footer and script include:** Same copyright footer as the other pages. Loads
 `<script src="/assets/js/organization.js"></script>` at the bottom.
@@ -313,12 +342,34 @@ async fetchOrganizations() {
 
 ```javascript
 async filterOrganizations() {
+    // Clear detail panel — previous selection may not exist in new filter results
+    this.selectedOrg = null;
+    this.orgChildren = [];
+
+    // Status filter is not applicable for unique institutional types
+    const noStatusTypes = ['KENDRA', 'NILACHALA_KUTIRA', 'SMRUTI_MANDIRA'];
+    if (noStatusTypes.includes(this.selectedTypeFilter)) {
+        this.selectedStatusFilter = '';
+    }
+
     this.organizations = [];
     await this.fetchOrganizations();
+
+    // Auto-select if filter yields exactly one result
+    if (this.organizations.length === 1) {
+        await this.selectOrganization(this.organizations[0]);
+    }
 },
 ```
-- Bound to both filter dropdowns' `@change`. Blanks the array first (so the loading
-  spinner shows), then re-fetches with the current filter values.
+- Bound to both filter dropdowns' `@change`. Clears `selectedOrg`/`orgChildren` first, since
+  the previously-selected organization may not be in the new filtered result set. `KENDRA`,
+  `NILACHALA_KUTIRA`, and `SMRUTI_MANDIRA` are each a unique, singleton institutional type with
+  no meaningful status filter (there's only ever one row) — selecting one of them as the type
+  filter forces `selectedStatusFilter` back to `""` (the corresponding `<select>` is also
+  `:disabled` and dimmed in `organization.html`, see §2.6). Blanks the array (so the loading
+  spinner shows), re-fetches, then auto-selects the single result if the filter narrowed the
+  list to exactly one organization — sparing the user an extra click for the common
+  "look up one org by type" case.
 
 ```javascript
 async selectOrganization(org) {
@@ -822,7 +873,8 @@ route, conditional on the file existing on disk.
   `integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR"`
   hash, same Alpine.js 3.14.8 `<script defer>` with the identical
   `integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb"`
-  hash, same local `/assets/css/style.css` link. Only the `<title>` differs
+  hash, same local `/assets/css/style.css` link, and the same trailing `.badge-status-*`
+  `<style>` block described in §2.1. Only the `<title>` differs
   ("— Foundation Verification").
 
 **Root component and header (lines 20–35):**
