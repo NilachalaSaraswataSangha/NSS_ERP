@@ -191,3 +191,22 @@ WHERE mc.category_code = 'ORGANIZATION_TYPE';
 -- (STATUS values are above — unified ERP-wide category
 --  replaces the former per-module ORGANIZATION_STATUS)
 -- -------------------------------------------------
+
+-- -------------------------------------------------
+-- BLOOD_GROUP values
+-- -------------------------------------------------
+
+INSERT INTO nss.master_data (master_category_pk, value_code, value_name, display_order)
+SELECT mc.master_category_pk, v.value_code, v.value_name, v.display_order
+FROM nss.master_category mc
+CROSS JOIN (VALUES
+    ('A_POSITIVE',  'A+',  1),
+    ('A_NEGATIVE',  'A-',  2),
+    ('B_POSITIVE',  'B+',  3),
+    ('B_NEGATIVE',  'B-',  4),
+    ('AB_POSITIVE', 'AB+', 5),
+    ('AB_NEGATIVE', 'AB-', 6),
+    ('O_POSITIVE',  'O+',  7),
+    ('O_NEGATIVE',  'O-',  8)
+) AS v(value_code, value_name, display_order)
+WHERE mc.category_code = 'BLOOD_GROUP';

@@ -121,6 +121,11 @@ else
     run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
 
     echo ""
+    echo "--- Phase 5: Person — DDL ---"
+    run_sql "person"         "${DDL_BASE}/03_person/02_person.sql"
+    run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
+
+    echo ""
     echo "=== Database bootstrap complete (Neon.dev) ==="
 fi
 

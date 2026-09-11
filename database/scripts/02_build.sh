@@ -9,7 +9,7 @@
 #
 # Authority: SOL-ARCH-010 (DDL Creation Order),
 #            SOL-ARCH-011 (Bootstrap Architecture)
-# Version: 2.0
+# Version: 2.1  — idempotent re-run (SKIP on "already exists")
 #
 # Usage:
 #   ./database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
@@ -33,10 +33,11 @@
 #              category and unified STATUS category in master_data)
 #   Phase 3  — Organization DDL (1 table)
 #   Phase 4  — Organization seed data
+#   Phase 5  — Person DDL (2 tables)
 #
 # NOT executed:
-#   - database/ddl/03_person/  (superseded prototype)
-#   - database/seed/03_person/ (superseded prototype)
+#   - database/ddl/03_person/01_person_master_tables.sql (superseded)
+#   - database/seed/03_person/ (superseded — data in Foundation seed)
 #   - Pass 2 audit-actor FK constraints (deferred)
 # =====================================================
 
@@ -70,6 +71,7 @@ NC='\033[0m'
 
 total=0
 failed=0
+skipped=0
 
 run_sql() {
     local label="$1"
@@ -79,12 +81,20 @@ run_sql() {
     if output=$(${PSQL} -f "${file}" 2>&1); then
         echo -e "  ${GREEN}[OK]${NC}   ${label}"
     else
-        echo -e "  ${RED}[FAIL]${NC} ${label}"
-        echo -e "  ${RED}Error:${NC}"
-        echo "${output}" | sed 's/^/         /'
-        failed=$((failed + 1))
-        echo -e "  ${RED}Aborting — fix the above error before continuing.${NC}"
-        exit 1
+        # Check for idempotent-safe errors (table/index already exists,
+        # duplicate seed rows).  These are expected on re-runs and should
+        # not abort the build.
+        if echo "${output}" | grep -qiE 'already exists|duplicate key value violates unique constraint'; then
+            echo -e "  ${YELLOW}[SKIP]${NC} ${label}  (already exists)"
+            skipped=$((skipped + 1))
+        else
+            echo -e "  ${RED}[FAIL]${NC} ${label}"
+            echo -e "  ${RED}Error:${NC}"
+            echo "${output}" | sed 's/^/         /'
+            failed=$((failed + 1))
+            echo -e "  ${RED}Aborting — fix the above error before continuing.${NC}"
+            exit 1
+        fi
     fi
 }
 
@@ -179,12 +189,24 @@ run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_org
 echo ""
 
 # -------------------------------------------------
+# Phase 5: Person DDL (2 tables, Depths 2–3)
+# Note: 01_person_master_tables.sql is SUPERSEDED —
+#       gender/marital_status/address_type data is now
+#       in Foundation master_data seed.
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 5] Person — DDL (2 tables)${NC}"
+run_sql "person"         "${DDL_BASE}/03_person/02_person.sql"
+run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
+echo ""
+
+# -------------------------------------------------
 # Summary
 # -------------------------------------------------
 echo -e "${CYAN}=============================================${NC}"
 echo -e "${CYAN}  BUILD SUMMARY${NC}"
 echo -e "${CYAN}=============================================${NC}"
 echo -e "  Scripts executed: ${total}"
+echo -e "  Skipped:          ${skipped}  (already existed)"
 echo -e "  Failed:           ${failed}"
 echo ""
 
@@ -192,7 +214,7 @@ if [ "$failed" -eq 0 ]; then
     echo -e "  ${GREEN}Database build completed successfully.${NC}"
     echo ""
     echo -e "  ${YELLOW}Not executed (future phases):${NC}"
-    echo "    - Person DDL (03_person/ is superseded — awaiting rewrite)"
+    echo "    - Person seed (03_person/ is superseded — data in Foundation seed)"
     echo "    - Authentication, Administration, remaining modules"
     echo "    - Pass 2 audit-actor FK constraints"
     exit 0

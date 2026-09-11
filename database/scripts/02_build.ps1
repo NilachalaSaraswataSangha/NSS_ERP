@@ -7,7 +7,7 @@
 # modules only.
 #
 # Authority: SOL-ARCH-010, SOL-ARCH-011
-# Version: 2.0
+# Version: 2.1  - idempotent re-run (SKIP on "already exists")
 #
 # Usage:
 #   .\database\scripts\02_build.ps1 [-DbName nss_erp] [-DbUser nss_db_owner] [-DbHost localhost] [-DbPort 5432]
@@ -44,6 +44,7 @@ $SeedBase = "$RepoRoot\database\seed"
 
 $total = 0
 $failed = 0
+$skipped = 0
 
 function Invoke-Sql {
     param([string]$Label, [string]$File)
@@ -52,12 +53,21 @@ function Invoke-Sql {
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  [OK]   $Label" -ForegroundColor Green
     } else {
-        Write-Host "  [FAIL] $Label" -ForegroundColor Red
-        Write-Host "  Error:" -ForegroundColor Red
-        $output | ForEach-Object { Write-Host "         $_" }
-        $script:failed++
-        Write-Host "  Aborting - fix the above error before continuing." -ForegroundColor Red
-        exit 1
+        # Check for idempotent-safe errors (table/index already exists,
+        # duplicate seed rows).  These are expected on re-runs and should
+        # not abort the build.
+        $outputText = ($output | Out-String)
+        if ($outputText -match 'already exists|duplicate key value violates unique constraint') {
+            Write-Host "  [SKIP] $Label  (already exists)" -ForegroundColor Yellow
+            $script:skipped++
+        } else {
+            Write-Host "  [FAIL] $Label" -ForegroundColor Red
+            Write-Host "  Error:" -ForegroundColor Red
+            $output | ForEach-Object { Write-Host "         $_" }
+            $script:failed++
+            Write-Host "  Aborting - fix the above error before continuing." -ForegroundColor Red
+            exit 1
+        }
     }
 }
 
@@ -132,11 +142,21 @@ Write-Host "[Phase 4] Organization - Seed Data" -ForegroundColor Cyan
 Invoke-Sql "organization (seed)"               "$SeedBase\02_organization\03_organization.sql"
 Write-Host ""
 
+# Phase 5: Person DDL
+# Note: 01_person_master_tables.sql is SUPERSEDED -
+#       gender/marital_status/address_type data is now
+#       in Foundation master_data seed.
+Write-Host "[Phase 5] Person - DDL (2 tables)" -ForegroundColor Cyan
+Invoke-Sql "person"         "$DdlBase\03_person\02_person.sql"
+Invoke-Sql "person_address" "$DdlBase\03_person\03_person_address.sql"
+Write-Host ""
+
 # Summary
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  BUILD SUMMARY" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  Scripts executed: $total"
+Write-Host "  Skipped:          $skipped  (already existed)"
 Write-Host "  Failed:           $failed"
 Write-Host ""
 
@@ -144,7 +164,7 @@ if ($failed -eq 0) {
     Write-Host "  Database build completed successfully." -ForegroundColor Green
     Write-Host ""
     Write-Host "  Not executed (future phases):" -ForegroundColor Yellow
-    Write-Host "    - Person DDL (03_person/ is superseded - awaiting rewrite)"
+    Write-Host "    - Person seed (03_person/ is superseded - data in Foundation seed)"
     Write-Host "    - Authentication, Administration, remaining modules"
     Write-Host "    - Pass 2 audit-actor FK constraints"
     exit 0

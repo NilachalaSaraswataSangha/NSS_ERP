@@ -86,4 +86,10 @@ VALUES
     'Organization Type',
     'Types of organizations in the NSS hierarchy',
     12
+),
+(
+    'BLOOD_GROUP',
+    'Blood Group',
+    'Blood group classification for persons',
+    13
 );
