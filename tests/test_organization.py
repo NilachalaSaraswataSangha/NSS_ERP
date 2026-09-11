@@ -139,6 +139,9 @@ class TestOrganizations:
             "organization_status_name",
             "parent_organization_pk", "parent_organization_name",
             "address_line_1", "address_line_2",
+            "phone_number", "mobile_number", "email", "org_email",
+            "website_url", "org_website_url",
+            "youtube_channel_url", "org_youtube_channel_url",
             "district_pk", "district_name",
             "state_pk", "state_name",
             "country_pk", "country_name",
@@ -219,6 +222,53 @@ class TestOrganizations:
         r = client.get(f"{BASE}/organizations", params={"type_code": "KENDRA"})
         kendra = r.json()[0]
         assert kendra["postal_code"] is not None
+
+    def test_contact_fields_nullable(self, client):
+        """Contact and online presence fields are present but NULL for seeded orgs."""
+        for org in client.get(f"{BASE}/organizations").json():
+            assert "phone_number" in org
+            assert "mobile_number" in org
+            assert "email" in org
+            assert "org_email" in org
+            assert "website_url" in org
+            assert "org_website_url" in org
+            assert "youtube_channel_url" in org
+            assert "org_youtube_channel_url" in org
+
+    def test_all_orgs_have_nss_youtube(self, client):
+        """All 3 organizations share the NSS YouTube channel URL."""
+        for org in client.get(f"{BASE}/organizations").json():
+            assert org["youtube_channel_url"] == "https://www.youtube.com/@NilachalaSaraswataSangha", (
+                f"{org['organization_code']} missing youtube_channel_url"
+            )
+
+    def test_kendra_has_contact_info(self, client):
+        """Kendra org has seeded phone, mobile, and website."""
+        r = client.get(f"{BASE}/organizations", params={"type_code": "KENDRA"})
+        kendra = r.json()[0]
+        assert kendra["phone_number"] == "+91-674-2390055"
+        assert kendra["mobile_number"] == "+91-9238106823"
+        assert kendra["website_url"] == "https://www.nsspuri.org"
+
+    def test_smruti_mandira_has_contact_info(self, client):
+        """Smruti Mandira has seeded phone."""
+        r = client.get(f"{BASE}/organizations", params={"type_code": "SMRUTI_MANDIRA"})
+        smr = r.json()[0]
+        assert smr["phone_number"] == "+91-6752-230631"
+
+    def test_all_orgs_have_nss_email(self, client):
+        """All 3 organizations share the NSS email address."""
+        for org in client.get(f"{BASE}/organizations").json():
+            assert org["email"] == "info@nsspuri.org", (
+                f"{org['organization_code']} missing email"
+            )
+
+    def test_all_orgs_have_nss_website(self, client):
+        """All 3 organizations share the NSS website URL."""
+        for org in client.get(f"{BASE}/organizations").json():
+            assert org["website_url"] == "https://www.nsspuri.org", (
+                f"{org['organization_code']} missing website_url"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

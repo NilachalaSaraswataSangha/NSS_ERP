@@ -320,6 +320,46 @@
                                     </template>
                                 </div>
 
+                                <!-- Contact -->
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs" x-show="selectedOrg.phone_number || selectedOrg.mobile_number">
+                                    <div x-show="selectedOrg.phone_number">
+                                        <span class="text-base-content/50">Phone:</span>
+                                        <span x-text="selectedOrg.phone_number"></span>
+                                    </div>
+                                    <div x-show="selectedOrg.mobile_number">
+                                        <span class="text-base-content/50">Mobile:</span>
+                                        <span x-text="selectedOrg.mobile_number"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Online Presence -->
+                                <div class="text-xs space-y-1">
+                                    <div>
+                                        <span class="text-base-content/50">NSS Email:</span>
+                                        <a :href="'mailto:' + selectedOrg.email" class="link link-primary" x-text="selectedOrg.email"></a>
+                                    </div>
+                                    <div x-show="selectedOrg.org_email">
+                                        <span class="text-base-content/50">Organization Email:</span>
+                                        <a :href="'mailto:' + selectedOrg.org_email" class="link link-primary" x-text="selectedOrg.org_email"></a>
+                                    </div>
+                                    <div>
+                                        <span class="text-base-content/50">NSS Website:</span>
+                                        <a :href="selectedOrg.website_url" target="_blank" rel="noopener noreferrer" class="link link-primary" x-text="selectedOrg.website_url"></a>
+                                    </div>
+                                    <div x-show="selectedOrg.org_website_url">
+                                        <span class="text-base-content/50">Organization Website:</span>
+                                        <a :href="selectedOrg.org_website_url" target="_blank" rel="noopener noreferrer" class="link link-primary" x-text="selectedOrg.org_website_url"></a>
+                                    </div>
+                                    <div>
+                                        <span class="text-base-content/50">NSS YouTube:</span>
+                                        <a :href="selectedOrg.youtube_channel_url" target="_blank" rel="noopener noreferrer" class="link link-primary" x-text="selectedOrg.youtube_channel_url"></a>
+                                    </div>
+                                    <div x-show="selectedOrg.org_youtube_channel_url">
+                                        <span class="text-base-content/50">Organization YouTube:</span>
+                                        <a :href="selectedOrg.org_youtube_channel_url" target="_blank" rel="noopener noreferrer" class="link link-primary" x-text="selectedOrg.org_youtube_channel_url"></a>
+                                    </div>
+                                </div>
+
                                 <!-- Geographic -->
                                 <div class="text-xs" x-show="selectedOrg.district_name || selectedOrg.state_name || selectedOrg.country_name">
                                     <span class="text-base-content/50">Location:</span>

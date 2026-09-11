@@ -53,6 +53,27 @@ CREATE TABLE nss.organization
 
     address_line_2 VARCHAR(200) NULL,
 
+    -- Contact information (operational requirement)
+    phone_number VARCHAR(20) NULL,
+
+    mobile_number VARCHAR(20) NULL,
+
+    email VARCHAR(254) NOT NULL
+        DEFAULT 'info@nsspuri.org',
+
+    org_email VARCHAR(254) NULL,
+
+    -- Online presence
+    website_url VARCHAR(500) NOT NULL
+        DEFAULT 'https://www.nsspuri.org',
+
+    org_website_url VARCHAR(500) NULL,
+
+    youtube_channel_url VARCHAR(500) NOT NULL
+        DEFAULT 'https://www.youtube.com/@NilachalaSaraswataSangha',
+
+    org_youtube_channel_url VARCHAR(500) NULL,
+
     district_pk UUID NULL,
 
     state_pk UUID NULL,

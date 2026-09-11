@@ -67,6 +67,18 @@ class OrganizationResponse(BaseModel):
     address_line_1: str | None
     address_line_2: str | None
 
+    # Contact information
+    phone_number: str | None
+    mobile_number: str | None
+    email: str
+    org_email: str | None
+
+    # Online presence
+    website_url: str
+    org_website_url: str | None
+    youtube_channel_url: str
+    org_youtube_channel_url: str | None
+
     # Geographic context (resolved names)
     district_pk: UUID | None
     district_name: str | None

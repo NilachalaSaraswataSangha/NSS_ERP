@@ -40,7 +40,8 @@ INSERT INTO nss.organization
     (organization_name, organization_type_pk,
      organization_status_pk, parent_organization_pk,
      organization_code,
-     address_line_1, address_line_2, postal_code_pk, country_pk)
+     address_line_1, address_line_2, postal_code_pk, country_pk,
+     phone_number, mobile_number)
 SELECT
     'Nilachala Saraswata Sangha',
     ot.organization_type_pk,
@@ -50,7 +51,9 @@ SELECT
     'Satsikshya Mandir, A/4, Unit-9',
     'Bhubaneswar',
     pc.postal_code_pk,
-    c.country_pk
+    c.country_pk,
+    '+91-674-2390055',
+    '+91-9238106823'
 FROM nss.organization_type_master ot
 CROSS JOIN nss.organization_status_master os
 CROSS JOIN nss.country c
@@ -98,17 +101,19 @@ INSERT INTO nss.organization
     (organization_name, organization_type_pk,
      organization_status_pk, parent_organization_pk,
      organization_code,
-     address_line_1, address_line_2, postal_code_pk, country_pk)
+     address_line_1, address_line_2, postal_code_pk, country_pk,
+     phone_number)
 SELECT
     'Sri Shri Nigamananda Smruti Mandir',
     ot.organization_type_pk,
     os.organization_status_pk,
     NULL,
     'SMR',
-    'Swargadwar',
+    'Swargadwar Rd, Bali Sahi',
     'Puri',
     pc.postal_code_pk,
-    c.country_pk
+    c.country_pk,
+    '+91-6752-230631'
 FROM nss.organization_type_master ot
 CROSS JOIN nss.organization_status_master os
 CROSS JOIN nss.country c
