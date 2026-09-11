@@ -15,6 +15,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.database import check_connection, get_connection
+from api.helpers import rows_to_models
 from api.schemas.bootstrap import (
     HealthResponse,
     PermissionResponse,
@@ -62,10 +63,7 @@ def list_roles(conn=Depends(get_connection)) -> list[RoleResponse]:
              ORDER BY display_order
             """
         )
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
-
-    return [RoleResponse(**dict(zip(columns, row))) for row in rows]
+        return rows_to_models(cur, RoleResponse)
 
 
 @router.get("/permissions", response_model=list[PermissionResponse])
@@ -91,10 +89,7 @@ def list_permissions(conn=Depends(get_connection)) -> list[PermissionResponse]:
              ORDER BY module_code, display_order
             """
         )
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
-
-    return [PermissionResponse(**dict(zip(columns, row))) for row in rows]
+        return rows_to_models(cur, PermissionResponse)
 
 
 @router.get(
@@ -146,7 +141,4 @@ def list_role_permissions(
             """,
             (str(role_pk),),
         )
-        columns = [desc[0] for desc in cur.description]
-        rows = cur.fetchall()
-
-    return [PermissionResponse(**dict(zip(columns, row))) for row in rows]
+        return rows_to_models(cur, PermissionResponse)

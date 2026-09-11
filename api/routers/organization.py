@@ -20,6 +20,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.database import get_connection
+from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
 from api.schemas.organization import (
     OrganizationHierarchyNodeResponse,
     OrganizationResponse,
@@ -28,23 +29,6 @@ from api.schemas.organization import (
 )
 
 router = APIRouter(prefix="/api/v1/organization", tags=["organization"])
-
-
-# ── helpers ────────────────────────────────────────────────────────────────
-
-def _rows_to_models(cur, model_class):
-    """Convert cursor results to a list of Pydantic models."""
-    columns = [desc[0] for desc in cur.description]
-    return [model_class(**dict(zip(columns, row))) for row in cur.fetchall()]
-
-
-def _row_to_model(cur, model_class):
-    """Convert a single cursor result to a Pydantic model, or None."""
-    columns = [desc[0] for desc in cur.description]
-    row = cur.fetchone()
-    if row is None:
-        return None
-    return model_class(**dict(zip(columns, row)))
 
 
 # ── Shared SQL fragment for the organization SELECT ──────────────────────
@@ -130,7 +114,7 @@ def list_organization_types(
               AND  md.is_active = TRUE
             ORDER BY md.display_order
         """)
-        return _rows_to_models(cur, OrganizationTypeResponse)
+        return rows_to_models(cur, OrganizationTypeResponse)
 
 
 @router.get("/statuses", response_model=list[StatusResponse])
@@ -153,7 +137,7 @@ def list_statuses(
               AND  md.is_active = TRUE
             ORDER BY md.display_order
         """)
-        return _rows_to_models(cur, StatusResponse)
+        return rows_to_models(cur, StatusResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -165,12 +149,15 @@ def list_statuses(
 def list_organizations(
     type_code: str | None = Query(None, description="Filter by organization type code"),
     status_code: str | None = Query(None, description="Filter by status code"),
+    limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows to return"),
+    offset: int = Query(0, ge=0, description="Number of rows to skip"),
     conn=Depends(get_connection),
 ) -> list[OrganizationResponse]:
     """
     List all active organizations with resolved type, status, and parent.
 
-    Optionally filter by type_code or status_code.
+    Optionally filter by type_code or status_code. Supports pagination
+    via limit/offset (default 100, max 500).
     """
     sql = _ORG_SELECT + " WHERE o.is_active = TRUE"
     params: list = []
@@ -183,10 +170,12 @@ def list_organizations(
         params.append(status_code)
 
     sql += " ORDER BY ot.display_order, o.organization_name"
+    sql += " LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
 
     with conn.cursor() as cur:
         cur.execute(sql, tuple(params))
-        return _rows_to_models(cur, OrganizationResponse)
+        return rows_to_models(cur, OrganizationResponse)
 
 
 @router.get(
@@ -202,7 +191,7 @@ def get_organization(
 
     with conn.cursor() as cur:
         cur.execute(sql, (str(organization_pk),))
-        result = _row_to_model(cur, OrganizationResponse)
+        result = row_to_model(cur, OrganizationResponse)
         if result is None:
             raise HTTPException(status_code=404, detail="Organization not found")
         return result
@@ -241,7 +230,7 @@ def list_organization_children(
 
     with conn.cursor() as cur:
         cur.execute(sql, (str(organization_pk),))
-        return _rows_to_models(cur, OrganizationResponse)
+        return rows_to_models(cur, OrganizationResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -251,12 +240,16 @@ def list_organization_children(
 
 @router.get("/hierarchy", response_model=list[OrganizationHierarchyNodeResponse])
 def get_organization_hierarchy(
+    limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows to return"),
+    offset: int = Query(0, ge=0, description="Number of rows to skip"),
     conn=Depends(get_connection),
 ) -> list[OrganizationHierarchyNodeResponse]:
     """
     Return the full organizational hierarchy as a flat list with depth.
 
     Uses a recursive CTE starting from root nodes (parent = NULL).
+    Depth is capped at 10 levels as a defence-in-depth guard against
+    circular parent references. Supports pagination via limit/offset.
     The UI reconstructs the tree using depth for indentation.
     """
     with conn.cursor() as cur:
@@ -283,7 +276,7 @@ def get_organization_hierarchy(
 
                 UNION ALL
 
-                -- Recursive: children
+                -- Recursive: children (depth capped at 10)
                 SELECT o.organization_pk,
                        o.organization_name,
                        o.organization_code,
@@ -302,8 +295,10 @@ def get_organization_hierarchy(
                 JOIN   org_tree t
                        ON t.organization_pk = o.parent_organization_pk
                 WHERE  o.is_active = TRUE
+                  AND  t.depth < 10
             )
             SELECT * FROM org_tree
             ORDER BY depth, organization_name
-        """)
-        return _rows_to_models(cur, OrganizationHierarchyNodeResponse)
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
+        return rows_to_models(cur, OrganizationHierarchyNodeResponse)

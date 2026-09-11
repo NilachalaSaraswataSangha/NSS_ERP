@@ -1,8 +1,10 @@
 """
 NSS ERP — FastAPI application entry point.
 
-Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization API + Frontend:
-  - Read-only endpoints for RBAC, Foundation, and Organization data verification
+Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person
+API + Frontend:
+  - Read-only endpoints for RBAC, Foundation, Organization, and Person data
+    verification
   - Serves frontend/ static files (Verification UIs)
   - No authentication (Tier 5)
   - No ORM — raw psycopg2 against nss.* schema
@@ -23,6 +25,7 @@ URLs:
     http://localhost:8001/              -> Bootstrap Verification UI
     http://localhost:8001/foundation    -> Foundation Verification UI
     http://localhost:8001/organization  -> Organization Verification UI
+    http://localhost:8001/person        -> Person Verification UI
     http://localhost:8001/docs          -> Swagger UI (OpenAPI)
     http://localhost:8001/api/v1/       -> API endpoints
 """
@@ -42,7 +45,7 @@ from slowapi.util import get_remote_address
 from api.config import settings
 from api.database import close_pool
 from api.middleware import add_security_headers
-from api.routers import bootstrap, foundation, organization
+from api.routers import bootstrap, foundation, organization, person
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -66,8 +69,8 @@ app = FastAPI(
     version="0.1.0",
     description=(
         "Nilachala Saraswata Sangha ERP — "
-        "Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization API. "
-        "Read-only verification endpoints."
+        "Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization "
+        "+ Tier 3 Person API. Read-only verification endpoints."
     ),
     lifespan=lifespan,
     docs_url=None if settings.DISABLE_DOCS else "/docs",
@@ -100,6 +103,7 @@ app.middleware("http")(add_security_headers)
 app.include_router(bootstrap.router)
 app.include_router(foundation.router)
 app.include_router(organization.router)
+app.include_router(person.router)
 
 # ── Frontend ─────────────────────────────────────────────────────────────
 # Serve static assets at /assets/*, index.html at /
@@ -133,3 +137,11 @@ if _FRONTEND_DIR.is_dir():
         async def serve_organization():
             """Serve the Organization Verification UI."""
             return FileResponse(str(_organization_path))
+
+    _person_path = _FRONTEND_DIR / "person.html"
+    if _person_path.is_file():
+
+        @app.get("/person", include_in_schema=False)
+        async def serve_person():
+            """Serve the Person Verification UI."""
+            return FileResponse(str(_person_path))

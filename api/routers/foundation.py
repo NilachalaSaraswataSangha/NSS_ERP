@@ -20,6 +20,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.database import get_connection
+from api.helpers import row_to_model, rows_to_models
 from api.schemas.foundation import (
     CategoryResponse,
     CityVillageResponse,
@@ -35,23 +36,6 @@ from api.schemas.foundation import (
 )
 
 router = APIRouter(prefix="/api/v1/foundation", tags=["foundation"])
-
-
-# ── helpers ────────────────────────────────────────────────────────────────
-
-def _rows_to_models(cur, model_class):
-    """Convert cursor results to a list of Pydantic models."""
-    columns = [desc[0] for desc in cur.description]
-    return [model_class(**dict(zip(columns, row))) for row in cur.fetchall()]
-
-
-def _row_to_model(cur, model_class):
-    """Convert a single cursor result to a Pydantic model, or None."""
-    columns = [desc[0] for desc in cur.description]
-    row = cur.fetchone()
-    if row is None:
-        return None
-    return model_class(**dict(zip(columns, row)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -70,7 +54,7 @@ def list_categories(conn=Depends(get_connection)) -> list[CategoryResponse]:
             WHERE  is_active = TRUE
             ORDER BY display_order, category_name
         """)
-        return _rows_to_models(cur, CategoryResponse)
+        return rows_to_models(cur, CategoryResponse)
 
 
 @router.get("/categories/{master_category_pk}", response_model=CategoryResponse)
@@ -86,7 +70,7 @@ def get_category(
             FROM   nss.master_category
             WHERE  master_category_pk = %s AND is_active = TRUE
         """, (str(master_category_pk),))
-        result = _row_to_model(cur, CategoryResponse)
+        result = row_to_model(cur, CategoryResponse)
         if result is None:
             raise HTTPException(status_code=404, detail="Category not found")
         return result
@@ -131,7 +115,7 @@ def list_master_data(
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
-        return _rows_to_models(cur, MasterDataResponse)
+        return rows_to_models(cur, MasterDataResponse)
 
 
 @router.get("/master-data/{master_data_pk}", response_model=MasterDataResponse)
@@ -153,7 +137,7 @@ def get_master_data(
               AND  md.is_active = TRUE
               AND  mc.is_active = TRUE
         """, (str(master_data_pk),))
-        result = _row_to_model(cur, MasterDataResponse)
+        result = row_to_model(cur, MasterDataResponse)
         if result is None:
             raise HTTPException(status_code=404, detail="Master data value not found")
         return result
@@ -175,7 +159,7 @@ def list_settings(conn=Depends(get_connection)) -> list[SettingResponse]:
             WHERE  is_active = TRUE
             ORDER BY setting_key
         """)
-        return _rows_to_models(cur, SettingResponse)
+        return rows_to_models(cur, SettingResponse)
 
 
 @router.get("/settings/{setting_key}", response_model=SettingResponse)
@@ -196,7 +180,7 @@ def get_setting_by_key(
             FROM   nss.system_setting
             WHERE  setting_key = %s AND is_active = TRUE
         """, (setting_key,))
-        result = _row_to_model(cur, SettingResponse)
+        result = row_to_model(cur, SettingResponse)
         if result is None:
             raise HTTPException(status_code=404, detail="Setting not found")
         return result
@@ -219,7 +203,7 @@ def list_sequences(conn=Depends(get_connection)) -> list[SequenceResponse]:
             WHERE  is_active = TRUE
             ORDER BY sequence_code
         """)
-        return _rows_to_models(cur, SequenceResponse)
+        return rows_to_models(cur, SequenceResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -238,7 +222,7 @@ def list_countries(conn=Depends(get_connection)) -> list[CountryResponse]:
             WHERE  is_active = TRUE
             ORDER BY display_order, country_name
         """)
-        return _rows_to_models(cur, CountryResponse)
+        return rows_to_models(cur, CountryResponse)
 
 
 @router.get("/countries/{country_pk}", response_model=CountryResponse)
@@ -254,7 +238,7 @@ def get_country(
             FROM   nss.country
             WHERE  country_pk = %s AND is_active = TRUE
         """, (str(country_pk),))
-        result = _row_to_model(cur, CountryResponse)
+        result = row_to_model(cur, CountryResponse)
         if result is None:
             raise HTTPException(status_code=404, detail="Country not found")
         return result
@@ -290,7 +274,7 @@ def list_states(
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
-        return _rows_to_models(cur, StateResponse)
+        return rows_to_models(cur, StateResponse)
 
 
 @router.get("/states/{state_pk}", response_model=StateResponse)
@@ -311,7 +295,7 @@ def get_state(
               AND  s.is_active = TRUE
               AND  c.is_active = TRUE
         """, (str(state_pk),))
-        result = _row_to_model(cur, StateResponse)
+        result = row_to_model(cur, StateResponse)
         if result is None:
             raise HTTPException(status_code=404, detail="State not found")
         return result
@@ -348,7 +332,7 @@ def list_districts(
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
-        return _rows_to_models(cur, DistrictResponse)
+        return rows_to_models(cur, DistrictResponse)
 
 
 @router.get("/districts/{district_pk}", response_model=DistrictResponse)
@@ -369,7 +353,7 @@ def get_district(
               AND  d.is_active = TRUE
               AND  s.is_active = TRUE
         """, (str(district_pk),))
-        result = _row_to_model(cur, DistrictResponse)
+        result = row_to_model(cur, DistrictResponse)
         if result is None:
             raise HTTPException(status_code=404, detail="District not found")
         return result
@@ -407,7 +391,7 @@ def list_cities(
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
-        return _rows_to_models(cur, CityVillageResponse)
+        return rows_to_models(cur, CityVillageResponse)
 
 
 @router.get("/postal-codes", response_model=list[PostalCodeResponse])
@@ -442,7 +426,7 @@ def list_postal_codes(
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
-        return _rows_to_models(cur, PostalCodeResponse)
+        return rows_to_models(cur, PostalCodeResponse)
 
 
 @router.get("/postal-code-mappings", response_model=list[PostalCodeMappingResponse])
@@ -482,7 +466,7 @@ def list_postal_code_mappings(
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
-        return _rows_to_models(cur, PostalCodeMappingResponse)
+        return rows_to_models(cur, PostalCodeMappingResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -522,4 +506,4 @@ def list_documents(
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
-        return _rows_to_models(cur, DocumentResponse)
+        return rows_to_models(cur, DocumentResponse)
