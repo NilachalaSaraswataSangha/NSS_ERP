@@ -1,8 +1,8 @@
 # NSS ERP — Person ERD
 
 **Document ID:** SOL-PER-002
-**Version:** 1.0.0
-**Status:** DRAFT — SOURCE ALIGNED
+**Version:** 2.0.0
+**Status:** FROZEN
 **Module:** Person
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -81,15 +81,15 @@ A Person may exist without a Membership record.
 
 # 4. Current Person Module Tables
 
-The current source identifies two core Person Module tables:
+The Person Module owns two tables:
 
 ```text
 person
-document_master
+person_address
 ```
 
-These are the current Person Module tables identified in the project schema
-baseline.
+`document_master` is owned by Foundation but consumed by Person through
+`photo_document_master_pk`.
 
 ---
 
@@ -98,6 +98,7 @@ baseline.
 ```mermaid
 erDiagram
 
+    PERSON ||--o{ PERSON_ADDRESS : "has addresses"
     PERSON ||--o{ DOCUMENT_MASTER : "has documents"
 
     PERSON {
@@ -106,21 +107,44 @@ erDiagram
         VARCHAR first_name
         VARCHAR middle_name
         VARCHAR last_name
-        UUID gender_pk FK
         DATE date_of_birth
         DATE date_of_death
+        UUID gender_master_data_pk FK
+        UUID marital_status_master_data_pk FK
+        UUID blood_group_master_data_pk FK
+        VARCHAR country_phone_code
         VARCHAR mobile_number UK
         VARCHAR email
+        BYTEA aadhaar_encrypted
+        VARCHAR aadhaar_hash
+        VARCHAR aadhaar_last4
+        UUID photo_document_master_pk FK
+        VARCHAR emergency_contact_name
+        VARCHAR emergency_contact_phone
+        UUID emergency_relationship_master_data_pk FK
+        TEXT remarks
         BOOLEAN is_active
-        TIMESTAMP created_at
-        TIMESTAMP updated_at
+    }
+
+    PERSON_ADDRESS {
+        UUID person_address_pk PK
+        UUID person_pk FK
+        UUID address_type_master_data_pk FK
+        VARCHAR address_line_1
+        VARCHAR address_line_2
+        VARCHAR landmark
+        UUID district_pk FK
+        UUID state_pk FK
+        UUID country_pk FK
+        UUID city_village_pk FK
+        UUID postal_code_pk FK
+        BOOLEAN is_primary
+        BOOLEAN is_active
     }
 
     DOCUMENT_MASTER {
-        UUID document_pk PK
-        UUID person_pk FK
-        UUID document_type_pk FK
-        VARCHAR document_number
+        UUID document_master_pk PK
+        UUID document_type_master_data_pk FK
         VARCHAR storage_path
         VARCHAR checksum
         INTEGER version
@@ -128,7 +152,9 @@ erDiagram
     }
 ```
 
-The exact final document columns will be confirmed during Table Design.
+Person contains 28 physical columns (audit columns omitted from diagram
+for readability). `document_master` is Foundation-owned; shown here for
+the `photo_document_master_pk` relationship.
 
 ---
 
@@ -729,13 +755,25 @@ It is an identity-management operation, not a normal CRUD operation.
 
 ---
 
-# 46. Person Address Boundary
+# 46. Person Address
 
-Person address information is part of the Person domain.
+Person address is implemented as a separate `person_address` table.
 
-The exact address entity/table relationship is intentionally left for the
-Person Table Design because the current source does not justify inventing
-the final address structure here.
+The relationship is:
+
+```text
+PERSON
+   1
+   |
+   | 0..N
+   |
+   ▼
+PERSON_ADDRESS
+```
+
+Address types are drawn from Foundation `master_data` (category
+ADDRESS_TYPE). A primary-address uniqueness constraint ensures at most one
+primary address per active Person record.
 
 ---
 
@@ -766,6 +804,7 @@ the final address structure here.
 ```mermaid
 erDiagram
 
+    PERSON ||--o{ PERSON_ADDRESS : "has"
     PERSON ||--o{ DOCUMENT_MASTER : "has"
 
     PERSON {
@@ -774,21 +813,41 @@ erDiagram
         VARCHAR first_name
         VARCHAR middle_name
         VARCHAR last_name
-        UUID gender_pk FK
         DATE date_of_birth
         DATE date_of_death
+        UUID gender_master_data_pk FK
+        UUID marital_status_master_data_pk FK
+        UUID blood_group_master_data_pk FK
+        VARCHAR country_phone_code
         VARCHAR mobile_number UK
         VARCHAR email
+        BYTEA aadhaar_encrypted
+        VARCHAR aadhaar_hash
+        VARCHAR aadhaar_last4
+        UUID photo_document_master_pk FK
+        VARCHAR emergency_contact_name
+        VARCHAR emergency_contact_phone
+        UUID emergency_relationship_master_data_pk FK
+        TEXT remarks
         BOOLEAN is_active
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
 
-    DOCUMENT_MASTER {
-        UUID document_pk PK
+    PERSON_ADDRESS {
+        UUID person_address_pk PK
         UUID person_pk FK
-        UUID document_type_pk FK
-        VARCHAR document_number
+        UUID address_type_master_data_pk FK
+        VARCHAR address_line_1
+        VARCHAR address_line_2
+        VARCHAR landmark
+        BOOLEAN is_primary
+        BOOLEAN is_active
+    }
+
+    DOCUMENT_MASTER {
+        UUID document_master_pk PK
+        UUID document_type_master_data_pk FK
         VARCHAR storage_path
         VARCHAR checksum
         INTEGER version
@@ -1086,18 +1145,19 @@ Domain participation is layered on top of this identity.
 
 This document defines the logical Person identity relationships.
 
-It does not finalize:
+The following are now frozen in the Person DDL (v2.0) and Table Design
+(SOL-PER-004 v2.0.0):
 
-* Full Person column list
-* Full address structure
-* Full document metadata structure
-* Physical sensitive-data storage
-* PostgreSQL constraints
-* PostgreSQL indexes
+* Full Person column list (28 columns)
+* Address structure (person_address table)
+* Physical sensitive-data storage (Aadhaar triplet)
+* PostgreSQL constraints and indexes
+
+The following remain outside this ERD:
+
 * Django model implementation
 * API implementation
-
-Those belong to subsequent solution/implementation documents.
+* Person merge workflow
 
 ---
 
@@ -1167,8 +1227,8 @@ Those belong to subsequent solution/implementation documents.
 
 ```text
 PERSON
-   │
-   └── DOCUMENT_MASTER
+   ├── PERSON_ADDRESS
+   └── DOCUMENT_MASTER (Foundation-owned, referenced via photo FK)
 
 External relationships:
 
@@ -1190,10 +1250,13 @@ PERSON
 
 ```text
 DOCUMENT STATUS:
-DRAFT — SOURCE ALIGNED
+FROZEN
 
 VERSION:
-1.0.0
+2.0.0
+
+FROZEN DATE:
+2026-09-11
 ```
 
 ---

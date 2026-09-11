@@ -1,8 +1,8 @@
 # NSS ERP — Person Business Rules
 
 **Document ID:** SOL-PER-003  
-**Version:** 1.0.0  
-**Status:** DRAFT — SOURCE ALIGNED  
+**Version:** 2.0.0  
+**Status:** FROZEN  
 **Module:** Person  
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -1140,28 +1140,26 @@ The following are intentionally left to later solution/implementation
 documents:
 
 ```text
-Exact Person address table structure
-
-Exact document metadata structure
-
-Exact Person status vocabulary
-
-Exact sensitive-identity storage implementation
-
-Exact duplicate-scoring algorithm
-
 Exact Person merge workflow
 
-Exact PostgreSQL CHECK constraints
-
-Exact indexes
+Exact duplicate-scoring algorithm
 
 Exact API behavior
 
 Exact UI workflows
 ```
 
-These shall not be invented merely to complete this business-rules document.
+The following items from the earlier version of this document have been
+resolved in the Person DDL (v2.0) and Table Design (SOL-PER-004 v2.0.0):
+
+```text
+Person address table structure      → FROZEN (person_address)
+Document metadata structure         → FROZEN (Foundation document_master)
+Person status vocabulary            → CLOSED (no status column; derived from is_active + date_of_death + deleted_at)
+Sensitive-identity storage          → FROZEN (Aadhaar encrypted + hash + last4)
+PostgreSQL CHECK constraints        → FROZEN (DDL v2.0)
+Indexes                             → FROZEN (DDL v2.0)
+```
 
 ---
 
@@ -1213,10 +1211,13 @@ The individual identity remains centralized in Person.
 
 ```text
 DOCUMENT STATUS:
-DRAFT — SOURCE ALIGNED
+FROZEN
 
 VERSION:
-1.0.0
+2.0.0
+
+FROZEN DATE:
+2026-09-11
 ```
 
 ---

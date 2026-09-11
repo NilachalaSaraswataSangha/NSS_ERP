@@ -1,8 +1,8 @@
 # NSS ERP — Person Lifecycle
 
 **Document ID:** SOL-PER-005  
-**Version:** 1.0.0  
-**Status:** DRAFT  
+**Version:** 2.0.0  
+**Status:** FROZEN  
 **Module:** Person  
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -14,7 +14,10 @@ This document defines the lifecycle states and transitions for the Person
 Module entities:
 
 - `person`
-- `document_master`
+- `person_address`
+
+`document_master` is Foundation-owned; its lifecycle is governed by the
+Foundation module.
 
 The Person lifecycle is independent of:
 
@@ -444,8 +447,11 @@ Exact document versioning increment logic
 
 ```text
 DOCUMENT STATUS:
-DRAFT
+FROZEN
 
 VERSION:
-1.0.0
+2.0.0
+
+FROZEN DATE:
+2026-09-11
 ```

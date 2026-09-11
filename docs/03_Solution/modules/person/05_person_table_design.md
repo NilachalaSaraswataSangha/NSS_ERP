@@ -1,8 +1,8 @@
 # NSS ERP — Person Table Design
 
 **Document ID:** SOL-PER-004  
-**Version:** 1.0.0  
-**Status:** DRAFT — SOURCE ALIGNED  
+**Version:** 2.0.0  
+**Status:** FROZEN  
 **Module:** Person  
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -34,18 +34,20 @@ This document does not define:
 
 # 2. Current Person Table Scope
 
-The current Person Module contains:
+The Person Module contains two tables:
 
 ```text
 person
+person_address
 ```
 
 `document_master` was originally defined here but has been reassigned to the
 Foundation Module as a shared document registry (DOC-ARCH-001).
 Person remains a consumer of `document_master` through explicit FK
-relationships.
+relationships (e.g. `photo_document_master_pk`).
 
-No additional Person table is introduced without an approved design change.
+`person_address` stores zero or more typed addresses per Person, with
+address types drawn from the Foundation `master_data` framework.
 
 ---
 
@@ -128,27 +130,40 @@ A Person may or may not have an NSS Membership.
 
 # 6. `person` — Logical Columns
 
-| Column                      |    Required | Key    | Description                        |
-| --------------------------- | ----------: | ------ | ---------------------------------- |
-| `person_pk`                 |         Yes | PK     | Internal Person identity           |
-| `person_id`                 |         Yes | UNIQUE | Permanent human-readable Person ID |
-| `first_name`                |         Yes | —      | First name                         |
-| `middle_name`               |          No | —      | Middle name                        |
-| `last_name`                 |          No | —      | Last name                          |
-| `gender_pk`                 |          No | FK     | Gender master reference            |
-| `date_of_birth`             |          No | —      | Date of birth                      |
-| `date_of_death`             |          No | —      | Date of death                      |
-| `mobile_number`             | Conditional | UNIQUE | Mobile contact                     |
-| `email`                     | Conditional | —      | Email contact                      |
-| `is_active`                 |         Yes | —      | Person record operational state    |
-| `created_at`                |         Yes | —      | Creation timestamp                 |
-| `created_by_sangha_sevi_pk` |          No | FK     | Creating user/member reference     |
-| `updated_at`                |         Yes | —      | Last update timestamp              |
-| `updated_by_sangha_sevi_pk` |          No | FK     | Updating user/member reference     |
-| `deleted_at`                |          No | —      | Soft-delete timestamp              |
-| `deleted_by_sangha_sevi_pk` |          No | FK     | Deleting user/member reference     |
+| #  | Column                                   |    Required | Key    | Group              | Description                                |
+| -- | ---------------------------------------- | ----------: | ------ | ------------------ | ------------------------------------------ |
+| 1  | `person_pk`                              |         Yes | PK     | Identity           | Internal Person identity (UUID)            |
+| 2  | `person_id`                              |         Yes | UNIQUE | Identity           | Permanent human-readable Person ID         |
+| 3  | `first_name`                             |         Yes | —      | Demographics       | First name                                 |
+| 4  | `middle_name`                            |          No | —      | Demographics       | Middle name                                |
+| 5  | `last_name`                              |          No | —      | Demographics       | Last name                                  |
+| 6  | `date_of_birth`                          |          No | —      | Demographics       | Date of birth                              |
+| 7  | `date_of_death`                          |          No | —      | Demographics       | Date of death                              |
+| 8  | `gender_master_data_pk`                  |          No | FK     | Demographics       | Gender (Foundation master_data)            |
+| 9  | `marital_status_master_data_pk`          |          No | FK     | Demographics       | Marital status (Foundation master_data)    |
+| 10 | `blood_group_master_data_pk`             |          No | FK     | Demographics       | Blood group (Foundation master_data)       |
+| 11 | `country_phone_code`                     | Conditional | —      | Contact            | International dialling code (e.g. +91)     |
+| 12 | `mobile_number`                          | Conditional | UNIQUE | Contact            | Mobile contact number                      |
+| 13 | `email`                                  | Conditional | —      | Contact            | Email contact                              |
+| 14 | `aadhaar_encrypted`                      |          No | —      | Sensitive Identity | Aadhaar full value (encrypted, BYTEA)      |
+| 15 | `aadhaar_hash`                           |          No | —      | Sensitive Identity | SHA-256 hash for lookup without decryption |
+| 16 | `aadhaar_last4`                          |          No | —      | Sensitive Identity | Last 4 digits for masked display           |
+| 17 | `photo_document_master_pk`               |          No | FK     | Photo              | Photo metadata (Foundation document_master)|
+| 18 | `emergency_contact_name`                 |          No | —      | Emergency Contact  | Emergency contact person's name            |
+| 19 | `emergency_contact_phone`                |          No | —      | Emergency Contact  | Emergency contact phone number             |
+| 20 | `emergency_relationship_master_data_pk`  |          No | FK     | Emergency Contact  | Relationship type (Foundation master_data) |
+| 21 | `remarks`                                |          No | —      | Other              | Free-text remarks                          |
+| 22 | `is_active`                              |         Yes | —      | Lifecycle          | Person record operational state            |
+| 23 | `created_at`                             |         Yes | —      | Audit              | Creation timestamp                         |
+| 24 | `created_by_sangha_sevi_pk`              |          No | FK     | Audit              | Creating user/member reference             |
+| 25 | `updated_at`                             |          No | —      | Audit              | Last update timestamp                      |
+| 26 | `updated_by_sangha_sevi_pk`              |          No | FK     | Audit              | Updating user/member reference             |
+| 27 | `deleted_at`                             |          No | —      | Audit              | Soft-delete timestamp                      |
+| 28 | `deleted_by_sangha_sevi_pk`              |          No | FK     | Audit              | Deleting user/member reference             |
 
-The exact physical datatypes remain an implementation concern.
+**28 physical columns.** Columns 11–12 (country_phone_code + mobile_number)
+are an all-or-nothing pair. Columns 14–16 (Aadhaar) are an all-or-nothing
+triplet. At least one of mobile_number (12) or email (13) must be present.
 
 ---
 
@@ -245,10 +260,13 @@ person_id
 
 ---
 
-# 14. `gender_pk`
+# 14. `gender_master_data_pk`
 
-References the common gender master where gender is maintained through
-controlled master data.
+References Foundation `master_data` where the category is GENDER.
+
+Gender values (MALE, FEMALE, OTHER) are maintained through the common
+`master_category` / `master_data` framework rather than a Person-specific
+`gender_master` table.
 
 The Person Module does not own the global gender master.
 
@@ -644,95 +662,102 @@ They are domain participation records associated with the same Person.
 
 # 47. Person Address
 
-The current Person source establishes that address information belongs to
-the Person domain, but the exact final address-table structure is not
-sufficiently frozen in the available source.
+Person address is implemented as a separate table: `person_address`.
 
-Therefore this document does not invent a final address table.
+The `person_address` table stores zero or more typed addresses per Person.
+Address types are drawn from Foundation `master_data` (category
+ADDRESS_TYPE) via `address_type_master_data_pk`.
+
+A primary-address uniqueness constraint ensures at most one primary address
+per active Person record.
+
+See Table 2 below for the full `person_address` logical design.
 
 ---
 
-# 48. Address Design Boundary
-
-Current status:
+# 48. Address Design Status
 
 ```text
 Person Address Concept
-    = REQUIRED
+    = FROZEN
 
-Exact Physical Address Structure
-    = OPEN
+Physical Address Structure
+    = FROZEN (person_address table)
 ```
 
-The address model must be resolved before physical Person schema generation.
+The address model has been resolved. `person_address` is a Person Module
+table with its own DDL file (`03_person_address.sql`).
 
 ---
 
 # 49. Aadhaar / Sensitive Identity Data
 
-Earlier project schema discussions considered fields such as:
+Aadhaar is implemented as three all-or-nothing columns on `person`:
 
 ```text
-aadhaar_encrypted
-aadhaar_hash
-aadhaar_last4
+aadhaar_encrypted   BYTEA     Full Aadhaar (pgcrypto-encrypted)
+aadhaar_hash        VARCHAR   SHA-256 hash (lookup without decryption)
+aadhaar_last4       VARCHAR   Last 4 digits (masked display)
 ```
 
-as potential Person data.
+All three must be NULL or all three must be populated (enforced by CHECK
+constraint `chk_person_aadhaar_consistency`).
 
-These are **not frozen as columns by this document** because the current
-source does not establish their final physical representation.
+A partial unique index on `aadhaar_hash` ensures one Aadhaar per Person
+when present.
 
-If implemented, sensitive identity data must follow the project's security
-standards.
+Format validation: `aadhaar_last4` must match `^[0-9]{4}$` when present.
+
+Sensitive identity data follows the project's security standards. Full
+Aadhaar values are never exposed in normal UI/reporting.
 
 ---
 
 # 50. Photo
 
-Earlier schema planning also considered:
+Person photo is implemented as a FK to Foundation's `document_master`:
 
 ```text
-photo_path
+photo_document_master_pk  UUID  FK → nss.document_master
 ```
 
-for Person.
+The photo binary is stored externally (managed by the document/storage
+architecture). This FK points to the document metadata record.
 
-The current design prefers document/storage architecture rather than
-embedding binary data into the core identity table.
-
-The exact photo/document relationship remains subject to the Document
-Management design.
+This avoids embedding binary data into the core identity table.
 
 ---
 
 # 51. Emergency Contact
 
-Earlier schema planning mentioned:
+Emergency contact is implemented as three inline columns on `person`:
 
 ```text
-emergency_contact
+emergency_contact_name                    VARCHAR(200)
+emergency_contact_phone                   VARCHAR(20)
+emergency_relationship_master_data_pk     UUID FK → nss.master_data
 ```
 
-This is not frozen as a final Person column by the current source.
+The relationship type references Foundation `master_data` (category
+RELATIONSHIP_TYPE).
 
-It should not be added to the physical schema until its business meaning,
-relationship, and ownership are formally defined.
+Format validation: `emergency_contact_phone` must match `^[0-9]{7,15}$`
+when present.
 
 ---
 
 # 52. Blood Group
 
-Earlier schema planning mentioned:
+Blood group is implemented as a FK to Foundation `master_data`:
 
 ```text
-blood_group
+blood_group_master_data_pk  UUID  FK → nss.master_data
 ```
 
-This is not frozen as a final Person column by the current source.
-
-It remains an open design consideration rather than a mandatory Person
-column.
+Blood group values (A_POSITIVE, A_NEGATIVE, B_POSITIVE, B_NEGATIVE,
+AB_POSITIVE, AB_NEGATIVE, O_POSITIVE, O_NEGATIVE) are maintained through
+the Foundation `master_category` / `master_data` framework under
+category BLOOD_GROUP.
 
 ---
 
@@ -964,18 +989,27 @@ architecture.
 
 # 72. Foreign Key Summary
 
-| Child Table       | Column                       | Parent                      |
-| ----------------- | ---------------------------- | --------------------------- |
-| `document_master` | `person_pk`                  | `person`                    |
-| `person`          | `gender_pk`                  | Common Gender Master        |
-| `person`          | `created_by_sangha_sevi_pk`  | Membership/User identity    |
-| `person`          | `updated_by_sangha_sevi_pk`  | Membership/User identity    |
-| `person`          | `deleted_by_sangha_sevi_pk`  | Membership/User identity    |
-| `document_master` | `document_type_pk`           | Common Document Type Master |
-| `document_master` | `uploaded_by_sangha_sevi_pk` | Membership/User identity    |
+| Child Table       | Column                                  | Parent                               |
+| ----------------- | --------------------------------------- | ------------------------------------ |
+| `person`          | `gender_master_data_pk`                 | `nss.master_data` (GENDER)           |
+| `person`          | `marital_status_master_data_pk`         | `nss.master_data` (MARITAL_STATUS)   |
+| `person`          | `blood_group_master_data_pk`            | `nss.master_data` (BLOOD_GROUP)      |
+| `person`          | `photo_document_master_pk`              | `nss.document_master`                |
+| `person`          | `emergency_relationship_master_data_pk` | `nss.master_data` (RELATIONSHIP_TYPE)|
+| `person`          | `created_by_sangha_sevi_pk`             | Membership/User identity (Pass 2)    |
+| `person`          | `updated_by_sangha_sevi_pk`             | Membership/User identity (Pass 2)    |
+| `person`          | `deleted_by_sangha_sevi_pk`             | Membership/User identity (Pass 2)    |
+| `person_address`  | `person_pk`                             | `nss.person`                         |
+| `person_address`  | `address_type_master_data_pk`           | `nss.master_data` (ADDRESS_TYPE)     |
+| `person_address`  | `country_pk`                            | `nss.country`                        |
+| `person_address`  | `state_pk`                              | `nss.state`                          |
+| `person_address`  | `district_pk`                           | `nss.district`                       |
+| `person_address`  | `city_village_pk`                       | `nss.city_village`                   |
+| `person_address`  | `postal_code_pk`                        | `nss.postal_code`                    |
 
-The exact physical foreign-key targets shall follow the final common
-Foundation/Security schema.
+Audit actor FKs (`*_by_sangha_sevi_pk`) are included as nullable columns
+in Pass 1. Their FK constraints are deferred to Pass 2 (after the
+`sangha_sevi` table exists in the Membership module).
 
 ---
 
@@ -984,6 +1018,7 @@ Foundation/Security schema.
 ```mermaid
 erDiagram
 
+    PERSON ||--o{ PERSON_ADDRESS : "has"
     PERSON ||--o{ DOCUMENT_MASTER : "has"
 
     PERSON {
@@ -992,13 +1027,23 @@ erDiagram
         VARCHAR first_name
         VARCHAR middle_name
         VARCHAR last_name
-        UUID gender_pk FK
         DATE date_of_birth
         DATE date_of_death
+        UUID gender_master_data_pk FK
+        UUID marital_status_master_data_pk FK
+        UUID blood_group_master_data_pk FK
+        VARCHAR country_phone_code
         VARCHAR mobile_number UK
         VARCHAR email
+        BYTEA aadhaar_encrypted
+        VARCHAR aadhaar_hash
+        VARCHAR aadhaar_last4
+        UUID photo_document_master_pk FK
+        VARCHAR emergency_contact_name
+        VARCHAR emergency_contact_phone
+        UUID emergency_relationship_master_data_pk FK
+        TEXT remarks
         BOOLEAN is_active
-
         TIMESTAMP created_at
         UUID created_by_sangha_sevi_pk FK
         TIMESTAMP updated_at
@@ -1007,19 +1052,33 @@ erDiagram
         UUID deleted_by_sangha_sevi_pk FK
     }
 
-    DOCUMENT_MASTER {
-        UUID document_pk PK
+    PERSON_ADDRESS {
+        UUID person_address_pk PK
         UUID person_pk FK
-        UUID document_type_pk FK
-        VARCHAR document_number
-        TEXT storage_path
-        INTEGER version
-        VARCHAR checksum
-        TIMESTAMP uploaded_at
-        UUID uploaded_by_sangha_sevi_pk FK
+        UUID address_type_master_data_pk FK
+        VARCHAR address_line_1
+        VARCHAR address_line_2
+        VARCHAR landmark
+        UUID district_pk FK
+        UUID state_pk FK
+        UUID country_pk FK
+        UUID city_village_pk FK
+        UUID postal_code_pk FK
+        BOOLEAN is_primary
         BOOLEAN is_active
         TIMESTAMP created_at
         TIMESTAMP updated_at
+        TIMESTAMP deleted_at
+    }
+
+    DOCUMENT_MASTER {
+        UUID document_master_pk PK
+        UUID document_type_master_data_pk FK
+        VARCHAR storage_path
+        VARCHAR checksum
+        INTEGER version
+        BOOLEAN is_active
+        TIMESTAMP uploaded_at
     }
 ```
 
@@ -1184,7 +1243,7 @@ The Person table shall not expose sensitive values unnecessarily.
 # 86. Person Table Summary
 
 ```text
-person
+person (28 columns)
 │
 ├── person_pk
 ├── person_id
@@ -1192,12 +1251,27 @@ person
 ├── first_name
 ├── middle_name
 ├── last_name
-├── gender_pk
 ├── date_of_birth
 ├── date_of_death
+├── gender_master_data_pk          → nss.master_data (GENDER)
+├── marital_status_master_data_pk  → nss.master_data (MARITAL_STATUS)
+├── blood_group_master_data_pk     → nss.master_data (BLOOD_GROUP)
 │
+├── country_phone_code
 ├── mobile_number
 ├── email
+│
+├── aadhaar_encrypted
+├── aadhaar_hash
+├── aadhaar_last4
+│
+├── photo_document_master_pk       → nss.document_master
+│
+├── emergency_contact_name
+├── emergency_contact_phone
+├── emergency_relationship_master_data_pk → nss.master_data (RELATIONSHIP_TYPE)
+│
+├── remarks
 │
 ├── is_active
 │
@@ -1238,12 +1312,13 @@ document_master
 Person Module
 ────────────────────────────
 person                  1
+person_address          1
 ────────────────────────────
-TOTAL                   1
+TOTAL                   2
 ```
 
 `document_master` (previously counted here) is now owned by Foundation
-(DOC-ARCH-001).
+(DOC-ARCH-001). Person references it via `photo_document_master_pk`.
 
 ---
 
@@ -1253,21 +1328,24 @@ The following are not added as frozen Person tables/columns without further
 approved design:
 
 ```text
-person_address
 person_address_history
 person_merge_history
 person_status_master
-aadhaar_encrypted
-aadhaar_hash
-aadhaar_last4
-photo_path
-blood_group
-emergency_contact
 ```
 
-Earlier project discussions mentioned some of these concepts, but the
-current Person solution baseline does not establish their final physical
-representation.
+The following items from the earlier version of this document have been
+resolved and are now FROZEN:
+
+```text
+person_address           → FROZEN (Table 2, 03_person_address.sql)
+aadhaar_encrypted        → FROZEN (person column 14)
+aadhaar_hash             → FROZEN (person column 15)
+aadhaar_last4            → FROZEN (person column 16)
+photo_path               → FROZEN as photo_document_master_pk (person column 17)
+blood_group              → FROZEN as blood_group_master_data_pk (person column 10)
+emergency_contact        → FROZEN as 3 columns (person columns 18–20)
+marital_status           → FROZEN as marital_status_master_data_pk (person column 9)
+```
 
 ---
 
@@ -1335,11 +1413,13 @@ These belong to the implementation stage.
 
 ✓ Person ≠ Member
 
-✓ Person Module contains 2 current tables
+✓ Person Module contains 2 frozen tables (person, person_address)
 
-✓ person is the central Person table
+✓ person is the central Person table (28 physical columns)
 
-✓ document_master stores document metadata
+✓ person_address stores typed addresses per Person
+
+✓ document_master stores document metadata (Foundation-owned)
 
 ✓ person_pk is the internal UUID identity
 
@@ -1355,11 +1435,21 @@ These belong to the implementation stage.
 
 ✓ Foreign keys reference person_pk
 
-✓ Mobile is unique when supplied
+✓ Mobile is unique when supplied (NULL-aware partial index)
 
 ✓ Email is not globally unique
 
 ✓ At least one contact method is required
+
+✓ Gender, marital status, blood group use Foundation master_data FKs
+
+✓ Aadhaar uses encrypted + hash + last4 (all-or-nothing)
+
+✓ Photo references Foundation document_master
+
+✓ Emergency contact uses Foundation master_data for relationship type
+
+✓ Person lifecycle: is_active + date_of_death + deleted_at (no status column)
 
 ✓ Person identity survives Membership changes
 
@@ -1391,29 +1481,25 @@ These belong to the implementation stage.
 
 ✓ Common master-data framework is reused
 
-✓ No SQL is defined in this document
+✓ Format validation CHECK constraints are part of the DDL
 ```
 
 ---
 
 # 94. Open Items Before Physical Person Schema
 
-The following must be resolved before PostgreSQL schema generation:
-
-| Item                          | Status         |
-| ----------------------------- | -------------- |
-| Person address structure      | OPEN           |
-| Sensitive identity storage    | OPEN           |
-| Photo/document implementation | OPEN           |
-| Blood group                   | OPEN           |
-| Emergency contact             | OPEN           |
-| Person status vocabulary      | OPEN           |
-| Person merge history          | OPEN           |
-| Exact document versioning     | OPEN           |
-| Physical constraints          | IMPLEMENTATION |
-| Physical indexes              | IMPLEMENTATION |
-
-These are deliberately not silently frozen.
+| Item                          | Status                          |
+| ----------------------------- | ------------------------------- |
+| Person address structure      | FROZEN (person_address table)   |
+| Sensitive identity storage    | FROZEN (Aadhaar triplet)        |
+| Photo/document implementation | FROZEN (photo_document_master_pk) |
+| Blood group                   | FROZEN (blood_group_master_data_pk) |
+| Emergency contact             | FROZEN (3 inline columns)       |
+| Person status vocabulary      | CLOSED (no separate status column — lifecycle derived from is_active + date_of_death + deleted_at) |
+| Person merge history          | OPEN                            |
+| Exact document versioning     | OPEN (Foundation-owned)         |
+| Physical constraints          | FROZEN (DDL v2.0)               |
+| Physical indexes              | FROZEN (DDL v2.0)               |
 
 ---
 
@@ -1421,10 +1507,13 @@ These are deliberately not silently frozen.
 
 ```text
 DOCUMENT STATUS:
-DRAFT — SOURCE ALIGNED
+FROZEN
 
 VERSION:
-1.0.0
+2.0.0
+
+FROZEN DATE:
+2026-09-11
 ```
 
 ---

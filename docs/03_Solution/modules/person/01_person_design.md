@@ -1,8 +1,8 @@
 # NSS ERP — Person Module Design
 
 **Document ID:** SOL-PER-001
-**Version:** 1.0.0
-**Status:** DRAFT — SOURCE ALIGNED
+**Version:** 2.0.0
+**Status:** FROZEN
 **Module:** Person
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -1160,17 +1160,20 @@ current operations.
 
 # 79. Open Items for Person ERD/Table Design
 
-The following must be resolved in the next Person documents rather than
-assumed here:
+The following have been resolved in the Person DDL (v2.0) and Table Design
+(SOL-PER-004 v2.0.0):
 
-* Exact address table structure
-* Exact document relationship
-* Complete demographic column set
-* Person status representation
-* Sensitive identity storage implementation
-* Audit-column implementation
-* Person merge/correction implementation
-* Exact constraints and indexes
+* Exact address table structure — FROZEN (`person_address`)
+* Exact document relationship — FROZEN (`photo_document_master_pk` FK)
+* Complete demographic column set — FROZEN (28 columns)
+* Person status representation — CLOSED (derived from `is_active` + `date_of_death` + `deleted_at`)
+* Sensitive identity storage implementation — FROZEN (Aadhaar triplet)
+* Audit-column implementation — FROZEN (6 audit columns)
+* Exact constraints and indexes — FROZEN (DDL v2.0)
+
+The following remain open:
+
+* Person merge/correction implementation — OPEN
 
 ---
 
@@ -1240,10 +1243,13 @@ assumed here:
 
 ```text
 DOCUMENT STATUS:
-DRAFT — SOURCE ALIGNED
+FROZEN
 
 VERSION:
-1.0.0
+2.0.0
+
+FROZEN DATE:
+2026-09-11
 ```
 
 ---
