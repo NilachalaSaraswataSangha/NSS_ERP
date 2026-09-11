@@ -3,7 +3,7 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | TIER2_SECURITY_AUDIT                     |
-| Version     | 1.1                                      |
+| Version     | 1.2                                      |
 | Tier        | 2 — Organization                         |
 | Status      | Complete                                 |
 
@@ -16,7 +16,8 @@ This audit covers all code introduced in the Tier 2 Organization vertical slice:
 | File                                | What                                        |
 |-------------------------------------|---------------------------------------------|
 | `api/schemas/organization.py`       | 4 Pydantic response models                  |
-| `api/routers/organization.py`       | 6 GET endpoint handlers + 2 helper functions|
+| `api/routers/organization.py`       | 6 GET endpoint handlers (shared helpers)    |
+| `api/helpers.py`                    | Shared cursor→Pydantic helpers + pagination |
 | `api/main.py`                       | Router registration + HTML route (updated)  |
 | `frontend/organization.html`        | Organization Verification UI                |
 | `frontend/assets/js/organization.js`| Alpine.js data component                    |
@@ -54,10 +55,10 @@ This audit covers all code introduced in the Tier 2 Organization vertical slice:
 
 | #  | Area                    | Status       | Resolution                                                                                           |
 |----|-------------------------|--------------|------------------------------------------------------------------------------------------------------|
-| A1 | Pagination              | **ADVISORY** | `list_organizations` and `get_organization_hierarchy` return all matching rows. With only 3 seeded organizations, this is harmless. However, Organization is the first module where the dataset will grow significantly as real data is entered (hundreds of Sakha/Patha Chakra nodes). Add `limit`/`offset` or cursor pagination when the Organization module moves to read-write (Tier 5+). |
-| A2 | Recursive CTE Depth     | **ADVISORY** | The hierarchy CTE has no explicit `MAXDEPTH` clause. NSS Bye-Law hierarchy is 4 levels deep (Kendra → Anchalika/Zilla → Sakha → Patha Chakra), so runaway recursion from circular data is extremely unlikely in practice. PostgreSQL's built-in safeguards apply. A `WHERE depth < 10` guard could be added as defence-in-depth if the table ever allows self-referencing updates without validation. |
+| A1 | Pagination              | **RESOLVED** | `list_organizations` and `get_organization_hierarchy` now accept `limit` (1–500, default 100) and `offset` (≥0) query parameters via `api.helpers.DEFAULT_LIMIT` / `MAX_LIMIT`. FastAPI's `Query(ge=1, le=500)` enforces bounds (422 on violation). SQL appends `LIMIT %s OFFSET %s` with parameterised values. 8 pagination tests added in `test_organization.py`. |
+| A2 | Recursive CTE Depth     | **RESOLVED** | Added `AND t.depth < 10` guard to the recursive member of the hierarchy CTE. NSS hierarchy is 4 levels deep; the cap at 10 prevents infinite recursion from circular parent references while leaving headroom for any future structural changes. |
 | A3 | Filter Value Logging    | **ADVISORY** | `type_code` and `status_code` query parameters are logged by uvicorn's access log (they appear in the URL). These are non-sensitive enumeration codes, not PII. No action needed, but noted for awareness if future filters accept user-identifiable data. |
-| A4 | `_rows_to_models` / `_row_to_model` Duplication | **ADVISORY** | These helper functions are duplicated in every router (bootstrap, foundation, organization). Not a security risk — they're pure data-mapping functions with no side effects — but duplication means a future security fix (e.g. adding column sanitisation) would need to be applied in 3 places. Consider extracting to a shared `api/helpers.py` when the 4th router is added. |
+| A4 | `_rows_to_models` / `_row_to_model` Duplication | **RESOLVED** | Extracted to `api/helpers.py` as `rows_to_models()` and `row_to_model()`. All 4 routers (bootstrap, foundation, organization, person) now import from the shared module. Pagination constants (`DEFAULT_LIMIT`, `MAX_LIMIT`) are also centralised there. Single point of maintenance for any future security hardening. |
 
 ---
 
@@ -65,7 +66,7 @@ This audit covers all code introduced in the Tier 2 Organization vertical slice:
 
 **No blocking vulnerabilities.** The Tier 2 Organization codebase is safe for local development, integration testing, and deployment to Render/Neon.
 
-All 15 checks passed. No fixes required — the code follows the same security conventions established in Tier 0 and hardened in Tier 1 (parameterised queries, SELECT-only privilege, audit column exclusion, SRI pinning, security headers, generic error messages). 4 advisory items noted for future awareness — pagination and CTE depth become relevant when the dataset grows beyond seed data.
+All 15 checks passed. No fixes required — the code follows the same security conventions established in Tier 0 and hardened in Tier 1 (parameterised queries, SELECT-only privilege, audit column exclusion, SRI pinning, security headers, generic error messages). 3 of 4 advisory items resolved (pagination, CTE depth guard, helper deduplication); 1 awareness-only item retained (filter value logging).
 
 ### Security Posture Summary
 
