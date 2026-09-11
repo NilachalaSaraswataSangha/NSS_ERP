@@ -1,10 +1,10 @@
 # frontend/
 
-Tier 0 Bootstrap Verification UI, Tier 1 Foundation Verification UI, and Tier 2 Organization
-Verification UI for Nilachala Saraswata Sangha.
+Tier 0 Bootstrap Verification UI, Tier 1 Foundation Verification UI, Tier 2 Organization
+Verification UI, and Tier 3 Person Verification UI for Nilachala Saraswata Sangha.
 
 **Purpose:** Verify the database → API → frontend integration for each tier as it's built.
-None of the three pages is an operational administration dashboard. Together they establish the
+None of the four pages is an operational administration dashboard. Together they establish the
 frontend shell that later tiers grow into.
 
 **Tech stack:** Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla
@@ -23,6 +23,7 @@ frontend/
 ├── index.html              Tier 0 Bootstrap Verification UI (Alpine.js application)
 ├── foundation.html         Tier 1 Foundation Verification UI (Alpine.js application)
 ├── organization.html       Tier 2 Organization Verification UI (Alpine.js application)
+├── person.html             Tier 3 Person Verification UI (Alpine.js application)
 ├── assets/
 │   ├── css/
 │   │   └── style.css       Minimal project-specific CSS overrides
@@ -31,13 +32,14 @@ frontend/
 │   └── js/
 │       ├── app.js          Alpine.js data component + API fetch logic for index.html
 │       ├── foundation.js   Alpine.js data component + API fetch logic for foundation.html
-│       └── organization.js Alpine.js data component + API fetch logic for organization.html
+│       ├── organization.js Alpine.js data component + API fetch logic for organization.html
+│       └── person.js       Alpine.js data component + API fetch logic for person.html
 └── README.md               This file
 ```
 
-All three pages share the same header pattern with a nav bar linking between `/` ("Bootstrap"),
-`/foundation` ("Foundation"), and `/organization` ("Organization"), so any page is one click
-away from the other two.
+All four pages share the same header pattern with a nav bar linking between `/` ("Bootstrap"),
+`/foundation` ("Foundation"), `/organization` ("Organization"), and `/person` ("Person"), so any
+page is one click away from the other three.
 
 ---
 
@@ -86,8 +88,8 @@ Each section is rendered by Alpine.js directives bound to the
 - Card padding scales: `p-4` base, `xl:p-6` on desktop
 - Grid gap scales: `gap-4` base, `xl:gap-6` on desktop
 
-**CDN dependencies (loaded in `<head>`, identical on `index.html`, `foundation.html`, and
-`organization.html`):**
+**CDN dependencies (loaded in `<head>`, identical on `index.html`, `foundation.html`,
+`organization.html`, and `person.html`):**
 
 | Library | Version | Purpose |
 |---------|---------|---------|
@@ -265,6 +267,61 @@ client-side tree-building logic — the API already returns depth per flat row.
 
 ---
 
+### person.html
+
+The Tier 3 Person Verification UI entry point, structurally parallel to the earlier tier pages:
+same head boilerplate and System Status card (reusing `GET /api/v1/bootstrap/health`), but with
+"Person" active in the nav bar and subtitle "Tier 3 — Person Verification". Below the status
+card, a DaisyUI `tabs tabs-boxed` bar with 2 tabs, each lazily loaded on first visit (driven by
+`activeTab` / `switchTab(tab)` in `person.js`):
+
+| Tab | Contents |
+|-----|----------|
+| **Persons** | Filterable list (2-column layout): left/wide panel is the person table (person_id/name/gender/DOB/mobile/email/marital status/blood group/status) with `<select>` filters for gender, marital status, and blood group (all sourced from Foundation master-data via `GET /api/v1/foundation/master-data?category_code=`); right panel is a detail view — identity, demographics, contact, masked Aadhaar ("XXXX XXXX 1234"), emergency contact section (name/phone/relationship), remarks, and an Addresses sub-section showing each address as a card with type badge, primary badge, address lines, landmark, and resolved location chain (city/village, postal code, district, state, country). Addresses auto-load on row click (`selectPerson()`, toggle-deselect on repeat click). Person lifecycle states (Active/Deceased/Inactive) are derived from `is_active` + `date_of_death` and shown via dedicated `.badge-status-*` CSS classes |
+| **Search** | Trigram fuzzy search input (min 2 chars, 300ms debounce) querying `GET /api/v1/person/search?q=`; results table (person_id/name/gender/DOB/mobile/email/status); clicking a search result switches to the Persons tab and selects that person for detail view |
+
+Loads `<script src="/assets/js/person.js">` at the bottom.
+
+---
+
+### assets/js/person.js
+
+Alpine.js data component for `person.html`. Defines one global function: `personApp()`.
+Constants `PERSON_API = "/api/v1/person"` and `FOUNDATION_API = "/api/v1/foundation"`.
+
+**State groups:** `activeTab`, `health{loading,connected}` (shared pattern with `app.js`),
+filter options (`genderOptions`, `maritalStatusOptions`, `bloodGroupOptions` — loaded from
+Foundation master-data), persons (`persons`, `selectedGenderFilter`, `selectedMaritalFilter`,
+`selectedBloodGroupFilter`, `selectedPerson`, `personAddresses`), search (`searchQuery`,
+`searchResults`, `searchExecuted`, `_searchDebounce`). Each collection has matching
+`*Loading`/`*Error` booleans.
+
+**Lifecycle:** `init()` calls `fetchHealth()` then `fetchFilterOptions()` and `fetchPersons()`
+in parallel via `Promise.all`. Filter options are loaded once via 3 parallel
+`GET /api/v1/foundation/master-data?category_code=` calls using `Promise.allSettled`.
+
+**API calls** (all relative):
+`GET /api/v1/bootstrap/health`,
+`GET /api/v1/foundation/master-data?category_code=GENDER|MARITAL_STATUS|BLOOD_GROUP` (filter
+options), `GET /api/v1/person/persons?gender_code=&marital_status_code=&blood_group_code=`,
+`GET /api/v1/person/persons/{person_pk}` (full detail with resolved master-data names),
+`GET /api/v1/person/persons/{person_pk}/addresses` (resolved location chain),
+`GET /api/v1/person/search?q=` (trigram similarity search).
+
+**Error-handling pattern:** identical to other tier JS files — loading=true/error=false →
+try/fetch/check `res.ok`/parse JSON → catch sets error flag only → finally clears loading.
+`selectPerson(p)` toggle-deselects; detail and addresses are fetched in parallel via
+`Promise.all` on row click.
+
+**Helpers:**
+- `formatName(p)` — joins first/middle/last name parts, filtering nulls
+- `formatPhone(p)` — prepends country_phone_code if present
+- `statusLabel(p)` — derives lifecycle label: "Active" (is_active + no death), "Deceased"
+  (is_active + date_of_death), "Inactive" (!is_active)
+- `statusBadgeClass(p)` — maps lifecycle to `.badge-status-active`/`-deceased`/`-inactive`
+
+---
+
 ### assets/css/style.css
 
 Minimal project-specific CSS. Tailwind and DaisyUI handle all styling
@@ -296,6 +353,7 @@ exists on disk:
 | `GET /` | Explicit route → `FileResponse(frontend/index.html)` | The Bootstrap Verification UI |
 | `GET /foundation` | Explicit route → `FileResponse(frontend/foundation.html)` | The Foundation Verification UI |
 | `GET /organization` | Explicit route → `FileResponse(frontend/organization.html)` | The Organization Verification UI |
+| `GET /person` | Explicit route → `FileResponse(frontend/person.html)` | The Person Verification UI |
 | `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by all three pages) |
 
 **Why not mount at `/`?** A root-level `StaticFiles` mount would shadow
@@ -304,9 +362,9 @@ only `/assets/*` and serving each page via an explicit route, all
 FastAPI built-in routes remain accessible.
 
 **Graceful degradation:** If `frontend/` does not exist on disk, the
-mount and all three routes are skipped entirely. If `foundation.html` or `organization.html` is
+mount and all four routes are skipped entirely. If any individual HTML file is
 missing, `/` still works — the API continues to work in API-only mode — `/docs` and
-`/api/v1/*` are unaffected. Both the `/foundation` and `/organization` routes are only
+`/api/v1/*` are unaffected. The `/foundation`, `/organization`, and `/person` routes are only
 registered `if` the respective HTML file exists on disk (see `api/main.py`).
 
 ---
@@ -364,6 +422,22 @@ Response schemas are defined in `api/schemas/organization.py`. `OrganizationResp
 resolves geography FK names (country/state/district/city_village/postal_code) via LEFT JOINs to
 Foundation's tables. Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`.
 
+**`person.html` (via `person.js`):**
+
+| Method | URL | Response | Tier 3 State |
+|--------|-----|----------|-------------|
+| GET | `/api/v1/bootstrap/health` | `{ status, database }` | Shared with index.html |
+| GET | `/api/v1/foundation/master-data?category_code=GENDER` | `MasterDataResponse[]` | Filter options for gender dropdown |
+| GET | `/api/v1/foundation/master-data?category_code=MARITAL_STATUS` | `MasterDataResponse[]` | Filter options for marital status dropdown |
+| GET | `/api/v1/foundation/master-data?category_code=BLOOD_GROUP` | `MasterDataResponse[]` | Filter options for blood group dropdown |
+| GET | `/api/v1/person/persons?gender_code=&marital_status_code=&blood_group_code=` | `PersonSummaryResponse[]` | Compact list (no Aadhaar, emergency, photo) |
+| GET | `/api/v1/person/persons/{person_pk}` | `PersonResponse` | Full detail with resolved master-data names; aadhaar_last4 only (never encrypted/hash) |
+| GET | `/api/v1/person/persons/{person_pk}/addresses` | `PersonAddressResponse[]` | Resolved address type + location chain (city→district→state→country); primary first |
+| GET | `/api/v1/person/search?q=` | `PersonSummaryResponse[]` | Trigram similarity on first_name/last_name + ILIKE prefix on person_id/mobile; max 50 results |
+
+Response schemas are defined in `api/schemas/person.py`. Sensitive fields (`aadhaar_encrypted`,
+`aadhaar_hash`) are never returned by the API — only `aadhaar_last4` for masked display.
+
 ## Future Growth
 
 This shell is designed to evolve:
@@ -372,6 +446,7 @@ This shell is designed to evolve:
 Tier 0   Bootstrap Verification (current)
 Tier 1   Foundation Verification (current)
 Tier 2   Organization Verification (current)
+Tier 3   Person Verification (current)
   ...
 Tier 5   Authentication + login/session UI
   ...
@@ -379,5 +454,5 @@ Tier 5   Authentication + login/session UI
 ```
 
 The page structure, CSS framework, and Alpine.js pattern established
-here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-2
+here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-3
 intentionally have no login, no session, no fake credentials.

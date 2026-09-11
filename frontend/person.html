@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
+    <title>Nilachala Saraswata Sangha — Person Verification</title>
+
+    <!-- Tailwind CSS Play CDN (Tailwind 3.x JIT — generates utility classes in-browser) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- DaisyUI 4.12.14 (requires Tailwind 3.x) -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR" crossorigin="anonymous">
+    <!-- Alpine.js 3.14.8 -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="/assets/css/style.css">
+
+    <!-- Badge breathing room — must be last to override DaisyUI CDN -->
+    <style>
+        .badge { padding: 0.25rem 0.75rem !important; }
+        .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
+        .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
+        /* Lifecycle status colors */
+        .badge-status-active   { background-color: #16a34a !important; color: #fff !important; }
+        .badge-status-inactive { background-color: #6b7280 !important; color: #fff !important; }
+        .badge-status-deceased { background-color: #374151 !important; color: #fff !important; }
+    </style>
+</head>
+<body class="bg-base-200 min-h-screen">
+
+    <div x-data="personApp()" x-init="init()" class="mx-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-10 2xl:px-16">
+
+        <!-- Header -->
+        <header class="mb-4 sm:mb-6 flex items-center justify-between flex-wrap gap-3 sm:gap-4">
+            <div class="flex items-center gap-3 sm:gap-4">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
+                <div>
+                    <h1 class="text-lg sm:text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
+                    <p class="text-xs sm:text-sm text-base-content/60">Tier 3 — Person Verification</p>
+                </div>
+            </div>
+            <nav class="flex gap-2">
+                <a href="/" class="btn btn-sm btn-ghost">Bootstrap</a>
+                <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
+                <a href="/organization" class="btn btn-sm btn-ghost">Organization</a>
+                <a href="/person" class="btn btn-sm btn-active">Person</a>
+            </nav>
+        </header>
+
+        <!-- System Status (centred) -->
+        <section class="card bg-base-100 shadow-sm mb-4 sm:mb-6 max-w-md mx-auto">
+            <div class="card-body py-3 text-center">
+                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50 justify-center">System Status</h2>
+                <div class="flex items-center justify-center gap-2 mt-1">
+                    <template x-if="health.loading">
+                        <span class="flex items-center gap-2 text-sm text-base-content/60">
+                            <span class="loading loading-spinner loading-xs"></span>
+                            Checking...
+                        </span>
+                    </template>
+                    <template x-if="!health.loading && health.connected">
+                        <span class="flex items-center gap-2">
+                            <span class="badge badge-success badge-xs"></span>
+                            <span class="text-sm">Database Connected</span>
+                        </span>
+                    </template>
+                    <template x-if="!health.loading && !health.connected">
+                        <span class="flex items-center gap-2">
+                            <span class="badge badge-error badge-xs"></span>
+                            <span class="text-sm">Database Unavailable</span>
+                        </span>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Bar (scrollable on mobile) -->
+        <div class="overflow-x-auto mb-4 -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div class="tabs tabs-boxed bg-base-100 shadow-sm inline-flex min-w-max">
+                <button class="tab tab-sm sm:tab-md" :class="{ 'tab-active': activeTab === 'persons' }" @click="switchTab('persons')">Persons</button>
+                <button class="tab tab-sm sm:tab-md" :class="{ 'tab-active': activeTab === 'search' }" @click="switchTab('search')">Search</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB 1: Persons (list + filters + detail + addresses)      -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div x-show="activeTab === 'persons'" x-cloak>
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
+
+                <!-- Person List (left / full) -->
+                <section class="card bg-base-100 shadow-sm xl:col-span-2">
+                    <div class="card-body p-3 sm:p-4 xl:p-6">
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Persons</h2>
+                            <span class="badge badge-ghost badge-sm" x-text="persons.length + ' persons'"></span>
+                        </div>
+
+                        <!-- Filters -->
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <select class="select select-bordered select-xs sm:select-sm"
+                                    x-model="selectedGenderFilter" @change="filterPersons()">
+                                <option value="">All Genders</option>
+                                <template x-for="g in genderOptions" :key="g.value_code">
+                                    <option :value="g.value_code" x-text="g.value_name"></option>
+                                </template>
+                            </select>
+                            <select class="select select-bordered select-xs sm:select-sm"
+                                    x-model="selectedMaritalFilter" @change="filterPersons()">
+                                <option value="">All Marital Statuses</option>
+                                <template x-for="m in maritalStatusOptions" :key="m.value_code">
+                                    <option :value="m.value_code" x-text="m.value_name"></option>
+                                </template>
+                            </select>
+                            <select class="select select-bordered select-xs sm:select-sm"
+                                    x-model="selectedBloodGroupFilter" @change="filterPersons()">
+                                <option value="">All Blood Groups</option>
+                                <template x-for="b in bloodGroupOptions" :key="b.value_code">
+                                    <option :value="b.value_code" x-text="b.value_name"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <template x-if="personsLoading">
+                            <div class="flex justify-center py-6">
+                                <span class="loading loading-spinner loading-md"></span>
+                            </div>
+                        </template>
+
+                        <template x-if="!personsLoading && personsError">
+                            <div class="alert alert-error mt-2">
+                                <span class="text-sm">Failed to load persons.</span>
+                            </div>
+                        </template>
+
+                        <template x-if="!personsLoading && !personsError && persons.length === 0">
+                            <div class="py-4">
+                                <p class="text-sm text-base-content/60">No persons match the current filters.</p>
+                            </div>
+                        </template>
+
+                        <template x-if="!personsLoading && !personsError && persons.length > 0">
+                            <div class="overflow-x-auto mt-2">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Person ID</th>
+                                            <th>Name</th>
+                                            <th>Gender</th>
+                                            <th>DOB</th>
+                                            <th>Mobile</th>
+                                            <th>Email</th>
+                                            <th>Marital Status</th>
+                                            <th>Blood Group</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="p in persons" :key="p.person_pk">
+                                            <tr class="cursor-pointer hover"
+                                                :class="{ 'bg-base-200': selectedPerson?.person_pk === p.person_pk }"
+                                                @click="selectPerson(p)">
+                                                <td class="font-mono text-xs whitespace-nowrap" x-text="p.person_id"></td>
+                                                <td class="text-xs font-medium whitespace-nowrap" x-text="formatName(p)"></td>
+                                                <td class="text-xs" x-text="p.gender_name || '—'"></td>
+                                                <td class="text-xs whitespace-nowrap" x-text="p.date_of_birth || '—'"></td>
+                                                <td class="text-xs whitespace-nowrap" x-text="formatPhone(p)"></td>
+                                                <td class="text-xs" x-text="p.email || '—'"></td>
+                                                <td class="text-xs" x-text="p.marital_status_name || '—'"></td>
+                                                <td class="text-xs" x-text="p.blood_group_name || '—'"></td>
+                                                <td class="whitespace-nowrap">
+                                                    <span class="badge badge-xs whitespace-nowrap"
+                                                          :class="statusBadgeClass(p)"
+                                                          x-text="statusLabel(p)"></span>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+                <!-- Person Detail + Addresses (right) -->
+                <section class="card bg-base-100 shadow-sm">
+                    <div class="card-body p-3 sm:p-4 xl:p-6">
+                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Person Detail</h2>
+
+                        <template x-if="!selectedPerson && !detailLoading">
+                            <p class="text-sm text-base-content/60 py-2">
+                                Select a person from the list to view details.
+                            </p>
+                        </template>
+
+                        <template x-if="detailLoading">
+                            <div class="flex justify-center py-6">
+                                <span class="loading loading-spinner loading-md"></span>
+                            </div>
+                        </template>
+
+                        <template x-if="detailError">
+                            <div class="alert alert-error mt-2">
+                                <span class="text-sm">Failed to load person detail.</span>
+                            </div>
+                        </template>
+
+                        <template x-if="selectedPerson && !detailLoading && !detailError">
+                            <div class="mt-2 space-y-3">
+                                <!-- Identity -->
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                    <div>
+                                        <span class="text-base-content/50">Person ID:</span>
+                                        <span class="font-mono font-semibold" x-text="selectedPerson.person_id"></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-base-content/50">Status:</span>
+                                        <span class="badge badge-xs" :class="statusBadgeClass(selectedPerson)" x-text="statusLabel(selectedPerson)"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Demographics -->
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                    <div>
+                                        <span class="text-base-content/50">Name:</span>
+                                        <span class="font-semibold" x-text="formatName(selectedPerson)"></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-base-content/50">Gender:</span>
+                                        <span x-text="selectedPerson.gender_name || '—'"></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-base-content/50">Date of Birth:</span>
+                                        <span x-text="selectedPerson.date_of_birth || '—'"></span>
+                                    </div>
+                                    <div x-show="selectedPerson.date_of_death">
+                                        <span class="text-base-content/50">Date of Death:</span>
+                                        <span x-text="selectedPerson.date_of_death"></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-base-content/50">Marital Status:</span>
+                                        <span x-text="selectedPerson.marital_status_name || '—'"></span>
+                                    </div>
+                                    <div>
+                                        <span class="text-base-content/50">Blood Group:</span>
+                                        <span x-text="selectedPerson.blood_group_name || '—'"></span>
+                                    </div>
+                                </div>
+
+                                <!-- Contact -->
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                    <div x-show="selectedPerson.mobile_number">
+                                        <span class="text-base-content/50">Mobile:</span>
+                                        <span x-text="formatPhone(selectedPerson)"></span>
+                                    </div>
+                                    <div x-show="selectedPerson.email">
+                                        <span class="text-base-content/50">Email:</span>
+                                        <a :href="'mailto:' + selectedPerson.email" class="link link-primary" x-text="selectedPerson.email"></a>
+                                    </div>
+                                </div>
+
+                                <!-- Aadhaar (masked) -->
+                                <div class="text-xs" x-show="selectedPerson.aadhaar_last4">
+                                    <span class="text-base-content/50">Aadhaar:</span>
+                                    <span class="font-mono" x-text="'XXXX XXXX ' + selectedPerson.aadhaar_last4"></span>
+                                </div>
+
+                                <!-- Emergency Contact -->
+                                <div x-show="selectedPerson.emergency_contact_name || selectedPerson.emergency_contact_phone">
+                                    <div class="divider my-1"></div>
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Emergency Contact</h3>
+                                    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                        <div x-show="selectedPerson.emergency_contact_name">
+                                            <span class="text-base-content/50">Name:</span>
+                                            <span x-text="selectedPerson.emergency_contact_name"></span>
+                                        </div>
+                                        <div x-show="selectedPerson.emergency_contact_phone">
+                                            <span class="text-base-content/50">Phone:</span>
+                                            <span x-text="selectedPerson.emergency_contact_phone"></span>
+                                        </div>
+                                        <div x-show="selectedPerson.emergency_relationship_name">
+                                            <span class="text-base-content/50">Relationship:</span>
+                                            <span x-text="selectedPerson.emergency_relationship_name"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Remarks -->
+                                <div class="text-xs" x-show="selectedPerson.remarks">
+                                    <span class="text-base-content/50">Remarks:</span>
+                                    <span x-text="selectedPerson.remarks"></span>
+                                </div>
+
+                                <!-- Addresses -->
+                                <div>
+                                    <div class="divider my-1"></div>
+                                    <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                        Addresses
+                                        <span class="badge badge-ghost badge-xs ml-1" x-text="personAddresses.length"></span>
+                                    </h3>
+
+                                    <template x-if="addressesLoading">
+                                        <div class="flex items-center gap-2 py-2">
+                                            <span class="loading loading-spinner loading-xs"></span>
+                                            <span class="text-sm text-base-content/60">Loading addresses...</span>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!addressesLoading && addressesError">
+                                        <div class="alert alert-error">
+                                            <span class="text-sm">Failed to load addresses.</span>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!addressesLoading && !addressesError && personAddresses.length === 0">
+                                        <p class="text-xs text-base-content/60 mt-1">No addresses on record.</p>
+                                    </template>
+
+                                    <template x-if="!addressesLoading && !addressesError && personAddresses.length > 0">
+                                        <div class="space-y-2 mt-2">
+                                            <template x-for="addr in personAddresses" :key="addr.person_address_pk">
+                                                <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <span class="badge badge-xs badge-primary" x-text="addr.address_type_name"></span>
+                                                        <template x-if="addr.is_primary">
+                                                            <span class="badge badge-xs badge-accent">Primary</span>
+                                                        </template>
+                                                        <template x-if="!addr.is_active">
+                                                            <span class="badge badge-xs badge-status-inactive">Inactive</span>
+                                                        </template>
+                                                    </div>
+                                                    <p x-text="addr.address_line_1"></p>
+                                                    <p x-show="addr.address_line_2" x-text="addr.address_line_2"></p>
+                                                    <p x-show="addr.landmark" class="text-base-content/60" x-text="'Landmark: ' + addr.landmark"></p>
+                                                    <p class="text-base-content/60"
+                                                       x-text="[addr.city_village_name, addr.postal_code, addr.district_name, addr.state_name, addr.country_name].filter(Boolean).join(', ')">
+                                                    </p>
+                                                    <p x-show="addr.remarks" class="text-base-content/40 italic" x-text="addr.remarks"></p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB 2: Search (trigram fuzzy search)                      -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div x-show="activeTab === 'search'" x-cloak>
+            <section class="card bg-base-100 shadow-sm">
+                <div class="card-body p-3 sm:p-4 xl:p-6">
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Person Search</h2>
+
+                    <!-- Search input -->
+                    <div class="form-control mt-2 max-w-md">
+                        <div class="input-group">
+                            <input type="text" placeholder="Name, Person ID, or mobile number (min 2 chars)"
+                                   class="input input-bordered input-sm w-full"
+                                   x-model="searchQuery"
+                                   @keydown.enter="executeSearch()"
+                                   @input="searchQuery.length >= 2 ? executeSearch() : (searchResults = [])">
+                        </div>
+                        <label class="label">
+                            <span class="label-text-alt text-base-content/40">Uses trigram similarity for fuzzy name matching</span>
+                        </label>
+                    </div>
+
+                    <template x-if="searchLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="!searchLoading && searchError">
+                        <div class="alert alert-error mt-2">
+                            <span class="text-sm">Search failed.</span>
+                        </div>
+                    </template>
+
+                    <template x-if="!searchLoading && !searchError && searchExecuted && searchResults.length === 0">
+                        <div class="py-4">
+                            <p class="text-sm text-base-content/60">No results found.</p>
+                        </div>
+                    </template>
+
+                    <template x-if="!searchLoading && !searchError && searchResults.length > 0">
+                        <div class="overflow-x-auto mt-2">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="badge badge-ghost badge-sm" x-text="searchResults.length + ' results'"></span>
+                            </div>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Person ID</th>
+                                        <th>Name</th>
+                                        <th>Gender</th>
+                                        <th>DOB</th>
+                                        <th>Mobile</th>
+                                        <th>Email</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="p in searchResults" :key="p.person_pk">
+                                        <tr class="cursor-pointer hover"
+                                            @click="switchTab('persons'); selectPersonByPk(p.person_pk)">
+                                            <td class="font-mono text-xs whitespace-nowrap" x-text="p.person_id"></td>
+                                            <td class="text-xs font-medium whitespace-nowrap" x-text="formatName(p)"></td>
+                                            <td class="text-xs" x-text="p.gender_name || '—'"></td>
+                                            <td class="text-xs whitespace-nowrap" x-text="p.date_of_birth || '—'"></td>
+                                            <td class="text-xs whitespace-nowrap" x-text="formatPhone(p)"></td>
+                                            <td class="text-xs" x-text="p.email || '—'"></td>
+                                            <td class="whitespace-nowrap">
+                                                <span class="badge badge-xs whitespace-nowrap"
+                                                      :class="statusBadgeClass(p)"
+                                                      x-text="statusLabel(p)"></span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                </div>
+            </section>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-xs text-base-content/30 mt-6">
+            <p>&copy; 2026 Nilachala Saraswata Sangha. All rights reserved.</p>
+        </footer>
+
+    </div>
+
+    <script src="/assets/js/person.js"></script>
+</body>
+</html>
