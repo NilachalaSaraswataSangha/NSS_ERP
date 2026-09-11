@@ -276,6 +276,54 @@ class TestOrganizations:
                 f"{org['organization_code']} missing website_url"
             )
 
+    # ── Pagination ──────────────────────────────────────────────────────
+
+    def test_pagination_default_returns_all_seeded(self, client):
+        """Default limit/offset returns all 3 seeded orgs."""
+        data = client.get(f"{BASE}/organizations").json()
+        assert len(data) == 3
+
+    def test_pagination_limit_1(self, client):
+        """limit=1 returns exactly 1 organization."""
+        data = client.get(f"{BASE}/organizations", params={"limit": 1}).json()
+        assert len(data) == 1
+
+    def test_pagination_offset_skips(self, client):
+        """offset=1 skips the first result."""
+        all_data = client.get(f"{BASE}/organizations").json()
+        offset_data = client.get(f"{BASE}/organizations", params={"offset": 1}).json()
+        assert len(offset_data) == len(all_data) - 1
+
+    def test_pagination_limit_and_offset(self, client):
+        """limit=1 offset=1 returns the second organization."""
+        all_data = client.get(f"{BASE}/organizations").json()
+        if len(all_data) < 2:
+            pytest.skip("Need at least 2 orgs for offset test")
+        page = client.get(f"{BASE}/organizations", params={"limit": 1, "offset": 1}).json()
+        assert len(page) == 1
+        assert page[0]["organization_pk"] == all_data[1]["organization_pk"]
+
+    def test_pagination_limit_zero_returns_422(self, client):
+        """limit=0 violates ge=1 constraint — returns 422."""
+        r = client.get(f"{BASE}/organizations", params={"limit": 0})
+        assert r.status_code == 422
+
+    def test_pagination_limit_over_max_returns_422(self, client):
+        """limit=501 exceeds MAX_LIMIT=500 — returns 422."""
+        r = client.get(f"{BASE}/organizations", params={"limit": 501})
+        assert r.status_code == 422
+
+    def test_pagination_negative_offset_returns_422(self, client):
+        """offset=-1 violates ge=0 constraint — returns 422."""
+        r = client.get(f"{BASE}/organizations", params={"offset": -1})
+        assert r.status_code == 422
+
+    def test_pagination_large_offset_returns_empty(self, client):
+        """offset beyond total count returns empty list, not error."""
+        r = client.get(f"{BASE}/organizations", params={"offset": 9999})
+        assert r.status_code == 200
+        assert r.json() == []
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 3. CHILDREN
@@ -352,6 +400,34 @@ class TestHierarchy:
         """With only root orgs seeded, hierarchy has exactly 3 nodes."""
         data = client.get(f"{BASE}/hierarchy").json()
         assert len(data) == 3
+
+    # ── Pagination ──────────────────────────────────────────────────────
+
+    def test_hierarchy_pagination_limit_1(self, client):
+        """Hierarchy with limit=1 returns exactly 1 node."""
+        data = client.get(f"{BASE}/hierarchy", params={"limit": 1}).json()
+        assert len(data) == 1
+
+    def test_hierarchy_pagination_offset(self, client):
+        """Hierarchy with offset=1 skips first node."""
+        all_data = client.get(f"{BASE}/hierarchy").json()
+        offset_data = client.get(f"{BASE}/hierarchy", params={"offset": 1}).json()
+        assert len(offset_data) == len(all_data) - 1
+
+    def test_hierarchy_pagination_limit_zero_returns_422(self, client):
+        """Hierarchy limit=0 returns 422."""
+        r = client.get(f"{BASE}/hierarchy", params={"limit": 0})
+        assert r.status_code == 422
+
+    def test_hierarchy_pagination_limit_over_max_returns_422(self, client):
+        """Hierarchy limit=501 returns 422."""
+        r = client.get(f"{BASE}/hierarchy", params={"limit": 501})
+        assert r.status_code == 422
+
+    def test_hierarchy_pagination_negative_offset_returns_422(self, client):
+        """Hierarchy offset=-1 returns 422."""
+        r = client.get(f"{BASE}/hierarchy", params={"offset": -1})
+        assert r.status_code == 422
 
 
 # ═══════════════════════════════════════════════════════════════════════════
