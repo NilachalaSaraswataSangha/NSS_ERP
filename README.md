@@ -610,6 +610,7 @@ v0.5.0.md
 v0.5.1.md
 v0.6.0.md
 v0.7.0.md
+v0.8.0.md
 ```
 
 ---
@@ -697,6 +698,20 @@ Tier 1 Foundation — API, Web UI, Security Hardening
 
 ---
 
+## v0.8.0
+
+Tier 2 Organization — API, Web UI
+
+* FastAPI Tier 2 Organization API (6 read-only endpoints, incl. a self-referencing hierarchy
+  tree via a `WITH RECURSIVE` CTE)
+* Organization contact and online-presence fields (8 new columns on `nss.organization`)
+* Tier 2 Organization Verification UI (3-tab layout: Reference Data, Organizations, Hierarchy)
+* Test suite grown from 64 to 139 tests (Tier 0 + Tier 1 + Tier 2 + security middleware)
+* `TIER2_SECURITY_AUDIT.md` added — no blocking findings
+* `code_explanations/` and API contracts (`docs/03_Solution/api/`) moved out of `architecture/`
+
+---
+
 # Current Development Status
 
 Completed:
@@ -744,7 +759,7 @@ Completed:
   see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`)
 * Tier 2 Organization Verification UI (`frontend/organization.html` +
   `assets/js/organization.js` — 3-tab layout: Reference Data, Organizations, Hierarchy)
-* Implemented on the `feature/tier2-organization` branch — not yet merged/released as v0.8.0
+* Implemented and released as v0.8.0 — merged to `main`
 * Global Location Model
 * Membership Module Design
 * Family Module Design
@@ -794,9 +809,8 @@ Current Focus:
   modules have real SQL implementation (Foundation: 12 tables; Organization: 3 tables) — 15
   tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full Tier 1 API +
   Web UI (17 endpoints, 59 tests), released as v0.7.0. Organization now also has a full Tier 2
-  API + Web UI (6 endpoints, 51 tests), implemented on the `feature/tier2-organization` branch.
-  No release doc has been created yet for the Organization API/UI implementation or the
-  module-documentation backlog.
+  API + Web UI (6 endpoints, 51 tests), released as v0.8.0.
+  No release doc has been created yet for the module-documentation backlog beyond these two.
 
 ---
 
@@ -835,7 +849,7 @@ release document under `docs/05_Releases/` before the next tier begins.
 |---------|------|-------|
 | v0.6.0 | Tier 0 | Bootstrap RBAC — DB + API + UI + deployment (**released**) |
 | v0.7.0 | Tier 1 | Foundation — API + Web UI + security hardening (DB already done) (**released**) |
-| v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done; implemented on `feature/tier2-organization` branch, **not yet released**) |
+| v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) (**released**) |
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI |
 | v0.10.0 | Tier 4 | Family + Membership — full vertical slice |
 | v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
@@ -844,13 +858,8 @@ release document under `docs/05_Releases/` before the next tier begins.
 Next Release Target:
 
 ```text
-v0.8.0 — Tier 2 Organization: API endpoints for org types, statuses, self-referencing
-hierarchy, Web UI views. DB already complete (3 tables live since v0.6.0). API + Web UI are
-implemented on the `feature/tier2-organization` branch, backed by 51 pytest integration
-tests — not yet merged/tagged as v0.8.0.
-
-Up next once v0.8.0 ships: v0.9.0 — Tier 3 Person: DB rewrite (superseding the v0.5.1 prototype
-against Foundation's master_category/master_data pattern) + API + Web UI.
+v0.9.0 — Tier 3 Person: DB rewrite (superseding the v0.5.1 prototype against Foundation's
+master_category/master_data pattern) + API + Web UI.
 ```
 
 ---
@@ -897,10 +906,10 @@ See `docs/PROJECT_DOCUMENTATION.md` for the full, code-verified breakdown of eac
 # Current Stable Version
 
 ```text
-v0.7.0
+v0.8.0
 ```
 
-Tier 1 Foundation — API, Web UI, Security Hardening
+Tier 2 Organization — API, Web UI
 
 ---
 

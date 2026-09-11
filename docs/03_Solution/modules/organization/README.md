@@ -58,8 +58,8 @@ endpoints (`/types`, `/statuses`, `/organizations` list/detail/children, `/hiera
 `WITH RECURSIVE` CTE), consumed by `frontend/organization.html`'s 3-tab verification UI
 (Reference Data, Organizations, Hierarchy) and verified by 51 pytest integration tests
 (`tests/test_organization.py`); see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` and
-`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`. Implemented on the
-`feature/tier2-organization` branch, not yet merged/released as v0.8.0.
+`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`. Merged to `main` and released as
+v0.8.0.
 
 ---
 

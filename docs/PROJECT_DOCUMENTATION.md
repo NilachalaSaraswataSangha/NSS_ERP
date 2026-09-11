@@ -326,11 +326,8 @@ API phase (Foundation) is now also **implemented** — 17 read-only endpoints ac
 v0.7.0. Tier 2's API phase (Organization) is now also **implemented** — 6 read-only endpoints
 (reference data, organizations list/detail/children, a recursive-CTE `/hierarchy`) in
 `api/routers/organization.py`, with a matching Organization Verification UI
-(`frontend/organization.html`) and 51 pytest integration tests. As of this writing this vertical
-slice lives on `feature/tier2-organization` (the current branch, per `git branch
---show-current`, with two commits — `feat(organization): Tier 2 vertical slice — API, UI,
-tests` and `docs(organization): Tier 2 security audit + code explanations` — plus further
-uncommitted changes on top) and has **not** been merged into `develop`/`main` or released. Tier 2
+(`frontend/organization.html`) and 51 pytest integration tests — merged to `main` and tagged as
+v0.8.0. Tier 2
 (Person) API/UI phases remain **unimplemented**. All other API phases and all other UI phases
 remain **unimplemented** across the remaining tiers.
 
@@ -747,9 +744,8 @@ tables, see above) but also has a full read-only API (`api/routers/foundation.py
 and verification UI (`frontend/foundation.html`); Organization's Solution-layer design (3 tables)
 is likewise implemented in SQL and now also has a full read-only API
 (`api/routers/organization.py`, 6 endpoints) and verification UI
-(`frontend/organization.html`) — both are complete DB→API→UI vertical slices, though
-Organization's is still on `feature/tier2-organization`, not yet merged/released like
-Foundation's (v0.7.0). The only other implemented API surface in the codebase is the Tier 0
+(`frontend/organization.html`) — both are complete DB→API→UI vertical slices, released as
+v0.7.0 (Foundation) and v0.8.0 (Organization). The only other implemented API surface in the codebase is the Tier 0
 bootstrap-RBAC router (`api/routers/bootstrap.py`), which isn't one of the 22 Solution-layer
 modules listed above. Don't assume any other Solution-layer doc describes currently running
 code.
@@ -952,9 +948,8 @@ NSS-wide defaults are always populated, the org-specific overrides are always nu
 line-by-line walkthrough in `docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`.
 Verified via 51 pytest integration tests (`tests/test_organization.py`, 7 classes) plus a
 dedicated security audit (`docs/03_Solution/code_explanations/TIER2_SECURITY_AUDIT.md`).
-Consumed by `frontend/organization.html`'s 3-tab UI (see `frontend/` detail above). As of this
-writing this vertical slice lives on `feature/tier2-organization` — not yet merged to
-`develop`/`main` or released (see "Current position" above).
+Consumed by `frontend/organization.html`'s 3-tab UI (see `frontend/` detail above). Merged to
+`main` and released as v0.8.0 (see "Current position" above).
 
 **Two freezes live outside this module's own doc set, not inside it:** (1) the business rules
 doc's freeze of exactly **8 organization types** — `KENDRA`, `NILACHALA_KUTIRA`,
@@ -1280,10 +1275,9 @@ same directory.
   `SECURITY_CODE_EXPLANATIONS.md`, even though the advisory tables above them were updated.
   Cosmetic, not a correctness issue.
 - **Build Tier 2 API endpoints for `Person`** against the SQL DDL — no API layer reads/writes
-  `person` today; only the Tier 0 bootstrap-RBAC tables and the now-implemented Tier 2
-  Organization endpoints (`api/routers/organization.py`) are exposed so far. (Organization's own
-  API is done — see Key Workflow #4/"Current position" above — but note it's still on
-  `feature/tier2-organization`, not yet merged/released.)
+  `person` today; only the Tier 0 bootstrap-RBAC tables and the now-implemented, released (v0.8.0)
+  Organization endpoints (`api/routers/organization.py`) are exposed so far — see Key Workflow
+  #4/"Current position" above.
 - **Reconcile `person_id` (design docs) vs. `person_code` (implemented SQL)** — the Person
   table design doc names the business identifier `person_id`; the actual DDL column is
   `person_code`. See Key Workflow #3.
@@ -1305,15 +1299,14 @@ same directory.
 - **Decide the scope of `governance` and `attendance`** — Solution-layer designs exist for both,
   but no DDL or API implementation exists yet for either.
 - **Build out the FastAPI application beyond Tier 0/1/2** — per `TECH_STACK_DECISIONS.md`,
-  FastAPI is the approved API layer; Tier 0's 4 read-only bootstrap-RBAC endpoints and Tier 1's
-  17 read-only Foundation endpoints are implemented and released (v0.7.0), and Tier 2's 6
-  read-only Organization endpoints are implemented but still on `feature/tier2-organization`
-  (not yet merged/released) — every other tier's API phase (Person, etc.) remains
-  unbuilt.
+  FastAPI is the approved API layer; Tier 0's 4 read-only bootstrap-RBAC endpoints, Tier 1's
+  17 read-only Foundation endpoints, and Tier 2's 6 read-only Organization endpoints are all
+  implemented and released (v0.7.0, v0.8.0) — every other tier's API phase (Person, etc.)
+  remains unbuilt.
 - **Grow the frontend beyond Tier 0/1/2** — `frontend/` now has three verification UIs (Tailwind +
   DaisyUI + Alpine.js, no build step): the Tier 0 Bootstrap Verification UI, the Tier 1
-  Foundation Verification UI, and the Tier 2 Organization Verification UI (the latter also still
-  on `feature/tier2-organization`). None is the full admin dashboard; the 13 mockups under
+  Foundation Verification UI, and the Tier 2 Organization Verification UI. None is the full
+  admin dashboard; the 13 mockups under
   `docs/03_Solution/ui/mockups/` remain the visual target for later tiers, and login/session UI
   is deferred to Tier 5.
 - **No `.env.example`** — new contributors have to reverse-engineer required env vars from
