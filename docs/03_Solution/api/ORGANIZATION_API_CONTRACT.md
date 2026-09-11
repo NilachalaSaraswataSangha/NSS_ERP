@@ -67,6 +67,14 @@ administration and authorization exist.
   always present); `org_website_url`, `org_youtube_channel_url`, and
   `org_email` are nullable (org-specific)
 
+- **Shared helpers:** `api/helpers.py` provides `rows_to_models`, `row_to_model`,
+  `DEFAULT_LIMIT` (100), `MAX_LIMIT` (500) — shared across all routers
+- **Pagination:** List and hierarchy endpoints support `limit` (1–500, default 100)
+  and `offset` (≥0, default 0). FastAPI `Query(ge=1, le=MAX_LIMIT)` enforces bounds
+  (422 on violation)
+- **CTE depth guard:** Hierarchy endpoint caps recursion at depth 10
+  (`AND t.depth < 10`) as defence-in-depth against circular parent references
+
 ### Endpoint Classification
 
 | Class                          | Endpoints                                       | Consumer               |
@@ -198,13 +206,16 @@ online presence, and geographic context.
 
 **Query Parameters:**
 
-| Param         | Type   | Required | Description                          |
-|---------------|--------|----------|--------------------------------------|
-| `type_code`   | string | No       | Filter by organization type code     |
-| `status_code` | string | No       | Filter by organization status code   |
+| Param         | Type   | Required | Default | Description                          |
+|---------------|--------|----------|---------|--------------------------------------|
+| `type_code`   | string | No       | —       | Filter by organization type code     |
+| `status_code` | string | No       | —       | Filter by organization status code   |
+| `limit`       | int    | No       | 100     | Max rows (1–500)                     |
+| `offset`      | int    | No       | 0       | Rows to skip (≥0)                    |
 
 Both filters are independently combinable. A non-matching filter returns `[]`,
-not an error.
+not an error. `limit` and `offset` are validated by FastAPI — `limit=0` or
+`limit=501` returns 422.
 
 **Response:** `200 OK`
 
@@ -319,6 +330,7 @@ LEFT JOIN nss.postal_code pc
        ON pc.postal_code_pk = o.postal_code_pk
 WHERE  o.is_active = TRUE
 ORDER BY ot.display_order, o.organization_name
+LIMIT %s OFFSET %s
 ```
 
 When `type_code` is provided, add: `AND ot.value_code = %s`
@@ -411,8 +423,15 @@ GET /api/v1/organization/hierarchy
 
 Returns the full organizational hierarchy as a flat list with depth.
 Uses a recursive CTE starting from root nodes (`parent = NULL`).
+Depth is capped at 10 levels as a defence-in-depth guard against circular
+parent references.
 
-**Query Parameters:** None
+**Query Parameters:**
+
+| Param    | Type | Required | Default | Description          |
+|----------|------|----------|---------|----------------------|
+| `limit`  | int  | No       | 100     | Max rows (1–500)     |
+| `offset` | int  | No       | 0       | Rows to skip (≥0)    |
 
 **Response:** `200 OK`
 
@@ -483,9 +502,11 @@ WITH RECURSIVE org_tree AS (
     JOIN   org_tree t
            ON t.organization_pk = o.parent_organization_pk
     WHERE  o.is_active = TRUE
+      AND  t.depth < 10
 )
 SELECT * FROM org_tree
 ORDER BY depth, organization_name
+LIMIT %s OFFSET %s
 ```
 
 ---
@@ -559,6 +580,7 @@ Carried forward from Tier 0:
 | 404    | PK lookup — not found or inactive         | `{"detail": "Organization not found"}`   |
 | 404    | Parent PK — not found or inactive         | `{"detail": "Parent organization not found"}` |
 | 422    | Malformed UUID or invalid query parameter | FastAPI validation error                 |
+| 422    | `limit=0`, `limit=501`, `offset=-1`      | FastAPI validation error (ge/le bounds)  |
 
 ---
 
@@ -566,8 +588,9 @@ Carried forward from Tier 0:
 
 ```
 api/
+  helpers.py                        <- Shared cursor→Pydantic helpers + pagination constants
   routers/
-    organization.py             <- 6 endpoint handlers + 2 helpers + _ORG_SELECT
+    organization.py             <- 6 endpoint handlers + _ORG_SELECT
   schemas/
     organization.py             <- 4 Pydantic response models
 database/
@@ -639,10 +662,15 @@ These can be added later without changing existing contracts:
 
 | Extension          | Mechanism                                     |
 |--------------------|-----------------------------------------------|
-| Pagination         | Add `?page=1&page_size=50` query params       |
 | Text search        | Add `?search=...` using existing GIN index on `organization_name` |
-| Recursive depth    | Add `WHERE depth < N` guard to hierarchy CTE  |
 | Include inactive   | Add `?include_inactive=true` (auth-gated)     |
+
+**Already implemented (formerly listed here):**
+
+| Feature            | Implementation                                |
+|--------------------|-----------------------------------------------|
+| Pagination         | `limit`/`offset` on list + hierarchy (default 100, max 500) |
+| Recursive depth    | `AND t.depth < 10` guard in hierarchy CTE     |
 
 **Deliberately excluded from this list:**
 
