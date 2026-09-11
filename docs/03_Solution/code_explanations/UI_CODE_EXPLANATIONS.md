@@ -1614,7 +1614,10 @@ smallest file in the frontend layer, shared unmodified by both `index.html` and
   consumed), the FastAPI static-serving/routing setup (`api/main.py`), and the
   Tier-by-tier growth plan. Read that first for the "what" and "where"; this document
   supplies the "how, exactly" for each file's actual code.
-- `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md` — the authoritative API
+- `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` — the authoritative API
   contract for the 17 `/api/v1/foundation/*` endpoints consumed by `foundation.html` /
   `foundation.js` (request/response shapes, filter query parameters, the deliberate
   exclusion of `current_value` and `field_change_log`).
+- `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` — the authoritative API
+  contract for the 6 `/api/v1/organization/*` endpoints consumed by `organization.html` /
+  `organization.js`.

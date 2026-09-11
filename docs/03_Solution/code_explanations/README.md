@@ -1,4 +1,4 @@
-# docs/03_Solution/architecture/code_explanations/
+# docs/03_Solution/code_explanations/
 
 Two kinds of documents live here:
 
@@ -45,9 +45,11 @@ home, and the same pattern extends cleanly as new layers are added in the future
 - **`TIER1_SECURITY_AUDIT.md`** (v1.1, Complete) — security audit scoped to all Tier 1 code.
   9 checks passed; 6 advisory items (3 resolved, 1 partial, 1 advisory, 1 N/A).
   No blocking vulnerabilities found.
-- **`TIER2_SECURITY_AUDIT.md`** (v1.0, Complete) — security audit scoped to all Tier 2 code.
+- **`TIER2_SECURITY_AUDIT.md`** (v1.1, Complete) — security audit scoped to all Tier 2 code.
   15 checks passed; 0 fixes required; 4 advisory items (pagination, CTE depth, filter logging,
   helper duplication). No blocking vulnerabilities found.
 
 See `docs/PROJECT_DOCUMENTATION.md` for the code-verified current state and
-`docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md` for the Tier 1 API's formal contract.
+`docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` for the Tier 1 API's formal contract. The same
+`docs/03_Solution/api/` directory also holds `BOOTSTRAP_API_CONTRACT.md` (Tier 0) and
+`ORGANIZATION_API_CONTRACT.md` (Tier 2) for the other two API layers documented here.

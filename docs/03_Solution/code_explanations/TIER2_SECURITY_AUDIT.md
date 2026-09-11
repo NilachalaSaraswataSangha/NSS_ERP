@@ -3,7 +3,7 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | TIER2_SECURITY_AUDIT                     |
-| Version     | 1.0                                      |
+| Version     | 1.1                                      |
 | Tier        | 2 — Organization                         |
 | Status      | Complete                                 |
 
@@ -39,7 +39,7 @@ This audit covers all code introduced in the Tier 2 Organization vertical slice:
 | 3  | Credential Leakage            | No new credentials introduced. Organization router imports only `get_connection` from `api.database` — same SELECT-only `nss_db_backend` pool used by Tier 0/1. No new `.env` variables. | PASS |
 | 4  | Error / Stack Trace Leakage   | 404 responses use generic messages: `"Organization not found"` (detail endpoint), `"Parent organization not found"` (children endpoint). No database error details, connection strings, or stack traces leak through any error path. | PASS |
 | 5  | XSS via API Response          | All 6 endpoints return JSON (`Content-Type: application/json`). Pydantic models enforce typed fields (UUID, str, int, bool, float). No raw HTML rendering from user input. Frontend uses Alpine.js `x-text` exclusively (auto-escapes HTML entities) — zero uses of `x-html`, `innerHTML`, `eval()`, `document.write()`, or `Function()` in `organization.js`. | PASS |
-| 6  | Audit Column Exclusion        | `OrganizationResponse` (27 fields) excludes all audit columns: `created_at`, `updated_at`, `deleted_at` are in the DDL but absent from the schema and the `_ORG_SELECT` SQL fragment. `OrganizationTypeResponse` and `OrganizationStatusResponse` (6 fields each) also exclude audit columns. `OrganizationHierarchyNodeResponse` (10 fields) similarly excludes them. | PASS |
+| 6  | Audit Column Exclusion        | `OrganizationResponse` (36 fields) excludes all audit columns: `created_at`, `updated_at`, `deleted_at` are in the DDL but absent from the schema and the `_ORG_SELECT` SQL fragment. The 9 new contact/online-presence fields (`phone_number`, `mobile_number`, `email`, `org_email`, `website_url`, `org_website_url`, `youtube_channel_url`, `org_youtube_channel_url`) are all non-sensitive operational data. `OrganizationTypeResponse` and `OrganizationStatusResponse` (6 fields each) also exclude audit columns. `OrganizationHierarchyNodeResponse` (10 fields) similarly excludes them. | PASS |
 | 7  | Database Privilege Scope      | `nss_db_backend` has SELECT-only privileges (`04_grant_backend.sql`). Organization router has zero INSERT/UPDATE/DELETE statements. Even if an attacker could inject SQL (they can't — see #1), no write operation would execute. | PASS |
 | 8  | UUID Validation               | `organization_pk: UUID` path parameter in `get_organization` and `list_organization_children` causes FastAPI to return 422 for malformed UUIDs. Verified by `test_detail_bad_uuid_returns_422` and `test_children_bad_uuid_returns_422`. | PASS |
 | 9  | Parent Existence Check        | `list_organization_children` verifies the parent exists (`SELECT 1 FROM nss.organization WHERE organization_pk = %s`) before querying children. Without this, any UUID — valid or not — would return `200 []`, making "org exists with no children" indistinguishable from "org doesn't exist." Verified by `test_children_fake_pk_returns_404`. | PASS |
@@ -106,7 +106,7 @@ Additionally, the broader `test_organization.py` test suite (48 tests) provides 
 | `test_detail_bad_uuid_returns_422`  | Malformed UUID rejected at framework level    |
 | `test_children_fake_pk_returns_404` | Parent existence guard prevents silent 200    |
 | `test_children_bad_uuid_returns_422`| Malformed UUID in children route rejected     |
-| `test_list_has_required_fields` (27 fields) | Audit columns not accidentally exposed |
+| `test_list_has_required_fields` (36 fields) | Audit columns not accidentally exposed |
 | `test_filter_nonexistent_type_returns_empty` | Non-matching filter returns `[]`, not error |
 
 These tests run on every `pytest` invocation. If any fails, the build breaks before the regression can be deployed.

@@ -2154,6 +2154,14 @@ _ORG_SELECT = """
            p.organization_name AS parent_organization_name,
            o.address_line_1,
            o.address_line_2,
+           o.phone_number,
+           o.mobile_number,
+           o.email,
+           o.org_email,
+           o.website_url,
+           o.org_website_url,
+           o.youtube_channel_url,
+           o.org_youtube_channel_url,
            o.district_pk,
            d.district_name,
            o.state_pk,
@@ -2309,8 +2317,8 @@ sorted breadth-first (all depth-0 roots first, then depth-1 children, etc.). Thi
 deliberately a **flat** representation — the UI uses `depthIndent(depth)` (see
 `UI_CODE_EXPLANATIONS.md`) to visually indent nodes, rather than receiving nested JSON.
 
-The recursive CTE uses a **leaner column set** than `_ORG_SELECT` (10 columns vs 27) — no
-address fields, no geographic LEFT JOINs, no parent name resolution — because the hierarchy
+The recursive CTE uses a **leaner column set** than `_ORG_SELECT` (10 columns vs 36) — no
+address fields, no contact/online-presence fields, no geographic LEFT JOINs, no parent name resolution — because the hierarchy
 view shows only the organizational structure (name, type, status, depth), not full detail.
 This maps to the dedicated `OrganizationHierarchyNodeResponse` schema (§2.10).
 
@@ -2321,8 +2329,8 @@ This maps to the dedicated `OrganizationHierarchyNodeResponse` schema (§2.10).
 **Requirement**
 
 `api/routers/organization.py` needs 4 typed response models: one for each reference-data
-catalogue (types, statuses), one for the full organization detail (27 fields including 8
-JOINed context fields), and one for the hierarchy tree's leaner node shape (10 fields).
+catalogue (types, statuses), one for the full organization detail (36 fields including 8
+JOINed context fields and 9 contact/online-presence fields), and one for the hierarchy tree's leaner node shape (10 fields).
 Without this file the Organization router would have no `response_model=` to validate
 against.
 
@@ -2356,7 +2364,7 @@ Maps 1:1 to `nss.organization_status_master`: `organization_status_pk`,
 `organization_status_code`, `organization_status_name`, `description` (nullable),
 `sort_order`, `is_active`.
 
-Lines 38–86 — `OrganizationResponse` (27 fields):
+Lines 38–86 — `OrganizationResponse` (36 fields):
 
 The largest response model in the codebase. Field groups match the `_ORG_SELECT` column list:
 - 4 core fields (`organization_pk`, `organization_id`, `organization_name`,
@@ -2366,6 +2374,10 @@ The largest response model in the codebase. Field groups match the `_ORG_SELECT`
 - 2 hierarchy fields (`parent_organization_pk` + `parent_organization_name` via self-LEFT
   JOIN).
 - 2 inline address fields (`address_line_1`, `address_line_2`).
+- 4 contact fields (`phone_number`, `mobile_number`, `email` NOT NULL DEFAULT,
+  `org_email` nullable).
+- 4 online presence fields (`website_url` NOT NULL DEFAULT, `org_website_url` nullable,
+  `youtube_channel_url` NOT NULL DEFAULT, `org_youtube_channel_url` nullable).
 - 10 geographic context fields (5 FK PKs + 5 resolved names via LEFT JOINs).
 - 2 coordinate fields (`latitude`, `longitude`).
 - 1 `is_active`.
@@ -2384,16 +2396,20 @@ are not nested — the tree is returned flat."
 
 ## 3. Cross-references
 
-- **`docs/03_Solution/architecture/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** —
+- **`docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** —
   `api/middleware.py` in full, plus the security-relevant portions of `api/config.py` and
   `api/main.py` this document deliberately doesn't duplicate.
-- **`docs/03_Solution/architecture/code_explanations/TESTING_CODE_EXPLANATIONS.md`** — the
+- **`docs/03_Solution/code_explanations/TESTING_CODE_EXPLANATIONS.md`** — the
   `tests/` integration suite that exercises every router/schema documented above.
-- **`docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`** — the Tier 1 Foundation API
+- **`docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`** — the Tier 1 Foundation API
   contract: the authoritative specification of what each of the 17 endpoints in
   `api/routers/foundation.py` must return, independent of this document's implementation-level
   walkthrough.
-- **`docs/03_Solution/architecture/code_explanations/TIER0_SECURITY_AUDIT.md`** and
+- **`docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`** — the Tier 2 Organization API
+  contract: the authoritative specification of what each of the 6 endpoints in
+  `api/routers/organization.py` must return, independent of this document's implementation-level
+  walkthrough.
+- **`docs/03_Solution/code_explanations/TIER0_SECURITY_AUDIT.md`** and
   **`TIER1_SECURITY_AUDIT.md`** — the security audit verdicts for the Bootstrap and Foundation
   API surfaces respectively. These are *not* retired by this document — they record findings and
   remediation status, which is a different concern from this document's per-file code narration,

@@ -30,9 +30,9 @@ verification harness, spanning every other layer document (`API_CODE_EXPLANATION
 testing gets its own dedicated document rather than being folded into whichever layer happens to
 be tested by the largest file.
 
-**64 tests total** across 4 files: `test_bootstrap.py` (12 — 9 API + 12 UI), `test_foundation.py`
-(47 — 34 API + 13 UI), `test_organization.py` (48 — 29 API + 15 UI + 3 security + 1 hierarchy
-endpoint), `test_security.py` (8), plus `conftest.py`'s shared fixture (no tests of its own).
+**139 tests total** across 5 files: `test_bootstrap.py` (21 — 9 API + 12 UI), `test_foundation.py`
+(59 — 46 API + 13 UI), `test_organization.py` (51 — 35 API/hierarchy + 13 UI + 3 security),
+`test_security.py` (8), plus `conftest.py`'s shared fixture (no tests of its own).
 
 ---
 
@@ -940,7 +940,7 @@ an actual cross-origin request.
 The 6 Tier 2 Organization endpoints span 3 tables and rely on non-trivial behaviours —
 8-way JOINed queries with 6 LEFT JOINs for nullable geographic FKs, a recursive CTE for
 hierarchy traversal, combinable type/status filters, parent-existence-checked children
-endpoint, and a 27-field response model — every one of which needs its own regression guard.
+endpoint, and a 36-field response model — every one of which needs its own regression guard.
 This file is the executable specification for the entire Tier 2 Organization API contract,
 plus UI structure tests for the Organization Verification UI page and security-header
 verification for the Organization endpoints.
@@ -1017,6 +1017,9 @@ def test_list_has_required_fields(self, client):
         "organization_status_name",
         "parent_organization_pk", "parent_organization_name",
         "address_line_1", "address_line_2",
+        "phone_number", "mobile_number", "email", "org_email",
+        "website_url", "org_website_url",
+        "youtube_channel_url", "org_youtube_channel_url",
         "district_pk", "district_name",
         "state_pk", "state_name",
         "country_pk", "country_name",
@@ -1029,15 +1032,16 @@ def test_list_has_required_fields(self, client):
         assert required.issubset(org.keys())
 ```
 
-Checks all 27 fields of `OrganizationResponse` are present, including all JOINed context
-fields from type, status, parent, and 5 geographic tables. This is the most comprehensive
-field check in the entire test suite — Foundation's largest response model has 8 fields;
-Organization's has 27.
+Checks all 36 fields of `OrganizationResponse` are present, including all JOINed context
+fields from type, status, parent, and 5 geographic tables, plus 4 contact fields (phone,
+mobile, email + org_email) and 4 online-presence fields (website/YouTube for both NSS-level
+and org-specific). This is the most comprehensive field check in the entire test suite —
+Foundation's largest response model has 8 fields; Organization's has 36.
 
 | Test | What it checks |
 |---|---|
 | `test_list_returns_200` | `GET /organizations` → 200, non-empty |
-| `test_list_has_required_fields` | 27-field required set check |
+| `test_list_has_required_fields` | 36-field required set check |
 | `test_list_returns_3_seeded_orgs` | `len == 3`; codes == `{KEN, NKT, SMR}` |
 | `test_list_all_active` | Every org has `is_active is True` |
 | `test_list_all_roots` | Every org has `parent_organization_pk is None` and `parent_organization_name is None` |
@@ -1132,11 +1136,11 @@ conditional in `middleware.py` works correctly for Organization routes.
 
 ## 3. Cross-references
 
-- **`docs/03_Solution/architecture/code_explanations/API_CODE_EXPLANATIONS.md`** — the
+- **`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`** — the
   routers/schemas that `test_bootstrap.py`, `test_foundation.py`, and `test_organization.py` exercise.
-- **`docs/03_Solution/architecture/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** — the
+- **`docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** — the
   middleware that `test_security.py` exercises and that `test_organization.py`'s `TestOrganizationSecurity` class verifies per-tier.
-- **`docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`** — the Tier 1 Foundation API
+- **`docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`** — the Tier 1 Foundation API
   contract that `test_foundation.py` is the executable specification for.
-- **`docs/03_Solution/architecture/code_explanations/TIER0_SECURITY_AUDIT.md`** and
+- **`docs/03_Solution/code_explanations/TIER0_SECURITY_AUDIT.md`** and
   **`TIER1_SECURITY_AUDIT.md`** — the security audit verdicts, not retired by this document.

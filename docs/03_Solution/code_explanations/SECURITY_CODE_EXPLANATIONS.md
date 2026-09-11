@@ -452,17 +452,17 @@ both HTML files as part of this same pass — see `UI_CODE_EXPLANATIONS.md` for 
 
 ## 3. Cross-references
 
-- **`docs/03_Solution/architecture/code_explanations/API_CODE_EXPLANATIONS.md`** — the full
+- **`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`** — the full
   file-by-file walkthrough of `api/config.py` and `api/main.py`, of which this document covers
   only the security-relevant slices.
-- **`docs/03_Solution/architecture/code_explanations/UI_CODE_EXPLANATIONS.md`** — the full
+- **`docs/03_Solution/code_explanations/UI_CODE_EXPLANATIONS.md`** — the full
   markup-level walkthrough of `frontend/index.html`, `frontend/foundation.html`, and
   `frontend/organization.html`, including every CDN `<script>`/`<link>` tag this document only
   summarizes.
-- **`docs/03_Solution/architecture/code_explanations/TESTING_CODE_EXPLANATIONS.md`** —
+- **`docs/03_Solution/code_explanations/TESTING_CODE_EXPLANATIONS.md`** —
   `tests/test_security.py`'s per-test walkthrough and `tests/test_organization.py`'s
   `TestOrganizationSecurity` class; those files are the executable verification of everything
   documented here.
-- **`docs/03_Solution/architecture/code_explanations/TIER0_SECURITY_AUDIT.md`** and
+- **`docs/03_Solution/code_explanations/TIER0_SECURITY_AUDIT.md`** and
   **`TIER1_SECURITY_AUDIT.md`** — the audit verdicts (pass/fail/advisory status) for the Bootstrap
   and Foundation API surfaces, a different concern from this document's code-level narration.
