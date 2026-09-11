@@ -8,3 +8,7 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* Badge padding is handled via Tailwind utility classes (px-3 py-1)
+   added directly to badge elements in HTML — DaisyUI CDN overrides
+   plain CSS selectors, so inline utilities are the reliable path. */

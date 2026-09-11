@@ -146,8 +146,23 @@ function organizationApp() {
         },
 
         async filterOrganizations() {
+            // Clear detail panel — previous selection may not exist in new filter results
+            this.selectedOrg = null;
+            this.orgChildren = [];
+
+            // Status filter is not applicable for unique institutional types
+            const noStatusTypes = ['KENDRA', 'NILACHALA_KUTIRA', 'SMRUTI_MANDIRA'];
+            if (noStatusTypes.includes(this.selectedTypeFilter)) {
+                this.selectedStatusFilter = '';
+            }
+
             this.organizations = [];
             await this.fetchOrganizations();
+
+            // Auto-select if filter yields exactly one result
+            if (this.organizations.length === 1) {
+                await this.selectOrganization(this.organizations[0]);
+            }
         },
 
         async selectOrganization(org) {

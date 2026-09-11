@@ -14,6 +14,20 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="/assets/css/style.css">
+
+    <!-- Badge breathing room — must be last to override DaisyUI CDN -->
+    <style>
+        .badge { padding: 0.25rem 0.75rem !important; }
+        .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
+        .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
+        /* Status colors — white text on distinct backgrounds */
+        .badge-status-active   { background-color: #16a34a !important; color: #fff !important; }
+        .badge-status-proposed  { background-color: #2563eb !important; color: #fff !important; }
+        .badge-status-approved  { background-color: #0d9488 !important; color: #fff !important; }
+        .badge-status-suspended { background-color: #dc2626 !important; color: #fff !important; }
+        .badge-status-inactive  { background-color: #6b7280 !important; color: #fff !important; }
+        .badge-status-archived  { background-color: #374151 !important; color: #fff !important; }
+    </style>
 </head>
 <body class="bg-base-200 min-h-screen">
 
