@@ -75,18 +75,27 @@ across 11 tables under `/api/v1/foundation`: master data (`/categories`, `/maste
 system config (`/settings`, `/sequences` — excludes `current_value`), geography (`/countries`,
 `/states`, `/districts`, `/cities`, `/postal-codes`, `/postal-code-mappings`), and runtime
 (`/documents`). `field_change_log` is deliberately not exposed — deferred to Tier 5 (needs
-auth). Full contract: `docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`.
+auth). Full contract: `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`.
+
+Tier 2 endpoints (`api/routers/organization.py`, read-only, no authentication) — 6 endpoints
+under `/api/v1/organization`: reference data (`/types`, `/statuses`), organization records
+(`/organizations` with optional `type_code`/`status_code` filters, `/organizations/{organization_pk}`,
+`/organizations/{organization_pk}/children`), and the self-referencing tree
+(`/hierarchy`, via a `WITH RECURSIVE` CTE). Full contract:
+`docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`.
 
 Swagger UI at `/docs` (disable via `DISABLE_DOCS=true` in `api/.env`); Bootstrap Verification UI
-at `/`, Foundation Verification UI at `/foundation` (both served from `frontend/` by FastAPI).
-The API connects as `nss_db_backend` (SELECT-only).
+at `/`, Foundation Verification UI at `/foundation`, Organization Verification UI at
+`/organization` (all served from `frontend/` by FastAPI). The API connects as `nss_db_backend`
+(SELECT-only).
 
 ## Frontend
 
 `frontend/` — a Tier 0 Bootstrap Verification UI (`index.html`, served at `/`) plus a Tier 1
-Foundation Verification UI (`foundation.html`, served at `/foundation`); neither is an admin
-dashboard. Served as static files by FastAPI: Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN),
-vanilla `fetch()`. No React/Vue/Angular, no Node.js build step, no Django templates. See
+Foundation Verification UI (`foundation.html`, served at `/foundation`) plus a Tier 2
+Organization Verification UI (`organization.html`, served at `/organization`); none of these are
+an admin dashboard. Served as static files by FastAPI: Tailwind CSS + DaisyUI (CDN), Alpine.js
+(CDN), vanilla `fetch()`. No React/Vue/Angular, no Node.js build step, no Django templates. See
 `frontend/README.md` for the full file/function reference.
 
 ## Tests & lint
@@ -97,32 +106,34 @@ root:
 ```
 pytest                    # all tests
 pytest -m integration     # integration-marked tests (currently all of them)
+pytest tests/test_organization.py                        # one file
+pytest tests/test_bootstrap.py::TestHealth::test_health_returns_ok  # one test
 ```
 
 Every test is an integration test — `tests/conftest.py`'s `client` fixture wraps
 `fastapi.testclient.TestClient` against a real local PostgreSQL DB, nothing is mocked — so a
-bootstrapped local database and `api/.env` are required first. `tests/test_bootstrap.py` (9
-tests), `tests/test_foundation.py` (47 tests), and `tests/test_security.py` (8 tests —
-security headers, Cache-Control scoping, rate limiting 429, CORS) cover the Tier 0, Tier 1,
-and cross-tier security middleware respectively. **64 tests total.** No
-lint/format tooling is configured yet — don't add one unilaterally.
+bootstrapped local database and `api/.env` are required first. `tests/test_bootstrap.py` (21
+tests), `tests/test_foundation.py` (59 tests), `tests/test_organization.py` (51 tests), and
+`tests/test_security.py` (8 tests — security headers, Cache-Control scoping, rate limiting
+429, CORS) cover the Tier 0, Tier 1, Tier 2, and cross-tier security middleware respectively.
+**139 tests total.** No lint/format tooling is configured yet — don't add one unilaterally.
 
 ## Architecture
 
 **Repository layout:**
 ```
 NSS_ERP/
-├── api/                    FastAPI Tier 0 + Tier 1 API (raw psycopg2, no ORM)
+├── api/                    FastAPI Tier 0 + Tier 1 + Tier 2 API (raw psycopg2, no ORM)
 │   ├── middleware.py       Security headers + Cache-Control scoping
-│   ├── routers/            bootstrap.py (Tier 0), foundation.py (Tier 1)
-│   └── schemas/            bootstrap.py, foundation.py — Pydantic response models
+│   ├── routers/            bootstrap.py (Tier 0), foundation.py (Tier 1), organization.py (Tier 2)
+│   └── schemas/            bootstrap.py, foundation.py, organization.py — Pydantic response models
 ├── frontend/               Web UI (Tailwind/DaisyUI + Alpine.js, served by FastAPI)
 ├── database/               Hand-written PostgreSQL DDL + seed + scripts
 │   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization)
 │   ├── seed/               Seed data (mirrors ddl/ folder order)
 │   └── scripts/            DB creation, build, validate, grant scripts
 ├── tests/                  pytest integration tests (test_bootstrap.py, test_foundation.py,
-│                             test_security.py)
+│                             test_organization.py, test_security.py)
 ├── docs/                   All project documentation
 ├── BY-LAW/                 Source reference material
 └── NSS LOGO/               Branding assets
@@ -131,7 +142,7 @@ NSS_ERP/
 `backend/` (the earlier Django prototype) was fully removed once the FastAPI direction was
 adopted — it no longer exists on disk, only in Git history. `api/` (FastAPI, raw
 psycopg2, no ORM/SQLAlchemy/migration tool) is the only API layer; authentication is deferred to
-Tier 5 — Tiers 0-1 have no auth, no fake auth, no API keys. Security middleware
+Tier 5 — Tiers 0-2 have no auth, no fake auth, no API keys. Security middleware
 (`api/middleware.py`) provides security headers (X-Content-Type-Options, X-Frame-Options,
 Referrer-Policy, Permissions-Policy), Cache-Control scoping (no-store on `/api/*` only), CORS
 (configurable via `CORS_ORIGINS`), and rate limiting (SlowAPIMiddleware, default 60/minute).

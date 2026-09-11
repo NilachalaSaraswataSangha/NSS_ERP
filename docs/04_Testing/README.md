@@ -3,10 +3,10 @@
 Testing documentation scaffolding. The sub-folders below are reserved for formal test
 plans/reports per category — none has content yet.
 
-**Automated tests do exist** in the codebase — `tests/` (repo root) contains **64 integration
-tests** across 3 files, all running against a real local PostgreSQL database via
+**Automated tests do exist** in the codebase — `tests/` (repo root) contains **139 integration
+tests** across 4 files, all running against a real local PostgreSQL database via
 `fastapi.testclient.TestClient` (nothing mocked). See `tests/README.md` for the test inventory
-and `docs/03_Solution/architecture/code_explanations/` for the security audit reports.
+and `docs/03_Solution/code_explanations/` for the security audit reports.
 
 | Folder | Purpose |
 |---|---|

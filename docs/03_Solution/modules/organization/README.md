@@ -52,7 +52,14 @@ PATHA_CHAKRA (multiple instances). See ORG-BR-064 for details and ID prefix assi
 ## Current Status
 
 Design Complete · ERD Complete · Lifecycle Complete · Business Rules GOVERNANCE ALIGNED ·
-Table Design GOVERNANCE ALIGNED · **SQL Implemented** (3 tables, seeded)
+Table Design GOVERNANCE ALIGNED · **SQL Implemented** (3 tables, seeded) ·
+**API/UI Implementation Complete** — `api/routers/organization.py` exposes 6 read-only
+endpoints (`/types`, `/statuses`, `/organizations` list/detail/children, `/hierarchy` via a
+`WITH RECURSIVE` CTE), consumed by `frontend/organization.html`'s 3-tab verification UI
+(Reference Data, Organizations, Hierarchy) and verified by 51 pytest integration tests
+(`tests/test_organization.py`); see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` and
+`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`. Implemented on the
+`feature/tier2-organization` branch, not yet merged/released as v0.8.0.
 
 ---
 

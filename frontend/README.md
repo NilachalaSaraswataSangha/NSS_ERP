@@ -1,11 +1,11 @@
 # frontend/
 
-Tier 0 Bootstrap Verification UI and Tier 1 Foundation Verification UI for Nilachala Saraswata
-Sangha.
+Tier 0 Bootstrap Verification UI, Tier 1 Foundation Verification UI, and Tier 2 Organization
+Verification UI for Nilachala Saraswata Sangha.
 
 **Purpose:** Verify the database → API → frontend integration for each tier as it's built.
-Neither page is an operational administration dashboard. Together they establish the frontend
-shell that later tiers grow into.
+None of the three pages is an operational administration dashboard. Together they establish the
+frontend shell that later tiers grow into.
 
 **Tech stack:** Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla
 `fetch()` for JSON API consumption. No React/Vue/Angular. No Node.js
@@ -22,6 +22,7 @@ separate frontend server, no CORS configuration needed.
 frontend/
 ├── index.html              Tier 0 Bootstrap Verification UI (Alpine.js application)
 ├── foundation.html         Tier 1 Foundation Verification UI (Alpine.js application)
+├── organization.html       Tier 2 Organization Verification UI (Alpine.js application)
 ├── assets/
 │   ├── css/
 │   │   └── style.css       Minimal project-specific CSS overrides
@@ -29,12 +30,14 @@ frontend/
 │   │   └── nss-logo.png    NSS logo (PNG with transparency)
 │   └── js/
 │       ├── app.js          Alpine.js data component + API fetch logic for index.html
-│       └── foundation.js   Alpine.js data component + API fetch logic for foundation.html
+│       ├── foundation.js   Alpine.js data component + API fetch logic for foundation.html
+│       └── organization.js Alpine.js data component + API fetch logic for organization.html
 └── README.md               This file
 ```
 
-Both pages share the same header pattern with a nav bar linking between `/` ("Bootstrap") and
-`/foundation` ("Foundation"), so either page is one click away from the other.
+All three pages share the same header pattern with a nav bar linking between `/` ("Bootstrap"),
+`/foundation` ("Foundation"), and `/organization` ("Organization"), so any page is one click
+away from the other two.
 
 ---
 
@@ -83,7 +86,8 @@ Each section is rendered by Alpine.js directives bound to the
 - Card padding scales: `p-4` base, `xl:p-6` on desktop
 - Grid gap scales: `gap-4` base, `xl:gap-6` on desktop
 
-**CDN dependencies (loaded in `<head>`, identical on both `index.html` and `foundation.html`):**
+**CDN dependencies (loaded in `<head>`, identical on `index.html`, `foundation.html`, and
+`organization.html`):**
 
 | Library | Version | Purpose |
 |---------|---------|---------|
@@ -93,7 +97,7 @@ Each section is rendered by Alpine.js directives bound to the
 
 The old unpinned `tailwindcss@2` prebuilt CSS and an incompatible `@tailwindcss/browser` 4.x
 build were both removed as part of the security-hardening pass — see
-`docs/03_Solution/architecture/code_explanations/SECURITY_CODE_EXPLANATIONS.md` and
+`docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md` and
 `UI_CODE_EXPLANATIONS.md` in the same folder.
 
 **How Alpine.js is wired:**
@@ -209,6 +213,58 @@ clicking the already-selected item clears it and every downstream selection/data
 
 ---
 
+### organization.html
+
+The Tier 2 Organization Verification UI entry point, structurally parallel to `index.html` and
+`foundation.html`: same head boilerplate and System Status card (reusing
+`GET /api/v1/bootstrap/health`), but with "Organization" active in the nav bar and subtitle
+"Tier 2 — Organization Verification". Below the status card, a DaisyUI `tabs tabs-boxed` bar
+with 3 tabs, each lazily loaded on first visit (driven by `activeTab` / `switchTab(tab)` in
+`organization.js`):
+
+| Tab | Contents |
+|-----|----------|
+| **Reference Data** | Two side-by-side tables: "Organization Types" (code/name/description/sort order, 8 rows) and "Lifecycle Statuses" (code/name/description/sort order, 6 rows) |
+| **Organizations** | Filterable list (2-column layout): left/wide panel is the organization table (code/name/type badge/status badge/parent/location) with `<select>` filters for type and status (`selectedTypeFilter`/`selectedStatusFilter`, `filterOrganizations()`); right panel is a detail view — key fields, Address, Contact (phone/mobile), Online Presence (NSS + org-specific email/website/YouTube links), Geographic (district/state/country), Coordinates, and a Children sub-table that lazy-loads on row click (`selectOrganization()`, toggle-deselect on repeat click) |
+| **Hierarchy** | Flat recursive-CTE result rendered client-side as an indented tree using a `depthIndent(node.depth)` inline-style helper, with type badge, name, code, and a status badge per node |
+
+Loads `<script src="/assets/js/organization.js">` at the bottom.
+
+---
+
+### assets/js/organization.js
+
+Alpine.js data component for `organization.html`. Defines one global function:
+`organizationApp()`. Constant `ORG_API = "/api/v1/organization"`.
+
+**State groups:** `activeTab`, `health{loading,connected}` (shared pattern with `app.js`),
+reference data (`orgTypes`, `orgStatuses`), organizations (`organizations`,
+`selectedTypeFilter`, `selectedStatusFilter`, `selectedOrg`, `orgChildren`), hierarchy
+(`hierarchy`). Each collection has matching `*Loading`/`*Error` booleans following the same
+convention as `app.js`/`foundation.js`.
+
+**Lifecycle:** `init()` calls `fetchHealth()` then `loadReferenceTab()` — only the active tab's
+data loads eagerly; `switchTab()` lazily triggers `loadOrganizationsTab()`/`loadHierarchyTab()`
+on first visit to each tab, guarded so repeat switches don't re-fetch (each guard checks the
+target array is still empty before fetching).
+
+**API calls** (all relative, all under `${ORG_API}` except the shared health check):
+`GET /api/v1/bootstrap/health`, `GET ${ORG_API}/types`, `GET ${ORG_API}/statuses`,
+`GET ${ORG_API}/organizations` (optional `?type_code=`/`?status_code=`, rebuilt by
+`filterOrganizations()` on filter change), `GET ${ORG_API}/organizations/{pk}/children`
+(fetched on `selectOrganization()`), `GET ${ORG_API}/hierarchy`.
+
+**Error-handling pattern:** identical to `app.js`/`foundation.js` — loading=true/error=false →
+try/fetch/check `res.ok`/parse JSON → catch sets error flag only → finally clears loading.
+`selectOrganization(org)` toggle-deselects: clicking the already-selected row clears
+`selectedOrg` and `orgChildren`.
+
+**Helper:** `depthIndent(depth)` returns an inline `padding-left` style string
+(`${depth * 1.5}rem`) used by the Hierarchy tab to visually nest tree rows without any
+client-side tree-building logic — the API already returns depth per flat row.
+
+---
+
 ### assets/css/style.css
 
 Minimal project-specific CSS. Tailwind and DaisyUI handle all styling
@@ -239,7 +295,8 @@ exists on disk:
 |-------------|----------------|--------|
 | `GET /` | Explicit route → `FileResponse(frontend/index.html)` | The Bootstrap Verification UI |
 | `GET /foundation` | Explicit route → `FileResponse(frontend/foundation.html)` | The Foundation Verification UI |
-| `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by both pages) |
+| `GET /organization` | Explicit route → `FileResponse(frontend/organization.html)` | The Organization Verification UI |
+| `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by all three pages) |
 
 **Why not mount at `/`?** A root-level `StaticFiles` mount would shadow
 FastAPI's built-in `/docs` (Swagger UI) and `/openapi.json`. By mounting
@@ -247,8 +304,10 @@ only `/assets/*` and serving each page via an explicit route, all
 FastAPI built-in routes remain accessible.
 
 **Graceful degradation:** If `frontend/` does not exist on disk, the
-mount and both routes are skipped entirely. If only `foundation.html` is missing, `/` still
-works — the API continues to work in API-only mode — `/docs` and `/api/v1/*` are unaffected.
+mount and all three routes are skipped entirely. If `foundation.html` or `organization.html` is
+missing, `/` still works — the API continues to work in API-only mode — `/docs` and
+`/api/v1/*` are unaffected. Both the `/foundation` and `/organization` routes are only
+registered `if` the respective HTML file exists on disk (see `api/main.py`).
 
 ---
 
@@ -285,11 +344,25 @@ Response schemas are defined in `api/schemas/bootstrap.py`.
 
 Response schemas are defined in `api/schemas/foundation.py`. `nss.field_change_log` is
 deliberately not exposed by any endpoint — deferred to Tier 5 (needs auth). Full contract:
-`docs/03_Solution/architecture/FOUNDATION_API_CONTRACT.md`.
+`docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`.
 
 Audit columns (`created_at`, `*_by_sangha_sevi_pk`) are excluded from every response by design.
 
----
+**`organization.html` (via `organization.js`):**
+
+| Method | URL | Response | Tier 2 State |
+|--------|-----|----------|-------------|
+| GET | `/api/v1/bootstrap/health` | `{ status, database }` | Shared with index.html |
+| GET | `/api/v1/organization/types` | `OrganizationTypeResponse[]` | 8 frozen types |
+| GET | `/api/v1/organization/statuses` | `OrganizationStatusResponse[]` | 6 lifecycle statuses |
+| GET | `/api/v1/organization/organizations?type_code=&status_code=` | `OrganizationResponse[]` | 3 seeded organizations (KEN, NKT, SMR), all roots |
+| GET | `/api/v1/organization/organizations/{organization_pk}` | `OrganizationResponse` | Not called directly by the UI (list already carries full detail); available for future use |
+| GET | `/api/v1/organization/organizations/{organization_pk}/children` | `OrganizationResponse[]` | Empty — all 3 seeded organizations are roots with no children |
+| GET | `/api/v1/organization/hierarchy` | `OrganizationHierarchyNodeResponse[]` | 3 nodes, all at depth 0 |
+
+Response schemas are defined in `api/schemas/organization.py`. `OrganizationResponse` also
+resolves geography FK names (country/state/district/city_village/postal_code) via LEFT JOINs to
+Foundation's tables. Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`.
 
 ## Future Growth
 
@@ -298,7 +371,7 @@ This shell is designed to evolve:
 ```
 Tier 0   Bootstrap Verification (current)
 Tier 1   Foundation Verification (current)
-Tier 2   Organization / Person views
+Tier 2   Organization Verification (current)
   ...
 Tier 5   Authentication + login/session UI
   ...
@@ -306,5 +379,5 @@ Tier 5   Authentication + login/session UI
 ```
 
 The page structure, CSS framework, and Alpine.js pattern established
-here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-1
+here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-2
 intentionally have no login, no session, no fake credentials.
