@@ -258,6 +258,10 @@ CREATE UNIQUE INDEX uq_person_aadhaar_hash
     ON nss.person (aadhaar_hash)
     WHERE aadhaar_hash IS NOT NULL;
 
--- trigram index for name search (PER-BR-039)
+-- trigram indexes for name search (PER-BR-039)
 CREATE INDEX idx_person_first_name_trgm
     ON nss.person USING gin (first_name gin_trgm_ops);
+
+CREATE INDEX idx_person_last_name_trgm
+    ON nss.person USING gin (last_name gin_trgm_ops)
+    WHERE last_name IS NOT NULL;

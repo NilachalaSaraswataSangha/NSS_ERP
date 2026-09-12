@@ -267,8 +267,9 @@ def search_persons(
     q: str = Query(
         ...,
         min_length=2,
+        max_length=100,
         description="Search term — matches against first_name (trigram), "
-        "last_name, person_id, or mobile_number",
+        "last_name (trigram), person_id, or mobile_number",
     ),
     conn=Depends(get_connection),
 ) -> list[PersonSummaryResponse]:
