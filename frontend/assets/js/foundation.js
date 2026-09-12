@@ -324,8 +324,8 @@ function foundationApp() {
         },
 
         formatSample(seq) {
-            const padded = "1".padStart(seq.padding_length, "0");
-            return `${seq.prefix}${padded}`;
+            const max = "9".repeat(seq.padding_length);
+            return `${seq.prefix}1 → ${seq.prefix}${max}`;
         },
     };
 }
