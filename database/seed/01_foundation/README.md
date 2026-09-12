@@ -36,7 +36,7 @@ done
 
 ### 01_master_category.sql
 
-Seeds 11 lookup categories into `master_category`. These are the top-level
+Seeds 13 lookup categories into `master_category`. These are the top-level
 classification buckets; each category's individual values are seeded in
 `02_master_data.sql`.
 
@@ -45,7 +45,7 @@ classification buckets; each category's individual values are seeded in
 | 1 | `GENDER` | Gender classification for persons |
 | 2 | `RELATIONSHIP_TYPE` | Family relationship types (used by Family module) |
 | 3 | `MEMBERSHIP_TYPE` | Types of NSS membership (per Bye-Law) |
-| 4 | `MEMBERSHIP_STATUS` | Lifecycle status of membership |
+| 4 | `STATUS` | Unified lifecycle status for all ERP entities (organizations, memberships, governance, etc.) — replaces the earlier per-module `MEMBERSHIP_STATUS`/`ORGANIZATION_STATUS` |
 | 5 | `LOGIN_ROLE` | Application login role classification |
 | 6 | `STATUS_REASON` | Reason codes for status changes |
 | 7 | `WORKFLOW_STATUS` | Generic workflow state values |
@@ -53,14 +53,17 @@ classification buckets; each category's individual values are seeded in
 | 9 | `APPLICATION_TYPE` | Types of member applications |
 | 10 | `MARITAL_STATUS` | Marital status for persons |
 | 11 | `ADDRESS_TYPE` | Types of addresses (permanent, current, official) |
+| 12 | `ORGANIZATION_TYPE` | Types of organizations in the NSS hierarchy (added for Organization module) |
+| 13 | `BLOOD_GROUP` | Blood group classification for persons (added for Person module) |
 
 ---
 
 ### 02_master_data.sql
 
-Seeds individual values into `master_data` for each category created above.
+Seeds individual values into `master_data` for each category created above (82 values total).
 Uses `CROSS JOIN ... VALUES` with a subquery to resolve `master_category_pk`
-by `category_code` — no hardcoded UUIDs.
+by `category_code` — no hardcoded UUIDs. `LOGIN_ROLE`, `STATUS_REASON`, `WORKFLOW_STATUS`, and
+`APPLICATION_TYPE` are seeded as categories only (0 values) — reserved for later use.
 
 **GENDER** (3 values): MALE, FEMALE, OTHER
 
@@ -77,8 +80,9 @@ CORRESPONDENCE, PROPERTY_DOCUMENT, MEETING_MINUTES
 - `ASSOCIATE` — Associate Member (per Bye-Law §B)
 - `HONORARY` — Honorary Member (ERP-FROZEN; not in current Bye-Law — added as an operational category by project decision)
 
-**MEMBERSHIP_STATUS** (7 values): ACTIVE, INACTIVE, SUSPENDED, TRANSFERRED,
-RESIGNED, EXPELLED, DECEASED
+**STATUS** (13 values, unified ERP-wide lifecycle status — replaces the earlier per-module
+`MEMBERSHIP_STATUS`): PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED,
+RESIGNED, EXPELLED, DECEASED, DISSOLVED, ARCHIVED, EXPIRED
 
 **RELATIONSHIP_TYPE** (29 values, comprehensive for Indian family structure):
 - Immediate family: SPOUSE, FATHER, MOTHER, SON, DAUGHTER, BROTHER, SISTER
@@ -90,6 +94,13 @@ RESIGNED, EXPELLED, DECEASED
 - Step relations: STEP_FATHER, STEP_MOTHER, STEP_SON, STEP_DAUGHTER
 - Guardian/ward: GUARDIAN, WARD
 - Other: OTHER
+
+**ORGANIZATION_TYPE** (10 values, per NSS Bye-Law hierarchy + preamble): KENDRA,
+NILACHALA_KUTIRA, SMRUTI_MANDIRA, ANCHALIKA_SANGHA, ZILLA_SANGHA, SAKHA_SANGHA, SAKHA_ASANA,
+PARIBARIK_ASANA, PARIBARIK_SANGHA, PATHA_CHAKRA
+
+**BLOOD_GROUP** (8 values, added for the Person module): A_POSITIVE, A_NEGATIVE, B_POSITIVE,
+B_NEGATIVE, AB_POSITIVE, AB_NEGATIVE, O_POSITIVE, O_NEGATIVE
 
 ---
 
@@ -223,8 +234,10 @@ or data migration — this file only seeds what the Organization bootstrap needs
 
 - Seed data uses `CROSS JOIN ... VALUES` with subqueries to resolve parent PKs
   by code — no hardcoded UUIDs.
-- Additional categories and values will be added by downstream module seeds
-  (e.g., Organization adds organization-type values to `master_data`).
+- Additional categories and values are added by downstream module seeds directly into this
+  folder's files (e.g., Organization added `STATUS` + `ORGANIZATION_TYPE` to
+  `01_master_category.sql`/`02_master_data.sql`; Person added `BLOOD_GROUP`). Downstream
+  modules do not carry their own `master_data` seed — Foundation stays the single owner.
 - Cities/villages are not seeded — populated during deployment or data migration.
 - Postal codes: a minimal bootstrap set (751022 Bhubaneswar, 752001 Puri) is
   seeded to satisfy Organization seed FK references. Full postal code data
