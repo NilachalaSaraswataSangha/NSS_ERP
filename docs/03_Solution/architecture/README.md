@@ -91,7 +91,7 @@ Overall solution architecture documentation (cross-module, above the per-module 
   organiser-defined). The P&E candidate-table set stands at 7 (`event_day` and
   `event_registration` included). The tables themselves remain CANDIDATE, not frozen DDL, pending
   Module #21's own formal freeze — see `docs/03_Solution/modules/programmes_events/README.md`.
-- API contracts (Bootstrap, Foundation, Organization) now live under
+- API contracts (Bootstrap, Foundation, Organization, Person) now live under
   `docs/03_Solution/api/` — see that folder's own README, not this one.
 - `code_explanations/` moved to `docs/03_Solution/code_explanations/` (see that folder's own
   README).
@@ -99,16 +99,18 @@ Overall solution architecture documentation (cross-module, above the per-module 
 This is now largely the **current code**, not just an approved target — the Django-to-FastAPI
 migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django prototype under `backend/` was
 fully archived and removed, and FastAPI is the sole, implemented API layer (`api/` — Tier 0
-read-only bootstrap-RBAC endpoints, Tier 1 read-only Foundation endpoints, and Tier 2 read-only
-Organization endpoints, no auth, no ORM, behind a cross-tier security middleware stack — security
-headers, opt-in CORS, rate limiting; see
+read-only bootstrap-RBAC endpoints, Tier 1 read-only Foundation endpoints, Tier 2 read-only
+Organization endpoints, and Tier 3 read-only Person endpoints, no auth, no ORM, behind a
+cross-tier security middleware stack — security headers, opt-in CORS, rate limiting; see
 `docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`) serving a
 Tailwind/DaisyUI/Alpine.js frontend (`frontend/`'s
-Tier 0 Bootstrap, Tier 1 Foundation, and Tier 2 Organization Verification UIs) as static files,
-backed by a 139-test pytest integration suite (`tests/`, `pytest.ini`). Deployment
+Tier 0 Bootstrap, Tier 1 Foundation, Tier 2 Organization, and Tier 3 Person Verification UIs) as
+static files, backed by a 208-test pytest integration suite (`tests/`, `pytest.ini`). Deployment
 infrastructure (`render.yaml`, `render_build.sh`, targeting Render.com + Neon.dev) exists but has
-not yet run in production. Bootstrap RBAC (3 tables, `SOL-ARCH-011`), Foundation (12 tables), and
-Organization (3 tables) are all implemented and committed against `SOL-ARCH-009`/`010`'s DDL
+not yet run in production. Bootstrap RBAC (3 tables, `SOL-ARCH-011`), Foundation (12 tables),
+Organization (3 tables), and Person (2 tables — `person`, `person_address`; its
+`01_person_master_tables.sql` remains a superseded prototype file, not run) are all implemented
+and committed against `SOL-ARCH-009`/`010`'s DDL
 sequence; Bootstrap RBAC's seed data remains partial (`role_master`
 seeded, `permission_master`/`role_permission` empty pending the permission catalogue).
 `PROGRAMME_EVENT_DOMAIN_MODEL.md` and `EVENT_ENTITY_RECONCILIATION.md` remain PROPOSED/DRAFT;

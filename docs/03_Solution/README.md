@@ -11,7 +11,7 @@ Solution-layer design docs: per-module design (`modules/`) plus cross-cutting de
 | `standards/` | `lifecycle/` — `SOL-LIFE-001`/`SOL-LIFE-002`, both FROZEN v1.0.0 |
 | `infrastructure/` | `DEPLOYMENT_SYNC_PLAN.md` — deployment/repo-sync plan |
 | `ui/` | `mockups/` — 13 static HTML mockups (Tailwind + DaisyUI via CDN) |
-| `api/` | 3 API contract docs (Bootstrap Tier 0, Foundation Tier 1, Organization Tier 2) for the FastAPI code running at the root-level `api/` folder — see `api/README.md` for the per-file list |
+| `api/` | 4 API contract docs (Bootstrap Tier 0, Foundation Tier 1, Organization Tier 2, Person Tier 3) for the FastAPI code running at the root-level `api/` folder — see `api/README.md` for the per-file list |
 
 See `docs/PROJECT_DOCUMENTATION.md` → `03_Solution/` detail for the full code-verified
 breakdown of every file in each folder.

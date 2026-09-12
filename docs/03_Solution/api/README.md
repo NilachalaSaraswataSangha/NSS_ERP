@@ -20,11 +20,16 @@ until the tier's implementation is frozen.
   endpoints (`types`, `statuses`, `organizations` list/detail/children, `hierarchy`) over 3
   tables, exposing the NSS institutional hierarchy (Kendra → Anchalika/Zilla → Sakha → Patha
   Chakra).
+- **`PERSON_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 3 Person read-only contract: 4 endpoints
+  (`persons` list/detail, `persons/{pk}/addresses`, trigram `search`) over the `person` and
+  `person_address` tables. Master-data FKs (gender, marital status, blood group, emergency
+  relationship, address type) are resolved via JOINs; `aadhaar_encrypted`/`aadhaar_hash` are
+  never returned — only `aadhaar_last4` for masked display.
 
 Each contract documents conventions, the full endpoint catalogue with example
 requests/responses and SQL patterns, a response-schema summary, error responses, and an
 implementation file map tying the contract back to its router/schema/test/frontend files.
-Write operations (POST/PATCH/DELETE) are deferred to Tier 5 across all three contracts, once
+Write operations (POST/PATCH/DELETE) are deferred to Tier 5 across all four contracts, once
 authenticated administration and authorization exist.
 
 See `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas for how this folder relates to the

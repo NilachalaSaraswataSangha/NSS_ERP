@@ -12,10 +12,11 @@ Every module below has a complete Solution-level doc set except `family`
 document-level `Status` field remains `DRAFT` throughout). **The Django prototype (`backend/`)
 that once implemented a handful of these modules as simple placeholder models has been removed
 from the codebase entirely** (archived in Git history only — see `CLAUDE.md`); the current
-implementation is FastAPI (`api/`) + hand-written PostgreSQL DDL (`database/ddl/`), and only
-three areas have real implemented code: `00_bootstrap/` (RBAC, owned by `administration/`),
-`01_foundation/` (fully implemented, 12 tables), and `02_organization/` (implemented, 3 tables).
-`03_person/` is a superseded prototype not to build on. Every other module below (including
+implementation is FastAPI (`api/`) + hand-written PostgreSQL DDL (`database/ddl/`), and four
+areas have real implemented code: `00_bootstrap/` (RBAC, owned by `administration/`),
+`01_foundation/` (fully implemented, 12 tables), `02_organization/` (implemented, 3 tables), and
+`03_person/` (implemented — `person`, 28 columns, and `person_address`; its
+`01_person_master_tables.sql` remains a superseded prototype file, not run). Every other module below (including
 `membership`, `family`, `attendance`, `heritage`, `kumari`, `kishor`, `mahila`, `governance`,
 `authentication`, etc.) is design-only with no implemented code — see
 `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas / Open questions before assuming any of
@@ -37,7 +38,7 @@ Administration — both reflected in the rows below.
 | Module | Design status | Implementation reality |
 |---|---|---|
 | `organization/` | v1.1.0, GOVERNANCE ALIGNED — type-to-type parent matrix explicitly OPEN | `database/ddl/02_organization/` implemented, 3 tables |
-| `person/` | v1.0.0, SOURCE ALIGNED — **1 table** (`person` only — `document_master` reassigned to Foundation, `DOC-ARCH-001`), 5 files | `database/ddl/03_person/` is a superseded prototype (`person`/`person_address`, docs say `person_id`) — not to be built on |
+| `person/` | v2.0.0, FROZEN — **2 tables** (`person`, `person_address` — `document_master` reassigned to Foundation, `DOC-ARCH-001`), 5 files | `database/ddl/03_person/02_person.sql` (28 columns) + `03_person_address.sql` implemented; API (`api/routers/person.py`, 4 endpoints), Verification UI (`frontend/person.html`), and 56 tests (`tests/test_person.py`) all implemented — `01_person_master_tables.sql` remains a superseded prototype file, not run |
 | `membership/` | v1.0.0, DRAFT — 5-file, ~10 tables designed | no implementation |
 | `family/` | v1.0.0, DRAFT — 5-file (includes lifecycle doc SOL-FAM-005), frozen 4-table design | no implementation |
 | `attendance/` | v1.0.0, DRAFT — 6-file (includes lifecycle doc SOL-ATT-006; Review Workflow FROZEN) + `DARSHAK_BUSINESS_RULE.md` | no implementation |
@@ -61,5 +62,5 @@ Administration — both reflected in the rows below.
 
 See `docs/PROJECT_DOCUMENTATION.md` → `03_Solution/` detail for the full breakdown, and its
 "Open questions / TODOs" section for open reconciliation items (Mandali term-length AND
-process-model conflict, `person_id`/`person_code`, organization type matrix, six new lifecycle
+process-model conflict, organization type matrix, six new lifecycle
 docs not cross-referencing `SOL-LIFE-001`/`002`).
