@@ -22,21 +22,26 @@ SQL schema is designed and frozen before API endpoints/schemas are written, and 
 before UI. That philosophy is visible directly in the repo — the `person` and `organization`
 modules both started as hand-written SQL DDL that predated any API-layer consumption; Tier 2 has
 since caught Organization up with a read-only API (`api/routers/organization.py` — see
-Architecture and Key Workflow #4 below), though several of Organization's own design decisions
-remain open (see Gotchas), while Person's DDL still awaits any API-layer consumption at all.
+Architecture and Key Workflow #4 below), and Tier 3 has done the same for Person
+(`api/routers/person.py` — see Key Workflow #5 below, though it is implemented on an unmerged
+feature branch, not yet released), though several of both modules' own design decisions
+remain open (see Gotchas).
 
-The codebase today is an early-stage skeleton: a Tier 0 + Tier 1 + Tier 2 FastAPI application
-(`api/`) exposing 4 read-only bootstrap-RBAC endpoints plus 17 read-only Foundation endpoints
-plus 6 read-only Organization endpoints (no ORM, no auth, raw `psycopg2` against `nss.*`) behind
+The codebase today is an early-stage skeleton: a Tier 0 + Tier 1 + Tier 2 + Tier 3 FastAPI
+application (`api/`) exposing 4 read-only bootstrap-RBAC endpoints plus 17 read-only Foundation
+endpoints plus 6 read-only Organization endpoints plus 4 read-only Person endpoints (no ORM, no
+auth, raw `psycopg2` against `nss.*`) behind
 a cross-tier security middleware stack (security headers, opt-in CORS, rate limiting — see
 Architecture below), a growing raw-SQL PostgreSQL schema (Bootstrap RBAC: 3
-tables; Foundation: 12 tables; Organization: 1 table — 16 tables implemented and committed in
-total, plus a superseded Person prototype; see the `database/` detail below), a `tests/` pytest
-suite (139 integration tests against a real local Postgres), and an extensive, mature
+tables; Foundation: 12 tables; Organization: 1 table; Person: 2 tables — 18 tables implemented,
+plus one superseded Person prototype file (`01_person_master_tables.sql`); see the `database/`
+detail below), a `tests/` pytest
+suite (208 integration tests against a real local Postgres), and an extensive, mature
 governance/documentation corpus that is significantly ahead of the code. Solution-layer design
 documentation (`docs/03_Solution/modules/`) is complete or near-complete across 22 module
-folders — with zero corresponding API/SQL work beyond the Tier 0/1/2 endpoints
-(Bootstrap/Foundation/Organization) and the Foundation/Organization DDL noted above. A Django prototype (`backend/`) previously existed
+folders — with zero corresponding API/SQL work beyond the Tier 0/1/2/3 endpoints
+(Bootstrap/Foundation/Organization/Person) and the Foundation/Organization/Person DDL noted
+above. A Django prototype (`backend/`) previously existed
 covering `foundation`, `authentication`, `family`, `membership`, and `heritage`, but was fully
 archived and removed (`chore: archive and remove Django prototype`) once the FastAPI direction
 was adopted — `backend/` has been fully removed from the repository (the directory no longer exists on disk).
@@ -86,21 +91,24 @@ security headers
   line-by-line walkthrough: `docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`.
 - **Web/API layer:** FastAPI (`api/`), the only web/API layer in the codebase — the earlier
   Django prototype (`backend/`) has been fully removed. `api/main.py` builds the `FastAPI` app,
-  includes three routers (`api/routers/bootstrap.py`, prefix `/api/v1/bootstrap`;
-  `api/routers/foundation.py`, prefix `/api/v1/foundation`; and `api/routers/organization.py`,
-  prefix `/api/v1/organization`), and (if `frontend/` exists on disk)
+  includes four routers (`api/routers/bootstrap.py`, prefix `/api/v1/bootstrap`;
+  `api/routers/foundation.py`, prefix `/api/v1/foundation`; `api/routers/organization.py`,
+  prefix `/api/v1/organization`; and `api/routers/person.py`, prefix `/api/v1/person`), and (if
+  `frontend/` exists on disk)
   mounts `frontend/assets/` at `/assets` and serves `frontend/index.html` via an explicit
-  `GET /` route, plus `frontend/foundation.html` via `GET /foundation` and
-  `frontend/organization.html` via `GET /organization`, each only if that file exists —
+  `GET /` route, plus `frontend/foundation.html` via `GET /foundation`,
+  `frontend/organization.html` via `GET /organization`, and `frontend/person.html` via
+  `GET /person`, each only if that file exists —
   mounting at `/assets` rather than `/` avoids shadowing FastAPI's own `/docs` (Swagger UI) and
   `/openapi.json`. Swagger UI/ReDoc/OpenAPI schema can be disabled via `DISABLE_DOCS` in
   `api/.env`. The security middleware stack above is registered; there is still no auth
   middleware.
-- **Frontend layer:** `frontend/` — three single-page views built with Tailwind CSS + DaisyUI
+- **Frontend layer:** `frontend/` — four single-page views built with Tailwind CSS + DaisyUI
   (CDN, pinned to `4.12.14` with SRI `integrity`/`crossorigin`) and Alpine.js (CDN, pinned to
   `3.14.8` with SRI), no build step, no framework: a Tier 0 "Bootstrap Verification UI"
-  (`index.html`), a Tier 1 "Foundation Verification UI" (`foundation.html`), and a Tier 2
-  "Organization Verification UI" (`organization.html`), none an admin dashboard.
+  (`index.html`), a Tier 1 "Foundation Verification UI" (`foundation.html`), a Tier 2
+  "Organization Verification UI" (`organization.html`), and a Tier 3 "Person Verification UI"
+  (`person.html`), none an admin dashboard.
   `frontend/assets/js/app.js` defines `bootstrapApp()`, fetching
   `/api/v1/bootstrap/{health,roles,permissions}` in parallel on load and driving 4 UI sections
   (system status, RBAC roles, permissions, an interactive role→permissions drill-down).
@@ -108,7 +116,9 @@ security headers
   `/api/v1/foundation/*` per tab across a 4-tab layout (Master Data, System Config, Geographic
   drill-down, Runtime Tables). `frontend/assets/js/organization.js` defines `organizationApp()`,
   lazily fetching from `/api/v1/organization/*` per tab across a 3-tab layout (Reference Data,
-  Organizations with click-to-drill-down children, Hierarchy tree). See `frontend/README.md` for
+  Organizations with click-to-drill-down children, Hierarchy tree). `frontend/assets/js/person.js`
+  defines `personApp()`, fetching from `/api/v1/person/*` across a 2-tab layout (Persons with
+  filter/detail/addresses drill-down, debounced trigram Search). See `frontend/README.md` for
   the full file/function/state reference. Served entirely by FastAPI — same-origin, so the
   frontend itself needs no CORS;
   `CORSMiddleware` above exists for *other* (cross-origin) API consumers, and is a no-op locally
@@ -116,23 +126,28 @@ security headers
 - **Data layer:** a single track — **hand-written PostgreSQL DDL** under `database/ddl/`,
   following the project's own UUID-`_pk` + business-`_code` convention (see Conventions &
   Gotchas). This is the "real" schema per the governance/standards docs, and it is now consumed
-  — read-only — by the FastAPI Tier 0, Tier 1, and Tier 2 endpoints via raw parameterized SQL
-  (no ORM). `organization` now has a read-only API (`api/routers/organization.py`); `person`
-  still has no API layer reading/writing it.
+  — read-only — by the FastAPI Tier 0, Tier 1, Tier 2, and Tier 3 endpoints via raw parameterized
+  SQL (no ORM). `organization` has a read-only API (`api/routers/organization.py`); `person` now
+  does too (`api/routers/person.py`, unreleased — see "Current position" above).
 - **Test layer:** `tests/` — pytest, configured via `pytest.ini` (repo root). `tests/conftest.py`
   wraps `fastapi.testclient.TestClient(app)` against a **real** local PostgreSQL DB (nothing
   mocked); all tests carry the custom `integration` marker. `test_bootstrap.py` (21 tests, 5
   classes) and `test_foundation.py` (59 tests, 13 classes) cover every implemented endpoint,
   plus two contract-guard regression tests (`sequences.current_value` never exposed;
-  `/api/v1/foundation/change-log` returns 404/405, not real data); `test_organization.py` (51
+  `/api/v1/foundation/change-log` returns 404/405, not real data); `test_organization.py` (64
   tests, 7 classes) covers every Organization endpoint (types, statuses, organizations
-  list/detail/children, hierarchy) plus the new contact/online-presence fields and a UI/security
-  suite mirroring Foundation's; `test_security.py` (8 tests,
+  list/detail/children, hierarchy) plus contact/online-presence fields, `limit`/`offset`
+  pagination on both `/organizations` and `/hierarchy`, and a UI/security suite;
+  `test_person.py` (56 tests, 6 classes: `TestPersonList`, `TestPersonDetail`,
+  `TestPersonAddresses`, `TestPersonSearch`, `TestPersonSecurity`, `TestPersonUI`) covers every
+  Person endpoint including the pg_trgm `/search` fuzzy match, guarantees `aadhaar_encrypted`/
+  `aadhaar_hash` are never returned, and is skip-guarded wherever it needs an actual seeded row
+  (Person has no seed data — see Key Workflow #3); `test_security.py` (8 tests,
   3 classes) covers the security middleware — 5 header/Cache-Control assertions, 1 rate-limit
   429 test (loops requests against `/api/v1/bootstrap/health` until the default `60/minute`
   limit trips, resetting `limiter.reset()` via an autouse fixture between tests), and 2 CORS
   tests (both asserting *absence* of `Access-Control-Allow-Origin` under the default empty
-  `CORS_ORIGINS`). **139 tests total.**
+  `CORS_ORIGINS`). **208 tests total.**
 - **Auth:** none. Tier 0 is explicitly read-only, unauthenticated, by design — RBAC/JWT/OTP
   enforcement is deferred to a later tier, even though
   `docs/00_Project_Governance/STD/05_security_standards.md` specifies a full RBAC +
@@ -168,11 +183,17 @@ other.
 dependency graph across 86 frozen tables, topologically sorted into 8 depths with zero cycles,
 resolves the audit-actor circular-dependency problem via a two-pass DDL strategy) →
 `DDL_CREATION_ORDER.md` ("Gate 9" — the exact numbered `CREATE TABLE` sequence for all 86
-tables plus the Pass-2 deferred-constraint list). Tiers 1-2 (Foundation, Organization) of the
-12-tier order are executed — 13 tables live under `database/ddl/01_foundation/`/`database/ddl/
-02_organization/` and their matching seed folders; Tiers 3-12 remain unimplemented. Note:
-`IMPLEMENTATION_DEPENDENCY_ORDER.md`'s own closing status section (§79) reflects Tier 1
-completion but hasn't been updated for Tier 2.
+tables plus the Pass-2 deferred-constraint list). Tiers 1-2 (Foundation, Person + Organization)
+of the 12-tier order are executed — 16 tables live under `database/ddl/01_foundation/`/
+`database/ddl/02_organization/`/`database/ddl/03_person/` and their matching seed folders;
+Tiers 3-12 remain unimplemented. Note: `IMPLEMENTATION_DEPENDENCY_ORDER.md`'s own closing
+status section (§79) reflects Tier 1 completion but hasn't been updated for Tier 2. **Tier-
+numbering divergence:** the frozen 12-tier plan's Tier 2 bundles Person + Organization together,
+but the actual implementation sequence (and every other doc — `CLAUDE.md`, the code-explanation
+docs, `docs/03_Solution/api/`) splits them into separate vertical slices numbered "Tier 2
+(Organization)" and "Tier 3 (Person)" — see Gotchas for the full note; don't assume "Tier 3"
+means the same thing in `IMPLEMENTATION_DEPENDENCY_ORDER.md` (where it means Heritage) as it
+does everywhere else in this codebase's own vocabulary (where it means Person).
 
 **`BOOTSTRAP_ARCHITECTURE.md`** (`SOL-ARCH-011`, FROZEN) defines a "Phase 0" that sits *before*
 Tier 1: `role_master`/`permission_master`/`role_permission` have zero FK dependencies, so they
@@ -316,20 +337,30 @@ ledgers.
 
 ### Current position
 
-Tier 0 (Bootstrap) and Tier 1 (Foundation) DB phases are **implemented**. Tier 2
-(Organization) DB phase is **implemented**. Tier 2 (Person) DB phase is **pending** (the
-`03_person/` DDL is a superseded prototype awaiting rewrite). Tier 0's API phase is
-**implemented** (4 read-only bootstrap-RBAC endpoints in `api/routers/bootstrap.py`). Tier 1's
-API phase (Foundation) is now also **implemented** — 17 read-only endpoints across 11 tables in
-`api/routers/foundation.py`, with a matching Foundation Verification UI
-(`frontend/foundation.html`) and 59 pytest integration tests — merged to `main` and tagged as
-v0.7.0. Tier 2's API phase (Organization) is now also **implemented** — 6 read-only endpoints
-(reference data, organizations list/detail/children, a recursive-CTE `/hierarchy`) in
-`api/routers/organization.py`, with a matching Organization Verification UI
-(`frontend/organization.html`) and 51 pytest integration tests — merged to `main` and tagged as
-v0.8.0. Tier 2
-(Person) API/UI phases remain **unimplemented**. All other API phases and all other UI phases
-remain **unimplemented** across the remaining tiers.
+Tier 0 (Bootstrap), Tier 1 (Foundation), Tier 2 (Organization), and Tier 3 (Person) DB phases
+are all **implemented**. `database/ddl/03_person/02_person.sql` (`person`, 28 columns) and
+`03_person_address.sql` (`person_address`) are real, implemented DDL — following the same
+Foundation `master_data` pattern as Organization (gender/marital_status/blood_group/
+address_type resolve through `master_data`, not dedicated per-domain master tables). Only
+`01_person_master_tables.sql` (the original per-domain gender/marital_status/address_type
+master tables) remains superseded — its data now lives in Foundation's `master_data` seed.
+Tier 0's API phase is **implemented** (4 read-only bootstrap-RBAC endpoints in
+`api/routers/bootstrap.py`). Tier 1's API phase (Foundation) is **implemented** — 17 read-only
+endpoints across 11 tables in `api/routers/foundation.py`, with a matching Foundation
+Verification UI (`frontend/foundation.html`) and 59 pytest integration tests — merged to `main`
+and tagged as v0.7.0. Tier 2's API phase (Organization) is **implemented** — 6 read-only
+endpoints (reference data, organizations list/detail/children with `limit`/`offset` pagination,
+a recursive-CTE `/hierarchy`, also paginated) in `api/routers/organization.py`, with a matching
+Organization Verification UI (`frontend/organization.html`) — merged to `main` and tagged as
+v0.8.0. Tier 3's API phase (Person) is **implemented but not yet released** — 4 read-only
+endpoints (`/persons` list with gender/marital-status/blood-group filters + pagination,
+`/persons/{person_pk}` detail, `/persons/{person_pk}/addresses`, `/search?q=` pg_trgm fuzzy
+search) in `api/routers/person.py`, a matching Person Verification UI (`frontend/person.html`),
+and a combined 208 pytest integration tests across all four tiers (21 bootstrap + 59 foundation +
+64 organization + 56 person + 8 security) — `tests/test_organization.py` grew from 51 to 64 with
+new pagination/security-header/contact-field tests and `tests/test_person.py` added 56 —
+currently on `feature/tier3-person-module`, not yet merged to `develop`/`main` or tagged. All
+other API phases and all other UI phases remain **unimplemented** across the remaining tiers.
 
 ### Database schema
 
@@ -342,18 +373,19 @@ names, FK references, and index targets.
 
 ```
 NSS_ERP/
-├── api/                          FastAPI application (Tier 0 bootstrap + Tier 1 Foundation +
-│                                   Tier 2 Organization endpoints, see below)
-├── frontend/                      Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization
-│                                   Verification UIs, served as static files by FastAPI (see below)
+├── api/                          FastAPI application (Tier 0 Bootstrap + Tier 1 Foundation +
+│                                   Tier 2 Organization + Tier 3 Person endpoints, see below)
+├── frontend/                      Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization +
+│                                   Tier 3 Person Verification UIs, served as static files by
+│                                   FastAPI (see below)
 ├── backend/                      Empty — the earlier Django prototype was archived and removed
 ├── database/
 │   ├── ddl/                     Hand-written PostgreSQL schema, numbered by module
 │   ├── seed/                    Reference/lookup data matching the DDL
 │   └── scripts/                 Executable bootstrap/build/validate/grant scripts (see below)
 ├── tests/                        pytest integration tests (test_bootstrap.py,
-│                                   test_foundation.py, test_organization.py, test_security.py,
-│                                   conftest.py) — see Setup & running
+│                                   test_foundation.py, test_organization.py, test_person.py,
+│                                   test_security.py, conftest.py) — see Setup & running
 ├── docs/
 │   ├── PROJECT_DOCUMENTATION.md This file
 │   ├── 00_Project_Governance/   AUTH/ GOV/ GDR/ STD/ — governance framework + engineering standards
@@ -368,13 +400,13 @@ NSS_ERP/
 │   │                            audit, backup_technical, finance, programmes_events,
 │   │                            assets_property) + architecture/ui/infrastructure/standards/
 │   │                            database/security/code_explanations content populated (see
-│   │                            detail below); `docs/03_Solution/api/` now holds 3 read-only
-│   │                            API contract docs (Bootstrap/Foundation/Organization —
+│   │                            detail below); `docs/03_Solution/api/` now holds 4 read-only
+│   │                            API contract docs (Bootstrap/Foundation/Organization/Person —
 │   │                            consolidated here, moved out of `architecture/`; see detail
 │   │                            below), distinct from the real, implemented root-level `api/`
 │   │                            code folder
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
-│   └── 05_Releases/             Release notes, v0.1.0 → v0.5.1
+│   └── 05_Releases/             Release notes, v0.1.0 → v0.8.0
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
 ├── render.yaml                    Render.com Infrastructure-as-Code — free-tier web service
 │                                   (`uvicorn api.main:app`); does not provision a database — DB
@@ -398,10 +430,11 @@ the `database/` detail below.
 api/
 ├── main.py             FastAPI app entry point — builds `app`, registers the security
 │                       middleware stack (rate limiting, opt-in CORS, security headers — see
-│                       Architecture above), includes all three routers, mounts
+│                       Architecture above), includes all four routers, mounts
 │                       `frontend/assets/` at `/assets` and serves `frontend/index.html` at `/`,
-│                       `frontend/foundation.html` at `/foundation`, and
-│                       `frontend/organization.html` at `/organization` (all skipped if the
+│                       `frontend/foundation.html` at `/foundation`,
+│                       `frontend/organization.html` at `/organization`, and
+│                       `frontend/person.html` at `/person` (all skipped if the
 │                       respective file/dir doesn't exist — API-only mode still works), disables
 │                       `/docs`/`/redoc`/`/openapi.json` if `DISABLE_DOCS` is set, closes the DB
 │                       pool on shutdown. Run with:
@@ -420,6 +453,10 @@ api/
 │                       `Permissions-Policy` on every response, plus `Cache-Control: no-store`
 │                       scoped to `/api/*` only; registered in `main.py` via
 │                       `app.middleware("http")`
+├── helpers.py          Shared cursor→Pydantic conversion (`rows_to_models`, `row_to_model`) and
+│                       pagination constants (`DEFAULT_LIMIT = 100`, `MAX_LIMIT = 500`) used by
+│                       every router — extracted from per-router duplicates when Tier 3 (Person)
+│                       landed so limit/offset validation stays consistent everywhere
 ├── routers/
 │   ├── bootstrap.py    4 endpoints under `/api/v1/bootstrap` — no auth, no ORM, raw
 │   │                   parameterized SQL against `nss.role_master`/`permission_master`/
@@ -431,37 +468,56 @@ api/
 │   │                   `field_change_log` deliberately not exposed (deferred to Tier 5 — needs
 │   │                   auth); see Key workflows below and
 │   │                   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`
-│   └── organization.py 6 endpoints under `/api/v1/organization` across `nss.organization` plus
-│                       Foundation's `master_data` — reference (`/types`, `/statuses`, both
-│                       querying `master_data` filtered by `master_category.category_code`
-│                       `ORGANIZATION_TYPE`/`STATUS` — 10 types, 13 statuses), core
-│                       (`/organizations` with optional
-│                       `type_code`/`status_code` filters, `/organizations/{organization_pk}`,
-│                       `/organizations/{organization_pk}/children`), navigation (`/hierarchy`,
-│                       a `WITH RECURSIVE org_tree` CTE returning a flat depth-annotated list);
-│                       all four organization-shaped endpoints share one SQL fragment
-│                       (`_ORG_SELECT`) that LEFT JOINs the self-referencing parent plus
-│                       Foundation's district/state/country/city_village/postal_code tables; see
-│                       Key workflows below and
-│                       `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`
+│   ├── organization.py 6 endpoints under `/api/v1/organization` across `nss.organization` plus
+│   │                   Foundation's `master_data` — reference (`/types`, `/statuses`, both
+│   │                   querying `master_data` filtered by `master_category.category_code`
+│   │                   `ORGANIZATION_TYPE`/`STATUS` — 10 types, 13 statuses), core
+│   │                   (`/organizations` with optional `type_code`/`status_code` filters plus
+│   │                   `limit`/`offset` pagination, `/organizations/{organization_pk}`,
+│   │                   `/organizations/{organization_pk}/children`), navigation (`/hierarchy`,
+│   │                   a `WITH RECURSIVE org_tree` CTE returning a flat depth-annotated list,
+│   │                   also paginated); all four organization-shaped endpoints share one SQL
+│   │                   fragment (`_ORG_SELECT`) that LEFT JOINs the self-referencing parent plus
+│   │                   Foundation's district/state/country/city_village/postal_code tables; see
+│   │                   Key workflows below and
+│   │                   `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`
+│   └── person.py       4 endpoints under `/api/v1/person` across `nss.person` +
+│                       `nss.person_address` plus Foundation's `master_data` — core (`/persons`
+│                       list with optional `gender_code`/`marital_status_code`/
+│                       `blood_group_code` filters + `limit`/`offset` pagination,
+│                       `/persons/{person_pk}` detail), addresses
+│                       (`/persons/{person_pk}/addresses`, 404 if the person doesn't exist),
+│                       search (`/search?q=` — `pg_trgm` similarity on `first_name`/`last_name`
+│                       plus `ILIKE` prefix match on `person_id`/`mobile_number`, ordered by
+│                       similarity, capped at 50 results); `aadhaar_encrypted`/`aadhaar_hash` are
+│                       never returned (PER-BR-081) — only `aadhaar_last4` is exposed for masked
+│                       display; see `docs/03_Solution/api/PERSON_API_CONTRACT.md`
 └── schemas/
     ├── bootstrap.py    Pydantic response models (RoleResponse, PermissionResponse,
     │                    HealthResponse); audit columns deliberately excluded from the contract
     ├── foundation.py   11 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
     │                    one per exposed table/view; excludes audit columns plus
     │                    `current_value` (sequences) and unimplemented FK columns (documents)
-    └── organization.py 4 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
-                         OrganizationTypeResponse, StatusResponse (renamed from
-                         `OrganizationStatusResponse` now that it backs the unified,
-                         cross-module `STATUS` master-data category rather than an
-                         organization-only status table),
-                         OrganizationResponse (full contact/online-presence fields — nullable
-                         `phone_number`/`mobile_number`/`org_email`/`org_website_url`/
-                         `org_youtube_channel_url`; required `email`/`website_url`/
-                         `youtube_channel_url` with NSS-wide DB defaults — plus resolved
-                         type/status/parent names and Foundation geography names),
-                         OrganizationHierarchyNodeResponse (leaner, no contact/geography fields,
-                         matching `/hierarchy`'s narrower SQL); excludes audit columns
+    ├── organization.py 4 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
+    │                    OrganizationTypeResponse, StatusResponse (renamed from
+    │                    `OrganizationStatusResponse` now that it backs the unified,
+    │                    cross-module `STATUS` master-data category rather than an
+    │                    organization-only status table),
+    │                    OrganizationResponse (full contact/online-presence fields — nullable
+    │                    `phone_number`/`mobile_number`/`org_email`/`org_website_url`/
+    │                    `org_youtube_channel_url`; required `email`/`website_url`/
+    │                    `youtube_channel_url` with NSS-wide DB defaults — plus resolved
+    │                    type/status/parent names and Foundation geography names),
+    │                    OrganizationHierarchyNodeResponse (leaner, no contact/geography fields,
+    │                    matching `/hierarchy`'s narrower SQL); excludes audit columns
+    └── person.py       3 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
+                         PersonResponse (full detail: demographics + resolved gender/
+                         marital_status/blood_group/emergency_relationship names, masked
+                         `aadhaar_last4` only, photo FK), PersonSummaryResponse (list/search —
+                         omits Aadhaar, emergency contact, photo), PersonAddressResponse
+                         (resolved address_type plus city_village/postal_code/district/state/
+                         country chain via the `city_village_postal_code_map` junction);
+                         excludes audit columns
 ```
 
 This is the only API layer in the codebase. `backend/` (the earlier Django prototype
@@ -471,7 +527,7 @@ referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishor`, `se
 `publications`, `upbs`, `reports`, `administration`) **do not exist yet** in either `api/` or
 any other code form — they are planned, not scaffolded.
 
-### `frontend/` — Bootstrap + Foundation + Organization Verification UIs detail
+### `frontend/` — Bootstrap + Foundation + Organization + Person Verification UIs detail
 
 ```
 frontend/
@@ -479,22 +535,29 @@ frontend/
 │                        card above a responsive grid (1 column mobile, 2 tablet/`md`, 3
 │                        desktop/`xl`) of RBAC Roles / Permissions / Role Permissions cards;
 │                        Alpine.js directives bound to `bootstrapApp()` (declared via `x-data`);
-│                        nav bar links to `/foundation` and `/organization`
+│                        nav bar links to `/foundation`, `/organization`, and `/person`
 ├── foundation.html      Tier 1 Foundation Verification UI entry point — same System Status card,
 │                        then a 4-tab layout (`foundationApp()`, tabs `tabs-boxed`): Master Data
 │                        (categories + filterable master-data table), System Config (settings +
 │                        ID sequences, `current_value` deliberately not shown), Geographic
 │                        (country→state→district→city/village drill-down + postal codes),
 │                        Runtime Tables (document_master; notes `field_change_log` exists in the
-│                        DB but isn't exposed until Tier 5/auth); nav bar links to `/` and
-│                        `/organization`
+│                        DB but isn't exposed until Tier 5/auth); nav bar links to `/`,
+│                        `/organization`, and `/person`
 ├── organization.html    Tier 2 Organization Verification UI entry point — same System Status
 │                        card, then a 3-tab layout (`organizationApp()`, tabs `tabs-boxed`):
 │                        Reference Data (org types + statuses), Organizations (list filterable by
 │                        `type_code`/`status_code`, click-to-drill-down into a selected org's
 │                        `/children`), Hierarchy (the flat recursive-CTE result rendered as an
-│                        indented tree via `depthIndent(depth)`); nav bar links to `/` and
-│                        `/foundation`
+│                        indented tree via `depthIndent(depth)`); nav bar links to `/`,
+│                        `/foundation`, and `/person`
+├── person.html          Tier 3 Person Verification UI entry point — same System Status card,
+│                        then a 2-tab layout (`personApp()`, tabs `tabs-boxed`): Persons (list
+│                        filterable by `gender_code`/`marital_status_code`/`blood_group_code`,
+│                        click-to-drill-down into a selected person's full detail + resolved
+│                        addresses), Search (debounced `pg_trgm` fuzzy search against `/search`);
+│                        masked Aadhaar (`aadhaar_last4` only) shown in the detail panel; nav bar
+│                        links to `/`, `/foundation`, and `/organization`
 ├── assets/
 │   ├── css/style.css   One rule: hides `[x-cloak]` elements until Alpine.js initializes
 │   ├── img/nss-logo.png NSS logo, copied from `NSS LOGO/logooo.png`
@@ -505,25 +568,33 @@ frontend/
 │   │                    "/api/v1/foundation"`; lazily loads each tab's data on first visit
 │   │                    (`loadMasterTab()`/`loadConfigTab()`/`loadGeoTab()`/`loadRuntimeTab()`),
 │   │                    toggle-deselect on country/state/district selection
-│   └── js/organization.js Defines `organizationApp()` — Alpine data component, `ORG_API =
-│                          "/api/v1/organization"`; lazily loads each tab's data on first visit
-│                          (`loadReferenceTab()`/`loadOrganizationsTab()`/`loadHierarchyTab()`);
-│                          `selectOrganization()` toggles a row and fetches its `/children`;
-│                          `filterOrganizations()` re-fetches on `type_code`/`status_code` change
-└── README.md            Full file/function/state-property reference for all three pages — see it
+│   ├── js/organization.js Defines `organizationApp()` — Alpine data component, `ORG_API =
+│   │                       "/api/v1/organization"`; lazily loads each tab's data on first visit
+│   │                       (`loadReferenceTab()`/`loadOrganizationsTab()`/`loadHierarchyTab()`);
+│   │                       `selectOrganization()` toggles a row and fetches its `/children`;
+│   │                       `filterOrganizations()` re-fetches on `type_code`/`status_code` change
+│   └── js/person.js     Defines `personApp()` — Alpine data component, `PERSON_API =
+│                        "/api/v1/person"`; `fetchFilterOptions()` uses `Promise.allSettled` (the
+│                        only such usage in the codebase) since gender/marital-status/blood-group
+│                        options come from three independent Foundation `master_data` queries;
+│                        `selectPerson()` fetches detail + addresses in parallel with asymmetric
+│                        failure handling; `selectPersonByPk()` bridges search results into the
+│                        detail panel; `executeSearch()` is debounced (the only debounced fetch in
+│                        the codebase) against `/search?q=`
+└── README.md            Full file/function/state-property reference for all four pages — see it
                           directly for detail rather than duplicating it here
 ```
 
-None of the three pages is an admin dashboard — all are Tier-scoped verification UIs proving the
+None of the four pages is an admin dashboard — all are Tier-scoped verification UIs proving the
 database→API→frontend chain end to end for their tier. Tech stack is Tailwind CSS + DaisyUI +
 Alpine.js, all via CDN (DaisyUI/Alpine.js pinned with SRI hashes; Tailwind's Play CDN JIT
 compiler can't be SRI-pinned — see Architecture above) — no Node.js build step, no framework, no
 Django templates. Served entirely by FastAPI (see `api/` detail above); no separate frontend
-server is needed since all three pages are same-origin with the API. Every fetch method across
-`app.js`, `foundation.js`, and `organization.js` follows the same
+server is needed since all four pages are same-origin with the API. Every fetch method across
+`app.js`, `foundation.js`, `organization.js`, and `person.js` follows the same
 pattern: set loading/error state → try/fetch/parse → catch sets an error flag (never exposes
 raw error text to the UI) → finally clears loading. Authentication UI is deferred to Tier 5 — by
-design, Tiers 0-2 have no login, session, or credentials anywhere in this folder.
+design, Tiers 0-3 have no login, session, or credentials anywhere in this folder.
 
 ### `docs/01_Authoritative_References/NSS/` detail
 
@@ -631,9 +702,9 @@ database/
     │                     matching SOL-ADMIN-004 §8.7 frozen catalogue);
     │                     `permission_master`/`role_permission`: empty, pending the permission
     │                     catalogue
-    ├── 01_foundation/    Implemented — 8 seed files: 12 master categories, 74 master data
+    ├── 01_foundation/    Implemented — 8 seed files: 13 master categories, 82 master data
     │                     values (GENDER/MARITAL_STATUS/ADDRESS_TYPE/DOCUMENT_TYPE/
-    │                     MEMBERSHIP_TYPE/STATUS/RELATIONSHIP_TYPE/ORGANIZATION_TYPE — `STATUS`
+    │                     MEMBERSHIP_TYPE/STATUS/RELATIONSHIP_TYPE/ORGANIZATION_TYPE/BLOOD_GROUP — `STATUS`
     │                     is a unified, cross-module category replacing the former
     │                     `MEMBERSHIP_STATUS`, now 13 values; `ORGANIZATION_TYPE` moved here
     │                     from Organization, now 10 values), 11 ID sequences (PERSON
@@ -720,12 +791,13 @@ database/
 │                          move below):
 │                          API_CODE_EXPLANATIONS.md, DATABASE_CODE_EXPLANATIONS.md,
 │                          UI_CODE_EXPLANATIONS.md, SECURITY_CODE_EXPLANATIONS.md,
-│                          TESTING_CODE_EXPLANATIONS.md (all v1.1, Complete — updated for Tier 2
-│                          Organization) — plus three security audit reports:
+│                          TESTING_CODE_EXPLANATIONS.md (updated for Tier 3
+│                          Person) — plus four security audit reports:
 │                          TIER0_SECURITY_AUDIT.md (v1.1, Complete — 10 passed, 1 fix applied, 6
 │                          advisory [4 resolved/1 partial/1 N/A]), TIER1_SECURITY_AUDIT.md (v1.1,
 │                          Complete — 9 passed, 6 advisory [3 resolved/1 partial/1 advisory/1
-│                          N/A]), and TIER2_SECURITY_AUDIT.md (new, Tier 2 Organization); see
+│                          N/A]), TIER2_SECURITY_AUDIT.md (Tier 2 Organization), and
+│                          TIER3_SECURITY_AUDIT.md (Tier 3 Person); see
 │                          code_explanations/README.md
 ├── database/
 │   └── DATABASE_DESIGN_STANDARDS.md   (`SOL-DB-001`, DRAFT — SOURCE ALIGNED Consolidation) — cross-module DB conventions consolidated from module table-design docs: `_pk` UUID PK convention, audit columns, soft-delete, master-data architecture (generic `master_category`/`master_data` vs domain masters), module ownership boundaries (one owning module per table), cross-module FK principles, DDL build order sketch. **States a `_id` business-identifier convention (`person_id`, `organization_id`, `sangha_sevi_id`) that contradicts the project's already-frozen `_code`-only convention** — see Gotchas/Open questions
@@ -799,8 +871,10 @@ summarize the full sequence from a clean machine to a running API.
    6. `04_grant_backend.sql` (as `nss_db_owner`) — grants `nss_db_backend` read-only `SELECT` on
       all `nss.*` tables (plus future tables via `ALTER DEFAULT PRIVILEGES`), for the API layer.
 
-   The build covers 16 tables across 3 modules (3 Bootstrap RBAC + 12 Foundation + 1
-   Organization); `03_person/` is a superseded prototype and is skipped. Cross-platform:
+   The build covers 18 tables across 4 modules (3 Bootstrap RBAC + 12 Foundation + 1
+   Organization + 2 Person); only `03_person/01_person_master_tables.sql` is superseded (its
+   seed data now lives in Foundation's `master_data`) and is skipped — `02_person.sql`/
+   `03_person_address.sql` are real, built DDL. Cross-platform:
    `.sh` and `.ps1` wrappers are operationally identical — same SQL, same execution order, same
    password-prompt behavior. This raw-SQL schema **is** now consumed — read-only — by the
    FastAPI Tier 0 endpoints, so this step is required before starting the API.
@@ -827,8 +901,9 @@ summarize the full sequence from a clean machine to a running API.
    Swagger UI: `http://localhost:8001/docs` (disable via `DISABLE_DOCS=true`/`1`/`yes` in
    `api/.env`, which also disables `/redoc` and `/openapi.json`). Bootstrap Verification UI:
    `http://localhost:8001/`; Foundation Verification UI: `http://localhost:8001/foundation`;
-   Organization Verification UI: `http://localhost:8001/organization`
-   (all three served from `frontend/`, each skipped automatically if its file doesn't exist).
+   Organization Verification UI: `http://localhost:8001/organization`; Person Verification UI:
+   `http://localhost:8001/person`
+   (all four served from `frontend/`, each skipped automatically if its file doesn't exist).
    Tier 0 endpoints (read-only, no authentication):
    `GET /api/v1/bootstrap/health`, `GET /api/v1/bootstrap/roles`,
    `GET /api/v1/bootstrap/permissions`, `GET /api/v1/bootstrap/roles/{role_pk}/permissions`.
@@ -838,15 +913,19 @@ summarize the full sequence from a clean machine to a running API.
    (`/types`, `/statuses`, `/organizations`, `/organizations/{organization_pk}`,
    `/organizations/{organization_pk}/children`, `/hierarchy`); see
    `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` for the full catalogue.
+   Tier 3 endpoints (read-only, no authentication) — 4 endpoints under `/api/v1/person/*`
+   (`/persons`, `/persons/{person_pk}`, `/persons/{person_pk}/addresses`, `/search`); see
+   `docs/03_Solution/api/PERSON_API_CONTRACT.md` for the full catalogue.
 
 5. **Run the tests** (from the repository root, once the database is built per step 2 and
    `api/.env` per step 3):
    ```
-   pytest                    # all tests (139)
+   pytest                    # all tests (208)
    pytest -m integration     # integration-marked tests (currently all of them)
    pytest tests/test_bootstrap.py     # Tier 0 only (21 tests)
    pytest tests/test_foundation.py    # Tier 1 only (59 tests)
-   pytest tests/test_organization.py  # Tier 2 only (51 tests)
+   pytest tests/test_organization.py  # Tier 2 only (64 tests)
+   pytest tests/test_person.py        # Tier 3 only (56 tests)
    pytest tests/test_security.py      # cross-tier security middleware only (8 tests)
    ```
    Configured via `pytest.ini` (repo root: `testpaths = tests`, `integration` marker).
@@ -909,7 +988,7 @@ verifies the role exists and is active (404 if not), then joins `nss.role_permis
 exist yet). All three endpoints are unauthenticated, read-only, and connect as `nss_db_backend`
 — they exist to verify the RBAC schema is queryable, not to enforce RBAC yet.
 
-### 3. Person business-ID generation (SQL-schema track, not yet wired to any API)
+### 3. Person business-ID generation (SQL-schema track, not yet wired to any write path)
 `database/ddl/01_foundation/04_id_sequence_master.sql` defines an `id_sequence_master` table —
 a registry of `{sequence_code, prefix, current_value, padding_length}` rows, seeded with **11**
 sequences (`database/seed/01_foundation/03_id_sequence_master.sql`): `PERSON`→`P` (padding
@@ -919,14 +998,17 @@ sequences (`database/seed/01_foundation/03_id_sequence_master.sql`): `PERSON`→
 `DOCUMENT`→`DOC` (all padding 8 except `PERSON`, and `PARIBARIK_ASANA`/`PARIBARIK_SANGHA` at 5/3
 respectively). The org-type-specific prefixes now cover **10** organization types, 2 more
 (`PARIBARIK_ASANA`/`PARIBARIK_SANGHA`) than the Organization module's frozen 8-type inventory
-(see Gotchas). This produces
-IDs for the `person.person_code` column (`database/ddl/03_person/02_person.sql`, superseded
-prototype, still uses an older 4-sequence/8-digit assumption) — **but** the current Person
-module design doc (`docs/03_Solution/modules/person/05_person_table_design.md`, v1.0.0 SOURCE
-ALIGNED) names this same business identifier `person_id`, not `person_code`. The doc and the
-implemented DDL disagree on the column name; neither has been reconciled to the other yet. **No
-SQL function or trigger and no API code currently implements the increment/format logic** —
-this table is pure configuration waiting on an implementation.
+(see Gotchas). This produces IDs for the `person.person_id` column
+(`database/ddl/03_person/02_person.sql`, real implemented DDL as of Tier 3 —
+`person_id VARCHAR(20) NOT NULL UNIQUE`, `uq_person_id`) — the column name now matches the
+Person module design doc (`docs/03_Solution/modules/person/05_person_table_design.md`, v1.0.0
+SOURCE ALIGNED), resolving the earlier `person_code`/`person_id` naming disagreement. Person has
+**no seed data** (`database/scripts/03_validate.sh` checks table existence and zero row counts,
+not FK integrity against seeded rows) — `tests/test_person.py` is skip-guarded wherever it needs
+an actual row (via a `_get_first_person_pk`-style helper), since nothing populates `person_id`
+values without a write endpoint. **No SQL function or trigger and no API code currently
+implements the increment/format logic** — Tier 3's API is read-only (see workflow 5 below), so
+this table remains pure configuration waiting on Tier 5/write-endpoint implementation.
 
 ### 4. Organization — hierarchy, reference data, contact fields (DB + API implemented, Tier 2)
 `docs/03_Solution/modules/organization/01_organization_module_overview.md` through
@@ -981,7 +1063,7 @@ NSS-wide defaults are always populated, the org-specific overrides are always nu
 `OrganizationHierarchyNodeResponse` is deliberately leaner (no contact/geography fields) to match
 `/hierarchy`'s narrower SQL. Full contract in `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`;
 line-by-line walkthrough in `docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`.
-Verified via 51 pytest integration tests (`tests/test_organization.py`, 7 classes) plus a
+Verified via 64 pytest integration tests (`tests/test_organization.py`, 7 classes) plus a
 dedicated security audit (`docs/03_Solution/code_explanations/TIER2_SECURITY_AUDIT.md`).
 Consumed by `frontend/organization.html`'s 3-tab UI (see `frontend/` detail above). Merged to
 `main` and released as v0.8.0 (see "Current position" above).
@@ -1008,7 +1090,55 @@ business-rules doc uses (`SAKHA_ASANA`/`PATHA_CHAKRA` do match). See Gotchas and
 for both — neither discrepancy blocks the read-only API above, which simply exposes whatever the
 DDL/master_data actually define.
 
-### 5. Foundation API — master data, geography, config, runtime (implemented, Tier 1)
+### 5. Person — demographics, addresses, trigram search (DB + API implemented, Tier 3, not yet released)
+`docs/03_Solution/modules/person/01_person_module_overview.md` through
+`05_person_table_design.md` specify the Person module design. **As implemented**,
+`database/ddl/03_person/02_person.sql` defines `nss.person` (28 columns) and
+`03_person_address.sql` defines `nss.person_address` — following the same Foundation
+`master_data` pattern established by the Organization migration: gender, marital_status, and
+blood_group all resolve through `nss.master_data` (categories `GENDER`, `MARITAL_STATUS`,
+`BLOOD_GROUP`) rather than dedicated per-domain master tables, and `person_address.address_type`
+resolves through `master_data` category `ADDRESS_TYPE`. Only `01_person_master_tables.sql` (the
+original per-domain gender/marital_status/address_type master tables) is superseded — its seed
+data now lives in Foundation's `master_data` seed (see `database/README.md`). `person` includes
+DB-level format validation CHECK constraints from day one (mobile, email, country phone code,
+Aadhaar last-4, emergency phone) even though Tier 3 has no write endpoints yet — these are
+schema-level safety nets, not currently reachable via the read-only API.
+
+**API implemented.** `api/routers/person.py` (304 lines, prefix `/api/v1/person`) exposes 4
+read-only GET endpoints — the same raw-`psycopg2`/`Depends(get_connection)` pattern as the
+other tiers, and the first router to consume the newly-extracted `api/helpers.py` shared
+`rows_to_models`/`row_to_model`/pagination-constant functions (Organization's router was
+refactored to use the same helpers in the same change). Grouped by theme:
+- **Core:** `/persons` (optional `gender_code`/`marital_status_code`/`blood_group_code`
+  filters, `limit`/`offset` pagination) returns the compact `PersonSummaryResponse` shape (no
+  Aadhaar/emergency/photo fields); `/persons/{person_pk}` returns the full `PersonResponse`
+  shape (404 if missing). Both share `_PERSON_SUMMARY_SELECT`/`_PERSON_DETAIL_SELECT`, which
+  LEFT JOIN `nss.master_data` three/four times respectively to resolve gender, marital status,
+  blood group, and (detail only) emergency-contact relationship names.
+- **Addresses:** `/persons/{person_pk}/addresses` (404 if the person itself doesn't exist, then
+  all active addresses) — `_ADDRESS_SELECT` resolves address type via `master_data` and location
+  through the `city_village_postal_code_map` junction into `city_village`/`postal_code`/
+  `district`/`state`/`country`.
+- **Search:** `/search?q=` — PostgreSQL trigram similarity (`pg_trgm`, the `%%` operator) against
+  `first_name`/`last_name`, combined with `ILIKE` prefix matching on `person_id`/
+  `mobile_number`, ordered by `similarity(p.first_name, %s) DESC`, capped at 50 results.
+
+**Security (PER-BR-081):** `aadhaar_encrypted` (BYTEA) and `aadhaar_hash` (VARCHAR) are never
+returned by any endpoint or exposed in any Pydantic model — only `aadhaar_last4` is returned for
+masked display. `api/schemas/person.py` (141 lines) defines `PersonResponse` (full detail),
+`PersonSummaryResponse` (list/search — omits Aadhaar, emergency contact, photo), and
+`PersonAddressResponse`, all plain Pydantic models excluding audit columns, matching the
+convention established in Tier 0.
+
+A matching Person Verification UI (`frontend/person.html` + `frontend/assets/js/person.js`,
+`personApp()`) and 56 pytest integration tests (`tests/test_person.py`, 6 classes) exist, plus a
+dedicated security audit (`docs/03_Solution/code_explanations/TIER3_SECURITY_AUDIT.md`). This
+work is currently on `feature/tier3-person-module` — **not yet merged to `develop`/`main` or
+tagged as a release** (contrast with Tier 2 Organization, tagged v0.8.0). See "Current position"
+above and `docs/03_Solution/api/PERSON_API_CONTRACT.md` for the formal contract.
+
+### 6. Foundation API — master data, geography, config, runtime (implemented, Tier 1)
 `api/routers/foundation.py` (526 lines, prefix `/api/v1/foundation`) exposes 17 read-only GET
 endpoints across 11 of the 12 Foundation tables — the same raw-`psycopg2`/`Depends(get_connection)`
 pattern as Tier 0, plus new Tier-1 conventions (query-param filtering instead of nested paths,
@@ -1039,13 +1169,13 @@ Verified via 59 pytest integration tests (`tests/test_foundation.py`, 13 classes
 dedicated security audit (`code_explanations/TIER1_SECURITY_AUDIT.md`) with no blocking
 findings. Consumed by `frontend/foundation.html`'s 4-tab UI (see `frontend/` detail above).
 
-### 6. Security middleware — headers, CORS, rate limiting (cross-tier, implemented)
-Applies to every route across all three routers plus the static frontend — see the Architecture
+### 7. Security middleware — headers, CORS, rate limiting (cross-tier, implemented)
+Applies to every route across all four routers plus the static frontend — see the Architecture
 diagram above for exact registration order (`SlowAPIMiddleware` → `CORSMiddleware` if configured
 → `add_security_headers`). Three independent, individually-toggleable concerns:
 - **Security headers** (`api/middleware.py`) — always on, no config: 4 headers on every
   response, plus `Cache-Control: no-store` scoped to `/api/*` only (so `/`, `/foundation`,
-  `/organization`, and `/assets/*` remain normally cacheable).
+  `/organization`, `/person`, and `/assets/*` remain normally cacheable).
 - **CORS** — off by default (`CORS_ORIGINS` empty); when set, `CORSMiddleware` allows only the
   listed origins, `GET` only, credentials allowed, never a wildcard origin.
 - **Rate limiting** — on by default (`RATE_LIMIT="60/minute"`), keyed per client IP
@@ -1053,37 +1183,42 @@ diagram above for exact registration order (`SlowAPIMiddleware` → `CORSMiddlew
 `tests/test_security.py` verifies all three (8 tests, 3 classes) — including a real bug it
 caught during development: an earlier version of the middleware configured the `Limiter` but
 never registered `SlowAPIMiddleware`, so the limit was defined but never enforced.
-`tests/test_organization.py::TestOrganizationSecurity` (3 tests) separately re-verifies the
-same headers/`Cache-Control` behavior against the Organization router and UI. Full
+`tests/test_organization.py::TestOrganizationSecurity` (3 tests) and
+`tests/test_person.py::TestPersonSecurity` (5 tests) separately re-verify the
+same headers/`Cache-Control` behavior against the Organization and Person routers and UIs. Full
 walkthrough: `docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`;
 test walkthrough: `TESTING_CODE_EXPLANATIONS.md`; audit
-verdicts: `TIER0_SECURITY_AUDIT.md`/`TIER1_SECURITY_AUDIT.md`/`TIER2_SECURITY_AUDIT.md` in the
+verdicts: `TIER0_SECURITY_AUDIT.md`/`TIER1_SECURITY_AUDIT.md`/`TIER2_SECURITY_AUDIT.md`/
+`TIER3_SECURITY_AUDIT.md` in the
 same directory.
 
 ## Conventions & gotchas
 
 - **`_pk` vs business identifier suffix — actual convention differs from some docs.** The SQL
   DDL consistently uses `<entity>_pk` (UUID) for internal surrogate keys and `<entity>_code`
-  (e.g. `person_code`, `country_code`, `sequence_code`) — never `_id` — for business/external
-  identifiers. `CLAUDE.md` correctly documents this `_code` convention. Some newer
-  SOLUTION-layer module docs (e.g. Person's table-design doc, `DATABASE_DESIGN_STANDARDS.md`)
+  (e.g. `organization_code`, `country_code`, `sequence_code`) — never `_id` — for business/
+  external identifiers, with one frozen exception: `person.person_id` (see Key Workflow #3) is
+  itself named `_id`, matching the Person module's own design doc, not the `_code` pattern.
+  `CLAUDE.md` correctly documents this. Some newer
+  SOLUTION-layer module docs (e.g. `DATABASE_DESIGN_STANDARDS.md`)
   use `_id` in their own examples instead — that's a doc-side inconsistency, not a convention
   change; follow `_code` for new DDL.
-- **Person exists only as SQL DDL; Organization now has a read-only API.** No API layer
-  reads/writes `person` yet — the Tier 0 bootstrap-RBAC endpoints
-  (`role_master`/`permission_master`/`role_permission`) and the Tier 2 Organization endpoints
-  (`api/routers/organization.py`, see Key Workflow #4) are the only DB-backed data exposed
-  outside Person — the earlier Django ORM track that once described a second, unreconciled
-  version of both tables has been fully removed (see Architecture and Key Workflow #3/#4 above).
+- **Person now has a read-only API too, on an unmerged feature branch.** `api/routers/person.py`
+  (Tier 3) reads `person`/`person_address` — the Tier 0 bootstrap-RBAC endpoints, the Tier 2
+  Organization endpoints, and the Tier 3 Person endpoints (`api/routers/person.py`, see Key
+  Workflow #5) are the DB-backed data exposed today. All three remain deliberately read-only;
+  the earlier Django ORM track that once described a second, unreconciled version of these
+  tables has been fully removed (see Architecture and Key Workflow #3/#4/#5 above). Note Tier 3
+  is implemented but **not yet merged/released** — see "Current position" above.
 - **`backend/` is empty.** The Django prototype (`config`, `authentication`, `dashboard`,
   `foundation`, `family`, `membership`, `governance`, `attendance`, `heritage` apps, templates,
   static files, `manage.py`) was fully archived and removed once the FastAPI direction was
   adopted. Nothing in this repo references it anymore except historical git commits.
-- **`api/` has security middleware but still no auth; three routers registered.** `api/main.py`
-  includes `api/routers/bootstrap.py` (Tier 0), `api/routers/foundation.py` (Tier 1), and
-  `api/routers/organization.py` (Tier 2), plus
+- **`api/` has security middleware but still no auth; four routers registered.** `api/main.py`
+  includes `api/routers/bootstrap.py` (Tier 0), `api/routers/foundation.py` (Tier 1),
+  `api/routers/organization.py` (Tier 2), and `api/routers/person.py` (Tier 3), plus
   the cross-tier security middleware stack (rate limiting, opt-in CORS, security headers — see
-  Architecture and Key Workflow #6 above). All three tiers remain deliberately read-only and
+  Architecture and Key Workflow #7 above). All four tiers remain deliberately read-only and
   unauthenticated — the new middleware hardens the transport/response layer, it does not add
   request-level identity or permission checks.
 - **Governance/standards docs are far ahead of the code.** `docs/00_Project_Governance/STD/`
@@ -1092,21 +1227,40 @@ same directory.
   columns, etc.) that the current `api/` code does not yet implement — Tier 0 has zero
   auth/RBAC enforcement by design (deferred to a later tier). Treat the STD docs as the
   destination, not the current state.
-- **Person module docs vs. Organization module docs.** Both are partially implemented, and both
-  disagree with their own SQL on naming — don't confuse "documented" with "built" for either.
-  Person's design (`docs/03_Solution/modules/person/`, v1.0.0 SOURCE ALIGNED) is *partially*
-  implemented in SQL (`database/ddl/03_person/` has `person` and `person_address`, though that
-  whole track is itself superseded — see the `database/` detail above) but disagrees with the
-  DDL on the business-identifier column name (`person_id` in the docs vs. `person_code` in SQL —
-  see Key Workflow #3). Person's design used to describe a second table, `document_master`, but
-  that was reassigned to Foundation (`DOC-ARCH-001` — see the Gotcha below); Person is now a
-  1-table design (`person` only). Organization's generic 3-table structure **is no longer**
-  implemented in SQL — only the `organization` table remains, with type/status now sourced from
-  Foundation's `master_data` (see the frozen-design-vs-implementation Gotcha below); separately,
-  the implemented `organization_code` column doesn't match the
-  frozen `ORG-PENDING-001` spec (`organization_short_code`, `VARCHAR(5)`, `NOT NULL` vs. the
-  actual `VARCHAR(10)`, nullable `organization_code`), and the seeded organization-type codes
-  don't match the design docs' short forms — see Key Workflow #4.
+- **Person module docs vs. Organization module docs.** Both are now implemented in SQL+API, and
+  both diverge from their own frozen SOLUTION-layer design docs in ways that haven't been
+  reconciled — don't confuse "documented" with "built as documented" for either. Person's design
+  (`docs/03_Solution/modules/person/`, v1.0.0 SOURCE ALIGNED) is implemented as
+  `database/ddl/03_person/02_person.sql` (`person`, 28 columns) and `03_person_address.sql`
+  (`person_address`) — the `person_id`/`person_code` naming disagreement flagged in earlier
+  passes of this doc is **now resolved**: the implemented DDL uses `person_id`, matching the
+  design doc (see Key Workflow #3). What the design doc does *not* anticipate is the
+  Foundation-`master_data` pattern: gender/marital_status/blood_group/address_type resolve
+  through `nss.master_data` rather than the doc's own dedicated per-domain master tables — the
+  same "Master Data Driven" migration already applied to Organization (see the
+  `organization_type_master`/`organization_status_master` Gotcha below) was applied to Person's
+  DDL from the start, so Person's frozen design docs and its implemented DDL diverge on table
+  count/shape the same way Organization's do. Person's design used to describe a second table,
+  `document_master`, but that was reassigned to Foundation (`DOC-ARCH-001` — see the Gotcha
+  below). Organization's generic 3-table structure **is no longer** implemented in SQL — only the
+  `organization` table remains, with type/status now sourced from Foundation's `master_data` (see
+  the frozen-design-vs-implementation Gotcha below); separately, the implemented
+  `organization_code` column doesn't match the frozen `ORG-PENDING-001` spec
+  (`organization_short_code`, `VARCHAR(5)`, `NOT NULL` vs. the actual `VARCHAR(10)`, nullable
+  `organization_code`), and the seeded organization-type codes don't match the design docs' short
+  forms — see Key Workflow #4.
+- **Tier-numbering divergence: "Tier 3" means different things in different docs.** The frozen
+  12-tier build order (`IMPLEMENTATION_DEPENDENCY_ORDER.md`, `IMPLEMENTATION-TIER-001`) bundles
+  Person + Organization together as a single "Tier 2," and reserves "Tier 3" for Heritage (see
+  the Tier sequence table above). The actual implementation sequence — and every doc written
+  since, including `CLAUDE.md`, this document's own "Current position"/Key Workflow numbering,
+  the `docs/03_Solution/code_explanations/` per-layer docs, and `docs/03_Solution/api/` contract
+  docs — treats Organization and Person as two separate vertical slices, calling them "Tier 2
+  (Organization)" and "Tier 3 (Person)" respectively. This is a naming collision, not a contract
+  violation: the frozen 12-tier *dependency order* (Foundation → Person/Organization → Heritage →
+  ...) is still being honored, only the *implementation-sequence labels* diverge from it. Needs a
+  human governance decision to reconcile (rename the frozen plan's tiers, or rename the
+  implementation-sequence labels) — not a doc edit here.
 - **`organization_type_master`/`organization_status_master` retirement contradicts multiple
   frozen/governance-aligned documents — needs a human governance decision, not a doc edit here.**
   A migration removed the dedicated `organization_type_master`/`organization_status_master`
@@ -1142,8 +1296,9 @@ same directory.
   class of bug in this repo.
 - **pytest is now configured — no longer "no tests."** `pytest.ini` (repo root) + `tests/`
   package: `test_bootstrap.py` (21 tests, 5 classes), `test_foundation.py` (59 tests, 13
-  classes), `test_organization.py` (51 tests, 7 classes), and
-  `test_security.py` (8 tests, 3 classes) — **139 total**, all marked `integration`.
+  classes), `test_organization.py` (64 tests, 7 classes), `test_person.py` (56 tests, 6
+  classes), and `test_security.py` (8 tests, 3 classes) — **208 total**, all marked
+  `integration`.
   `tests/conftest.py`'s `client` fixture wraps
   `fastapi.testclient.TestClient` against a **real** local Postgres DB — nothing is mocked, so
   a bootstrapped database + `api/.env` are prerequisites for running them. `pytest` and `httpx`
@@ -1343,21 +1498,20 @@ same directory.
   add rows for the new CORS/rate-limiting/security-header protections added in
   `SECURITY_CODE_EXPLANATIONS.md`, even though the advisory tables above them were updated.
   Cosmetic, not a correctness issue.
-- **Build Tier 2 API endpoints for `Person`** against the SQL DDL — no API layer reads/writes
-  `person` today; only the Tier 0 bootstrap-RBAC tables and the now-implemented, released (v0.8.0)
-  Organization endpoints (`api/routers/organization.py`) are exposed so far — see Key Workflow
-  #4/"Current position" above.
-- **Reconcile `person_id` (design docs) vs. `person_code` (implemented SQL)** — the Person
-  table design doc names the business identifier `person_id`; the actual DDL column is
-  `person_code`. See Key Workflow #3.
+- **Merge/release Tier 3 `Person` endpoints** — implemented (`api/routers/person.py`, 4
+  endpoints, `frontend/person.html`, 56 tests) but still on `feature/tier3-person-module`, not
+  yet merged to `develop`/`main` or tagged — see Key Workflow #5/"Current position" above.
 - **Decide the Organization type-to-type parent matrix** (which org types may parent which —
   e.g. does ANCHALIKA/ZILLA sit under KENDRA, does PATHA_CHAKRA sit under SAKHA or KENDRA) —
   the v1.1.0 GOVERNANCE ALIGNED business rules doc explicitly left this open rather than
   freezing it; do not treat any specific matrix as decided until this is resolved.
-- **Decide the Person address/Aadhaar/photo/blood-group model** — the v1.0.0 SOURCE ALIGNED
-  Person docs explicitly leave these open, even though `database/ddl/03_person/03_person_address.sql`
-  already implements a multi-address `person_address` table. Don't treat the SQL as a de facto
-  frozen decision without reconciling it against the docs' "OPEN" framing.
+- **Reconcile Person's frozen design docs against the Foundation-`master_data` pattern actually
+  implemented** — `docs/03_Solution/modules/person/` describes dedicated per-domain master
+  tables for gender/marital_status/address_type, but the implemented DDL resolves these through
+  Foundation's `master_data` instead (the same pattern already applied to Organization). This is
+  the Person-side counterpart of the still-open Organization `master_data` migration Gotcha
+  above — needs the same governance decision (update the frozen design docs, or treat the
+  `master_data` migration as itself the frozen decision going forward).
 - **Implement the `id_sequence_master` increment/formatting logic** (no function, trigger, or
   API code currently does this — see Key Workflow #3).
 - **Implement the Founder & Heritage schema** — the v1.0.0 design
@@ -1367,15 +1521,16 @@ same directory.
   of these yet either; nothing is reachable over HTTP.
 - **Decide the scope of `governance` and `attendance`** — Solution-layer designs exist for both,
   but no DDL or API implementation exists yet for either.
-- **Build out the FastAPI application beyond Tier 0/1/2** — per `TECH_STACK_DECISIONS.md`,
+- **Build out the FastAPI application beyond Tier 0/1/2/3** — per `TECH_STACK_DECISIONS.md`,
   FastAPI is the approved API layer; Tier 0's 4 read-only bootstrap-RBAC endpoints, Tier 1's
   17 read-only Foundation endpoints, and Tier 2's 6 read-only Organization endpoints are all
-  implemented and released (v0.7.0, v0.8.0) — every other tier's API phase (Person, etc.)
-  remains unbuilt.
-- **Grow the frontend beyond Tier 0/1/2** — `frontend/` now has three verification UIs (Tailwind +
-  DaisyUI + Alpine.js, no build step): the Tier 0 Bootstrap Verification UI, the Tier 1
-  Foundation Verification UI, and the Tier 2 Organization Verification UI. None is the full
-  admin dashboard; the 13 mockups under
+  implemented and released (v0.7.0, v0.8.0); Tier 3's 4 read-only Person endpoints are
+  implemented but not yet released (see "Current position" above) — every other tier's API phase
+  (Family, Membership, Heritage, etc.) remains unbuilt.
+- **Grow the frontend beyond Tier 0/1/2/3** — `frontend/` now has four verification UIs
+  (Tailwind + DaisyUI + Alpine.js, no build step): the Tier 0 Bootstrap Verification UI, the
+  Tier 1 Foundation Verification UI, the Tier 2 Organization Verification UI, and the Tier 3
+  Person Verification UI. None is the full admin dashboard; the 13 mockups under
   `docs/03_Solution/ui/mockups/` remain the visual target for later tiers, and login/session UI
   is deferred to Tier 5.
 - **No `.env.example`** — new contributors have to reverse-engineer required env vars from

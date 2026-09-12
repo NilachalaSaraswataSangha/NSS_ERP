@@ -127,11 +127,11 @@ pytest tests/test_bootstrap.py::TestHealth::test_health_returns_ok  # one test
 Every test is an integration test — `tests/conftest.py`'s `client` fixture wraps
 `fastapi.testclient.TestClient` against a real local PostgreSQL DB, nothing is mocked — so a
 bootstrapped local database and `api/.env` are required first. `tests/test_bootstrap.py` (21
-tests), `tests/test_foundation.py` (59 tests), `tests/test_organization.py` (65 tests),
+tests), `tests/test_foundation.py` (59 tests), `tests/test_organization.py` (64 tests),
 `tests/test_security.py` (8 tests — security headers, Cache-Control scoping, rate limiting
-429, CORS), and `tests/test_person.py` (57 tests — list/filters, detail, addresses, search,
+429, CORS), and `tests/test_person.py` (56 tests — list/filters, detail, addresses, search,
 aadhaar exclusion, security headers, pagination, UI) cover Tiers 0–3 and cross-tier security middleware
-respectively. **210 tests total.** No lint/format tooling is configured yet — don't add one
+respectively. **208 tests total.** No lint/format tooling is configured yet — don't add one
 unilaterally.
 
 ## Architecture
@@ -146,7 +146,7 @@ NSS_ERP/
 │   └── schemas/            bootstrap.py, foundation.py, organization.py, person.py — Pydantic response models
 ├── frontend/               Web UI (Tailwind/DaisyUI + Alpine.js, served by FastAPI)
 ├── database/               Hand-written PostgreSQL DDL + seed + scripts
-│   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization)
+│   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization, 03_person)
 │   ├── seed/               Seed data (mirrors ddl/ folder order)
 │   └── scripts/            DB creation, build, validate, grant scripts
 ├── tests/                  pytest integration tests (test_bootstrap.py, test_foundation.py,
@@ -214,6 +214,9 @@ Items explicitly deferred to later tiers. Do not implement these until their tar
 | President/governance role linkage | Tier 4 (Membership) | Requires `sangha_sevi` table + role assignment model | Governance module tables |
 | `field_change_log` API exposure | Tier 5 (Authentication) | Needs auth to protect audit data | Foundation API router |
 | `nss_db_writer` role + write grants | Tier 5 | No write endpoints until authenticated | `database/scripts/04_grant_backend.sql` |
+| i18n / multi-language support | New feature branch | `language_master` + `translation` tables; Odia/Hindi priority, English default; DB stays English-only | Foundation module + all UIs |
+| Pass 2 audit-actor FK constraints | After Auth/Membership | `*_by_sangha_sevi_pk` FK constraints deferred until `sangha_sevi` table exists | `person`, `person_address`, `organization` |
+| Inactive person search endpoint | Tier 5 (Authentication) | Needs role-based access (admin/auditor only) to view soft-deleted or deceased persons | Person API router — separate endpoint with auth-gated permissions |
 
 **Note:** Person DDL (`02_person.sql`) already includes DB-level format validation CHECK
 constraints (mobile, email, country code, Aadhaar last-4, emergency phone) — these are
