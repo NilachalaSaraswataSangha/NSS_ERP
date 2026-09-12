@@ -621,6 +621,7 @@ v0.5.1.md
 v0.6.0.md
 v0.7.0.md
 v0.8.0.md
+v0.9.0.md
 ```
 
 ---
@@ -722,6 +723,23 @@ Tier 2 Organization — API, Web UI
 
 ---
 
+## v0.9.0
+
+Organization Master-Data Migration + Tier 3 Person — API, Web UI
+
+* Organization master-data migration: `organization_type_master`/`organization_status_master`
+  retired in favor of Foundation's `master_category`/`master_data` (10 org types, unified
+  13-value `STATUS` category)
+* FastAPI Tier 3 Person API (4 read-only endpoints, incl. `pg_trgm` fuzzy search)
+* Person DDL rewrite onto the Foundation `master_data` pattern (`person`, `person_address`)
+* Shared `api/helpers.py` (cursor→Pydantic + pagination), adopted by Organization too, plus
+  `limit`/`offset` pagination on Organization's list/hierarchy endpoints
+* Tier 3 Person Verification UI (2-tab layout: Persons, Search)
+* Test suite grown from 139 to 208 tests (Tier 0 + Tier 1 + Tier 2 + Tier 3 + security)
+* `TIER3_SECURITY_AUDIT.md` added — no blocking findings, Aadhaar defence-in-depth confirmed
+
+---
+
 # Current Development Status
 
 Completed:
@@ -730,8 +748,8 @@ Completed:
 * Authentication Foundation
 * Organization Module Design (v1.1.0, GOVERNANCE ALIGNED; type-to-type parent hierarchy left as
   an open item, not frozen)
-* Person Module Design (v1.0.0, SOURCE ALIGNED — 1 table: `person`; `document_master` is owned
-  by Foundation, see below)
+* Person Module Design (v2.0.0, FROZEN — 2 tables: `person`, `person_address`; `document_master`
+  is owned by Foundation, see below)
 * Person Database Schema (complete — `person` (28 columns) + `person_address` implemented under
   `database/ddl/03_person/`, superseding the v0.5.1 prototype by following the Foundation
   `master_data` pattern: gender/marital status/blood group/emergency relationship/address type
@@ -784,7 +802,7 @@ Completed:
   56 pytest integration tests — see `docs/03_Solution/api/PERSON_API_CONTRACT.md`)
 * Tier 3 Person Verification UI (`frontend/person.html` + `assets/js/person.js` — Persons/Search
   tab layout structurally parallel to the Organization Verification UI)
-* Implemented and merged to `develop` — release tagging pending (target `v0.9.0`)
+* Implemented and released as v0.9.0 — merged to `main`
 * Global Location Model
 * Membership Module Design
 * Family Module Design
@@ -835,8 +853,9 @@ Current Focus:
   2 tables) — 15 tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full
   Tier 1 API + Web UI (17 endpoints, 59 tests), released as v0.7.0. Organization has a full
   Tier 2 API + Web UI (6 endpoints, 64 tests), released as v0.8.0. Person now also has a full
-  Tier 3 API + Web UI (4 endpoints, 56 tests), merged to `develop` — release tagging pending
-  (target v0.9.0).
+  Tier 3 API + Web UI (4 endpoints, 56 tests), released as v0.9.0. Also in v0.9.0: the
+  Organization master-data migration retiring `organization_type_master`/
+  `organization_status_master` in favor of Foundation's `master_category`/`master_data`.
   No release doc has been created yet for the module-documentation backlog beyond these three.
 
 ---
@@ -876,7 +895,7 @@ release document under `docs/05_Releases/` before the next tier begins.
 | v0.6.0 | Tier 0 | Bootstrap RBAC — DB + API + UI + deployment (**released**) |
 | v0.7.0 | Tier 1 | Foundation — API + Web UI + security hardening (DB already done) (**released**) |
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) (**released**) |
-| v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI (implemented, merged to `develop`; release tagging pending) |
+| v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI, plus the Organization master-data migration (**released**) |
 | v0.10.0 | Tier 4 | Family + Membership — full vertical slice |
 | v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
 | ... | Tier 6-12 | One tag per tier through Tier 12 |
@@ -884,10 +903,8 @@ release document under `docs/05_Releases/` before the next tier begins.
 Next Release Target:
 
 ```text
-v0.9.0 — Tier 3 Person: DB rewrite (superseding the v0.5.1 prototype against Foundation's
-master_category/master_data pattern) + API + Web UI. Implementation is complete on `develop`
-(4 endpoints, 56 tests, Person Verification UI) — only the release tag/notes/GitHub-release
-steps remain.
+v0.10.0 — Tier 4 Family + Membership: family group DDL + API, membership type/status DDL + API
+(Probationary/Regular/Associate/Honorary). Not yet started.
 ```
 
 ---
@@ -934,7 +951,7 @@ See `docs/PROJECT_DOCUMENTATION.md` for the full, code-verified breakdown of eac
 # Current Stable Version
 
 ```text
-v0.8.0
+v0.9.0
 ```
 
 Tier 2 Organization — API, Web UI
