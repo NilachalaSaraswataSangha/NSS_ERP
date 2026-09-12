@@ -1,17 +1,18 @@
 """
 Organization API router — Tier 2 read-only endpoints.
 
-6 GET endpoints across 3 Organization tables. No authentication.
+6 GET endpoints across the organization table plus Foundation
+master_data (for type/status). No authentication.
 nss_db_backend connects with SELECT-only privileges.
 
 Endpoint groups:
-  - Reference:   types, statuses
+  - Reference:   types, statuses (from master_data)
   - Core:        organizations (list, detail, children)
   - Navigation:  hierarchy (recursive CTE tree)
 
-Organization depends on Foundation tables (country, state, district,
-city_village, postal_code) for address resolution — these are LEFT
-JOINed since address fields are nullable.
+Organization type values are stored in Foundation master_data
+under category ORGANIZATION_TYPE. Status values use the unified
+ERP-wide STATUS category (shared across all modules).
 """
 
 from uuid import UUID
@@ -22,8 +23,8 @@ from api.database import get_connection
 from api.schemas.organization import (
     OrganizationHierarchyNodeResponse,
     OrganizationResponse,
-    OrganizationStatusResponse,
     OrganizationTypeResponse,
+    StatusResponse,
 )
 
 router = APIRouter(prefix="/api/v1/organization", tags=["organization"])
@@ -53,12 +54,12 @@ _ORG_SELECT = """
            o.organization_id,
            o.organization_name,
            o.organization_code,
-           ot.organization_type_pk,
-           ot.organization_type_code,
-           ot.organization_type_name,
-           os.organization_status_pk,
-           os.organization_status_code,
-           os.organization_status_name,
+           ot.master_data_pk   AS organization_type_pk,
+           ot.value_code       AS organization_type_code,
+           ot.value_name       AS organization_type_name,
+           os.master_data_pk   AS status_pk,
+           os.value_code       AS status_code,
+           os.value_name       AS status_name,
            o.parent_organization_pk,
            p.organization_name AS parent_organization_name,
            o.address_line_1,
@@ -85,10 +86,10 @@ _ORG_SELECT = """
            o.longitude,
            o.is_active
     FROM   nss.organization o
-    JOIN   nss.organization_type_master ot
-           ON ot.organization_type_pk = o.organization_type_pk
-    JOIN   nss.organization_status_master os
-           ON os.organization_status_pk = o.organization_status_pk
+    JOIN   nss.master_data ot
+           ON ot.master_data_pk = o.organization_type_master_data_pk
+    JOIN   nss.master_data os
+           ON os.master_data_pk = o.status_master_data_pk
     LEFT JOIN nss.organization p
            ON p.organization_pk = o.parent_organization_pk
     LEFT JOIN nss.district d
@@ -113,34 +114,46 @@ _ORG_SELECT = """
 def list_organization_types(
     conn=Depends(get_connection),
 ) -> list[OrganizationTypeResponse]:
-    """List all active organization types (8 frozen types)."""
+    """List all active organization types (10 frozen types from master_data)."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT organization_type_pk, organization_type_code,
-                   organization_type_name, description,
-                   sort_order, is_active
-            FROM   nss.organization_type_master
-            WHERE  is_active = TRUE
-            ORDER BY sort_order
+            SELECT md.master_data_pk  AS organization_type_pk,
+                   md.value_code      AS organization_type_code,
+                   md.value_name      AS organization_type_name,
+                   md.description,
+                   md.display_order   AS sort_order,
+                   md.is_active
+            FROM   nss.master_data md
+            JOIN   nss.master_category mc
+                   ON mc.master_category_pk = md.master_category_pk
+            WHERE  mc.category_code = 'ORGANIZATION_TYPE'
+              AND  md.is_active = TRUE
+            ORDER BY md.display_order
         """)
         return _rows_to_models(cur, OrganizationTypeResponse)
 
 
-@router.get("/statuses", response_model=list[OrganizationStatusResponse])
-def list_organization_statuses(
+@router.get("/statuses", response_model=list[StatusResponse])
+def list_statuses(
     conn=Depends(get_connection),
-) -> list[OrganizationStatusResponse]:
-    """List all active organization lifecycle statuses (6 statuses)."""
+) -> list[StatusResponse]:
+    """List all active lifecycle statuses (13 unified statuses from master_data)."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT organization_status_pk, organization_status_code,
-                   organization_status_name, description,
-                   sort_order, is_active
-            FROM   nss.organization_status_master
-            WHERE  is_active = TRUE
-            ORDER BY sort_order
+            SELECT md.master_data_pk  AS status_pk,
+                   md.value_code      AS status_code,
+                   md.value_name      AS status_name,
+                   md.description,
+                   md.display_order   AS sort_order,
+                   md.is_active
+            FROM   nss.master_data md
+            JOIN   nss.master_category mc
+                   ON mc.master_category_pk = md.master_category_pk
+            WHERE  mc.category_code = 'STATUS'
+              AND  md.is_active = TRUE
+            ORDER BY md.display_order
         """)
-        return _rows_to_models(cur, OrganizationStatusResponse)
+        return _rows_to_models(cur, StatusResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -151,7 +164,7 @@ def list_organization_statuses(
 @router.get("/organizations", response_model=list[OrganizationResponse])
 def list_organizations(
     type_code: str | None = Query(None, description="Filter by organization type code"),
-    status_code: str | None = Query(None, description="Filter by organization status code"),
+    status_code: str | None = Query(None, description="Filter by status code"),
     conn=Depends(get_connection),
 ) -> list[OrganizationResponse]:
     """
@@ -163,13 +176,13 @@ def list_organizations(
     params: list = []
 
     if type_code is not None:
-        sql += " AND ot.organization_type_code = %s"
+        sql += " AND ot.value_code = %s"
         params.append(type_code)
     if status_code is not None:
-        sql += " AND os.organization_status_code = %s"
+        sql += " AND os.value_code = %s"
         params.append(status_code)
 
-    sql += " ORDER BY ot.sort_order, o.organization_name"
+    sql += " ORDER BY ot.display_order, o.organization_name"
 
     with conn.cursor() as cur:
         cur.execute(sql, tuple(params))
@@ -223,7 +236,7 @@ def list_organization_children(
     sql = (
         _ORG_SELECT
         + " WHERE o.parent_organization_pk = %s AND o.is_active = TRUE"
-        + " ORDER BY ot.sort_order, o.organization_name"
+        + " ORDER BY ot.display_order, o.organization_name"
     )
 
     with conn.cursor() as cur:
@@ -253,18 +266,18 @@ def get_organization_hierarchy(
                 SELECT o.organization_pk,
                        o.organization_name,
                        o.organization_code,
-                       ot.organization_type_code,
-                       ot.organization_type_name,
-                       os.organization_status_code,
-                       os.organization_status_name,
+                       ot.value_code  AS organization_type_code,
+                       ot.value_name  AS organization_type_name,
+                       os.value_code  AS status_code,
+                       os.value_name  AS status_name,
                        o.parent_organization_pk,
                        0 AS depth,
                        o.is_active
                 FROM   nss.organization o
-                JOIN   nss.organization_type_master ot
-                       ON ot.organization_type_pk = o.organization_type_pk
-                JOIN   nss.organization_status_master os
-                       ON os.organization_status_pk = o.organization_status_pk
+                JOIN   nss.master_data ot
+                       ON ot.master_data_pk = o.organization_type_master_data_pk
+                JOIN   nss.master_data os
+                       ON os.master_data_pk = o.status_master_data_pk
                 WHERE  o.parent_organization_pk IS NULL
                   AND  o.is_active = TRUE
 
@@ -274,18 +287,18 @@ def get_organization_hierarchy(
                 SELECT o.organization_pk,
                        o.organization_name,
                        o.organization_code,
-                       ot.organization_type_code,
-                       ot.organization_type_name,
-                       os.organization_status_code,
-                       os.organization_status_name,
+                       ot.value_code  AS organization_type_code,
+                       ot.value_name  AS organization_type_name,
+                       os.value_code  AS status_code,
+                       os.value_name  AS status_name,
                        o.parent_organization_pk,
                        t.depth + 1,
                        o.is_active
                 FROM   nss.organization o
-                JOIN   nss.organization_type_master ot
-                       ON ot.organization_type_pk = o.organization_type_pk
-                JOIN   nss.organization_status_master os
-                       ON os.organization_status_pk = o.organization_status_pk
+                JOIN   nss.master_data ot
+                       ON ot.master_data_pk = o.organization_type_master_data_pk
+                JOIN   nss.master_data os
+                       ON os.master_data_pk = o.status_master_data_pk
                 JOIN   org_tree t
                        ON t.organization_pk = o.parent_organization_pk
                 WHERE  o.is_active = TRUE

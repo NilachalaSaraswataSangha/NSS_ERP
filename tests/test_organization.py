@@ -1,12 +1,15 @@
 """
 NSS ERP — Tier 2 Organization API tests.
 
-Integration tests for the 6 Organization GET endpoints across 3 tables.
+Integration tests for the 6 Organization GET endpoints.
+Organization type values come from Foundation master_data
+(category ORGANIZATION_TYPE). Status values come from the
+unified ERP-wide STATUS category.
 Runs against local PostgreSQL (not Neon). The database must be
 bootstrapped with DDL + seed before running.
 
 Endpoint groups tested:
-  1. Reference Data: types, statuses
+  1. Reference Data: types, statuses (from master_data)
   2. Organizations:  list (with filters), detail, children
   3. Hierarchy:      recursive CTE tree
   4. UI Route:       /organization serves HTML
@@ -35,7 +38,7 @@ class TestOrganizationTypes:
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
-        assert len(data) > 0, "Expected 8 seeded organization types"
+        assert len(data) > 0, "Expected 9 seeded organization types"
 
     def test_list_has_required_fields(self, client):
         """Each organization type has the expected response fields."""
@@ -51,15 +54,16 @@ class TestOrganizationTypes:
             )
             assert t["is_active"] is True
 
-    def test_list_returns_8_frozen_types(self, client):
-        """Exactly 8 frozen organization types are seeded."""
+    def test_list_returns_10_frozen_types(self, client):
+        """Exactly 10 frozen organization types are seeded."""
         data = client.get(f"{BASE}/types").json()
-        assert len(data) == 8
+        assert len(data) == 10
         codes = {t["organization_type_code"] for t in data}
         expected = {
             "KENDRA", "NILACHALA_KUTIRA", "SMRUTI_MANDIRA",
             "ANCHALIKA_SANGHA", "ZILLA_SANGHA", "SAKHA_SANGHA",
-            "SAKHA_ASANA", "PATHA_CHAKRA",
+            "SAKHA_ASANA", "PARIBARIK_ASANA", "PARIBARIK_SANGHA",
+            "PATHA_CHAKRA",
         }
         assert codes == expected
 
@@ -70,38 +74,40 @@ class TestOrganizationTypes:
         assert orders == sorted(orders)
 
 
-class TestOrganizationStatuses:
+class TestStatuses:
     """GET /api/v1/organization/statuses"""
 
     def test_list_returns_200(self, client):
-        """Organization statuses returns 200 with a non-empty list."""
+        """Statuses returns 200 with a non-empty list."""
         r = client.get(f"{BASE}/statuses")
         assert r.status_code == 200
         data = r.json()
         assert isinstance(data, list)
-        assert len(data) > 0, "Expected 6 seeded organization statuses"
+        assert len(data) > 0, "Expected 13 seeded lifecycle statuses"
 
     def test_list_has_required_fields(self, client):
         """Each status has the expected response fields."""
         required = {
-            "organization_status_pk", "organization_status_code",
-            "organization_status_name", "description",
+            "status_pk", "status_code",
+            "status_name", "description",
             "sort_order", "is_active",
         }
         for s in client.get(f"{BASE}/statuses").json():
             assert required.issubset(s.keys()), (
-                f"Missing fields in status {s.get('organization_status_code', '?')}: "
+                f"Missing fields in status {s.get('status_code', '?')}: "
                 f"{required - s.keys()}"
             )
 
-    def test_list_returns_6_statuses(self, client):
-        """Exactly 6 lifecycle statuses are seeded."""
+    def test_list_returns_13_statuses(self, client):
+        """Exactly 13 unified lifecycle statuses are seeded."""
         data = client.get(f"{BASE}/statuses").json()
-        assert len(data) == 6
-        codes = {s["organization_status_code"] for s in data}
+        assert len(data) == 13
+        codes = {s["status_code"] for s in data}
         expected = {
             "PROPOSED", "APPROVED", "ACTIVE",
-            "INACTIVE", "SUSPENDED", "ARCHIVED",
+            "INACTIVE", "SUSPENDED", "LAPSED",
+            "TRANSFERRED", "RESIGNED", "EXPELLED",
+            "DECEASED", "DISSOLVED", "ARCHIVED", "EXPIRED",
         }
         assert codes == expected
 
@@ -135,8 +141,8 @@ class TestOrganizations:
             "organization_code",
             "organization_type_pk", "organization_type_code",
             "organization_type_name",
-            "organization_status_pk", "organization_status_code",
-            "organization_status_name",
+            "status_pk", "status_code",
+            "status_name",
             "parent_organization_pk", "parent_organization_name",
             "address_line_1", "address_line_2",
             "phone_number", "mobile_number", "email", "org_email",
@@ -187,7 +193,7 @@ class TestOrganizations:
         r = client.get(f"{BASE}/organizations", params={"status_code": "ACTIVE"})
         assert r.status_code == 200
         for org in r.json():
-            assert org["organization_status_code"] == "ACTIVE"
+            assert org["status_code"] == "ACTIVE"
 
     def test_filter_nonexistent_type_returns_empty(self, client):
         """Filtering by a type code with no matches returns empty list."""
@@ -328,7 +334,7 @@ class TestHierarchy:
         required = {
             "organization_pk", "organization_name", "organization_code",
             "organization_type_code", "organization_type_name",
-            "organization_status_code", "organization_status_name",
+            "status_code", "status_name",
             "parent_organization_pk", "depth", "is_active",
         }
         for node in client.get(f"{BASE}/hierarchy").json():

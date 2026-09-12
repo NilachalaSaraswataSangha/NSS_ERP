@@ -5,8 +5,8 @@
  * No authentication. Read-only verification.
  *
  * Sections:
- *   1. Organization Types (8 frozen types)
- *   2. Organization Statuses (6 lifecycle statuses)
+ *   1. Organization Types (10 frozen types)
+ *   2. Statuses (13 unified lifecycle statuses)
  *   3. Organizations (list with type/status context + hierarchy navigation)
  *   4. Hierarchy Tree (recursive CTE — full tree with depth)
  */

@@ -4,6 +4,10 @@ Pydantic response models for the Organization API (Tier 2).
 All models exclude audit columns (created_at, updated_at, deleted_at)
 per the project's API convention established in Tier 0.
 
+Organization type is sourced from Foundation master_data (category
+ORGANIZATION_TYPE). Status is sourced from the unified ERP-wide
+STATUS category — a single shared category used by all modules.
+
 Raw psycopg2 returns dictionaries — no ORM objects — so
 ConfigDict(from_attributes=True) is unnecessary.
 """
@@ -14,7 +18,7 @@ from pydantic import BaseModel
 
 
 class OrganizationTypeResponse(BaseModel):
-    """Organization type from nss.organization_type_master."""
+    """Organization type from nss.master_data (category: ORGANIZATION_TYPE)."""
 
     organization_type_pk: UUID
     organization_type_code: str
@@ -24,12 +28,12 @@ class OrganizationTypeResponse(BaseModel):
     is_active: bool
 
 
-class OrganizationStatusResponse(BaseModel):
-    """Organization lifecycle status from nss.organization_status_master."""
+class StatusResponse(BaseModel):
+    """Lifecycle status from nss.master_data (category: STATUS)."""
 
-    organization_status_pk: UUID
-    organization_status_code: str
-    organization_status_name: str
+    status_pk: UUID
+    status_code: str
+    status_name: str
     description: str | None
     sort_order: int
     is_active: bool
@@ -42,6 +46,10 @@ class OrganizationResponse(BaseModel):
     Includes type_name, status_name, and parent_name via JOINs so the
     UI can display the full context in a single API call. Geographic FK
     names (country, state, district) are also resolved where present.
+
+    Type fields are aliased from master_data columns for the
+    ORGANIZATION_TYPE category. Status fields use the unified
+    ERP-wide STATUS category.
     """
 
     organization_pk: UUID
@@ -49,15 +57,15 @@ class OrganizationResponse(BaseModel):
     organization_name: str
     organization_code: str | None
 
-    # Classification (resolved)
+    # Classification (resolved from master_data)
     organization_type_pk: UUID
     organization_type_code: str
     organization_type_name: str
 
-    # Lifecycle (resolved)
-    organization_status_pk: UUID
-    organization_status_code: str
-    organization_status_name: str
+    # Lifecycle (resolved from master_data — unified STATUS category)
+    status_pk: UUID
+    status_code: str
+    status_name: str
 
     # Hierarchy
     parent_organization_pk: UUID | None
@@ -112,8 +120,8 @@ class OrganizationHierarchyNodeResponse(BaseModel):
     organization_code: str | None
     organization_type_code: str
     organization_type_name: str
-    organization_status_code: str
-    organization_status_name: str
+    status_code: str
+    status_name: str
     parent_organization_pk: UUID | None
     depth: int
     is_active: bool

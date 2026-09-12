@@ -21,12 +21,19 @@
         .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
         .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
         /* Status colors — white text on distinct backgrounds */
-        .badge-status-active   { background-color: #16a34a !important; color: #fff !important; }
-        .badge-status-proposed  { background-color: #2563eb !important; color: #fff !important; }
-        .badge-status-approved  { background-color: #0d9488 !important; color: #fff !important; }
-        .badge-status-suspended { background-color: #dc2626 !important; color: #fff !important; }
-        .badge-status-inactive  { background-color: #6b7280 !important; color: #fff !important; }
-        .badge-status-archived  { background-color: #374151 !important; color: #fff !important; }
+        .badge-status-active     { background-color: #16a34a !important; color: #fff !important; }
+        .badge-status-proposed   { background-color: #2563eb !important; color: #fff !important; }
+        .badge-status-approved   { background-color: #0d9488 !important; color: #fff !important; }
+        .badge-status-suspended  { background-color: #dc2626 !important; color: #fff !important; }
+        .badge-status-inactive   { background-color: #6b7280 !important; color: #fff !important; }
+        .badge-status-lapsed     { background-color: #d97706 !important; color: #fff !important; }
+        .badge-status-transferred{ background-color: #7c3aed !important; color: #fff !important; }
+        .badge-status-resigned   { background-color: #9ca3af !important; color: #fff !important; }
+        .badge-status-expelled   { background-color: #991b1b !important; color: #fff !important; }
+        .badge-status-deceased   { background-color: #1f2937 !important; color: #fff !important; }
+        .badge-status-dissolved  { background-color: #78350f !important; color: #fff !important; }
+        .badge-status-archived   { background-color: #374151 !important; color: #fff !important; }
+        .badge-status-expired    { background-color: #4b5563 !important; color: #fff !important; }
     </style>
 </head>
 <body class="bg-base-200 min-h-screen">
@@ -138,7 +145,7 @@
                     </div>
                 </section>
 
-                <!-- Organization Statuses -->
+                <!-- Lifecycle Statuses -->
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
@@ -160,27 +167,45 @@
 
                         <template x-if="!orgStatusesLoading && !orgStatusesError && orgStatuses.length > 0">
                             <div class="overflow-x-auto mt-2">
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>Code</th>
-                                            <th>Name</th>
-                                            <th>Description</th>
-                                            <th>Order</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="s in orgStatuses" :key="s.organization_status_pk">
+                                    <table class="table table-sm">
+                                        <thead>
                                             <tr>
-                                                <td class="font-mono text-xs whitespace-nowrap" x-text="s.organization_status_code"></td>
-                                                <td class="text-xs" x-text="s.organization_status_name"></td>
-                                                <td class="text-xs text-base-content/60 max-w-xs" x-text="s.description || '—'"></td>
-                                                <td class="text-center text-xs" x-text="s.sort_order"></td>
+                                                <th>#</th>
+                                                <th>Badge</th>
+                                                <th>Code</th>
+                                                <th>Description</th>
                                             </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="s in orgStatuses" :key="s.status_pk + '-row'">
+                                                <tr>
+                                                    <td class="text-center text-xs text-base-content/40" x-text="s.sort_order"></td>
+                                                    <td>
+                                                        <span class="badge badge-xs"
+                                                              :class="{
+                                                                  'badge-status-active': s.status_code === 'ACTIVE',
+                                                                  'badge-status-proposed': s.status_code === 'PROPOSED',
+                                                                  'badge-status-approved': s.status_code === 'APPROVED',
+                                                                  'badge-status-suspended': s.status_code === 'SUSPENDED',
+                                                                  'badge-status-inactive': s.status_code === 'INACTIVE',
+                                                                  'badge-status-lapsed': s.status_code === 'LAPSED',
+                                                                  'badge-status-transferred': s.status_code === 'TRANSFERRED',
+                                                                  'badge-status-resigned': s.status_code === 'RESIGNED',
+                                                                  'badge-status-expelled': s.status_code === 'EXPELLED',
+                                                                  'badge-status-deceased': s.status_code === 'DECEASED',
+                                                                  'badge-status-dissolved': s.status_code === 'DISSOLVED',
+                                                                  'badge-status-archived': s.status_code === 'ARCHIVED',
+                                                                  'badge-status-expired': s.status_code === 'EXPIRED'
+                                                              }"
+                                                              x-text="s.status_name"></span>
+                                                    </td>
+                                                    <td class="font-mono text-xs whitespace-nowrap" x-text="s.status_code"></td>
+                                                    <td class="text-xs text-base-content/60 max-w-xs" x-text="s.description || '—'"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
                         </template>
                     </div>
                 </section>
@@ -216,8 +241,8 @@
                                     :disabled="['KENDRA', 'NILACHALA_KUTIRA', 'SMRUTI_MANDIRA'].includes(selectedTypeFilter)"
                                     :class="{ 'opacity-40 cursor-not-allowed': ['KENDRA', 'NILACHALA_KUTIRA', 'SMRUTI_MANDIRA'].includes(selectedTypeFilter) }">
                                 <option value="">All Statuses</option>
-                                <template x-for="s in orgStatuses" :key="s.organization_status_code">
-                                    <option :value="s.organization_status_code" x-text="s.organization_status_name"></option>
+                                <template x-for="s in orgStatuses" :key="s.status_code">
+                                    <option :value="s.status_code" x-text="s.status_name"></option>
                                 </template>
                             </select>
                         </div>
@@ -266,14 +291,21 @@
                                                 <td class="whitespace-nowrap">
                                                     <span class="badge badge-xs whitespace-nowrap"
                                                           :class="{
-                                                              'badge-status-active': org.organization_status_code === 'ACTIVE',
-                                                              'badge-status-proposed': org.organization_status_code === 'PROPOSED',
-                                                              'badge-status-approved': org.organization_status_code === 'APPROVED',
-                                                              'badge-status-suspended': org.organization_status_code === 'SUSPENDED',
-                                                              'badge-status-inactive': org.organization_status_code === 'INACTIVE',
-                                                              'badge-status-archived': org.organization_status_code === 'ARCHIVED'
+                                                              'badge-status-active': org.status_code === 'ACTIVE',
+                                                              'badge-status-proposed': org.status_code === 'PROPOSED',
+                                                              'badge-status-approved': org.status_code === 'APPROVED',
+                                                              'badge-status-suspended': org.status_code === 'SUSPENDED',
+                                                              'badge-status-inactive': org.status_code === 'INACTIVE',
+                                                              'badge-status-lapsed': org.status_code === 'LAPSED',
+                                                              'badge-status-transferred': org.status_code === 'TRANSFERRED',
+                                                              'badge-status-resigned': org.status_code === 'RESIGNED',
+                                                              'badge-status-expelled': org.status_code === 'EXPELLED',
+                                                              'badge-status-deceased': org.status_code === 'DECEASED',
+                                                              'badge-status-dissolved': org.status_code === 'DISSOLVED',
+                                                              'badge-status-archived': org.status_code === 'ARCHIVED',
+                                                              'badge-status-expired': org.status_code === 'EXPIRED'
                                                           }"
-                                                          x-text="org.organization_status_name"></span>
+                                                          x-text="org.status_name"></span>
                                                 </td>
                                                 <td class="text-xs" x-text="org.parent_organization_name || '—'"></td>
                                                 <td class="text-xs text-base-content/60">
@@ -321,7 +353,7 @@
                                     </div>
                                     <div>
                                         <span class="text-base-content/50">Status:</span>
-                                        <span x-text="selectedOrg.organization_status_name"></span>
+                                        <span x-text="selectedOrg.status_name"></span>
                                     </div>
                                     <div>
                                         <span class="text-base-content/50">Parent:</span>
@@ -391,7 +423,7 @@
                                 </div>
 
                                 <!-- Children (hidden for org types that cannot have children) -->
-                                <template x-if="!['NILACHALA_KUTIRA', 'SMRUTI_MANDIRA', 'PATHA_CHAKRA', 'SAKHA_ASANA'].includes(selectedOrg.organization_type_code)">
+                                <template x-if="!['NILACHALA_KUTIRA', 'SMRUTI_MANDIRA', 'PATHA_CHAKRA', 'SAKHA_ASANA', 'PARIBARIK_ASANA', 'PARIBARIK_SANGHA'].includes(selectedOrg.organization_type_code)">
                                 <div>
                                 <div class="divider my-1"></div>
                                 <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
@@ -436,14 +468,21 @@
                                                         <td>
                                                             <span class="badge badge-xs"
                                                                   :class="{
-                                                                      'badge-status-active': child.organization_status_code === 'ACTIVE',
-                                                                      'badge-status-proposed': child.organization_status_code === 'PROPOSED',
-                                                                      'badge-status-approved': child.organization_status_code === 'APPROVED',
-                                                                      'badge-status-suspended': child.organization_status_code === 'SUSPENDED',
-                                                                      'badge-status-inactive': child.organization_status_code === 'INACTIVE',
-                                                                      'badge-status-archived': child.organization_status_code === 'ARCHIVED'
+                                                                      'badge-status-active': child.status_code === 'ACTIVE',
+                                                                      'badge-status-proposed': child.status_code === 'PROPOSED',
+                                                                      'badge-status-approved': child.status_code === 'APPROVED',
+                                                                      'badge-status-suspended': child.status_code === 'SUSPENDED',
+                                                                      'badge-status-inactive': child.status_code === 'INACTIVE',
+                                                                      'badge-status-lapsed': child.status_code === 'LAPSED',
+                                                                      'badge-status-transferred': child.status_code === 'TRANSFERRED',
+                                                                      'badge-status-resigned': child.status_code === 'RESIGNED',
+                                                                      'badge-status-expelled': child.status_code === 'EXPELLED',
+                                                                      'badge-status-deceased': child.status_code === 'DECEASED',
+                                                                      'badge-status-dissolved': child.status_code === 'DISSOLVED',
+                                                                      'badge-status-archived': child.status_code === 'ARCHIVED',
+                                                                      'badge-status-expired': child.status_code === 'EXPIRED'
                                                                   }"
-                                                                  x-text="child.organization_status_name"></span>
+                                                                  x-text="child.status_name"></span>
                                                         </td>
                                                     </tr>
                                                 </template>
@@ -502,14 +541,21 @@
                                           x-text="'(' + node.organization_code + ')'"></span>
                                     <span class="badge badge-xs ml-auto"
                                           :class="{
-                                              'badge-status-active': node.organization_status_code === 'ACTIVE',
-                                              'badge-status-proposed': node.organization_status_code === 'PROPOSED',
-                                              'badge-status-approved': node.organization_status_code === 'APPROVED',
-                                              'badge-status-suspended': node.organization_status_code === 'SUSPENDED',
-                                              'badge-status-inactive': node.organization_status_code === 'INACTIVE',
-                                              'badge-status-archived': node.organization_status_code === 'ARCHIVED'
+                                              'badge-status-active': node.status_code === 'ACTIVE',
+                                              'badge-status-proposed': node.status_code === 'PROPOSED',
+                                              'badge-status-approved': node.status_code === 'APPROVED',
+                                              'badge-status-suspended': node.status_code === 'SUSPENDED',
+                                              'badge-status-inactive': node.status_code === 'INACTIVE',
+                                              'badge-status-lapsed': node.status_code === 'LAPSED',
+                                              'badge-status-transferred': node.status_code === 'TRANSFERRED',
+                                              'badge-status-resigned': node.status_code === 'RESIGNED',
+                                              'badge-status-expelled': node.status_code === 'EXPELLED',
+                                              'badge-status-deceased': node.status_code === 'DECEASED',
+                                              'badge-status-dissolved': node.status_code === 'DISSOLVED',
+                                              'badge-status-archived': node.status_code === 'ARCHIVED',
+                                              'badge-status-expired': node.status_code === 'EXPIRED'
                                           }"
-                                          x-text="node.organization_status_name"></span>
+                                          x-text="node.status_name"></span>
                                 </div>
                             </template>
                         </div>
