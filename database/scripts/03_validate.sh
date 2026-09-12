@@ -176,8 +176,8 @@ for t in "${FOUNDATION_TABLES[@]}"; do
 done
 
 echo "  Row counts:"
-check_row_count "master_category" 12
-check_row_count "master_data" 74
+check_row_count "master_category" 13
+check_row_count "master_data" 82
 check_row_count "id_sequence_master" 11
 check_row_count "country" 5
 check_row_count "state" 112
@@ -231,6 +231,31 @@ check_fk_integrity "organization -> city_village" \
     "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.city_village cv ON o.city_village_pk = cv.city_village_pk WHERE o.city_village_pk IS NOT NULL AND cv.city_village_pk IS NULL;"
 check_fk_integrity "organization -> postal_code" \
     "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.postal_code pc ON o.postal_code_pk = pc.postal_code_pk WHERE o.postal_code_pk IS NOT NULL AND pc.postal_code_pk IS NULL;"
+echo ""
+
+# =====================================================
+# Module 4: Person (2 tables — no seed data)
+# =====================================================
+echo -e "${CYAN}--- Person ---${NC}"
+echo "  Tables:"
+check_table_exists "person"
+check_table_exists "person_address"
+
+echo "  Row counts (no seed — expect 0):"
+check_row_count "person" 0
+check_row_count "person_address" 0
+
+echo "  FK integrity:"
+check_fk_integrity "person -> master_data (gender)" \
+    "SELECT COUNT(*) FROM nss.person p LEFT JOIN nss.master_data md ON p.gender_master_data_pk = md.master_data_pk WHERE p.gender_master_data_pk IS NOT NULL AND md.master_data_pk IS NULL;"
+check_fk_integrity "person -> master_data (marital_status)" \
+    "SELECT COUNT(*) FROM nss.person p LEFT JOIN nss.master_data md ON p.marital_status_master_data_pk = md.master_data_pk WHERE p.marital_status_master_data_pk IS NOT NULL AND md.master_data_pk IS NULL;"
+check_fk_integrity "person -> master_data (blood_group)" \
+    "SELECT COUNT(*) FROM nss.person p LEFT JOIN nss.master_data md ON p.blood_group_master_data_pk = md.master_data_pk WHERE p.blood_group_master_data_pk IS NOT NULL AND md.master_data_pk IS NULL;"
+check_fk_integrity "person_address -> person" \
+    "SELECT COUNT(*) FROM nss.person_address pa LEFT JOIN nss.person p ON pa.person_pk = p.person_pk WHERE p.person_pk IS NULL;"
+check_fk_integrity "person_address -> master_data (address_type)" \
+    "SELECT COUNT(*) FROM nss.person_address pa LEFT JOIN nss.master_data md ON pa.address_type_master_data_pk = md.master_data_pk WHERE md.master_data_pk IS NULL;"
 echo ""
 
 # =====================================================

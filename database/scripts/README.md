@@ -60,8 +60,8 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 
 | Step | File | Seeds |
 |-----:|------|-------|
-| Seed | `seed/01_foundation/01_master_category.sql` | 12 master categories (incl. ORGANIZATION_TYPE, unified STATUS) |
-| Seed | `seed/01_foundation/02_master_data.sql` | Master data rows (incl. 10 org types + 13 unified statuses) |
+| Seed | `seed/01_foundation/01_master_category.sql` | 13 master categories (incl. ORGANIZATION_TYPE, unified STATUS, BLOOD_GROUP) |
+| Seed | `seed/01_foundation/02_master_data.sql` | Master data rows (incl. 10 org types + 13 unified statuses + 8 blood groups) |
 | Seed | `seed/01_foundation/03_id_sequence_master.sql` | ID sequence definitions |
 | Seed | `seed/01_foundation/04_country.sql` | Countries |
 | Seed | `seed/01_foundation/05_state.sql` | States |

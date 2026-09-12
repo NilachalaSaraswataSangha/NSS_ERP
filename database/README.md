@@ -338,7 +338,7 @@ Validation checks per module:
 | Module | Tables | Checks |
 |--------|-------:|--------|
 | Bootstrap RBAC | 3 | Existence, 8 roles seeded, unique `role_code`, FK integrity (`role_permission` → both parents) |
-| Foundation | 12 | Existence, row counts (categories, locations, settings, postal codes), unique codes, FK integrity (location hierarchy, `master_data` → `master_category`), deferred columns on `document_master` |
+| Foundation | 12 | Existence, row counts (13 categories, 82 master_data, locations, settings, postal codes), unique codes, FK integrity (location hierarchy, `master_data` → `master_category`), deferred columns on `document_master` |
 | Organization | 1 | Existence, 10 types / 13 unified statuses / 3 orgs seeded, unique codes, FK integrity (org → type, status, country, city_village, postal_code) |
 
 **Extend this script when new modules are added to `02_build.sh`.**
@@ -347,8 +347,7 @@ Validation checks per module:
 
 ## Superseded Artifacts
 
-The following exist on `develop` from an earlier prototype iteration and
-are NOT consistent with the frozen architecture (SOL-ARCH-009/010):
+The following files are retained as documentation stubs (no DDL/seed generated):
 
-- `ddl/03_person/*` — uses per-domain masters instead of `master_data` pattern
-- `seed/03_person/*` — seeds into non-existent tables (`gender_master`, etc.)
+- `ddl/03_person/01_person_master_tables.sql` — SUPERSEDED; gender/marital_status/address_type now in Foundation `master_data`
+- `seed/03_person/01_person_master_tables.sql` — SUPERSEDED; seed data in Foundation `02_master_data.sql`
