@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | API_CODE_EXPLANATIONS                    |
-| Version     | 1.2                                      |
+| Version     | 1.3                                      |
 | Scope       | All source files under `api/` and `tests/` |
-| Status      | Complete (updated: org-to-master-data migration) |
+| Status      | Complete (updated: Tier 3 Person)         |
 
 ---
 
@@ -55,11 +55,14 @@ Response returns to the client (security headers/CORS/rate-limit already applied
 way — see SECURITY_CODE_EXPLANATIONS.md)
 ```
 
-Every router handler in `bootstrap.py`/`foundation.py`/`organization.py` follows this exact same shape:
-`Depends(get_connection)` → parameterized SQL → zip into dicts → unpack into a schema class.
-Once you've read one endpoint in §2.4/§2.5, every other endpoint in the file is the same pattern
-with a different table and a different response model — that repetition is deliberate, not
-something to search for a shortcut around.
+Every router handler in `bootstrap.py`/`foundation.py`/`organization.py`/`person.py` follows this
+exact same shape: `Depends(get_connection)` → parameterized SQL → zip into dicts → unpack into a
+schema class. Once you've read one endpoint in §2.4/§2.5, every other endpoint in the file is the
+same pattern with a different table and a different response model — that repetition is
+deliberate, not something to search for a shortcut around. `person.py` (§2.11) is the one file
+that pulls its zip/dict/unpack step from a shared `api/helpers.py` module (`rows_to_models`/
+`row_to_model`) instead of a per-router-local copy of the same two functions — the underlying
+shape is unchanged.
 
 **This document replaces three retired docs** that covered the same files but organized by
 tier/feature instead of by file: `TIER0_VERTICAL_SLICE.md` (Tier 0 Bootstrap — database through
@@ -2497,6 +2500,673 @@ display names — `organization_type_code`/`organization_type_name` plus `status
 
 ---
 
+### 2.11 `api/routers/person.py`
+
+**Requirement**
+
+Tier 3 exposes 4 read-only GET endpoints across `nss.person` and `nss.person_address` so the
+Person Verification UI and any consumer can list/filter persons, view a single person's full
+resolved detail, list a person's addresses, and fuzzy-search persons by name/ID/mobile number.
+Person carries the ERP's first genuinely sensitive column — an encrypted Aadhaar number — so
+this router's defining constraint isn't a new query shape but a security boundary: `person`'s
+`aadhaar_encrypted` (BYTEA) and `aadhaar_hash` columns must never appear in any response, no
+matter which endpoint or SELECT list is involved, and only the pre-truncated `aadhaar_last4` is
+fit to expose for masked display (PER-BR-081). Without this file, `nss.person` and
+`nss.person_address` — the two Person DDL tables — would have no HTTP surface at all, and the
+Foundation-style JOIN-resolution pattern (gender/marital-status/blood-group/emergency-relationship
+master data, and the full geographic chain for addresses) would have nowhere to live.
+
+**Line-by-line**
+
+Lines 1–16 — module docstring:
+
+```python
+"""
+Person API router — Tier 3 read-only endpoints.
+
+4 GET endpoints across 2 Person tables. No authentication.
+nss_db_backend connects with SELECT-only privileges.
+
+Endpoint groups:
+  - Core:       persons (list with filters, detail)
+  - Addresses:  person addresses (per person)
+  - Search:     trigram-based name/ID search
+
+Security:
+  - aadhaar_encrypted and aadhaar_hash are NEVER returned (PER-BR-081)
+  - Only aadhaar_last4 is exposed for masked display
+  - Audit actor FKs excluded per API convention
+"""
+```
+
+States "4 GET endpoints across 2 Person tables," lists the three endpoint groups (Core /
+Addresses / Search), and — unlike any prior router's docstring — dedicates an explicit
+"Security:" block naming the exact business rule (PER-BR-081), the exact two forbidden columns,
+and the one substitute column that is safe to expose. This is the same governance-frozen
+constraint documented in `docs/01_Authoritative_References/` and enforced again in
+`api/schemas/person.py` (§2.12) — belt-and-suspenders: neither the SQL nor the schema selects
+the sensitive columns, so there is no single point of failure.
+
+Lines 18–28:
+
+```python
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from api.database import get_connection
+from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
+from api.schemas.person import (
+    PersonAddressResponse,
+    PersonResponse,
+    PersonSummaryResponse,
+)
+```
+
+Same FastAPI/UUID imports as `organization.py`. The notable difference: `row_to_model`/
+`rows_to_models` are imported **from `api/helpers.py`** rather than redefined locally. Every
+prior router (`bootstrap.py`, `foundation.py`, `organization.py`) carries its own private copy of
+these two "cursor → Pydantic" functions; `person.py` is the first to consume the shared module
+instead, per `api/helpers.py`'s own docstring rationale — "a single point of maintenance for any
+future security hardening (e.g. column sanitisation)," which matters more here than anywhere
+else given the Aadhaar-masking constraint above. `DEFAULT_LIMIT` (100) and `MAX_LIMIT` (500) are
+likewise the same pagination constants centralized in `api/helpers.py`, used below by
+`list_persons` instead of hardcoded literals.
+
+Line 30:
+
+```python
+router = APIRouter(prefix="/api/v1/person", tags=["person"])
+```
+
+Separate prefix and Swagger tag from the other three routers.
+
+**Shared SQL fragments (lines 33–143):**
+
+```python
+_PERSON_DETAIL_SELECT = """
+    SELECT p.person_pk,
+           p.person_id,
+           p.first_name,
+           p.middle_name,
+           p.last_name,
+           p.date_of_birth,
+           p.date_of_death,
+           p.gender_master_data_pk,
+           g.value_code   AS gender_code,
+           g.value_name   AS gender_name,
+           p.marital_status_master_data_pk,
+           ms.value_code  AS marital_status_code,
+           ms.value_name  AS marital_status_name,
+           p.blood_group_master_data_pk,
+           bg.value_code  AS blood_group_code,
+           bg.value_name  AS blood_group_name,
+           p.country_phone_code,
+           p.mobile_number,
+           p.email,
+           p.aadhaar_last4,
+           p.photo_document_master_pk,
+           p.emergency_contact_name,
+           p.emergency_contact_phone,
+           p.emergency_relationship_master_data_pk,
+           er.value_code  AS emergency_relationship_code,
+           er.value_name  AS emergency_relationship_name,
+           p.remarks,
+           p.is_active
+    FROM   nss.person p
+    LEFT JOIN nss.master_data g
+           ON g.master_data_pk = p.gender_master_data_pk
+    LEFT JOIN nss.master_data ms
+           ON ms.master_data_pk = p.marital_status_master_data_pk
+    LEFT JOIN nss.master_data bg
+           ON bg.master_data_pk = p.blood_group_master_data_pk
+    LEFT JOIN nss.master_data er
+           ON er.master_data_pk = p.emergency_relationship_master_data_pk
+"""
+```
+
+Unlike `organization.py`'s single `_ORG_SELECT` reused by all three core endpoints, `person.py`
+defines **two** person SELECT fragments plus one address fragment — a deliberate split, not an
+oversight. `_PERSON_DETAIL_SELECT` is the full 27-column shape used only by `get_person`
+(single-record detail): it includes `p.aadhaar_last4` (masked, safe), `p.photo_document_master_pk`,
+and the full emergency-contact block. Every master-data lookup — gender, marital status, blood
+group, emergency relationship — is a `LEFT JOIN` against the same `nss.master_data` table
+(aliased `g`/`ms`/`bg`/`er`), because all four of `person`'s corresponding FK columns are
+nullable: a person record can exist with gender/marital-status/blood-group/emergency-relationship
+left unset, and a `LEFT JOIN` (not `JOIN`) is what keeps such a row from being silently dropped.
+Critically, `_PERSON_DETAIL_SELECT` never lists `p.aadhaar_encrypted` or `p.aadhaar_hash` — the
+two columns the module docstring forbids — so even a future maintainer copy-pasting this SELECT
+wholesale cannot accidentally leak them; the enforcement is structural, not a runtime check.
+
+```python
+_PERSON_SUMMARY_SELECT = """
+    SELECT p.person_pk,
+           p.person_id,
+           p.first_name,
+           p.middle_name,
+           p.last_name,
+           p.date_of_birth,
+           p.date_of_death,
+           g.value_code   AS gender_code,
+           g.value_name   AS gender_name,
+           ms.value_code  AS marital_status_code,
+           ms.value_name  AS marital_status_name,
+           bg.value_code  AS blood_group_code,
+           bg.value_name  AS blood_group_name,
+           p.country_phone_code,
+           p.mobile_number,
+           p.email,
+           p.is_active
+    FROM   nss.person p
+    LEFT JOIN nss.master_data g
+           ON g.master_data_pk = p.gender_master_data_pk
+    LEFT JOIN nss.master_data ms
+           ON ms.master_data_pk = p.marital_status_master_data_pk
+    LEFT JOIN nss.master_data bg
+           ON bg.master_data_pk = p.blood_group_master_data_pk
+"""
+```
+
+`_PERSON_SUMMARY_SELECT` is the compact 17-column shape shared by `list_persons` and
+`search_persons` — both multi-row endpoints where payload size matters. It drops
+`aadhaar_last4`, the emergency-contact block, and `photo_document_master_pk` entirely (not just
+the two forbidden Aadhaar columns — the whole sensitive/heavy block), and correspondingly has one
+fewer `LEFT JOIN` (no `emergency_relationship` join, since none of its fields are selected).
+
+```python
+_ADDRESS_SELECT = """
+    SELECT pa.person_address_pk,
+           pa.person_pk,
+           pa.address_type_master_data_pk,
+           at.value_code  AS address_type_code,
+           at.value_name  AS address_type_name,
+           pa.address_line_1,
+           pa.address_line_2,
+           pa.landmark,
+           pa.city_village_postal_code_map_pk,
+           cv.city_village_name,
+           pc.postal_code,
+           d.district_name,
+           s.state_name,
+           c.country_name,
+           pa.is_primary,
+           pa.remarks,
+           pa.is_active
+    FROM   nss.person_address pa
+    JOIN   nss.master_data at
+           ON at.master_data_pk = pa.address_type_master_data_pk
+    JOIN   nss.city_village_postal_code_map cvm
+           ON cvm.city_village_postal_code_map_pk
+              = pa.city_village_postal_code_map_pk
+    LEFT JOIN nss.city_village cv
+           ON cv.city_village_pk = cvm.city_village_pk
+    LEFT JOIN nss.postal_code pc
+           ON pc.postal_code_pk = cvm.postal_code_pk
+    LEFT JOIN nss.district d
+           ON d.district_pk = cv.district_pk
+    LEFT JOIN nss.state s
+           ON s.state_pk = d.state_pk
+    LEFT JOIN nss.country c
+           ON c.country_pk = s.country_pk
+"""
+```
+
+`_ADDRESS_SELECT` resolves location context through a six-table JOIN chain, mixing `JOIN` and
+`LEFT JOIN` deliberately rather than uniformly: `at` (address type via `master_data`) and `cvm`
+(the `city_village_postal_code_map` junction row itself) use plain `JOIN`, because
+`address_type_master_data_pk` and `city_village_postal_code_map_pk` are both `NOT NULL` FKs on
+`person_address` — every address row is required to have a type and a location mapping, so an
+inner join can't drop a valid row. From `cvm` onward, though, the chain switches to `LEFT JOIN`
+for `city_village`, `postal_code`, `district`, `state`, `country` — each of those is reached by
+walking the map row's own two FKs (`cvm.city_village_pk`, `cvm.postal_code_pk`) and then further
+geographic parent FKs, any of which could in principle be null or point at an inactive/missing
+row; a `LEFT JOIN` here means a broken or partial geographic chain degrades gracefully to `NULL`
+display names rather than making the whole address disappear from the endpoint's response.
+
+**1. PERSONS — core read (lines 146–218, 2 endpoints):**
+
+Lines 151–193 — `GET /persons`:
+
+```python
+@router.get("/persons", response_model=list[PersonSummaryResponse])
+def list_persons(
+    gender_code: str | None = Query(
+        None, description="Filter by gender value_code (e.g. MALE, FEMALE)"
+    ),
+    marital_status_code: str | None = Query(
+        None, description="Filter by marital status value_code"
+    ),
+    blood_group_code: str | None = Query(
+        None, description="Filter by blood group value_code"
+    ),
+    limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows to return"),
+    offset: int = Query(0, ge=0, description="Number of rows to skip"),
+    conn=Depends(get_connection),
+) -> list[PersonSummaryResponse]:
+    """
+    List all active persons with resolved master-data context.
+
+    Optionally filter by gender_code, marital_status_code, or
+    blood_group_code. Returns a compact summary (no Aadhaar,
+    emergency, or photo fields). Supports pagination via limit/offset
+    (default 100, max 500).
+    """
+    sql = _PERSON_SUMMARY_SELECT + " WHERE p.is_active = TRUE"
+    params: list = []
+
+    if gender_code is not None:
+        sql += " AND g.value_code = %s"
+        params.append(gender_code)
+    if marital_status_code is not None:
+        sql += " AND ms.value_code = %s"
+        params.append(marital_status_code)
+    if blood_group_code is not None:
+        sql += " AND bg.value_code = %s"
+        params.append(blood_group_code)
+
+    sql += " ORDER BY p.first_name, p.last_name"
+    sql += " LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
+
+    with conn.cursor() as cur:
+        cur.execute(sql, tuple(params))
+        return rows_to_models(cur, PersonSummaryResponse)
+```
+
+`list_persons` is `person.py`'s only endpoint with query-parameter pagination in the whole API
+layer — no Bootstrap, Foundation, or Organization list endpoint accepts `limit`/`offset` at all;
+they return their (small, fully-seeded) tables in full. `limit: int = Query(DEFAULT_LIMIT, ge=1,
+le=MAX_LIMIT, ...)` and `offset: int = Query(0, ge=0, ...)` mean an out-of-range value (e.g.
+`limit=0` or `limit=10000`) is rejected by FastAPI with 422 before the handler body runs, rather
+than silently clamped. All three filters (`gender_code`, `marital_status_code`,
+`blood_group_code`) use `if` — not `elif` — exactly like `organization.py`'s
+`type_code`/`status_code`: they are independently combinable, so a caller can filter by gender
+*and* blood group in the same request. `sql += " LIMIT %s OFFSET %s"` with `params.extend([limit,
+offset])` appends the pagination clause last, after all WHERE conditions and the `ORDER BY` —
+`ORDER BY p.first_name, p.last_name` runs before pagination is applied, so `limit`/`offset`
+paginate a *stable, name-sorted* sequence rather than an arbitrary one.
+
+Lines 196–217 — `GET /persons/{person_pk}`:
+
+```python
+@router.get(
+    "/persons/{person_pk}",
+    response_model=PersonResponse,
+)
+def get_person(
+    person_pk: UUID,
+    conn=Depends(get_connection),
+) -> PersonResponse:
+    """
+    Get a single person by PK with full resolved context.
+
+    Includes Aadhaar last-4 (masked), emergency contact, and photo
+    FK. Never returns aadhaar_encrypted or aadhaar_hash.
+    """
+    sql = _PERSON_DETAIL_SELECT + " WHERE p.person_pk = %s AND p.is_active = TRUE"
+
+    with conn.cursor() as cur:
+        cur.execute(sql, (str(person_pk),))
+        result = row_to_model(cur, PersonResponse)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Person not found")
+        return result
+```
+
+The one endpoint that uses `_PERSON_DETAIL_SELECT`. Same PK-filter-plus-`is_active`/404 pattern
+as every other detail endpoint in the codebase (`get_category`, `get_country`, `get_state`, …):
+append `WHERE p.person_pk = %s AND p.is_active = TRUE`, parameterize with `(str(person_pk),)`,
+and raise `HTTPException(status_code=404, detail="Person not found")` if `row_to_model` returns
+`None`. The docstring repeats the security guarantee inline ("Never returns aadhaar_encrypted or
+aadhaar_hash") even though it's already stated once in the module docstring — deliberate
+redundancy on the one field group in the entire API surface where a silent regression would be a
+data-protection incident, not just a contract mismatch.
+
+**2. ADDRESSES (lines 220–257, 1 endpoint):**
+
+Lines 225–257 — `GET /persons/{person_pk}/addresses`:
+
+```python
+@router.get(
+    "/persons/{person_pk}/addresses",
+    response_model=list[PersonAddressResponse],
+)
+def list_person_addresses(
+    person_pk: UUID,
+    conn=Depends(get_connection),
+) -> list[PersonAddressResponse]:
+    """
+    List all active addresses for a given person.
+
+    Resolves address type, city/village, postal code, district,
+    state, and country names via JOINs. Returns 404 if the person
+    does not exist.
+    """
+    # Verify the person exists
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1 FROM nss.person
+            WHERE  person_pk = %s AND is_active = TRUE
+        """, (str(person_pk),))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Person not found")
+
+    sql = (
+        _ADDRESS_SELECT
+        + " WHERE pa.person_pk = %s AND pa.is_active = TRUE"
+        + " ORDER BY pa.is_primary DESC, at.value_name"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(sql, (str(person_pk),))
+        return rows_to_models(cur, PersonAddressResponse)
+```
+
+The same two-cursor "verify parent exists, then fetch children" pattern as
+`bootstrap.py::list_role_permissions` and `organization.py`'s `/organizations/{pk}/children`: the
+first cursor's `SELECT 1 FROM nss.person WHERE person_pk = %s AND is_active = TRUE` exists purely
+to distinguish "person exists but has zero addresses" (empty list, 200) from "person doesn't
+exist" (`HTTPException(404, "Person not found")`) — `_ADDRESS_SELECT` alone can't make that
+distinction, since a `WHERE pa.person_pk = %s` with no matching rows looks identical either way.
+The second cursor's `ORDER BY pa.is_primary DESC, at.value_name` puts the primary address first
+(PostgreSQL sorts `TRUE` before `FALSE` under `DESC`), then breaks ties alphabetically by
+resolved address-type name.
+
+**3. SEARCH (lines 260–304, 1 endpoint):**
+
+Lines 265–304 — `GET /search`:
+
+```python
+@router.get("/search", response_model=list[PersonSummaryResponse])
+def search_persons(
+    q: str = Query(
+        ...,
+        min_length=2,
+        max_length=100,
+        description="Search term — matches against first_name (trigram), "
+        "last_name (trigram), person_id, or mobile_number",
+    ),
+    conn=Depends(get_connection),
+) -> list[PersonSummaryResponse]:
+    """
+    Search active persons by name, person_id, or mobile number.
+
+    Uses PostgreSQL trigram similarity (pg_trgm) on first_name for
+    fuzzy matching. Also matches exact prefix on person_id and
+    mobile_number. Results ordered by trigram similarity (best match
+    first), limited to 50 results.
+    """
+    sql = (
+        _PERSON_SUMMARY_SELECT
+        + """
+        WHERE p.is_active = TRUE
+          AND (
+              p.first_name %% %s
+              OR p.last_name %% %s
+              OR p.person_id ILIKE %s
+              OR p.mobile_number ILIKE %s
+          )
+        ORDER BY similarity(p.first_name, %s) DESC,
+                 p.first_name, p.last_name
+        LIMIT 50
+    """
+    )
+
+    prefix_pattern = f"{q}%"
+
+    with conn.cursor() as cur:
+        cur.execute(sql, (q, q, prefix_pattern, prefix_pattern, q))
+        return rows_to_models(cur, PersonSummaryResponse)
+```
+
+The only fuzzy-matching endpoint in the API layer. `q: str = Query(..., min_length=2,
+max_length=100, ...)` — the `...` (Ellipsis) makes `q` required (unlike every optional filter
+elsewhere, which defaults to `None`), and the length bounds mean a 1-character or absurdly long
+query is rejected by FastAPI with 422 before touching the database, which also caps how expensive
+a single trigram scan can be.
+
+The WHERE clause ORs together four independent match strategies:
+- `p.first_name %% %s` and `p.last_name %% %s` — the `%%` in the Python triple-quoted string is
+  an *escaped* literal `%`, because this same string later goes through `cur.execute(sql,
+  params)`, and psycopg2 treats a bare `%` as the start of a `%s` placeholder; the actual SQL sent
+  to PostgreSQL contains a single `%`, which is `pg_trgm`'s **similarity operator** — it matches
+  when the trigram similarity between the column and the bound parameter exceeds PostgreSQL's
+  configured `pg_trgm.similarity_threshold` (default `0.3`). This is what makes the search
+  tolerant of typos/partial names, and it requires the `pg_trgm` extension, installed by
+  `database/ddl/01_extensions.sql` per `CLAUDE.md`'s bootstrap sequence.
+- `p.person_id ILIKE %s` and `p.mobile_number ILIKE %s` — bound to `prefix_pattern = f"{q}%"`
+  (built in Python, then passed as an ordinary bind parameter — not string-interpolated into the
+  SQL, so this is not a SQL-injection surface despite the `%` wildcard living inside the bound
+  value rather than the query text). This is a **prefix** match (`ILIKE 'abc%'`), not a
+  substring or trigram match — appropriate for structured identifiers like `person_id` and
+  `mobile_number`, where fuzzy matching would produce noise, not signal.
+
+`ORDER BY similarity(p.first_name, %s) DESC, p.first_name, p.last_name` ranks by first-name
+similarity only, even though `last_name` also participates in the WHERE-clause matching — a
+result that matched purely on `last_name` trigram similarity, `person_id` prefix, or
+`mobile_number` prefix is still ordered by how similar its `first_name` happens to be to `q`
+(likely a low or zero score), with the two plain-alphabetical columns breaking ties. `LIMIT 50` is
+hardcoded — unlike `list_persons`, this endpoint takes no `limit`/`offset` query parameters at
+all. `params = (q, q, prefix_pattern, prefix_pattern, q)` is a 5-tuple whose order maps
+positionally to the five `%s` placeholders in the SQL, in this order: first_name trigram,
+last_name trigram, person_id prefix, mobile_number prefix, and the `similarity(...)`
+`ORDER BY` argument — `q` deliberately appears three times because it's rebound at each of its
+three distinct placeholder positions.
+
+---
+
+### 2.12 `api/schemas/person.py`
+
+**Requirement**
+
+`api/routers/person.py` needs three typed response models: a lean summary shape for list/search
+results, a full detail shape for the single-person endpoint, and an address shape with resolved
+geographic context. All three must structurally exclude `aadhaar_encrypted`/`aadhaar_hash` — the
+same PER-BR-081 constraint from the router (§2.11) — so that even if a future SELECT accidentally
+widened to include those columns, Pydantic's `response_model=` validation would still only pass
+through the fields these classes declare; anything not declared here is silently dropped rather
+than serialized. Without this file, `person.py`'s three response-model list types would have
+nothing to validate against.
+
+**Line-by-line**
+
+Lines 1–14 — module docstring:
+
+```python
+"""
+Pydantic response models for the Person API (Tier 3).
+
+All models exclude audit columns (created_at, updated_at, deleted_at)
+per the project's API convention established in Tier 0.
+
+Sensitive fields excluded per PER-BR-081:
+  - aadhaar_encrypted (BYTEA)  — never exposed
+  - aadhaar_hash (VARCHAR)     — never exposed
+Only aadhaar_last4 is returned for masked display.
+
+Raw psycopg2 returns dictionaries — no ORM objects — so
+ConfigDict(from_attributes=True) is unnecessary.
+"""
+```
+
+Same audit-column-exclusion and `ConfigDict` notes as `schemas/bootstrap.py`/
+`schemas/foundation.py`/`schemas/organization.py`, plus — new here — an explicit "Sensitive
+fields excluded per PER-BR-081" block naming both forbidden columns and their BYTEA/VARCHAR
+underlying types, and confirming `aadhaar_last4` is the one substitute field that is safe.
+
+Lines 16–19:
+
+```python
+from datetime import date
+from uuid import UUID
+
+from pydantic import BaseModel
+```
+
+The first schema file in the codebase to import `date` — `person.date_of_birth` and
+`person.date_of_death` are the first genuine date-typed columns exposed by any router; Pydantic
+validates/serializes them as ISO-8601 date strings (`YYYY-MM-DD`) in JSON.
+
+Lines 22–79 — `PersonResponse` (27 fields):
+
+```python
+class PersonResponse(BaseModel):
+    """
+    Person with resolved master-data context.
+
+    Includes gender_name, marital_status_name, blood_group_name, and
+    emergency_relationship_name via JOINs so the UI can display full
+    context in a single API call.
+    """
+
+    # Identity
+    person_pk: UUID
+    person_id: str
+
+    # Demographics
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+    date_of_birth: date | None
+    date_of_death: date | None
+
+    # Gender (resolved)
+    gender_master_data_pk: UUID | None
+    gender_code: str | None
+    gender_name: str | None
+
+    # Marital status (resolved)
+    marital_status_master_data_pk: UUID | None
+    marital_status_code: str | None
+    marital_status_name: str | None
+
+    # Blood group (resolved)
+    blood_group_master_data_pk: UUID | None
+    blood_group_code: str | None
+    blood_group_name: str | None
+
+    # Contact
+    country_phone_code: str | None
+    mobile_number: str | None
+    email: str | None
+
+    # Sensitive identity — masked display only
+    aadhaar_last4: str | None
+
+    # Photo
+    photo_document_master_pk: UUID | None
+
+    # Emergency contact (resolved)
+    emergency_contact_name: str | None
+    emergency_contact_phone: str | None
+    emergency_relationship_master_data_pk: UUID | None
+    emergency_relationship_code: str | None
+    emergency_relationship_name: str | None
+
+    # Other
+    remarks: str | None
+
+    # Lifecycle
+    is_active: bool
+```
+
+The largest model this router needs, mapping field-for-field onto `_PERSON_DETAIL_SELECT`'s
+column list, grouped by inline comments into Identity / Demographics / Gender / Marital status /
+Blood group / Contact / sensitive identity / Photo / Emergency contact / Other / Lifecycle. Every
+field that comes from a `LEFT JOIN` in the router (all three master-data groups, plus
+`emergency_relationship`) is `UUID | None` / `str | None` — matching the nullable-FK reality —
+while `person_pk`, `person_id`, `first_name`, and `is_active` (`person`'s own `NOT NULL` columns)
+are unqualified. The comment `# Sensitive identity — masked display only` sits directly above the
+one field (`aadhaar_last4: str | None`) that survived the PER-BR-081 filter — there is no field
+named `aadhaar_encrypted` or `aadhaar_hash` anywhere in this class, which is what makes the
+exclusion structural rather than a convention someone has to remember to follow.
+
+Lines 82–106 — `PersonSummaryResponse` (16 fields):
+
+```python
+class PersonSummaryResponse(BaseModel):
+    """
+    Lightweight Person summary for list/search results.
+
+    Omits Aadhaar, emergency contact, and photo details to keep
+    list payloads compact.
+    """
+
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+    date_of_birth: date | None
+    date_of_death: date | None
+    gender_code: str | None
+    gender_name: str | None
+    marital_status_code: str | None
+    marital_status_name: str | None
+    blood_group_code: str | None
+    blood_group_name: str | None
+    country_phone_code: str | None
+    mobile_number: str | None
+    email: str | None
+    is_active: bool
+```
+
+Maps onto `_PERSON_SUMMARY_SELECT` and is used by both `list_persons` and `search_persons`. It
+drops the three `_master_data_pk` FK fields that `PersonResponse` carries for gender/marital
+status/blood group (the summary exposes only the resolved `_code`/`_name` pair, not the raw FK),
+and — per the docstring — omits Aadhaar, emergency contact, and photo entirely, not just the
+sensitive Aadhaar columns; this is a payload-size decision as much as a security one, since
+`list_persons`/`search_persons` can return up to `MAX_LIMIT` (500) or 50 rows respectively.
+
+Lines 109–141 — `PersonAddressResponse` (16 fields):
+
+```python
+class PersonAddressResponse(BaseModel):
+    """
+    Person address with resolved location context.
+
+    Resolves address_type via master_data and location via the
+    city_village_postal_code_map junction → city_village + postal_code
+    + district + state + country chain.
+    """
+
+    person_address_pk: UUID
+    person_pk: UUID
+
+    # Address type (resolved)
+    address_type_master_data_pk: UUID
+    address_type_code: str
+    address_type_name: str
+
+    # Address fields
+    address_line_1: str
+    address_line_2: str | None
+    landmark: str | None
+
+    # Location (resolved through junction and geographic chain)
+    city_village_postal_code_map_pk: UUID
+    city_village_name: str | None
+    postal_code: str | None
+    district_name: str | None
+    state_name: str | None
+    country_name: str | None
+
+    is_primary: bool
+    remarks: str | None
+    is_active: bool
+```
+
+Maps onto `_ADDRESS_SELECT`. `address_type_master_data_pk`, `address_type_code`, and
+`address_type_name` are all non-nullable (`UUID`/`str`, no `| None`) — matching the router's plain
+`JOIN` (not `LEFT JOIN`) against `master_data` for address type, since `person_address`'s FK there
+is `NOT NULL`. By contrast, every field resolved through the `city_village_postal_code_map` →
+`city_village`/`postal_code`/`district`/`state`/`country` chain (`city_village_name`,
+`postal_code`, `district_name`, `state_name`, `country_name`) is `str | None` — matching the
+router's `LEFT JOIN`s for that half of the chain, so a broken or partial geographic link degrades
+to `None` fields rather than a validation error.
+
+---
+
 ## 3. Cross-references
 
 - **`docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** —
@@ -2512,6 +3182,9 @@ display names — `organization_type_code`/`organization_type_name` plus `status
   contract: the authoritative specification of what each of the 6 endpoints in
   `api/routers/organization.py` must return, independent of this document's implementation-level
   walkthrough.
+- **`docs/03_Solution/api/PERSON_API_CONTRACT.md`** — the Tier 3 Person API contract: the
+  authoritative specification of what each of the 4 endpoints in `api/routers/person.py` must
+  return, independent of this document's implementation-level walkthrough.
 - **`docs/03_Solution/code_explanations/TIER0_SECURITY_AUDIT.md`** and
   **`TIER1_SECURITY_AUDIT.md`** — the security audit verdicts for the Bootstrap and Foundation
   API surfaces respectively. These are *not* retired by this document — they record findings and

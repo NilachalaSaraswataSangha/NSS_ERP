@@ -3,9 +3,9 @@
 | Field       | Value                                                                  |
 |-------------|-------------------------------------------------------------------------|
 | Document    | UI_CODE_EXPLANATIONS                                                   |
-| Version     | 1.2                                                                     |
+| Version     | 1.3                                                                     |
 | Scope       | All source files under `frontend/`, excluding binary assets (images)    |
-| Status      | Complete (updated: org-to-master-data migration)                       |
+| Status      | Complete (updated: Tier 3 Person)                                       |
 
 ---
 
@@ -24,8 +24,10 @@ It replaces the UI-relevant portions of three retired documents:
 Those three documents also covered the database, API, and test layers, and the
 cross-tier security-middleware stack — none of that is repeated here; consult
 `FOUNDATION_API_CONTRACT.md` and the (now-deleted) tier docs' git history for that
-material. This document is organized **file-by-file**, in the order the five files are
-listed in §2, rather than tier-by-tier, because a UI file (e.g. `style.css`) is shared
+material. This document is organized **file-by-file**, in the order the files are
+listed in §2 (now nine: `index.html`/`app.js`, `foundation.html`/`foundation.js`,
+`organization.html`/`organization.js`, `person.html`/`person.js`, plus the shared
+`style.css`), rather than tier-by-tier, because a UI file (e.g. `style.css`) is shared
 across tiers and a per-tier split would fragment its explanation.
 
 `frontend/README.md` remains the primary human-facing reference for this folder — it
@@ -679,6 +681,571 @@ plus a fourth `x-if` branch specific to this card:
   reaches this `<div>`, which it does since script tags execute in document order and
   Alpine's own `defer`red execution runs after all synchronous scripts including this
   one.
+
+---
+
+### 2.8 `frontend/person.html`
+
+**Requirement.** This is the Tier 3 "Person Verification UI" — the visual proof that the
+4 read-only `/api/v1/person/*` endpoints correctly expose `person` and `person_address`
+joined against Foundation's shared `master_data` (for gender, marital status, blood group,
+emergency relationship, and address type lookups). It is structurally parallel to
+`organization.html` (same head boilerplate, same System Status card reusing the Tier 0
+health endpoint, same responsive tab bar) and organizes its surface area into two tabs:
+Persons (list + filters + detail + addresses) and Search (trigram fuzzy search). Mobile-
+responsive from initial implementation, using the same Tailwind breakpoint patterns as
+`organization.html` (`px-3 sm:px-6`, `text-lg sm:text-2xl`, etc.). Served by FastAPI's
+`GET /person` route, conditional on the file existing on disk. Sensitive fields
+(`aadhaar_encrypted`, `aadhaar_hash`) are never sent by the API, so this page never has
+the opportunity to render them — only the masked `aadhaar_last4` is displayed.
+
+**Section-by-section walkthrough:**
+
+**`<head>`:**
+```html
+<style>
+    .badge { padding: 0.25rem 0.75rem !important; }
+    .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
+    .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
+    /* Lifecycle status colors */
+    .badge-status-active   { background-color: #16a34a !important; color: #fff !important; }
+    .badge-status-inactive { background-color: #6b7280 !important; color: #fff !important; }
+    .badge-status-deceased { background-color: #374151 !important; color: #fff !important; }
+</style>
+```
+- Same CDN dependency block as the other three pages: Tailwind Play CDN, DaisyUI 4.12.14
+  with SRI, Alpine.js 3.14.8 with SRI, local `style.css`. Only the `<title>` differs
+  ("— Person Verification").
+- The page-local `.badge`/`.badge-xs`/`.badge-sm` padding override is the same pattern as
+  the other three pages, but the `.badge-status-*` set here has only **3** classes
+  (`active`/`inactive`/`deceased`) — smaller than Organization's 13 — because Person's
+  lifecycle status is not sourced from Foundation's unified `STATUS` category at all; it is
+  derived client-side from two raw columns (`is_active` boolean and `date_of_death`) via
+  the `statusLabel()`/`statusBadgeClass()` helpers in `person.js` (§2.9), giving exactly
+  three possible states: Active, Active-but-deceased ("Deceased"), and Inactive
+  (soft-deleted).
+
+**Root component:**
+```html
+<div x-data="personApp()" x-init="init()" class="mx-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-10 2xl:px-16">
+```
+- Identical mobile-first padding scale to `organization.html`. Calls `personApp()` (§2.9).
+
+**Header:** Same layout as the other three pages. The nav bar now has **four** links —
+Bootstrap, Foundation, Organization, Person — with Person styled `btn-active`:
+```html
+<nav class="flex gap-2">
+    <a href="/" class="btn btn-sm btn-ghost">Bootstrap</a>
+    <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
+    <a href="/organization" class="btn btn-sm btn-ghost">Organization</a>
+    <a href="/person" class="btn btn-sm btn-active">Person</a>
+</nav>
+```
+- Plain anchor tags, not Alpine-driven, same as the other pages — each file hardcodes
+  which nav link is `btn-active` for itself.
+
+**System Status card:** Identical `x-if` triad to the other three pages, bound to
+`personApp().health`, calling the Tier 0 `/api/v1/bootstrap/health` endpoint.
+
+**Tab bar:**
+```html
+<div class="tabs tabs-boxed bg-base-100 shadow-sm inline-flex min-w-max">
+    <button class="tab tab-sm sm:tab-md" :class="{ 'tab-active': activeTab === 'persons' }" @click="switchTab('persons')">Persons</button>
+    <button class="tab tab-sm sm:tab-md" :class="{ 'tab-active': activeTab === 'search' }" @click="switchTab('search')">Search</button>
+</div>
+```
+- Only two tabs (vs Organization's three) — Person has no separate "Reference Data" tab
+  because its filter dropdowns (gender/marital status/blood group) are populated inline
+  from Foundation's `master-data` endpoint rather than surfaced as their own browsable
+  tab. `tab-sm sm:tab-md` sizes the tab buttons down on mobile, matching the smaller
+  `select-xs sm:select-sm` filter controls used throughout this page.
+
+**Tab 1 — Persons:** A `grid-cols-1 xl:grid-cols-3` layout — the person list occupies
+`xl:col-span-2` (left, wider) and the detail panel occupies the remaining column (right).
+
+*Person list (left):*
+```html
+<select class="select select-bordered select-xs sm:select-sm"
+        x-model="selectedGenderFilter" @change="filterPersons()">
+    <option value="">All Genders</option>
+    <template x-for="g in genderOptions" :key="g.value_code">
+        <option :value="g.value_code" x-text="g.value_name"></option>
+    </template>
+</select>
+```
+- Three filter `<select>`s (gender, marital status, blood group), each `x-model`-bound to
+  its own `selectedXFilter` property and triggering `filterPersons()` on `@change`. The
+  options come from `genderOptions`/`maritalStatusOptions`/`bloodGroupOptions` (§2.9),
+  populated from Foundation's `master-data` endpoint — not from a Person-specific
+  reference-data endpoint, since Person has none. Unlike Organization's type filter, none
+  of these three dropdowns is ever `:disabled` — every gender/marital-status/blood-group
+  value is a valid, always-applicable filter.
+- Standard loading/error/empty/data `x-if` quadruple (spinner → `alert alert-error` →
+  "No persons match the current filters." → data table), the same four-state pattern used
+  throughout Foundation and Organization.
+- The table header row lists nine columns: Person ID, Name, Gender, DOB, Mobile, Email,
+  Marital Status, Blood Group, Status. Each row:
+```html
+<tr class="cursor-pointer hover"
+    :class="{ 'bg-base-200': selectedPerson?.person_pk === p.person_pk }"
+    @click="selectPerson(p)">
+    <td class="font-mono text-xs whitespace-nowrap" x-text="p.person_id"></td>
+    <td class="text-xs font-medium whitespace-nowrap" x-text="formatName(p)"></td>
+    ...
+    <td class="whitespace-nowrap">
+        <span class="badge badge-xs whitespace-nowrap"
+              :class="statusBadgeClass(p)"
+              x-text="statusLabel(p)"></span>
+    </td>
+</tr>
+```
+  — the same clickable-row/highlight-on-select pattern as Organization's organizations
+  table, calling `selectPerson(p)` (§2.9). `formatName(p)` joins first/middle/last name
+  parts; the Status cell uses `statusBadgeClass(p)`/`statusLabel(p)` rather than a
+  Foundation- or Organization-style `status_code` lookup, per the `<head>` note above.
+
+*Person Detail + Addresses (right):* Four mutually exclusive top-level `x-if` states —
+"select a person" prompt (`!selectedPerson && !detailLoading`), spinner (`detailLoading`),
+error (`detailError`), and the populated detail body (`selectedPerson && !detailLoading &&
+!detailError`). The populated body is a sequence of labeled `<div>` grids, each wrapped in
+its own `x-show` so a group with no data (e.g. no emergency contact) collapses entirely
+rather than rendering empty labels:
+- **Identity** — Person ID (`font-mono`) and the lifecycle Status badge.
+- **Demographics** — Name (via `formatName()`), Gender, Date of Birth, Date of Death
+  (only shown `x-show="selectedPerson.date_of_death"`), Marital Status, Blood Group.
+- **Contact** — Mobile (via `formatPhone()`, only shown if `mobile_number` is present) and
+  Email (rendered as a `mailto:` link, only shown if `email` is present).
+- **Aadhaar (masked)** — the one field in this document that exists specifically to prove
+  a security property:
+```html
+<div class="text-xs" x-show="selectedPerson.aadhaar_last4">
+    <span class="text-base-content/50">Aadhaar:</span>
+    <span class="font-mono" x-text="'XXXX XXXX ' + selectedPerson.aadhaar_last4"></span>
+</div>
+```
+  The API's `PersonDetail` schema never includes `aadhaar_encrypted` or `aadhaar_hash` —
+  only `aadhaar_last4` (a 4-digit string) is present on the wire. This markup renders it
+  as `XXXX XXXX 1234`-style masked display; there is no code path in this file (or in
+  `person.js`) that could render the full Aadhaar number, because the full number never
+  reaches the browser in the first place.
+- **Emergency Contact** — name, phone, and relationship (`emergency_relationship_name`,
+  resolved server-side via a JOIN against `master_data`), wrapped in an outer `x-show` so
+  the whole block (including its `divider`) disappears if none of the three fields exist.
+- **Remarks** — free-text, `x-show="selectedPerson.remarks"`.
+- **Addresses** — a sub-section with its own independent loading/error/empty/data `x-if`
+  quadruple bound to `addressesLoading`/`addressesError`/`personAddresses`, fetched in
+  parallel with the person detail itself (see `selectPerson()`, §2.9). Each address card:
+```html
+<div class="border border-base-300 rounded-lg p-2 text-xs">
+    <div class="flex items-center gap-2 mb-1">
+        <span class="badge badge-xs badge-primary" x-text="addr.address_type_name"></span>
+        <template x-if="addr.is_primary">
+            <span class="badge badge-xs badge-accent">Primary</span>
+        </template>
+        <template x-if="!addr.is_active">
+            <span class="badge badge-xs badge-status-inactive">Inactive</span>
+        </template>
+    </div>
+    <p x-text="addr.address_line_1"></p>
+    <p x-show="addr.address_line_2" x-text="addr.address_line_2"></p>
+    <p x-show="addr.landmark" class="text-base-content/60" x-text="'Landmark: ' + addr.landmark"></p>
+    <p class="text-base-content/60"
+       x-text="[addr.city_village_name, addr.postal_code, addr.district_name, addr.state_name, addr.country_name].filter(Boolean).join(', ')">
+    </p>
+    <p x-show="addr.remarks" class="text-base-content/40 italic" x-text="addr.remarks"></p>
+</div>
+```
+  — an `address_type_name` badge (primary color), a conditional `Primary` badge
+  (`badge-accent`, `x-if`) if `is_primary` is set, and a conditional `Inactive` badge
+  (reusing the same `.badge-status-inactive` class defined for persons) if the address is
+  soft-deleted. The geography line joins city/village, postal code, district, state, and
+  country names — all resolved server-side via JOINs against Foundation's geography
+  tables — filtering out any that are `null`/falsy before joining with `", "`.
+
+**Tab 2 — Search:** A single card with a debounced free-text search box wired to the
+trigram `/search` endpoint:
+```html
+<input type="text" placeholder="Name, Person ID, or mobile number (min 2 chars)"
+       class="input input-bordered input-sm w-full"
+       x-model="searchQuery"
+       @keydown.enter="executeSearch()"
+       @input="searchQuery.length >= 2 ? executeSearch() : (searchResults = [])">
+```
+- `x-model="searchQuery"` two-way-binds the input to state. `@keydown.enter` lets the user
+  force an immediate search. `@input` fires on every keystroke: once the trimmed-in-place
+  query reaches 2+ characters it calls `executeSearch()` (which internally debounces —
+  see §2.9); below 2 characters it synchronously clears `searchResults` rather than
+  calling the API, since the backend's trigram search has a documented 2-character
+  minimum. A `label-text-alt` hint below the input reads "Uses trigram similarity for
+  fuzzy name matching."
+- Standard loading/error/empty/data `x-if` quadruple — the empty-state branch is gated by
+  `searchExecuted` (`searchExecuted && searchResults.length === 0`) so "No results found."
+  never flashes before the user has typed anything.
+- The results table has seven columns (Person ID, Name, Gender, DOB, Mobile, Email,
+  Status) — one fewer than the Persons tab's table (no Marital Status/Blood Group
+  columns, since `PersonSummary`/search-result rows don't carry those fields). Clicking a
+  result row does double duty:
+```html
+<tr class="cursor-pointer hover"
+    @click="switchTab('persons'); selectPersonByPk(p.person_pk)">
+```
+  — switches back to the Persons tab and then resolves the clicked search hit to a full
+  detail view via `selectPersonByPk()` (§2.9), so a search result behaves like a shortcut
+  into the same detail panel the Persons tab uses.
+
+**Footer and script include:** Same copyright footer as the other three pages. Loads
+`<script src="/assets/js/person.js"></script>` at the bottom.
+
+---
+
+### 2.9 `frontend/assets/js/person.js`
+
+**Requirement.** The client-side state/behaviour layer for `person.html`, mirroring the
+role `organization.js` plays for `organization.html` but scoped to the Person module's 4
+API endpoints across 2 tabs, plus 3 Foundation `master-data` lookups for filter options.
+Defines one global factory function, `personApp()`.
+
+**Full file, 270 lines. Walkthrough:**
+
+```javascript
+const PERSON_API = "/api/v1/person";
+const FOUNDATION_API = "/api/v1/foundation";
+```
+- Two module-scope constants, not one — unlike `organization.js` (which only ever calls
+  its own router, with Foundation lookups happening server-side), `person.js` calls
+  Foundation's `/master-data` endpoint **directly from the browser** to populate its
+  gender/marital-status/blood-group filter dropdowns. Both are relative paths, same
+  origin-agnostic pattern as the other three JS files.
+
+**State properties** (grouped by the file's own comment banners):
+
+```javascript
+activeTab: "persons",
+health: { loading: true, connected: false },
+```
+- Default tab is `"persons"`. Same health object shape, reusing the Tier 0 health
+  endpoint.
+
+**Filter options group (from Foundation master-data):**
+```javascript
+genderOptions: [],
+maritalStatusOptions: [],
+bloodGroupOptions: [],
+```
+- Backing arrays for the three filter `<select>`s, populated by `fetchFilterOptions()`
+  from Foundation's `master-data` endpoint, not from any Person-specific endpoint.
+
+**Persons group:**
+```javascript
+persons: [],
+personsLoading: true,
+personsError: false,
+selectedGenderFilter: "",
+selectedMaritalFilter: "",
+selectedBloodGroupFilter: "",
+```
+- `persons` starts `loading: true` because `init()` fetches it eagerly. The three
+  `selectedXFilter` strings are `x-model`-bound to the filter dropdowns and default to
+  `""` (no filter applied).
+
+**Detail group:**
+```javascript
+selectedPerson: null,
+detailLoading: false,
+detailError: false,
+```
+- `detailLoading`/`detailError` start `false` (unlike the list's loading flags) because
+  the detail panel only loads in response to a user clicking a row — the same
+  loads-on-demand pattern as `app.js`'s `rolePermsLoading`/`rolePermsError`.
+
+**Addresses group:**
+```javascript
+personAddresses: [],
+addressesLoading: false,
+addressesError: false,
+```
+- Independent loading/error pair from the detail group's, even though both are fetched
+  together in `selectPerson()` — addresses are allowed to fail without invalidating the
+  already-loaded person detail (see `selectPerson()` below).
+
+**Search group:**
+```javascript
+searchQuery: "",
+searchResults: [],
+searchLoading: false,
+searchError: false,
+searchExecuted: false,
+_searchDebounce: null,
+```
+- `searchExecuted` distinguishes "never searched" from "searched, zero results" so the
+  empty-state message in `person.html` doesn't show prematurely. `_searchDebounce` (a
+  leading-underscore convention signaling "private, not for template use") holds the
+  pending `setTimeout` handle for `executeSearch()`'s debounce.
+
+**Init:**
+```javascript
+async init() {
+    await this.fetchHealth();
+    await Promise.all([
+        this.fetchFilterOptions(),
+        this.fetchPersons(),
+    ]);
+},
+```
+- Health check first (sequential), then filter options and the person list fetched
+  **concurrently** via `Promise.all` — a hybrid of `app.js`'s all-parallel `init()` and
+  `organization.js`'s all-sequential `init()`: the health probe still gates everything
+  else, but the two independent data sources that follow don't wait on each other.
+
+```javascript
+async fetchHealth() { ... }
+```
+- Identical implementation to `organizationApp()`'s `fetchHealth()` — same `res.ok` /
+  `data.database === "connected"` / bare-`catch` / `finally` pattern (see §2.2 for the
+  full explanation of this pattern, reused verbatim here).
+
+**Filter option loader:**
+```javascript
+async fetchFilterOptions() {
+    const categories = ["GENDER", "MARITAL_STATUS", "BLOOD_GROUP"];
+    const results = await Promise.allSettled(
+        categories.map(cat =>
+            fetch(`${FOUNDATION_API}/master-data?category_code=${cat}`)
+                .then(r => r.ok ? r.json() : [])
+        )
+    );
+    this.genderOptions = results[0].status === "fulfilled" ? results[0].value : [];
+    this.maritalStatusOptions = results[1].status === "fulfilled" ? results[1].value : [];
+    this.bloodGroupOptions = results[2].status === "fulfilled" ? results[2].value : [];
+},
+```
+- Unlike every other multi-fetch in this codebase (which uses `Promise.all` and lets one
+  failure reject the whole batch), this uses `Promise.allSettled` — each of the three
+  `master-data?category_code=...` calls is allowed to fail independently, falling back to
+  an empty array (`[]`) for just that one filter's options rather than blanking all three
+  or throwing. This is the only `allSettled` usage across the four JS files; the filter
+  dropdowns are a secondary, non-blocking feature of this page (the person list itself
+  doesn't depend on them), so a partial failure degrading one dropdown to "no options" is
+  preferable to failing the whole page.
+
+**Tab switching:**
+```javascript
+async switchTab(tab) {
+    this.activeTab = tab;
+    if (tab === "persons" && this.persons.length === 0) {
+        await this.fetchPersons();
+    }
+},
+```
+- Simpler than `organization.js`'s `switchTab()` (which dispatches to a `loadXTab()`
+  helper per tab) because Person only has one tab (`persons`) that needs a lazy-load
+  guard — `search` has no data to preload; its results only ever come from user input.
+
+**Person list:**
+```javascript
+async fetchPersons() {
+    this.personsLoading = true;
+    this.personsError = false;
+    try {
+        let url = `${PERSON_API}/persons`;
+        const params = [];
+        if (this.selectedGenderFilter)
+            params.push(`gender_code=${encodeURIComponent(this.selectedGenderFilter)}`);
+        if (this.selectedMaritalFilter)
+            params.push(`marital_status_code=${encodeURIComponent(this.selectedMaritalFilter)}`);
+        if (this.selectedBloodGroupFilter)
+            params.push(`blood_group_code=${encodeURIComponent(this.selectedBloodGroupFilter)}`);
+        if (params.length) url += `?${params.join("&")}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(res.statusText);
+        this.persons = await res.json();
+    } catch {
+        this.personsError = true;
+    } finally {
+        this.personsLoading = false;
+    }
+},
+```
+- Same optional-query-param-array-join pattern as `organization.js`'s
+  `fetchOrganizations()`, generalized to three filters (`gender_code`,
+  `marital_status_code`, `blood_group_code`) instead of two. Note this call does not send
+  `limit`/`offset` — pagination controls are not wired up on this page; the endpoint's
+  defaults apply server-side (see `docs/03_Solution/api/PERSON_API_CONTRACT.md` for the
+  `/persons` endpoint's pagination defaults).
+
+```javascript
+async filterPersons() {
+    this.selectedPerson = null;
+    this.personAddresses = [];
+    this.persons = [];
+    await this.fetchPersons();
+
+    if (this.persons.length === 1) {
+        await this.selectPerson(this.persons[0]);
+    }
+},
+```
+- Bound to all three filter dropdowns' `@change`. Same clear-detail /
+  blank-then-refetch / auto-select-single-result pattern as `organization.js`'s
+  `filterOrganizations()` — clears `selectedPerson` and `personAddresses` first (the
+  previous selection may not exist in the new filtered result set), blanks `persons` (so
+  the spinner shows during refetch), then auto-selects if exactly one person matches the
+  combined filters.
+
+**Person detail:**
+```javascript
+async selectPerson(personSummary) {
+    if (this.selectedPerson?.person_pk === personSummary.person_pk) {
+        this.selectedPerson = null;
+        this.personAddresses = [];
+        return;
+    }
+
+    this.detailLoading = true;
+    this.detailError = false;
+    this.selectedPerson = null;
+    this.personAddresses = [];
+
+    try {
+        const [detailRes, addrRes] = await Promise.all([
+            fetch(`${PERSON_API}/persons/${personSummary.person_pk}`),
+            fetch(`${PERSON_API}/persons/${personSummary.person_pk}/addresses`),
+        ]);
+
+        if (!detailRes.ok) throw new Error(detailRes.statusText);
+        this.selectedPerson = await detailRes.json();
+
+        if (addrRes.ok) {
+            this.personAddresses = await addrRes.json();
+        }
+        // Addresses may legitimately be empty — don't fail detail for it
+    } catch {
+        this.detailError = true;
+    } finally {
+        this.detailLoading = false;
+    }
+},
+```
+- Same toggle-off guard as `organization.js`'s `selectOrganization()` — clicking the
+  already-selected row deselects. On a new selection, fetches `GET /persons/{pk}` and
+  `GET /persons/{pk}/addresses` **concurrently** via `Promise.all`, but only the detail
+  response's failure is fatal (`detailRes.ok` check throws into the `catch`, setting
+  `detailError`); the addresses response is checked independently (`if (addrRes.ok)`)
+  with no `throw` on failure, so a broken/slow addresses call degrades to an empty address
+  list rather than blocking the whole detail panel from rendering — the comment in the
+  source (`// Addresses may legitimately be empty — don't fail detail for it`) documents
+  this intentional asymmetry.
+
+```javascript
+async selectPersonByPk(pk) {
+    if (this.persons.length === 0) {
+        this.selectedGenderFilter = "";
+        this.selectedMaritalFilter = "";
+        this.selectedBloodGroupFilter = "";
+        await this.fetchPersons();
+    }
+    const match = this.persons.find(p => p.person_pk === pk);
+    if (match) {
+        await this.selectPerson(match);
+    } else {
+        await this.selectPerson({ person_pk: pk });
+    }
+},
+```
+- Called from `person.html`'s search-result row click (`switchTab('persons');
+  selectPersonByPk(p.person_pk)`). If the Persons tab's list has never been loaded, it
+  resets all three filters to `""` and fetches the unfiltered list first — so a search hit
+  that would otherwise be excluded by a stale filter is still reachable. It then looks for
+  the matching person object (needed because `selectPerson()` expects a full summary
+  object, not just a PK, so it can implement its toggle-off-if-same-row check); if the
+  person isn't in the (possibly filtered) list at all, it falls back to calling
+  `selectPerson({ person_pk: pk })` — a minimal stand-in object with only `person_pk` set,
+  which still works because `selectPerson()` immediately fetches the full detail from the
+  API regardless of what was in `personSummary` to begin with.
+
+**Search:**
+```javascript
+async executeSearch() {
+    const q = this.searchQuery.trim();
+    if (q.length < 2) {
+        this.searchResults = [];
+        this.searchExecuted = false;
+        return;
+    }
+
+    if (this._searchDebounce) clearTimeout(this._searchDebounce);
+    this._searchDebounce = setTimeout(async () => {
+        this.searchLoading = true;
+        this.searchError = false;
+        this.searchExecuted = true;
+        try {
+            const res = await fetch(
+                `${PERSON_API}/search?q=${encodeURIComponent(q)}`
+            );
+            if (!res.ok) throw new Error(res.statusText);
+            this.searchResults = await res.json();
+        } catch {
+            this.searchError = true;
+        } finally {
+            this.searchLoading = false;
+        }
+    }, 300);
+},
+```
+- The only debounced fetch across all four JS files. Called on every keystroke once the
+  input reaches 2+ characters (see `person.html`'s `@input` handler, §2.8). Trims the
+  query first; below 2 trimmed characters, it clears results and resets `searchExecuted`
+  synchronously without touching the network — matching the backend's trigram-search
+  minimum-length requirement. Otherwise it clears any previously pending timer
+  (`clearTimeout`) and schedules a new one 300ms out; only the last keystroke within any
+  300ms window actually reaches `GET /search?q=...`, preventing a request-per-keystroke
+  flood while typing. `q` is `encodeURIComponent`-encoded in the URL.
+
+**Helpers:**
+```javascript
+formatName(p) {
+    return [p.first_name, p.middle_name, p.last_name]
+        .filter(Boolean)
+        .join(" ");
+},
+```
+- Joins the three name parts with a space, dropping any that are falsy (`null`/`""`) —
+  e.g. a person with no middle name renders as `"First Last"`, not `"First  Last"` with a
+  double space.
+
+```javascript
+formatPhone(p) {
+    if (!p.mobile_number) return "—";
+    if (p.country_phone_code) return `${p.country_phone_code} ${p.mobile_number}`;
+    return p.mobile_number;
+},
+```
+- Em-dash fallback for no mobile number; prefixes the country calling code
+  (`country_phone_code`, e.g. `+91`) when present.
+
+```javascript
+statusLabel(p) {
+    if (!p.is_active) return "Inactive";
+    if (p.date_of_death) return "Deceased";
+    return "Active";
+},
+
+statusBadgeClass(p) {
+    if (!p.is_active) return "badge-status-inactive";
+    if (p.date_of_death) return "badge-status-deceased";
+    return "badge-status-active";
+},
+```
+- The pair driving every Status badge on this page (list rows, search results, and the
+  detail panel). Both check `is_active` first (soft-delete takes precedence over deceased
+  status — an inactive-and-deceased person still shows "Inactive," not "Deceased") then
+  `date_of_death` (a person can be `is_active = true` and still have a recorded date of
+  death — e.g. before an admin formally deactivates the record — which is why "Deceased"
+  is a distinct label from "Inactive" rather than folded into it). This is Person's
+  entire lifecycle-status model — three states derived from two raw columns — in contrast
+  to Organization's 13-value `STATUS` master-data category (§2.6/§2.7); Person's `person`
+  table carries no separate status/lifecycle master-data FK.
 
 ---
 
@@ -1727,3 +2294,7 @@ smallest file in the frontend layer, shared unmodified by both `index.html` and
 - `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` — the authoritative API
   contract for the 6 `/api/v1/organization/*` endpoints consumed by `organization.html` /
   `organization.js`.
+- `docs/03_Solution/api/PERSON_API_CONTRACT.md` — the authoritative API contract for
+  the 4 `/api/v1/person/*` endpoints consumed by `person.html` / `person.js` (request/
+  response shapes, filter query parameters, the trigram `/search` endpoint, and the
+  deliberate exclusion of `aadhaar_encrypted`/`aadhaar_hash`).

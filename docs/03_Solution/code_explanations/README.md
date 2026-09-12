@@ -6,8 +6,8 @@ Two kinds of documents live here:
    file in a given layer (API, Database, UI, Security, Testing). Each document exists to answer
    "why does this file exist, and what exactly does its code do?" for every file it covers.
 2. **Security audit reports** (`TIER0_SECURITY_AUDIT.md`, `TIER1_SECURITY_AUDIT.md`,
-   `TIER2_SECURITY_AUDIT.md`) — a different concern: findings and remediation status from a
-   security review, not code narration.
+   `TIER2_SECURITY_AUDIT.md`, `TIER3_SECURITY_AUDIT.md`) — a different concern: findings and
+   remediation status from a security review, not code narration.
 
 This structure replaces an earlier, now-retired set of per-*tier* walkthroughs
 (`TIER0_VERTICAL_SLICE.md`, `TIER1_FOUNDATION.md`, `SECURITY_HARDENING.md`) that interleaved the
@@ -18,27 +18,29 @@ home, and the same pattern extends cleanly as new layers are added in the future
 
 ## Files
 
-- **`API_CODE_EXPLANATIONS.md`** (v1.1, Complete — updated: Tier 2 Organization) — every file
+- **`API_CODE_EXPLANATIONS.md`** (v1.3, Complete — updated: Tier 3 Person) — every file
   under `api/` except `api/middleware.py` (which lives in the Security doc, since it's exclusively
-  security code): `config.py`, `database.py`, `main.py`, `routers/bootstrap.py`,
-  `routers/foundation.py`, `routers/organization.py`, `schemas/bootstrap.py`,
-  `schemas/foundation.py`, `schemas/organization.py`, and the three package `__init__.py` markers.
+  security code): `config.py`, `database.py`, `main.py`, `helpers.py`, `routers/bootstrap.py`,
+  `routers/foundation.py`, `routers/organization.py`, `routers/person.py`, `schemas/bootstrap.py`,
+  `schemas/foundation.py`, `schemas/organization.py`, `schemas/person.py`, and the three package
+  `__init__.py` markers.
 - **`DATABASE_CODE_EXPLANATIONS.md`** (v1.0, Complete) — every hand-written SQL DDL/seed file
-  and build/validate/grant script under `database/` (41 files: 5 scripts, 21 DDL files across
-  Bootstrap/Foundation/Organization/the superseded Person prototype, 15 seed files), full
+  and build/validate/grant script under `database/` (Bootstrap/Foundation/Organization/Person —
+  Person's `01_person_master_tables.sql` DDL/seed pair is the only remaining superseded file;
+  `02_person.sql`/`03_person_address.sql` are real, implemented DDL), full
   column-by-column detail for DDL, representative sampling (not verbatim row transcription) for
   large seed files.
-- **`UI_CODE_EXPLANATIONS.md`** (v1.1, Complete — updated: Tier 2 Organization) — every file
+- **`UI_CODE_EXPLANATIONS.md`** (v1.3, Complete — updated: Tier 3 Person) — every file
   under `frontend/` except binary assets: `index.html`, `foundation.html`, `organization.html`,
-  `assets/js/app.js`, `assets/js/foundation.js`, `assets/js/organization.js`,
-  `assets/css/style.css`.
-- **`SECURITY_CODE_EXPLANATIONS.md`** (v1.1, Complete — updated: Tier 2 Organization) —
+  `person.html`, `assets/js/app.js`, `assets/js/foundation.js`, `assets/js/organization.js`,
+  `assets/js/person.js`, `assets/css/style.css`.
+- **`SECURITY_CODE_EXPLANATIONS.md`** (v1.1, Complete — updated: Tier 3 Person) —
   `api/middleware.py` in full, plus the security-relevant slices of `api/config.py`
   (`CORS_ORIGINS`/`RATE_LIMIT`/`DISABLE_DOCS`) and `api/main.py` (the middleware-registration
-  block), plus the SRI-pinned CDN assets in `frontend/` (now covering all 3 HTML pages).
-- **`TESTING_CODE_EXPLANATIONS.md`** (v1.1, Complete — updated: Tier 2 Organization) — every
+  block), plus the SRI-pinned CDN assets in `frontend/` (now covering all 4 HTML pages).
+- **`TESTING_CODE_EXPLANATIONS.md`** (v1.2, Complete — updated: Tier 3 Person) — every
   file under `tests/`: `conftest.py`, `test_bootstrap.py`, `test_foundation.py`,
-  `test_organization.py`, `test_security.py` (112 tests total).
+  `test_organization.py`, `test_person.py`, `test_security.py` (208 tests total).
 - **`TIER0_SECURITY_AUDIT.md`** (v1.1, Complete) — security audit scoped to all Tier 0 code.
   10 checks passed; 1 fix applied (ConfigDict removal); 6 advisory items (4 resolved, 1 partial,
   1 N/A). No blocking vulnerabilities found.
@@ -48,8 +50,15 @@ home, and the same pattern extends cleanly as new layers are added in the future
 - **`TIER2_SECURITY_AUDIT.md`** (v1.1, Complete) — security audit scoped to all Tier 2 code.
   15 checks passed; 0 fixes required; 4 advisory items (pagination, CTE depth, filter logging,
   helper duplication). No blocking vulnerabilities found.
+- **`TIER3_SECURITY_AUDIT.md`** (v1.1, Complete) — security audit scoped to all Tier 3 (Person)
+  code. 18 checks passed; 0 fixes required; 3 of 5 advisory items resolved (pagination, search
+  limit, helper deduplication), 2 awareness-only items retained (Aadhaar key management deferred
+  to Tier 5+, filter value logging). No blocking vulnerabilities found — confirms defence-in-depth
+  for Aadhaar (encrypted at rest, never selected by the API, never modelled in Pydantic, never
+  rendered in the UI).
 
 See `docs/PROJECT_DOCUMENTATION.md` for the code-verified current state and
 `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` for the Tier 1 API's formal contract. The same
-`docs/03_Solution/api/` directory also holds `BOOTSTRAP_API_CONTRACT.md` (Tier 0) and
-`ORGANIZATION_API_CONTRACT.md` (Tier 2) for the other two API layers documented here.
+`docs/03_Solution/api/` directory also holds `BOOTSTRAP_API_CONTRACT.md` (Tier 0),
+`ORGANIZATION_API_CONTRACT.md` (Tier 2), and `PERSON_API_CONTRACT.md` (Tier 3) for the other
+three API layers documented here.

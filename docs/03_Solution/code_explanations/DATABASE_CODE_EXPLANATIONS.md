@@ -515,14 +515,14 @@ check_fk_integrity "role_permission -> role_master" \
    `role_permission → role_master` and `role_permission → permission_master` FK integrity (the
    call above is the actual FK-integrity query used for the first of those two checks).
 2. **Foundation** — 12 tables exist; row-count floors matching the frozen seed
-   (`master_category` ≥ 12, `master_data` ≥ 74, `id_sequence_master` ≥ 11, `country` ≥ 5,
+   (`master_category` ≥ 13, `master_data` ≥ 82, `id_sequence_master` ≥ 11, `country` ≥ 5,
    `state` ≥ 112, `district` ≥ 700, `system_setting` ≥ 4, `postal_code` ≥ 2); no duplicate
    `category_code`/`country_code`/`sequence_code`; FK integrity for `master_data →
    master_category`, `state → country`, `district → state`, `postal_code → country`,
    `postal_code → state`; and the two deferred-column existence checks on `document_master`.
-   `master_category`'s floor rose from 11 to 12 (new `ORGANIZATION_TYPE` category) and
-   `master_data`'s from 58 to 74 (new `ORGANIZATION_TYPE` values plus the expanded `STATUS`
-   category replacing the smaller `MEMBERSHIP_STATUS`); `id_sequence_master`'s floor rose from
+   `master_category`'s floor rose from 11 to 13 (added `ORGANIZATION_TYPE` and `BLOOD_GROUP` categories) and
+   `master_data`'s from 58 to 82 (new `ORGANIZATION_TYPE` values, expanded `STATUS`
+   category replacing the smaller `MEMBERSHIP_STATUS`, plus 8 `BLOOD_GROUP` values); `id_sequence_master`'s floor rose from
    9 to 11 (`PARIBARIK_ASANA`, `PARIBARIK_SANGHA`).
 3. **Organization** — 1 table exists (`organization` — type/status now live in Foundation's
    `master_data`, so their row counts are validated as part of the Foundation `master_data`
@@ -2115,9 +2115,9 @@ each module picks its applicable subset of `STATUS` values at the application la
 owning a dedicated status category/table. Four of these categories (`LOGIN_ROLE`,
 `STATUS_REASON`, `WORKFLOW_STATUS`, `APPLICATION_TYPE`) have **no corresponding rows in
 `02_master_data.sql`** — they are categories reserved for future modules (Authentication,
-Membership workflow) that haven't seeded values yet; 8 of the 12 categories actually have
+Membership workflow) that haven't seeded values yet; 9 of the 13 categories actually have
 `master_data` children today (`GENDER`, `RELATIONSHIP_TYPE`, `MEMBERSHIP_TYPE`, `STATUS`,
-`DOCUMENT_TYPE`, `MARITAL_STATUS`, `ADDRESS_TYPE`, `ORGANIZATION_TYPE`).
+`DOCUMENT_TYPE`, `MARITAL_STATUS`, `ADDRESS_TYPE`, `ORGANIZATION_TYPE`, `BLOOD_GROUP`).
 
 ---
 
