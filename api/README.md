@@ -1,9 +1,9 @@
 # api/
 
 FastAPI application — the only web/API layer in the codebase. Currently implements **Tier 0**
-(read-only bootstrap-RBAC), **Tier 1** (read-only Foundation), and **Tier 2** (read-only
-Organization) — no authentication, no ORM — behind a cross-tier security middleware stack
-(headers, opt-in CORS, rate limiting).
+(read-only bootstrap-RBAC), **Tier 1** (read-only Foundation), **Tier 2** (read-only
+Organization), and **Tier 3** (read-only Person) — no authentication, no ORM — behind a
+cross-tier security middleware stack (headers, opt-in CORS, rate limiting).
 
 An earlier Django prototype lived under `backend/` and covered parts of Foundation,
 Authentication, Family, Membership, and Heritage; it was fully archived and removed once the
@@ -16,10 +16,11 @@ FastAPI direction (`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) was 
 api/
 ├── main.py             FastAPI app entry point — builds `app`, registers the security
 │                        middleware stack (rate limiting → opt-in CORS → security headers, in
-│                        that order), includes all three routers, mounts `frontend/assets/` at
+│                        that order), includes all four routers, mounts `frontend/assets/` at
 │                        `/assets`, serves `frontend/index.html` at `/`,
-│                        `frontend/foundation.html` at `/foundation` (if present), and
-│                        `frontend/organization.html` at `/organization` (if present), closes
+│                        `frontend/foundation.html` at `/foundation` (if present),
+│                        `frontend/organization.html` at `/organization` (if present), and
+│                        `frontend/person.html` at `/person` (if present), closes
 │                        the DB pool on shutdown
 ├── config.py            Settings: DB_NAME/DB_USER/DB_PASSWORD (required), DB_HOST (default
 │                        localhost), DB_PORT (default 5432), API_PORT (default 8001),
@@ -29,6 +30,11 @@ api/
 ├── database.py          psycopg2 SimpleConnectionPool (1-5 conns), connects as
 │                        `nss_db_backend` (read-only); get_connection() is a FastAPI
 │                        generator dependency
+├── helpers.py           Shared cursor→Pydantic conversion helpers (`rows_to_models`,
+│                        `row_to_model`) used by every router, plus centralised pagination
+│                        constants (`DEFAULT_LIMIT = 100`, `MAX_LIMIT = 500`) so all list
+│                        endpoints share the same defaults/validation range — extracted from
+│                        per-router duplicates when the Person router landed
 ├── middleware.py        `add_security_headers(request, call_next)` — sets
 │                        `X-Content-Type-Options`/`X-Frame-Options`/`Referrer-Policy`/
 │                        `Permissions-Policy` on every response, plus `Cache-Control: no-store`
@@ -39,20 +45,27 @@ api/
 │   │                    role_permission
 │   ├── foundation.py    17 endpoints under /api/v1/foundation across 11 tables — master data,
 │   │                    system config, geography, and runtime document metadata (see below)
-│   └── organization.py  6 endpoints under /api/v1/organization across 3 tables — reference
-│                        data (types, statuses), core organizations (list/detail/children),
-│                        and a self-referencing hierarchy tree via `WITH RECURSIVE`
+│   ├── organization.py  6 endpoints under /api/v1/organization across 3 tables — reference
+│   │                    data (types, statuses), core organizations (list/detail/children),
+│   │                    and a self-referencing hierarchy tree via `WITH RECURSIVE`
+│   └── person.py        4 endpoints under /api/v1/person across 2 tables — person list
+│                        (with gender/marital-status/blood-group filters + pagination),
+│                        person detail, person addresses, and trigram-based (`pg_trgm`) search
 └── schemas/
     ├── bootstrap.py      Pydantic response models (RoleResponse, PermissionResponse,
     │                     HealthResponse) — audit columns deliberately excluded
     ├── foundation.py     11 plain Pydantic models, one per exposed table/view — audit columns,
     │                     `current_value`, and unimplemented FK columns deliberately excluded
-    └── organization.py   4 Pydantic models (OrganizationTypeResponse,
-                          StatusResponse, OrganizationResponse,
-                          OrganizationHierarchyNodeResponse) — OrganizationResponse includes
-                          contact/online-presence fields (phone_number, mobile_number, email,
-                          org_email, website_url, org_website_url, youtube_channel_url,
-                          org_youtube_channel_url)
+    ├── organization.py   4 Pydantic models (OrganizationTypeResponse,
+    │                     StatusResponse, OrganizationResponse,
+    │                     OrganizationHierarchyNodeResponse) — OrganizationResponse includes
+    │                     contact/online-presence fields (phone_number, mobile_number, email,
+    │                     org_email, website_url, org_website_url, youtube_channel_url,
+    │                     org_youtube_channel_url)
+    └── person.py         3 Pydantic models (PersonResponse, PersonSummaryResponse,
+                          PersonAddressResponse) — PersonResponse/PersonSummaryResponse never
+                          include `aadhaar_encrypted`/`aadhaar_hash`, only `aadhaar_last4` for
+                          masked display (PER-BR-081); audit columns excluded
 ```
 
 ## Security middleware
@@ -135,13 +148,32 @@ for address resolution, since those FKs are nullable.
 |--------|------|---------|
 | GET | `/api/v1/organization/types` | The 10 frozen organization types from `nss.master_data` (category `ORGANIZATION_TYPE`) |
 | GET | `/api/v1/organization/statuses` | The 13 unified lifecycle statuses from `nss.master_data` (category `STATUS`) |
-| GET | `/api/v1/organization/organizations` | Organizations with resolved type/status/parent/geography context; optional `type_code`/`status_code` filters |
+| GET | `/api/v1/organization/organizations` | Organizations with resolved type/status/parent/geography context; optional `type_code`/`status_code` filters, `limit`/`offset` pagination (default 100, max 500) |
 | GET | `/api/v1/organization/organizations/{organization_pk}` | Single organization detail; 404 if missing/inactive |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children` | Direct children of an organization; 404 if the parent `organization_pk` doesn't exist |
-| GET | `/api/v1/organization/hierarchy` | Full organization tree as a flat list with a `depth` field, via a `WITH RECURSIVE` CTE |
+| GET | `/api/v1/organization/hierarchy` | Full organization tree as a flat list with a `depth` field, via a `WITH RECURSIVE` CTE (depth guard at 10); `limit`/`offset` pagination |
 
 All list endpoints filter `is_active = TRUE`; detail/children endpoints 404 on a missing parent.
-Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`. Verified by 51 pytest
+Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`. Verified by 64 pytest
 integration tests (`tests/test_organization.py`).
 
-See `docs/PROJECT_DOCUMENTATION.md` → Key workflows for more detail on all three tiers.
+## Endpoints (Tier 3)
+
+4 read-only endpoints under `/api/v1/person` — no auth, no ORM, raw parameterized SQL. Gender,
+marital status, blood group, emergency relationship, and address type are resolved via JOINs
+against Foundation's `master_data`. Trigram search relies on `pg_trgm` (installed in
+`database/scripts/01_extensions.sql`).
+
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | `/api/v1/person/persons` | Active persons (compact summary — no Aadhaar/emergency/photo fields); optional `gender_code`/`marital_status_code`/`blood_group_code` filters, `limit`/`offset` pagination (default 100, max 500) |
+| GET | `/api/v1/person/persons/{person_pk}` | Single person detail with full resolved context, incl. masked `aadhaar_last4`; 404 if missing/inactive |
+| GET | `/api/v1/person/persons/{person_pk}/addresses` | Active addresses for a person, with resolved address type + city/village/postal-code/district/state/country chain; 404 if the person doesn't exist |
+| GET | `/api/v1/person/search` | Trigram similarity search (`pg_trgm`) on first/last name, plus prefix match on `person_id`/`mobile_number`; capped at 50 results |
+
+`aadhaar_encrypted` and `aadhaar_hash` are never returned by any endpoint — only
+`aadhaar_last4` for masked display (PER-BR-081). Full contract:
+`docs/03_Solution/api/PERSON_API_CONTRACT.md`. Verified by 56 pytest integration tests
+(`tests/test_person.py`).
+
+See `docs/PROJECT_DOCUMENTATION.md` → Key workflows for more detail on all four tiers.

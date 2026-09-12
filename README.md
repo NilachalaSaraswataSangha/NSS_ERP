@@ -52,8 +52,9 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 * Tailwind CSS + DaisyUI (CDN) + Alpine.js (CDN) — no build step, no framework.
 * `frontend/` implements a Tier 0 "Bootstrap Verification UI" (`index.html`, at `/`), a
-  Tier 1 "Foundation Verification UI" (`foundation.html`, at `/foundation`), and a Tier 2
-  "Organization Verification UI" (`organization.html`, at `/organization`) — none of these is
+  Tier 1 "Foundation Verification UI" (`foundation.html`, at `/foundation`), a Tier 2
+  "Organization Verification UI" (`organization.html`, at `/organization`), and a Tier 3
+  "Person Verification UI" (`person.html`, at `/person`) — none of these is
   the full admin dashboard yet — served as static files by FastAPI; see `frontend/README.md`
   for the full file/function reference. 13 static mockups for later tiers exist under
   `docs/03_Solution/ui/mockups/`.
@@ -64,7 +65,8 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 * FastAPI — the only web/API layer in the codebase (`api/`), currently a Tier 0 read-only
   bootstrap-RBAC API plus a Tier 1 read-only Foundation API (17 endpoints across 11 tables) plus
-  a Tier 2 read-only Organization API (6 endpoints); no ORM, raw `psycopg2`, no auth. See
+  a Tier 2 read-only Organization API (6 endpoints) plus a Tier 3 read-only Person API
+  (4 endpoints across 2 tables); no ORM, raw `psycopg2`, no auth. See
   `docs/PROJECT_DOCUMENTATION.md` → Architecture and
   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`.
 * Django — an earlier prototype existed under `backend/` but was fully archived and removed
@@ -114,7 +116,7 @@ Browser / HTTP client
 Security Middleware (CORS, rate limiting, security headers)
    │
    ▼
-FastAPI (api/main.py, Tier 0 bootstrap + Tier 1 foundation + Tier 2 organization routers)
+FastAPI (api/main.py, Tier 0 bootstrap + Tier 1 foundation + Tier 2 organization + Tier 3 person routers)
    │
    ▼
 psycopg2 connection pool (api/database.py) — raw SQL, no ORM
@@ -240,6 +242,7 @@ py -m uvicorn api.main:app --reload --port 8001
 | `http://localhost:8001/` | Bootstrap Verification UI |
 | `http://localhost:8001/foundation` | Foundation Verification UI |
 | `http://localhost:8001/organization` | Organization Verification UI |
+| `http://localhost:8001/person` | Person Verification UI |
 | `http://localhost:8001/docs` | Swagger UI (OpenAPI) |
 | `http://localhost:8001/api/v1/` | API endpoints |
 
@@ -255,8 +258,9 @@ python3 -m pytest tests/ -v
 py -m pytest tests/ -v
 ```
 
-**139 tests total:** 21 (Tier 0 Bootstrap) + 59 (Tier 1 Foundation) + 51 (Tier 2 Organization) +
-8 (Security Middleware). See `tests/README.md` for the per-file test inventory.
+**208 tests total:** 21 (Tier 0 Bootstrap) + 59 (Tier 1 Foundation) + 64 (Tier 2 Organization) +
+56 (Tier 3 Person) + 8 (Security Middleware). See `tests/README.md` for the per-file test
+inventory.
 
 ## Script Reference
 
@@ -360,14 +364,17 @@ Notes:
 
 # Module Structure
 
-*The sections below describe the full planned module roadmap. No module on this list has any
-API/backend implementation yet — the only implemented code is a Tier 0 FastAPI bootstrap-RBAC
-API (`api/`, 4 read-only endpoints) plus SQL DDL for Bootstrap RBAC, Foundation, and
-Organization. An earlier Django prototype briefly implemented parts of Foundation, Membership,
-Family, Governance (stub), Attendance (stub), and Founder & Heritage under `backend/`, but it
-was fully archived and removed once the FastAPI direction was adopted. Solution-layer design
-documentation (overview/ERD/lifecycle/business-rules/table-design) is complete for essentially
-every module on this roadmap — ahead of, and not yet reconciled with, any code implementation.
+*The sections below describe the full planned module roadmap. Foundation, Organization, and
+Person are the only modules on this list with API/backend implementation so far — a Tier 0
+FastAPI bootstrap-RBAC API, a Tier 1 Foundation API, a Tier 2 Organization API, and a Tier 3
+Person API (see Current Development Status below for full endpoint/table counts), plus SQL DDL
+for Bootstrap RBAC, Foundation, Organization, and Person. An earlier Django prototype briefly
+implemented parts of Foundation, Membership, Family, Governance (stub), Attendance (stub), and
+Founder & Heritage under `backend/`, but it was fully archived and removed once the FastAPI
+direction was adopted. Solution-layer design documentation (overview/ERD/lifecycle/business-
+rules/table-design) is complete for essentially every module on this roadmap — ahead of, and not
+yet reconciled with, any code implementation for the modules beyond Foundation/Organization/
+Person.
 **Programmes & Events is the one exception**: still DRAFT, explicitly not frozen, though its
 cross-module reconciliation gates are closed and its candidate table set has settled.
 See `docs/PROJECT_DOCUMENTATION.md` for the current, code-verified status of each.*
@@ -725,8 +732,10 @@ Completed:
   an open item, not frozen)
 * Person Module Design (v1.0.0, SOURCE ALIGNED — 1 table: `person`; `document_master` is owned
   by Foundation, see below)
-* Person Database Schema (partial — `person`/`person_address` implemented; the docs' `person_id`
-  naming doesn't match the DDL's `person_code`)
+* Person Database Schema (complete — `person` (28 columns) + `person_address` implemented under
+  `database/ddl/03_person/`, superseding the v0.5.1 prototype by following the Foundation
+  `master_data` pattern: gender/marital status/blood group/emergency relationship/address type
+  resolve via `nss.master_data`, not dedicated per-domain master tables)
 * Foundation Database Schema ("Foundation Vertical Slice" — 12 tables + full seed data under
   `database/ddl/01_foundation/`/`database/seed/01_foundation/` — 11 of the 12 tables are now
   consumed by the Tier 1 Foundation API, see below; `field_change_log` remains unconsumed,
@@ -737,7 +746,7 @@ Completed:
   Foundation's generic `master_data` (categories `ORGANIZATION_TYPE`, 10 values; `STATUS`, 13
   values, shared across modules) — now consumed by the Tier 2 Organization API (see below). This
   diverges from the frozen 3-table module design — see `docs/PROJECT_DOCUMENTATION.md` →
-  Gotchas. Combined with Foundation and Bootstrap RBAC: **16 tables implemented** — see
+  Gotchas. Combined with Foundation, Bootstrap RBAC, and Person: **18 tables implemented** — see
   `database/README.md`)
 * Bootstrap RBAC DDL (`role_master`/`permission_master`/`role_permission`, `SOL-BOOT-001`/
   `SOL-ARCH-011` — DDL implemented and committed; `role_master` seeded with 8 roles,
@@ -761,11 +770,21 @@ Completed:
 * FastAPI Tier 2 Organization API (`api/routers/organization.py` — 6 read-only endpoints under
   `/api/v1/organization`: reference data (types, statuses), organization records (list with
   `type_code`/`status_code` filters, single-record lookup, children), and a self-referencing
-  hierarchy tree via `WITH RECURSIVE`; no auth, no ORM, backed by 51 pytest integration tests —
+  hierarchy tree via `WITH RECURSIVE`; no auth, no ORM, backed by 64 pytest integration tests —
   see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`)
 * Tier 2 Organization Verification UI (`frontend/organization.html` +
   `assets/js/organization.js` — 3-tab layout: Reference Data, Organizations, Hierarchy)
 * Implemented and released as v0.8.0 — merged to `main`
+* FastAPI Tier 3 Person API (`api/routers/person.py` — 4 read-only endpoints under
+  `/api/v1/person`: person list with `gender_code`/`marital_status_code`/`blood_group_code`
+  filters and pagination, person detail, person addresses, and trigram-based (`pg_trgm`) name
+  search; gender/marital status/blood group/emergency relationship/address type resolved via
+  JOINs against Foundation's `master_data`; `aadhaar_encrypted`/`aadhaar_hash` are never
+  returned — only `aadhaar_last4` for masked display (PER-BR-081); no auth, no ORM, backed by
+  56 pytest integration tests — see `docs/03_Solution/api/PERSON_API_CONTRACT.md`)
+* Tier 3 Person Verification UI (`frontend/person.html` + `assets/js/person.js` — Persons/Search
+  tab layout structurally parallel to the Organization Verification UI)
+* Implemented and merged to `develop` — release tagging pending (target `v0.9.0`)
 * Global Location Model
 * Membership Module Design
 * Family Module Design
@@ -811,12 +830,14 @@ Completed:
 Current Focus:
 
 * Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
-  documented modules — every module now has a complete (or largely complete) design. Two
-  modules have real SQL implementation (Foundation: 12 tables; Organization: 1 table) — 13
-  tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full Tier 1 API +
-  Web UI (17 endpoints, 59 tests), released as v0.7.0. Organization now also has a full Tier 2
-  API + Web UI (6 endpoints, 51 tests), released as v0.8.0.
-  No release doc has been created yet for the module-documentation backlog beyond these two.
+  documented modules — every module now has a complete (or largely complete) design. Three
+  modules have real SQL implementation (Foundation: 12 tables; Organization: 1 table; Person:
+  2 tables) — 15 tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full
+  Tier 1 API + Web UI (17 endpoints, 59 tests), released as v0.7.0. Organization has a full
+  Tier 2 API + Web UI (6 endpoints, 64 tests), released as v0.8.0. Person now also has a full
+  Tier 3 API + Web UI (4 endpoints, 56 tests), merged to `develop` — release tagging pending
+  (target v0.9.0).
+  No release doc has been created yet for the module-documentation backlog beyond these three.
 
 ---
 
@@ -829,7 +850,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | **0** | Bootstrap RBAC | Infrastructure bootstrap — `role_master`, `permission_master`, `role_permission` (3 tables) | Done | Done (4 endpoints) | Done (Bootstrap Verification) | -- |
 | **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Done (17 endpoints) | Done (Foundation Verification) | -- |
 | **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (6 endpoints) | Done (Organization Verification) | -- |
-| **3** | Person | Person identity, contact, address (2 tables designed) | Superseded (rewrite pending) | Not started | Not started | -- |
+| **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints) | Done (Person Verification) | -- |
 | **4** | Family, Membership | Family groups/relationships + membership registration/approval/transfer/lifecycle | Not started | Not started | Not started | -- |
 | **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | Not started | Not started | Not started | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
@@ -842,7 +863,6 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 
 **Legend:**
 - **Done** — implemented and merged to `develop`
-- **Superseded** — v0.5.1 Person DDL exists but uses per-domain masters; needs rewrite against Foundation's `master_category`/`master_data` pattern
 - **Not started** — design docs complete, no implementation yet
 - **--** — Mobile (Flutter) starts after Web UI stabilizes per tier; no mobile work planned until core tiers (0-5) have working web UIs
 
@@ -856,7 +876,7 @@ release document under `docs/05_Releases/` before the next tier begins.
 | v0.6.0 | Tier 0 | Bootstrap RBAC — DB + API + UI + deployment (**released**) |
 | v0.7.0 | Tier 1 | Foundation — API + Web UI + security hardening (DB already done) (**released**) |
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) (**released**) |
-| v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI |
+| v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI (implemented, merged to `develop`; release tagging pending) |
 | v0.10.0 | Tier 4 | Family + Membership — full vertical slice |
 | v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
 | ... | Tier 6-12 | One tag per tier through Tier 12 |
@@ -865,7 +885,9 @@ Next Release Target:
 
 ```text
 v0.9.0 — Tier 3 Person: DB rewrite (superseding the v0.5.1 prototype against Foundation's
-master_category/master_data pattern) + API + Web UI.
+master_category/master_data pattern) + API + Web UI. Implementation is complete on `develop`
+(4 endpoints, 56 tests, Person Verification UI) — only the release tag/notes/GitHub-release
+steps remain.
 ```
 
 ---
@@ -876,10 +898,10 @@ master_category/master_data pattern) + API + Web UI.
 NSS_ERP
 │
 ├── api
-│   ├── routers              (bootstrap.py, foundation.py, organization.py)
-│   └── schemas               (bootstrap.py, foundation.py, organization.py)
+│   ├── routers              (bootstrap.py, foundation.py, organization.py, person.py)
+│   └── schemas               (bootstrap.py, foundation.py, organization.py, person.py)
 │
-├── frontend                (Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization Verification UIs, served by FastAPI)
+├── frontend                (Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person Verification UIs, served by FastAPI)
 │   └── assets
 │
 ├── backend                (empty — earlier Django prototype archived and removed)
