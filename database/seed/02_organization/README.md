@@ -1,7 +1,7 @@
 # database/seed/02_organization/
 
-Organization Module seed data — organizational type masters, status masters,
-and the three unique organizations required before downstream modules.
+Organization Module seed data — the three unique organizations required
+before downstream modules.
 
 Authority: SOL-ORG-005 §48, SOL-ARCH-010 §8
 
@@ -11,13 +11,18 @@ Execute AFTER:
 - All Foundation DDL + seed (`database/ddl/01_foundation/`, `database/seed/01_foundation/`)
 - All Organization DDL (`database/ddl/02_organization/`)
 
-Files must be run in numeric order.
-
 | # | File | Seeds Into | Depends On |
 |--:|------|-----------|-----------|
-| 01 | `01_organization_type_master.sql` | `organization_type_master` | DDL complete |
-| 02 | `02_organization_status_master.sql` | `organization_status_master` | DDL complete |
-| 03 | `03_organization.sql` | `organization` | `01_*`, `02_*`, Foundation `country` seed |
+| 03 | `03_organization.sql` | `organization` | Foundation `master_category`/`master_data` seed, Foundation `country`/`postal_code` seed, Organization DDL complete |
+
+> **Moved:** The former `01_organization_type_master.sql` and
+> `02_organization_status_master.sql` seed files are gone. Type and status
+> seed data now live in Foundation's generic master-data seed files —
+> `database/seed/01_foundation/01_master_category.sql` (categories) and
+> `database/seed/01_foundation/02_master_data.sql` (the `ORGANIZATION_TYPE`
+> and `STATUS` value rows). `03_organization.sql` looks these up at insert
+> time via joins on `master_data`/`master_category` (`category_code` +
+> `value_code`) rather than FK'ing to dedicated master tables.
 
 ## Execution Command
 
@@ -32,51 +37,22 @@ done
 
 ## Seed File Descriptions
 
-### 01_organization_type_master.sql
-
-Seeds 8 frozen organization types:
-
-| # | `organization_type_code` | Name | Cardinality |
-|--:|--------------------------|------|-------------|
-| 1 | `KENDRA` | Kendra Sangha | Unique |
-| 2 | `NILACHALA_KUTIRA` | Nilachala Kutira | Unique |
-| 3 | `SMRUTI_MANDIRA` | Smruti Mandira | Unique |
-| 4 | `ANCHALIKA_SANGHA` | Anchalika Sangha | Multiple |
-| 5 | `ZILLA_SANGHA` | Zilla Sangha | Multiple |
-| 6 | `SAKHA_SANGHA` | Sakha Sangha | Multiple |
-| 7 | `SAKHA_ASANA` | Sakha Asana | Multiple |
-| 8 | `PATHA_CHAKRA` | Patha Chakra | Multiple |
-
----
-
-### 02_organization_status_master.sql
-
-Seeds 6 organizational lifecycle statuses per GOV-002:
-
-| # | `organization_status_code` | Name | Purpose |
-|--:|----------------------------|------|---------|
-| 1 | `PROPOSED` | Proposed | Organization proposed, not yet approved |
-| 2 | `APPROVED` | Approved | Approved by governance, pending activation |
-| 3 | `ACTIVE` | Active | Currently operational |
-| 4 | `INACTIVE` | Inactive | Temporarily non-operational |
-| 5 | `SUSPENDED` | Suspended | Activities suspended by governance decision |
-| 6 | `ARCHIVED` | Archived | Permanently closed, retained for history |
-
----
-
 ### 03_organization.sql
 
 Seeds the 3 unique organizations of NSS. No `organization_id` — unique
 organizations are identified by `organization_code` alone. Sequence-generated
-IDs are for multi-instance org types (Sakha, Anchalika, etc.).
+IDs are for multi-instance org types (Sakha, Anchalika, etc.). Type and
+status are resolved per row via joins against `nss.master_data`/
+`nss.master_category` on `category_code = 'ORGANIZATION_TYPE'` /
+`'STATUS'` and the relevant `value_code`.
 
-| # | `organization_code` | Name | Type | Parent |
+| # | `organization_code` | Name | Type (`value_code`) | Parent |
 |--:|---------------------|------|------|--------|
-| 1 | `KEN` | Nilachala Saraswata Sangha | KENDRA | NULL (apex governing body) |
-| 2 | `NKT` | Nilachala Kutira | NILACHALA_KUTIRA | NULL (Eternal Abode, Puri) |
-| 3 | `SMR` | Sri Shri Nigamananda Smruti Mandir | SMRUTI_MANDIRA | NULL (memorial temple, Puri) |
+| 1 | `KEN` | Nilachala Saraswata Sangha | `KENDRA` | NULL (apex governing body) |
+| 2 | `NKT` | Nilachala Kutira | `NILACHALA_KUTIRA` | NULL (Eternal Abode, Puri) |
+| 3 | `SMR` | Sri Shri Nigamananda Smruti Mandir | `SMRUTI_MANDIRA` | NULL (memorial temple, Puri) |
 
-All three are seeded as ACTIVE with country = IN (India).
+All three are seeded with status `ACTIVE` and country = IN (India).
 Kendra's representative office address is seeded inline: Satsikshya Mandir,
 A/4, Unit-9, Bhubaneswar - 751022, Odisha, India.
 
@@ -84,18 +60,20 @@ A/4, Unit-9, Bhubaneswar - 751022, Odisha, India.
 
 ## Notes
 
-- Organization types are frozen per SOL-ORG-005 §48.
-- Organization statuses are frozen per GOV-002.
+- Organization types and statuses are frozen per SOL-ORG-005 §48 / GOV-002,
+  but the seed rows themselves now live in Foundation's `master_data`
+  (see "Moved" note above) — not in this folder.
 - **Unique org hierarchy (ERP-FROZEN):**
   KEN, NKT, SMR are peer root organizations (`parent = NULL`).
   KEN remains the apex governing body. Physical location/operational
   association ≠ organizational parent-child relationship.
-  Constitutional/functional roles are distinguished by `organization_type_pk`.
+  Constitutional/functional roles are distinguished by
+  `organization_type_master_data_pk`.
 - Unique organizations have no `organization_id` — identified by
   `organization_code` alone. `organization_id` (sequence-generated via
   `id_sequence_master`) is for multi-instance types only.
 - Additional organizations (Anchalika, Zilla, Sakha, etc.) are created
   at runtime through governance workflows, not seeded.
-- Foundation seed data (especially `country`) must be loaded before
-  Organization seed.
+- Foundation seed data (`master_category`, `master_data`, `country`,
+  `postal_code`) must be loaded before Organization seed.
 - All addresses are editable at runtime — seed values are initial state only.

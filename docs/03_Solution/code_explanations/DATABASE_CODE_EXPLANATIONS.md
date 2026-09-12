@@ -47,8 +47,8 @@ database/scripts/02_build.sh / .ps1  (as nss_db_owner) — runs every DDL + seed
                     │
                     ▼
    Organization (Tier 2)      ddl/02_organization/*.sql → seed/02_organization/*.sql
-   (3 tables)                 organization_type_master, organization_status_master,
-                    │         organization
+   (1 table)                  organization (type/status now resolved via Foundation
+                    │         master_data — see ORGANIZATION_TYPE / STATUS categories)
                     ▼
 database/scripts/03_validate.sh / .ps1  (as nss_db_owner) — row-count/FK-integrity checks
 database/scripts/04_grant_backend.sql   (as nss_db_owner) — grants nss_db_backend SELECT-only
@@ -239,12 +239,17 @@ statement above.
 
 ### database/scripts/02_build.sh + database/scripts/02_build.ps1
 
+> **v2.0 (2026-09-12):** Organization DDL/seed phases shrink from 3 files each to 1 file each
+> (`organization_type_master`/`organization_status_master` retired — see the RETIRED notices
+> under `database/ddl/02_organization/`), reducing the total build from 32 to 28 `psql -f`
+> invocations.
+
 **Requirement**
 
 The single command that builds the entire currently-implemented schema (Bootstrap RBAC +
-Foundation + Organization: 18 tables + seed data) in the exact phase order defined by
+Foundation + Organization: 16 tables + seed data) in the exact phase order defined by
 `database/README.md`'s "Execution Order" table. Without this pair, an operator would have to
-manually run 26 individual `psql -f` commands in the correct dependency order by hand, with no
+manually run 28 individual `psql -f` commands in the correct dependency order by hand, with no
 fail-fast behavior — a single missed or reordered file would either error out obscurely (FK to
 a table that doesn't exist yet) or, worse, silently succeed against a half-built schema. It
 explicitly does **not** run `database/ddl/03_person/` (superseded prototype) or apply the
@@ -335,8 +340,11 @@ Files execute in exactly this order, matching `database/README.md`:
   runner and its printed label stay in sync.
 - **Phase 2** — Foundation seed, 8 files in dependency order (categories → data → sequences →
   country → state → district → settings → postal codes).
-- **Phase 3** — Organization DDL, 3 files (type master → status master → `organization`).
-- **Phase 4** — Organization seed, 3 files, same order.
+- **Phase 3** — Organization DDL, 1 file (`03_organization.sql`; the retired
+  `01_organization_type_master.sql`/`02_organization_status_master.sql` type/status masters are
+  no longer part of this phase — type/status now resolve through Foundation's `master_data`,
+  seeded in Phase 2).
+- **Phase 4** — Organization seed, 1 file, same order.
 
 ```bash
 if [ "$failed" -eq 0 ]; then
@@ -379,6 +387,12 @@ behavior, same "not executed" disclosure at the end.
 ---
 
 ### database/scripts/03_validate.sh + database/scripts/03_validate.ps1
+
+> **v2.0 (2026-09-12):** Organization's row-count/FK checks updated for the org-to-master-data
+> migration — `organization_type_master`/`organization_status_master` checks replaced by two
+> FK-integrity checks against `nss.master_data`; Foundation's `master_category`/`master_data`/
+> `id_sequence_master` row-count floors raised (12/74/11) to match the new `ORGANIZATION_TYPE`
+> category, expanded `STATUS` category, and the two new `id_sequence_master` rows.
 
 **Requirement**
 
@@ -501,17 +515,25 @@ check_fk_integrity "role_permission -> role_master" \
    `role_permission → role_master` and `role_permission → permission_master` FK integrity (the
    call above is the actual FK-integrity query used for the first of those two checks).
 2. **Foundation** — 12 tables exist; row-count floors matching the frozen seed
-   (`master_category` ≥ 11, `master_data` ≥ 58, `id_sequence_master` ≥ 9, `country` ≥ 5,
+   (`master_category` ≥ 12, `master_data` ≥ 74, `id_sequence_master` ≥ 11, `country` ≥ 5,
    `state` ≥ 112, `district` ≥ 700, `system_setting` ≥ 4, `postal_code` ≥ 2); no duplicate
    `category_code`/`country_code`/`sequence_code`; FK integrity for `master_data →
    master_category`, `state → country`, `district → state`, `postal_code → country`,
    `postal_code → state`; and the two deferred-column existence checks on `document_master`.
-3. **Organization** — 3 tables exist; row counts (8 types, 6 statuses, 3 orgs); no duplicate
-   `organization_type_code`/`organization_status_code`/`organization_code`; FK integrity for
-   `organization → organization_type_master`, `organization → organization_status_master`,
-   `organization → country`, `organization → city_village`, `organization → postal_code` (the
-   last two use `WHERE fk_col IS NOT NULL AND parent.pk IS NULL` since those FKs are nullable —
-   an org with no `city_village_pk` set is not an orphan).
+   `master_category`'s floor rose from 11 to 12 (new `ORGANIZATION_TYPE` category) and
+   `master_data`'s from 58 to 74 (new `ORGANIZATION_TYPE` values plus the expanded `STATUS`
+   category replacing the smaller `MEMBERSHIP_STATUS`); `id_sequence_master`'s floor rose from
+   9 to 11 (`PARIBARIK_ASANA`, `PARIBARIK_SANGHA`).
+3. **Organization** — 1 table exists (`organization` — type/status now live in Foundation's
+   `master_data`, so their row counts are validated as part of the Foundation `master_data`
+   check above, not here); row count (3 orgs); no duplicate `organization_code`; FK integrity
+   for `organization → master_data` (type, i.e. `organization_type_master_data_pk`),
+   `organization → master_data` (status, i.e. `status_master_data_pk`), `organization →
+   country`, `organization → city_village`, `organization → postal_code` (the last two use
+   `WHERE fk_col IS NOT NULL AND parent.pk IS NULL` since those FKs are nullable — an org with
+   no `city_village_pk` set is not an orphan). The two `master_data` FK-integrity checks both
+   join against the same `nss.master_data` table (once per FK column), rather than against two
+   separate dedicated tables as before the migration.
 
 Finally prints `Passed`/`Warnings`/`Failed` counts; exits `0` if `fail_count = 0` (even with
 warnings), `1` otherwise. The file header instructs future maintainers to extend this script
@@ -1163,6 +1185,10 @@ expect. `chk_system_setting_soft_delete` is the standard invariant. Indexes cove
 
 ### database/ddl/01_foundation/04_id_sequence_master.sql
 
+> **v2.0 (2026-09-12):** `chk_id_sequence_padding` loosened from `BETWEEN 4 AND 12` to
+> `BETWEEN 2 AND 12` to allow the new `PARIBARIK_SANGHA` sequence's 3-digit padding (and
+> `PARIBARIK_ASANA`'s 5-digit padding, which already fit the old range).
+
 **Requirement**
 
 Defines `nss.id_sequence_master` — a table-driven business-ID generator, one row per business
@@ -1223,7 +1249,7 @@ CREATE TABLE nss.id_sequence_master
         UNIQUE (sequence_name),
 
     CONSTRAINT chk_id_sequence_padding
-        CHECK (padding_length BETWEEN 4 AND 12),
+        CHECK (padding_length BETWEEN 2 AND 12),
 
     CONSTRAINT chk_id_sequence_current_value
         CHECK (current_value >= 0),
@@ -1245,10 +1271,11 @@ CREATE INDEX idx_id_sequence_code
 ```
 
 `uq_id_sequence_code` and `uq_id_sequence_name` are both unique. `chk_id_sequence_padding CHECK
-(padding_length BETWEEN 4 AND 12)` bounds how wide a generated ID's numeric portion can be.
-`chk_id_sequence_current_value CHECK (current_value >= 0)` means the counter can never go
-negative. `chk_id_sequence_soft_delete` is the standard invariant. Indexes cover `is_active` and
-`sequence_code`.
+(padding_length BETWEEN 2 AND 12)` bounds how wide a generated ID's numeric portion can be — the
+lower bound was loosened from 4 to 2 in v2.0 to accommodate `PARIBARIK_SANGHA`'s 3-digit
+padding. `chk_id_sequence_current_value CHECK (current_value >= 0)` means the counter can never
+go negative. `chk_id_sequence_soft_delete` is the standard invariant. Indexes cover `is_active`
+and `sequence_code`.
 
 ---
 
@@ -1599,7 +1626,7 @@ CREATE INDEX idx_master_data_value_name
   (master_category_pk)`.
 - `uq_master_data_category_code UNIQUE (master_category_pk, value_code)` — the uniqueness scope
   is **per category**, not global: `value_code = 'ACTIVE'` can validly exist under both
-  `MEMBERSHIP_STATUS` and (hypothetically) another category without conflict, because the
+  `STATUS` and (hypothetically) another category without conflict, because the
   unique constraint is composite.
 - `chk_master_data_soft_delete` — standard invariant.
 
@@ -2042,9 +2069,15 @@ relationship.
 
 ### database/seed/01_foundation/01_master_category.sql
 
+> **v2.0 (2026-09-12):** `MEMBERSHIP_STATUS` renamed to `STATUS` and repurposed as a single
+> unified ERP-wide lifecycle-status category (shared by Organization, Membership, Governance,
+> etc., replacing what would otherwise have been a per-module `ORGANIZATION_STATUS` category).
+> `ORGANIZATION_TYPE` added as a new category (12th), seeded for the Organization module's
+> `types` endpoint, replacing the retired dedicated `organization_type_master` table.
+
 **Requirement**
 
-Seeds the 11 top-level lookup categories that every subsequent `master_data` value row attaches
+Seeds the 12 top-level lookup categories that every subsequent `master_data` value row attaches
 to. Must run before `02_master_data.sql`, which resolves each value's `master_category_pk` via a
 subquery on `category_code`.
 
@@ -2058,14 +2091,14 @@ VALUES (...)
 
 Four explicit columns per row; `master_category_pk`, `is_active`, `created_at` all default.
 
-**Row count: 11** (all rows listed — small, fully-enumerable):
+**Row count: 12** (all rows listed — small, fully-enumerable):
 
 | category_code | category_name | display_order |
 |---|---|---|
 | `GENDER` | Gender | 1 |
 | `RELATIONSHIP_TYPE` | Relationship Type | 2 |
 | `MEMBERSHIP_TYPE` | Membership Type | 3 |
-| `MEMBERSHIP_STATUS` | Membership Status | 4 |
+| `STATUS` | Status | 4 |
 | `LOGIN_ROLE` | Login Role | 5 |
 | `STATUS_REASON` | Status Reason | 6 |
 | `WORKFLOW_STATUS` | Workflow Status | 7 |
@@ -2073,28 +2106,44 @@ Four explicit columns per row; `master_category_pk`, `is_active`, `created_at` a
 | `APPLICATION_TYPE` | Application Type | 9 |
 | `MARITAL_STATUS` | Marital Status | 10 |
 | `ADDRESS_TYPE` | Address Type | 11 |
+| `ORGANIZATION_TYPE` | Organization Type | 12 |
 
-Notable: three of these categories (`LOGIN_ROLE`, `STATUS_REASON`, `WORKFLOW_STATUS`,
-`APPLICATION_TYPE`) have **no corresponding rows in `02_master_data.sql`** — they are
-categories reserved for future modules (Authentication, Membership workflow) that haven't
-seeded values yet; only 7 of the 11 categories actually have `master_data` children today.
+Notable: `STATUS` (row 4) is a **unified, ERP-wide** category — its description explicitly
+reads "Unified lifecycle status for all ERP entities (organizations, memberships, governance,
+etc.)" — a deliberate departure from the per-module `MEMBERSHIP_STATUS` category it replaces;
+each module picks its applicable subset of `STATUS` values at the application layer rather than
+owning a dedicated status category/table. Four of these categories (`LOGIN_ROLE`,
+`STATUS_REASON`, `WORKFLOW_STATUS`, `APPLICATION_TYPE`) have **no corresponding rows in
+`02_master_data.sql`** — they are categories reserved for future modules (Authentication,
+Membership workflow) that haven't seeded values yet; 8 of the 12 categories actually have
+`master_data` children today (`GENDER`, `RELATIONSHIP_TYPE`, `MEMBERSHIP_TYPE`, `STATUS`,
+`DOCUMENT_TYPE`, `MARITAL_STATUS`, `ADDRESS_TYPE`, `ORGANIZATION_TYPE`).
 
 ---
 
 ### database/seed/01_foundation/02_master_data.sql
 
+> **v2.0 (2026-09-12):** The `MEMBERSHIP_STATUS` block (7 rows) is replaced by a `STATUS` block
+> (13 rows) — the unified ERP-wide lifecycle status set, with `LAPSED`, `TRANSFERRED`,
+> `RESIGNED`, `EXPELLED`, `DECEASED`, `DISSOLVED`, `EXPIRED` covering both former membership and
+> organization lifecycle vocabularies (each row carries a `description` citing its NSS Bye-Law
+> authority). A new `ORGANIZATION_TYPE` block (10 rows) is added, replacing the retired
+> `organization_type_master` seed and adding two new types (`PARIBARIK_ASANA`,
+> `PARIBARIK_SANGHA`) beyond the original 8.
+
 **Requirement**
 
-Seeds the 58 concrete enumerated values consumed by Person/Membership/Family module designs
-(gender, marital status, address type, document type, membership type, membership status,
-relationship type). Must run after `01_master_category.sql`, since every `INSERT` resolves its
-`master_category_pk` via `SELECT ... FROM nss.master_category mc ... WHERE mc.category_code =
-'<CODE>'` joined against a `VALUES` literal — a subquery-driven pattern rather than hardcoded
-UUIDs, since the category PKs are generated at category-insert time and aren't known in advance.
+Seeds the 74 concrete enumerated values consumed by Person/Membership/Family/Organization
+module designs (gender, marital status, address type, document type, membership type, unified
+status, relationship type, organization type). Must run after `01_master_category.sql`, since
+every `INSERT` resolves its `master_category_pk` via `SELECT ... FROM nss.master_category mc
+... WHERE mc.category_code = '<CODE>'` joined against a `VALUES` literal — a subquery-driven
+pattern rather than hardcoded UUIDs, since the category PKs are generated at category-insert
+time and aren't known in advance.
 
 **Line-by-line explanation**
 
-Each of the seven blocks follows the identical shape:
+Each of the eight blocks follows the identical shape:
 ```sql
 INSERT INTO nss.master_data (master_category_pk, value_code, value_name, display_order)
 SELECT mc.master_category_pk, v.value_code, v.value_name, v.display_order
@@ -2102,11 +2151,16 @@ FROM nss.master_category mc
 CROSS JOIN (VALUES (...), (...)) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = '<CATEGORY>';
 ```
+The `STATUS` and `ORGANIZATION_TYPE` blocks additionally carry a `description` column (`SELECT
+mc.master_category_pk, v.value_code, v.value_name, v.description, v.display_order`) since both
+sets of values benefit from a documented rationale (Bye-Law citations for `STATUS`, hierarchy
+role for `ORGANIZATION_TYPE`) that the other, simpler blocks don't need.
+
 The `CROSS JOIN` against a single-row-matching `master_category` (filtered by the `WHERE`) is
 just a way to pair every literal `VALUES` row with that one category's PK without repeating the
 UUID by hand.
 
-**Row count: 58 total**, across 7 categories:
+**Row count: 74 total**, across 8 categories:
 
 - **GENDER (3 rows):** `MALE`/Male/1, `FEMALE`/Female/2, `OTHER`/Other/3.
 - **MARITAL_STATUS (5 rows):** `UNMARRIED`, `MARRIED`, `WIDOWED`, `DIVORCED`, `SEPARATED`
@@ -2116,8 +2170,15 @@ UUID by hand.
 - **DOCUMENT_TYPE (7 rows):** `PHOTO`, `ID_PROOF`, `ADDRESS_PROOF`, `CERTIFICATE`,
   `CORRESPONDENCE`, `PROPERTY_DOCUMENT`, `MEETING_MINUTES`.
 - **MEMBERSHIP_TYPE (4 rows):** `PROBATIONARY`, `REGULAR`, `ASSOCIATE`, `HONORARY`.
-- **MEMBERSHIP_STATUS (7 rows):** `ACTIVE`, `INACTIVE`, `SUSPENDED`, `TRANSFERRED`, `RESIGNED`,
-  `EXPELLED`, `DECEASED`.
+- **STATUS (13 rows)** — the unified ERP-wide lifecycle status set, replacing the former
+  per-module `MEMBERSHIP_STATUS` (7 rows): `PROPOSED`/Proposed/1, `APPROVED`/Approved/2,
+  `ACTIVE`/Active/3, `INACTIVE`/Inactive/4, `SUSPENDED`/Suspended/5, `LAPSED`/Lapsed/6 (Bye-Law
+  SS D(d)), `TRANSFERRED`/Transferred/7, `RESIGNED`/Resigned/8, `EXPELLED`/Expelled/9 (Bye-Law
+  SS D(d)(iii)), `DECEASED`/Deceased/10 (Bye-Law SS D(d)(i)), `DISSOLVED`/Dissolved/11 (Bye-Law
+  SS I), `ARCHIVED`/Archived/12, `EXPIRED`/Expired/13 (Bye-Law SS C(1)(c)). Every row carries a
+  `description` citing its governing rationale — this category alone among the eight is fully
+  annotated, reflecting that a shared, cross-module status vocabulary needs each value's scope
+  documented up front.
 - **RELATIONSHIP_TYPE (29 rows)** — by far the largest block, covering the Indian family
   structure comprehensively for the future Family module's `family_relationship` table.
   Representative rows: `SPOUSE`/Spouse/1, `FATHER`/Father/2, `MOTHER`/Mother/3 (immediate
@@ -2129,6 +2190,14 @@ UUID by hand.
   non-blood-relation pair, included because guardianship is a real family-structure concern for
   the Family module, not just biological/marital relations); and a final catch-all
   `OTHER`/Other Relative/29.
+- **ORGANIZATION_TYPE (10 rows)** — the NSS Bye-Law organizational hierarchy plus preamble
+  entities, replacing the retired `organization_type_master` seed's 8 rows and adding two new
+  family-level types: `KENDRA`/Kendra Sangha/1, `NILACHALA_KUTIRA`/Nilachala Kutira/2,
+  `SMRUTI_MANDIRA`/Smruti Mandira/3, `ANCHALIKA_SANGHA`/Anchalika Sangha/4,
+  `ZILLA_SANGHA`/Zilla Sangha/5, `SAKHA_SANGHA`/Sakha Sangha/6, `SAKHA_ASANA`/Sakha Asana/7,
+  `PARIBARIK_ASANA`/Paribarik Asana/8 (new — family-level Asana per Parichay Patra holder,
+  Bye-Law SS C(2)(iii)), `PARIBARIK_SANGHA`/Paribarik Sangha/9 (new — family organisation
+  attached to Kendra, Bye-Law Preamble), `PATHA_CHAKRA`/Patha Chakra/10.
 
   Sum check: 3+5+3+7+4+7+29 = **58**, matching the row count `03_validate.sh`/`.ps1` and
   `database/README.md` both expect.
@@ -2137,11 +2206,17 @@ UUID by hand.
 
 ### database/seed/01_foundation/03_id_sequence_master.sql
 
+> **v2.0 (2026-09-12):** Two new sequences added — `PARIBARIK_ASANA` (prefix `PA`, padding 5)
+> and `PARIBARIK_SANGHA` (prefix `PS`, padding 3) — for the two new `ORGANIZATION_TYPE` values
+> added in `master_data`. `PARIBARIK_SANGHA`'s 3-digit padding is why
+> `chk_id_sequence_padding` was loosened to `BETWEEN 2 AND 12` (see the DDL section above).
+
 **Requirement**
 
-Seeds the 9 business-ID sequence definitions that the application will use (once the
+Seeds the 11 business-ID sequence definitions that the application will use (once the
 sequence-issuing logic is implemented) to mint permanent business identifiers for Person,
-Sangha Sevi, and each level of the organizational hierarchy, plus Family and Document IDs.
+Sangha Sevi, each level of the organizational hierarchy (including the two family-level types,
+Paribarik Asana and Paribarik Sangha), Family, and Document IDs.
 
 **Line-by-line explanation**
 
@@ -2150,10 +2225,10 @@ INSERT INTO nss.id_sequence_master
     (sequence_code, sequence_name, prefix, current_value, padding_length)
 VALUES (...)
 ```
-Every row explicitly sets `current_value = 0` (no IDs issued yet) and a `padding_length` — all
-`8` except `PERSON` at `10`.
+Every row explicitly sets `current_value = 0` (no IDs issued yet) and a `padding_length` — `8`
+for most rows, `10` for `PERSON`, `5` for `PARIBARIK_ASANA`, and `3` for `PARIBARIK_SANGHA`.
 
-**Row count: 9** (all rows listed — small, fully-enumerable):
+**Row count: 11** (all rows listed — small, fully-enumerable):
 
 | sequence_code | sequence_name | prefix | padding_length |
 |---|---|---|---|
@@ -2164,12 +2239,18 @@ Every row explicitly sets `current_value = 0` (no IDs issued yet) and a `padding
 | `SAKHA` | Sakha Code | `SKH` | 8 |
 | `SAKHA_ASANA` | Sakha Asana Code | `SA` | 8 |
 | `PATHA_CHAKRA` | Patha Chakra Code | `PC` | 8 |
+| `PARIBARIK_ASANA` | Paribarik Asana Code | `PA` | 5 |
+| `PARIBARIK_SANGHA` | Paribarik Sangha Code | `PS` | 3 |
 | `FAMILY` | Family Code | `F` | 8 |
 | `DOCUMENT` | Document Code | `DOC` | 8 |
 
-Notable: `PERSON` is the only sequence with a 10-digit padding (vs. 8 for everything else) —
+Notable: `PERSON` is the only sequence with a 10-digit padding (vs. 8 for most others) —
 consistent with Person being expected to be the highest-cardinality entity in the system by a
-wide margin (every member and every non-member family contact is a `person` row).
+wide margin (every member and every non-member family contact is a `person` row). At the other
+end, `PARIBARIK_SANGHA` (3-digit) and `PARIBARIK_ASANA` (5-digit) have the narrowest padding of
+any sequence — reflecting that family-level organizational units are expected to be far fewer
+in number than Sakhas or persons, which is also why their addition required loosening
+`chk_id_sequence_padding`'s lower bound from 4 to 2.
 
 ---
 
@@ -2415,6 +2496,15 @@ code today is in Odisha, matching where NSS's three seeded organizations physica
 
 ### database/ddl/02_organization/01_organization_type_master.sql
 
+> **RETIRED — replaced by Foundation `master_data` (category `ORGANIZATION_TYPE`), 2026-09-12.**
+> This file no longer exists in the working tree (deleted as part of the org-to-master-data
+> migration on `feature/migration-org-to-master-data`). Organization type values now live as
+> `nss.master_data` rows under the shared `ORGANIZATION_TYPE` category (seeded in
+> `database/seed/01_foundation/02_master_data.sql`, 10 values), and `organization` references
+> them via `organization_type_master_data_pk` → `nss.master_data(master_data_pk)` instead of a
+> dedicated FK. The DDL below is preserved as it existed at time of retirement, for readers
+> encountering it via `git blame`/history.
+
 **Requirement**
 
 Defines `nss.organization_type_master` — the fixed catalogue of organizational unit types
@@ -2489,6 +2579,16 @@ which likely explains why a redundant explicit index wasn't added).
 
 ### database/ddl/02_organization/02_organization_status_master.sql
 
+> **RETIRED — replaced by Foundation `master_data` (category `STATUS`), 2026-09-12.** This file
+> no longer exists in the working tree (deleted as part of the org-to-master-data migration on
+> `feature/migration-org-to-master-data`). Organization lifecycle status is no longer
+> organization-specific: it now uses the unified ERP-wide `STATUS` category in `nss.master_data`
+> (seeded in `database/seed/01_foundation/02_master_data.sql`, 13 values shared across
+> organizations, memberships, governance, etc.), and `organization` references it via
+> `status_master_data_pk` → `nss.master_data(master_data_pk)` instead of a dedicated FK. The DDL
+> below is preserved as it existed at time of retirement, for readers encountering it via
+> `git blame`/history.
+
 **Requirement**
 
 Defines `nss.organization_status_master` — the fixed catalogue of organizational lifecycle
@@ -2559,12 +2659,18 @@ Indexes: `idx_organization_status_active (is_active)` only — same pattern as t
 
 ### database/ddl/02_organization/03_organization.sql
 
+> **v2.0 (2026-09-12):** `organization_type_pk` renamed to `organization_type_master_data_pk`
+> and `organization_status_pk` renamed to `status_master_data_pk`, both now FKs into
+> `nss.master_data(master_data_pk)` instead of the retired `organization_type_master`/
+> `organization_status_master` tables. See the RETIRED notices above for the tables this
+> replaces.
+
 **Requirement**
 
 Defines `nss.organization` — every physical/administrative organizational unit in NSS's
 hierarchy (Kendra, Anchalika Sangha, Zilla Sangha, Sakha Sangha, Sakha Asana, Patha Chakra,
-Nilachala Kutira, Smruti Mandira), self-referencing to express parent/child structure. Depth 3
-(depends on `organization_type_master`, `organization_status_master`, and the location tables
+Nilachala Kutira, Smruti Mandira), self-referencing to express parent/child structure. Depth 1
+(depends on Foundation's `master_data` for type/status classification, and the location tables
 `country`/`state`/`district`/`city_village`/`postal_code`, plus itself via the self-referencing
 FK). Without this table, NSS's organizational structure — the entire reason the "Organization"
 module exists — has no physical representation at all.
@@ -2586,11 +2692,11 @@ CREATE TABLE nss.organization
 
     organization_name VARCHAR(200) NOT NULL,
 
-    -- Classification
-    organization_type_pk UUID NOT NULL,
+    -- Classification (FK → master_data, category ORGANIZATION_TYPE)
+    organization_type_master_data_pk UUID NOT NULL,
 
-    -- Current lifecycle status
-    organization_status_pk UUID NOT NULL,
+    -- Current lifecycle status (FK → master_data, category STATUS)
+    status_master_data_pk UUID NOT NULL,
 
     -- Hierarchy: immediate parent (NULL = apex)
     parent_organization_pk UUID NULL,
@@ -2606,8 +2712,13 @@ CREATE TABLE nss.organization
   organizations (Kendra, Nilachala Kutira, Smruti Mandira) that are identified by
   `organization_code` alone.
 - `organization_name VARCHAR(200) NOT NULL`.
-- `organization_type_pk UUID NOT NULL` — FK, classification.
-- `organization_status_pk UUID NOT NULL` — FK, current lifecycle state.
+- `organization_type_master_data_pk UUID NOT NULL` — FK into Foundation's `nss.master_data`,
+  category `ORGANIZATION_TYPE`; classification. Renamed from the pre-migration
+  `organization_type_pk` FK to the now-retired `organization_type_master`.
+- `status_master_data_pk UUID NOT NULL` — FK into Foundation's `nss.master_data`, category
+  `STATUS` (the unified ERP-wide lifecycle status, shared across modules); current lifecycle
+  state. Renamed from the pre-migration `organization_status_pk` FK to the now-retired
+  `organization_status_master`.
 - `parent_organization_pk UUID NULL` — self-referencing FK; `NULL` means this organization is
   an apex node (has no parent).
 - `organization_code VARCHAR(10) NULL` — a short, hand-assigned unique code (e.g. `KEN`, `NKT`,
@@ -2669,14 +2780,14 @@ Audit block, constraints, and indexes:
     CONSTRAINT uq_organization_code
         UNIQUE (organization_code),
 
-    -- Foreign keys: classification + lifecycle
+    -- Foreign keys: classification + lifecycle (now via master_data)
     CONSTRAINT fk_organization_type
-        FOREIGN KEY (organization_type_pk)
-        REFERENCES nss.organization_type_master (organization_type_pk),
+        FOREIGN KEY (organization_type_master_data_pk)
+        REFERENCES nss.master_data (master_data_pk),
 
     CONSTRAINT fk_organization_status
-        FOREIGN KEY (organization_status_pk)
-        REFERENCES nss.organization_status_master (organization_status_pk),
+        FOREIGN KEY (status_master_data_pk)
+        REFERENCES nss.master_data (master_data_pk),
 
     -- Self-referencing FK: hierarchy
     CONSTRAINT fk_organization_parent
@@ -2723,10 +2834,10 @@ Audit block, constraints, and indexes:
 
 -- Indexes
 CREATE INDEX idx_organization_type
-    ON nss.organization (organization_type_pk);
+    ON nss.organization (organization_type_master_data_pk);
 
 CREATE INDEX idx_organization_status
-    ON nss.organization (organization_status_pk);
+    ON nss.organization (status_master_data_pk);
 
 CREATE INDEX idx_organization_parent
     ON nss.organization (parent_organization_pk);
@@ -2759,10 +2870,14 @@ CREATE INDEX idx_organization_name
   (organization_code)` — both unique when non-`NULL` (multiple `NULL`s are permitted by
   standard SQL unique-constraint semantics, which is exactly what allows all three seeded
   unique organizations to share `organization_id = NULL`).
-- `fk_organization_type FOREIGN KEY (organization_type_pk) REFERENCES
-  nss.organization_type_master (organization_type_pk)`.
-- `fk_organization_status FOREIGN KEY (organization_status_pk) REFERENCES
-  nss.organization_status_master (organization_status_pk)`.
+- `fk_organization_type FOREIGN KEY (organization_type_master_data_pk) REFERENCES
+  nss.master_data (master_data_pk)` — points at Foundation's shared master-data table rather
+  than a dedicated `organization_type_master`; the application layer is responsible for
+  constraining which `master_data` rows are valid here (i.e. only rows under the
+  `ORGANIZATION_TYPE` category) since the FK itself cannot express a category filter.
+- `fk_organization_status FOREIGN KEY (status_master_data_pk) REFERENCES nss.master_data
+  (master_data_pk)` — same pattern, pointed at the unified `STATUS` category shared across
+  modules rather than a dedicated `organization_status_master`.
 - `fk_organization_parent FOREIGN KEY (parent_organization_pk) REFERENCES nss.organization
   (organization_pk)` — the self-referencing FK; the file's header explains this is only
   possible in the base `CREATE TABLE` (rather than needing a later `ALTER TABLE`, as with
@@ -2779,11 +2894,11 @@ CREATE INDEX idx_organization_name
 
 The file's header also documents a design decision that is explicitly **not** expressed as a
 column: `hierarchical_level` is not stored — an organization's "level" is fully derived from
-`organization_type_pk` (which type it is) combined with walking the `parent_organization_pk`
-chain, rather than being cached as a denormalized integer.
+`organization_type_master_data_pk` (which type it is) combined with walking the
+`parent_organization_pk` chain, rather than being cached as a denormalized integer.
 
-Indexes: `idx_organization_type (organization_type_pk)`, `idx_organization_status
-(organization_status_pk)`, `idx_organization_parent (parent_organization_pk)`,
+Indexes: `idx_organization_type (organization_type_master_data_pk)`, `idx_organization_status
+(status_master_data_pk)`, `idx_organization_parent (parent_organization_pk)`,
 `idx_organization_country (country_pk)`, `idx_organization_state (state_pk)`,
 `idx_organization_district (district_pk)`, `idx_organization_city_village (city_village_pk)`,
 `idx_organization_postal_code (postal_code_pk)`, `idx_organization_active (is_active)`, and
@@ -2794,6 +2909,12 @@ be for this table.
 ---
 
 ### database/seed/02_organization/01_organization_type_master.sql
+
+> **RETIRED — replaced by Foundation `master_data` seed (category `ORGANIZATION_TYPE`),
+> 2026-09-12.** This file no longer exists. The 8 rows it seeded are superseded by the 10-row
+> `ORGANIZATION_TYPE` block in `database/seed/01_foundation/02_master_data.sql` (adds
+> `PARIBARIK_ASANA` and `PARIBARIK_SANGHA`). The content below is preserved as it existed at
+> time of retirement, for readers encountering it via `git blame`/history.
 
 **Requirement**
 
@@ -2831,6 +2952,12 @@ those five.
 
 ### database/seed/02_organization/02_organization_status_master.sql
 
+> **RETIRED — replaced by Foundation `master_data` seed (unified category `STATUS`),
+> 2026-09-12.** This file no longer exists. The 6 rows it seeded are superseded by the 13-row
+> `STATUS` block in `database/seed/01_foundation/02_master_data.sql`, which is shared across all
+> ERP modules rather than owned by Organization alone. The content below is preserved as it
+> existed at time of retirement, for readers encountering it via `git blame`/history.
+
 **Requirement**
 
 Seeds the 6 frozen organizational lifecycle statuses every `organization` row's
@@ -2865,6 +2992,11 @@ forever, never hard-deleted).
 
 ### database/seed/02_organization/03_organization.sql
 
+> **v2.0 (2026-09-12):** Lookups switched from `CROSS JOIN nss.organization_type_master` /
+> `nss.organization_status_master` to `JOIN nss.master_data ... JOIN nss.master_category ...`
+> filtered by `category_code`, matching the renamed `organization_type_master_data_pk` /
+> `status_master_data_pk` columns on `organization`.
+
 **Requirement**
 
 Seeds the three actual, named, unique organizations that exist in NSS's structure today: the
@@ -2884,37 +3016,53 @@ Mandira, follow the identical shape with different literal values and `WHERE` fi
 -- -------------------------------------------------
 
 INSERT INTO nss.organization
-    (organization_name, organization_type_pk,
-     organization_status_pk, parent_organization_pk,
+    (organization_name, organization_type_master_data_pk,
+     status_master_data_pk, parent_organization_pk,
      organization_code,
-     address_line_1, address_line_2, postal_code_pk, country_pk)
+     address_line_1, address_line_2, postal_code_pk, country_pk,
+     phone_number, mobile_number)
 SELECT
     'Nilachala Saraswata Sangha',
-    ot.organization_type_pk,
-    os.organization_status_pk,
+    ot.master_data_pk,
+    os.master_data_pk,
     NULL,
     'KEN',
     'Satsikshya Mandir, A/4, Unit-9',
     'Bhubaneswar',
     pc.postal_code_pk,
-    c.country_pk
-FROM nss.organization_type_master ot
-CROSS JOIN nss.organization_status_master os
+    c.country_pk,
+    '+91-674-2390055',
+    '+91-9238106823'
+FROM nss.master_data ot
+JOIN nss.master_category mc_type
+     ON mc_type.master_category_pk = ot.master_category_pk
+CROSS JOIN nss.master_data os
+JOIN nss.master_category mc_status
+     ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
-WHERE ot.organization_type_code = 'KENDRA'
-  AND os.organization_status_code = 'ACTIVE'
+WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
+  AND ot.value_code = 'KENDRA'
+  AND mc_status.category_code = 'STATUS'
+  AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '751022'
   AND pc.country_pk = c.country_pk;
 ```
 
-A four-way `CROSS JOIN` across all four parent lookup tables, each narrowed to exactly one row
-by the `WHERE` clause, so the `SELECT` resolves to exactly one row of PKs to insert. All three
-blocks explicitly pass `parent_organization_pk = NULL` — the file's header confirms all three
-are peers (no parent/child relationship among them) and all three are seeded with
-`organization_status_code = 'ACTIVE'` from the start. `city_village_pk` is left unset (omitted
-from the column list, so it defaults to `NULL`) because, per the header comment, Foundation's
+Rather than the pre-migration four-way `CROSS JOIN` across two dedicated lookup tables plus
+`country`/`postal_code`, the type and status lookups are now each a `JOIN nss.master_data ...
+JOIN nss.master_category ...` pair — `master_data` gives the row's `master_data_pk` and
+`value_code`, `master_category` supplies the `category_code` needed to disambiguate which
+shared category (`ORGANIZATION_TYPE` vs `STATUS`) the `value_code` filter applies to (since
+`master_data.value_code` alone is not globally unique across categories). The `ot`/`os` aliases
+for `master_data` and `mc_type`/`mc_status` aliases for `master_category` are still combined
+with `country`/`postal_code` via `CROSS JOIN`, each narrowed to exactly one row by the `WHERE`
+clause, so the `SELECT` resolves to exactly one row of PKs to insert. All three blocks
+explicitly pass `parent_organization_pk = NULL` — the file's header confirms all three are peers
+(no parent/child relationship among them) and all three are seeded with `value_code = 'ACTIVE'`
+(under the `STATUS` category) from the start. `city_village_pk` is left unset (omitted from the
+column list, so it defaults to `NULL`) because, per the header comment, Foundation's
 `city_village` seed data doesn't exist yet.
 
 **Row count: 3** (all rows listed):
@@ -2923,7 +3071,7 @@ from the column list, so it defaults to `NULL`) because, per the header comment,
 |---|---|---|---|---|---|
 | Nilachala Saraswata Sangha | KENDRA | `KEN` | Satsikshya Mandir, A/4, Unit-9 | Bhubaneswar | `751022` |
 | Nilachala Kutira | NILACHALA_KUTIRA | `NKT` | Puri | `NULL` | `752001` |
-| Sri Shri Nigamananda Smruti Mandir | SMRUTI_MANDIRA | `SMR` | Swargadwar | Puri | `752001` |
+| Sri Shri Nigamananda Smruti Mandir | SMRUTI_MANDIRA | `SMR` | Swargadwar Rd, Bali Sahi | Puri | `752001` |
 
 Notable: the Kendra Sangha row's `organization_name` ("Nilachala Saraswata Sangha") is the
 *full organizational name of NSS itself*, not literally the word "Kendra" — the apex

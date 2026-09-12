@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | API_CODE_EXPLANATIONS                    |
-| Version     | 1.1                                      |
+| Version     | 1.2                                      |
 | Scope       | All source files under `api/` and `tests/` |
-| Status      | Complete (updated: Tier 2 Organization)   |
+| Status      | Complete (updated: org-to-master-data migration) |
 
 ---
 
@@ -2042,45 +2042,54 @@ re-exports.
 
 ### 2.9 `api/routers/organization.py`
 
+> **v2.0 (2026-09-12):** `organization_type_master`/`organization_status_master` retired.
+> `/types` and `/statuses` (and the `_ORG_SELECT` fragment and `/hierarchy` CTE) now query
+> Foundation's shared `nss.master_data` JOINed to `nss.master_category`, filtered by
+> `category_code = 'ORGANIZATION_TYPE'` / `'STATUS'`. `organization`'s FK columns are renamed to
+> `organization_type_master_data_pk` / `status_master_data_pk`. `OrganizationStatusResponse` is
+> renamed to `StatusResponse` throughout.
+
 **Requirement**
 
-Tier 2 exposes 6 read-only GET endpoints across 3 Organization tables
-(`organization_type_master`, `organization_status_master`, `organization`) so the
-Organization Verification UI and any consumer can browse type/status catalogues, list and
-detail organizations with full resolved context (type name, status name, parent name,
-geographic names), view an organization's direct children, and traverse the complete
-organizational hierarchy as a flat list with depth. The `organization` table FKs into 5
-Foundation geographic tables (country, state, district, city_village, postal_code) — all
-nullable, so every geographic column is resolved via `LEFT JOIN` rather than `JOIN`.
-Without this file, the 3 Organization DDL tables would have no HTTP surface at all.
+Tier 2 exposes 6 read-only GET endpoints across `organization` plus Foundation's shared
+`master_data`/`master_category` tables (for type/status) so the Organization Verification UI
+and any consumer can browse type/status catalogues, list and detail organizations with full
+resolved context (type name, status name, parent name, geographic names), view an
+organization's direct children, and traverse the complete organizational hierarchy as a flat
+list with depth. The `organization` table FKs into 5 Foundation geographic tables (country,
+state, district, city_village, postal_code) — all nullable, so every geographic column is
+resolved via `LEFT JOIN` rather than `JOIN`. Without this file, the `organization` DDL table
+would have no HTTP surface at all.
 
 **Line-by-line**
 
-Lines 1–15 — module docstring:
+Lines 1–16 — module docstring:
 
 ```python
 """
 Organization API router — Tier 2 read-only endpoints.
 
-6 GET endpoints across 3 Organization tables. No authentication.
+6 GET endpoints across the organization table plus Foundation
+master_data (for type/status). No authentication.
 nss_db_backend connects with SELECT-only privileges.
 
 Endpoint groups:
-  - Reference:   types, statuses
+  - Reference:   types, statuses (from master_data)
   - Core:        organizations (list, detail, children)
   - Navigation:  hierarchy (recursive CTE tree)
 
-Organization depends on Foundation tables (country, state, district,
-city_village, postal_code) for address resolution — these are LEFT
-JOINed since address fields are nullable.
+Organization type values are stored in Foundation master_data
+under category ORGANIZATION_TYPE. Status values use the unified
+ERP-wide STATUS category (shared across all modules).
 """
 ```
 
-States "6 GET endpoints across 3 Organization tables," names the three endpoint groups
-(Reference / Core / Navigation), and notes the LEFT JOIN dependency on Foundation
-geographic tables.
+States "6 GET endpoints across the organization table plus Foundation master_data," names the
+three endpoint groups (Reference / Core / Navigation), and — new in v2.0 — explicitly documents
+that type/status values now live in Foundation's `master_data` rather than dedicated
+Organization tables (categories `ORGANIZATION_TYPE` and the unified, cross-module `STATUS`).
 
-Lines 17–19:
+Lines 18–20:
 
 ```python
 from uuid import UUID
@@ -2092,21 +2101,23 @@ Same imports as `foundation.py`: `UUID` for path parameters, `APIRouter` for gro
 `Depends` for connection injection, `HTTPException` for 404 responses, `Query` for optional
 filter parameters.
 
-Lines 21–27:
+Lines 22–28:
 
 ```python
 from api.database import get_connection
 from api.schemas.organization import (
     OrganizationHierarchyNodeResponse,
     OrganizationResponse,
-    OrganizationStatusResponse,
     OrganizationTypeResponse,
+    StatusResponse,
 )
 ```
 
-All 4 response models used by this router.
+All 4 response models used by this router. `StatusResponse` (renamed from
+`OrganizationStatusResponse`) reflects that lifecycle status is no longer Organization-owned —
+it's the shared, unified `STATUS` category from Foundation.
 
-Line 29:
+Line 30:
 
 ```python
 router = APIRouter(prefix="/api/v1/organization", tags=["organization"])
@@ -2114,7 +2125,7 @@ router = APIRouter(prefix="/api/v1/organization", tags=["organization"])
 
 Separate prefix and Swagger tag from the bootstrap and foundation routers.
 
-Lines 34–46 — helpers:
+Lines 35–47 — helpers:
 
 ```python
 def _rows_to_models(cur, model_class):
@@ -2136,7 +2147,7 @@ Identical to the helpers in `foundation.py` — the same "cursor → Pydantic" b
 are **not** imported from `foundation.py`; each router file owns its own copy, keeping the
 modules independently self-contained (no cross-router import dependency).
 
-Lines 51–96 — shared SQL fragment:
+Lines 52–105 — shared SQL fragment:
 
 ```python
 _ORG_SELECT = """
@@ -2144,12 +2155,12 @@ _ORG_SELECT = """
            o.organization_id,
            o.organization_name,
            o.organization_code,
-           ot.organization_type_pk,
-           ot.organization_type_code,
-           ot.organization_type_name,
-           os.organization_status_pk,
-           os.organization_status_code,
-           os.organization_status_name,
+           ot.master_data_pk   AS organization_type_pk,
+           ot.value_code       AS organization_type_code,
+           ot.value_name       AS organization_type_name,
+           os.master_data_pk   AS status_pk,
+           os.value_code       AS status_code,
+           os.value_name       AS status_name,
            o.parent_organization_pk,
            p.organization_name AS parent_organization_name,
            o.address_line_1,
@@ -2176,10 +2187,10 @@ _ORG_SELECT = """
            o.longitude,
            o.is_active
     FROM   nss.organization o
-    JOIN   nss.organization_type_master ot
-           ON ot.organization_type_pk = o.organization_type_pk
-    JOIN   nss.organization_status_master os
-           ON os.organization_status_pk = o.organization_status_pk
+    JOIN   nss.master_data ot
+           ON ot.master_data_pk = o.organization_type_master_data_pk
+    JOIN   nss.master_data os
+           ON os.master_data_pk = o.status_master_data_pk
     LEFT JOIN nss.organization p
            ON p.organization_pk = o.parent_organization_pk
     LEFT JOIN nss.district d
@@ -2198,102 +2209,142 @@ _ORG_SELECT = """
 A module-level constant holding the reusable SELECT + FROM + JOIN block shared by the list,
 detail, and children endpoints. This is the Organization router's equivalent of
 `foundation.py`'s inline `base_sql` fragments, but factored into a single constant because
-all three endpoints use the exact same 27-column, 8-join query shape and only differ in
+all three endpoints use the exact same 35-column, 8-join query shape and only differ in
 their WHERE clause.
 
 The 8 JOINs:
-- 2 × `JOIN` (inner) — `organization_type_master` and `organization_status_master`: every
-  organization row has exactly one type and one status, so inner joins are correct.
+- 2 × `JOIN` (inner) — both against `nss.master_data`, aliased `ot` (type) and `os` (status):
+  every organization row has exactly one type and one status, so inner joins are correct. Unlike
+  the retired dedicated tables, both joins now target the *same* `master_data` table — the
+  distinction between "type" and "status" comes entirely from which FK column
+  (`organization_type_master_data_pk` vs `status_master_data_pk`) drives the join, not from
+  which table is joined. Note `_ORG_SELECT` does **not** itself filter `ot`/`os` by
+  `category_code` — it relies on each `organization` row's FK already pointing at the correct
+  category's `master_data` row (enforced at data-entry time, not by this query or by the FK
+  constraint itself, which only guarantees the row exists in `master_data`, not which category
+  it belongs to).
 - 6 × `LEFT JOIN` — `organization p` (parent, nullable self-FK), `district`, `state`,
   `country`, `city_village`, `postal_code`: all nullable FK columns, so a `LEFT JOIN`
   ensures rows with no address or no parent still appear in results.
 
 The aliased column `p.organization_name AS parent_organization_name` resolves the parent's
 display name in the same query, so the UI never needs a separate call to look up a parent.
+`ot.master_data_pk AS organization_type_pk` and `os.master_data_pk AS status_pk` (plus the
+matching `value_code`/`value_name` aliases) keep the response field names stable
+(`organization_type_pk/code/name`, `status_pk/code/name`) even though the underlying columns are
+now `master_data`'s generic `master_data_pk`/`value_code`/`value_name` — the aliasing is what
+lets `OrganizationResponse` stay decoupled from the physical schema.
 
-**Reference Data endpoints (lines 104–135):**
+**Reference Data endpoints (lines 113–156):**
 
-Lines 104–118 — `GET /types`:
+Lines 113–133 — `GET /types`:
 
 ```python
 @router.get("/types", response_model=list[OrganizationTypeResponse])
 def list_organization_types(
     conn=Depends(get_connection),
 ) -> list[OrganizationTypeResponse]:
-    """List all active organization types (8 frozen types)."""
+    """List all active organization types (10 frozen types from master_data)."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT organization_type_pk, organization_type_code,
-                   organization_type_name, description,
-                   sort_order, is_active
-            FROM   nss.organization_type_master
-            WHERE  is_active = TRUE
-            ORDER BY sort_order
+            SELECT md.master_data_pk  AS organization_type_pk,
+                   md.value_code      AS organization_type_code,
+                   md.value_name      AS organization_type_name,
+                   md.description,
+                   md.display_order   AS sort_order,
+                   md.is_active
+            FROM   nss.master_data md
+            JOIN   nss.master_category mc
+                   ON mc.master_category_pk = md.master_category_pk
+            WHERE  mc.category_code = 'ORGANIZATION_TYPE'
+              AND  md.is_active = TRUE
+            ORDER BY md.display_order
         """)
         return _rows_to_models(cur, OrganizationTypeResponse)
 ```
 
-Flat query (no JOIN) against `nss.organization_type_master`, `ORDER BY sort_order`. Returns
-the 8 frozen organization types (KENDRA, NILACHALA_KUTIRA, SMRUTI_MANDIRA,
-ANCHALIKA_SANGHA, ZILLA_SANGHA, SAKHA_SANGHA, SAKHA_ASANA, PATHA_CHAKRA).
+Queries Foundation's `nss.master_data` JOINed to `nss.master_category`, filtered to
+`category_code = 'ORGANIZATION_TYPE'`, `ORDER BY md.display_order`. This replaces the
+pre-migration flat query against the now-retired `nss.organization_type_master`. Returns the 10
+frozen organization types (KENDRA, NILACHALA_KUTIRA, SMRUTI_MANDIRA, ANCHALIKA_SANGHA,
+ZILLA_SANGHA, SAKHA_SANGHA, SAKHA_ASANA, PARIBARIK_ASANA, PARIBARIK_SANGHA, PATHA_CHAKRA) — two
+more than the pre-migration 8, since `PARIBARIK_ASANA` and `PARIBARIK_SANGHA` were added to the
+`ORGANIZATION_TYPE` category during the same migration. `md.display_order` (Foundation's generic
+column name) is aliased `AS sort_order` so `OrganizationTypeResponse`'s field name is unaffected
+by the underlying schema change.
 
-Lines 121–135 — `GET /statuses`:
+Lines 136–156 — `GET /statuses`:
 
 ```python
-@router.get("/statuses", response_model=list[OrganizationStatusResponse])
-def list_organization_statuses(
+@router.get("/statuses", response_model=list[StatusResponse])
+def list_statuses(
     conn=Depends(get_connection),
-) -> list[OrganizationStatusResponse]:
-    """List all active organization lifecycle statuses (6 statuses)."""
+) -> list[StatusResponse]:
+    """List all active lifecycle statuses (13 unified statuses from master_data)."""
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT organization_status_pk, organization_status_code,
-                   organization_status_name, description,
-                   sort_order, is_active
-            FROM   nss.organization_status_master
-            WHERE  is_active = TRUE
-            ORDER BY sort_order
+            SELECT md.master_data_pk  AS status_pk,
+                   md.value_code      AS status_code,
+                   md.value_name      AS status_name,
+                   md.description,
+                   md.display_order   AS sort_order,
+                   md.is_active
+            FROM   nss.master_data md
+            JOIN   nss.master_category mc
+                   ON mc.master_category_pk = md.master_category_pk
+            WHERE  mc.category_code = 'STATUS'
+              AND  md.is_active = TRUE
+            ORDER BY md.display_order
         """)
-        return _rows_to_models(cur, OrganizationStatusResponse)
+        return _rows_to_models(cur, StatusResponse)
 ```
 
-Flat query against `nss.organization_status_master`, `ORDER BY sort_order`. Returns the 6
-lifecycle statuses (PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, ARCHIVED).
+Identical shape to `/types`, filtered to `category_code = 'STATUS'` instead. This is the same
+handler name change as the schema rename — `list_organization_statuses` became `list_statuses`,
+and the docstring/route now says "lifecycle statuses" rather than "organization lifecycle
+statuses," since `STATUS` is a unified category shared across modules, not owned by
+Organization. Returns the 13 lifecycle statuses (PROPOSED, APPROVED, ACTIVE, INACTIVE,
+SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, DECEASED, DISSOLVED, ARCHIVED, EXPIRED) —
+more than double the pre-migration 6, since `STATUS` absorbs values that used to be split across
+a hypothetical per-module `ORGANIZATION_STATUS` and Person/Membership's `MEMBERSHIP_STATUS`.
 
-**Core CRUD-read endpoints (lines 143–223):**
+**Core CRUD-read endpoints (lines 164–244):**
 
-Lines 143–168 — `GET /organizations`:
+Lines 164–189 — `GET /organizations`:
 
 ```python
 @router.get("/organizations", response_model=list[OrganizationResponse])
 def list_organizations(
     type_code: str | None = Query(None, description="Filter by organization type code"),
-    status_code: str | None = Query(None, description="Filter by organization status code"),
+    status_code: str | None = Query(None, description="Filter by status code"),
     conn=Depends(get_connection),
 ) -> list[OrganizationResponse]:
 ```
 
 Builds the query by appending `WHERE o.is_active = TRUE` to `_ORG_SELECT`, then optionally
-appending `AND ot.organization_type_code = %s` and/or `AND os.organization_status_code =
-%s`. Unlike Foundation's `master-data` (which uses `elif` — mutually exclusive filters),
-here both filters are **independently combinable** with `if`/`if` (not `if`/`elif`) —
-filtering by both type and status simultaneously is valid.
+appending `AND ot.value_code = %s` and/or `AND os.value_code = %s` (renamed from
+`ot.organization_type_code`/`os.organization_status_code`, since the joined table is now
+`master_data` whose value column is generically named `value_code`). Unlike Foundation's
+`master-data` (which uses `elif` — mutually exclusive filters), here both filters are
+**independently combinable** with `if`/`if` (not `if`/`elif`) — filtering by both type and
+status simultaneously is valid. The final `ORDER BY ot.display_order, o.organization_name` also
+switched from `ot.sort_order` to `ot.display_order` to match `master_data`'s column name.
 
-Lines 171–187 — `GET /organizations/{organization_pk}`:
+Lines 192–208 — `GET /organizations/{organization_pk}`:
 
 Same `_ORG_SELECT` with a PK filter and `AND o.is_active = TRUE`, 404 if `_row_to_model`
 returns `None`.
 
-Lines 190–223 — `GET /organizations/{organization_pk}/children`:
+Lines 211–244 — `GET /organizations/{organization_pk}/children`:
 
 Two-cursor pattern (same as `bootstrap.py`'s `list_role_permissions`): the first cursor
 verifies the parent organization exists with `SELECT 1 FROM nss.organization WHERE
 organization_pk = %s AND is_active = TRUE`; 404 if missing. The second cursor fetches
-direct children via `WHERE o.parent_organization_pk = %s AND o.is_active = TRUE`. In the
-current seed state (3 root organizations, no children), this always returns an empty list
-for valid parents.
+direct children via `WHERE o.parent_organization_pk = %s AND o.is_active = TRUE`, ordered by
+`ot.display_order, o.organization_name`. In the current seed state (3 root organizations, no
+children), this always returns an empty list for valid parents.
 
-**Hierarchy endpoint (lines 231–288):**
+**Hierarchy endpoint (lines 252–309):**
 
 ```python
 @router.get("/hierarchy", response_model=list[OrganizationHierarchyNodeResponse])
@@ -2306,37 +2357,49 @@ The most complex query in the codebase. `WITH RECURSIVE org_tree AS (...)` defin
 recursive CTE with two parts:
 
 - **Anchor member** — selects root organizations (`WHERE o.parent_organization_pk IS NULL
-  AND o.is_active = TRUE`), joining to `organization_type_master` and
-  `organization_status_master` for display names, and hardcoding `0 AS depth`.
+  AND o.is_active = TRUE`), joining to `nss.master_data` (aliased `ot`/`os`) via
+  `organization_type_master_data_pk`/`status_master_data_pk` for display names — the same
+  master_data-based join pattern as `_ORG_SELECT`, not a separate dedicated-table join — and
+  hardcoding `0 AS depth`.
 - **Recursive member** — selects children by joining `nss.organization o` to `org_tree t ON
-  t.organization_pk = o.parent_organization_pk`, computing `t.depth + 1` for each child
-  level. PostgreSQL executes this recursively until no new rows are produced.
+  t.organization_pk = o.parent_organization_pk` (plus the same two `master_data` joins),
+  computing `t.depth + 1` for each child level. PostgreSQL executes this recursively until no
+  new rows are produced.
 
 The final `SELECT * FROM org_tree ORDER BY depth, organization_name` returns the flat list
 sorted breadth-first (all depth-0 roots first, then depth-1 children, etc.). This is
 deliberately a **flat** representation — the UI uses `depthIndent(depth)` (see
 `UI_CODE_EXPLANATIONS.md`) to visually indent nodes, rather than receiving nested JSON.
 
-The recursive CTE uses a **leaner column set** than `_ORG_SELECT` (10 columns vs 36) — no
+The recursive CTE uses a **leaner column set** than `_ORG_SELECT` (10 columns vs 35) — no
 address fields, no contact/online-presence fields, no geographic LEFT JOINs, no parent name resolution — because the hierarchy
 view shows only the organizational structure (name, type, status, depth), not full detail.
-This maps to the dedicated `OrganizationHierarchyNodeResponse` schema (§2.10).
+This maps to the dedicated `OrganizationHierarchyNodeResponse` schema (§2.10), whose
+`status_code`/`status_name` fields (renamed from `organization_status_code`/
+`organization_status_name`) are resolved the same `os.value_code`/`os.value_name` way as
+everywhere else in this router.
 
 ---
 
 ### 2.10 `api/schemas/organization.py`
 
+> **v2.0 (2026-09-12):** `OrganizationStatusResponse` renamed to `StatusResponse` — its fields
+> renamed `organization_status_pk/code/name` → `status_pk/code/name` — reflecting that status is
+> now sourced from Foundation's shared, unified `STATUS` category rather than an
+> Organization-owned table. `OrganizationResponse` and `OrganizationHierarchyNodeResponse`'s
+> status fields are renamed to match; their `organization_type_*` fields are unchanged.
+
 **Requirement**
 
 `api/routers/organization.py` needs 4 typed response models: one for each reference-data
-catalogue (types, statuses), one for the full organization detail (36 fields including 8
+catalogue (types, statuses), one for the full organization detail (35 fields including 8
 JOINed context fields and 9 contact/online-presence fields), and one for the hierarchy tree's leaner node shape (10 fields).
 Without this file the Organization router would have no `response_model=` to validate
 against.
 
 **Line-by-line**
 
-Lines 1–9 — module docstring:
+Lines 1–13 — module docstring:
 
 ```python
 """
@@ -2345,32 +2408,68 @@ Pydantic response models for the Organization API (Tier 2).
 All models exclude audit columns (created_at, updated_at, deleted_at)
 per the project's API convention established in Tier 0.
 
+Organization type is sourced from Foundation master_data (category
+ORGANIZATION_TYPE). Status is sourced from the unified ERP-wide
+STATUS category — a single shared category used by all modules.
+
 Raw psycopg2 returns dictionaries — no ORM objects — so
 ConfigDict(from_attributes=True) is unnecessary.
 """
 ```
 
 Same audit-column exclusion and ConfigDict note as `schemas/bootstrap.py` and
-`schemas/foundation.py`.
+`schemas/foundation.py`, plus a new paragraph (v2.0) documenting where type/status values now
+come from — Foundation's shared `master_data`, not dedicated Organization tables.
 
-Lines 16–24 — `OrganizationTypeResponse` (6 fields):
+Lines 20–28 — `OrganizationTypeResponse` (6 fields):
 
-Maps 1:1 to `nss.organization_type_master`: `organization_type_pk`, `organization_type_code`,
-`organization_type_name`, `description` (nullable), `sort_order`, `is_active`.
+```python
+class OrganizationTypeResponse(BaseModel):
+    """Organization type from nss.master_data (category: ORGANIZATION_TYPE)."""
 
-Lines 27–35 — `OrganizationStatusResponse` (6 fields):
+    organization_type_pk: UUID
+    organization_type_code: str
+    organization_type_name: str
+    description: str | None
+    sort_order: int
+    is_active: bool
+```
 
-Maps 1:1 to `nss.organization_status_master`: `organization_status_pk`,
-`organization_status_code`, `organization_status_name`, `description` (nullable),
-`sort_order`, `is_active`.
+Field names (`organization_type_pk/code/name`) are unchanged from before the migration — only
+the docstring changed, to say the values come "from `nss.master_data` (category:
+`ORGANIZATION_TYPE`)" instead of from a dedicated `organization_type_master` table. The router's
+`AS organization_type_pk` / `AS organization_type_code` / `AS organization_type_name` aliasing
+(§2.9) is what keeps this schema's field names stable across the underlying table swap.
 
-Lines 38–86 — `OrganizationResponse` (36 fields):
+Lines 31–39 — `StatusResponse` (6 fields, renamed from `OrganizationStatusResponse`):
+
+```python
+class StatusResponse(BaseModel):
+    """Lifecycle status from nss.master_data (category: STATUS)."""
+
+    status_pk: UUID
+    status_code: str
+    status_name: str
+    description: str | None
+    sort_order: int
+    is_active: bool
+```
+
+Both the class name and its three identity fields (`status_pk`, `status_code`, `status_name` —
+previously `organization_status_pk`, `organization_status_code`, `organization_status_name`)
+dropped the `organization_` prefix, since this is no longer an Organization-specific concept: it's
+the unified, ERP-wide `STATUS` category from Foundation, shared by memberships, governance, and
+any future module.
+
+Lines 42–107 — `OrganizationResponse` (35 fields):
 
 The largest response model in the codebase. Field groups match the `_ORG_SELECT` column list:
 - 4 core fields (`organization_pk`, `organization_id`, `organization_name`,
   `organization_code`).
-- 3 classification fields from `organization_type_master` via JOIN.
-- 3 lifecycle fields from `organization_status_master` via JOIN.
+- 3 classification fields (`organization_type_pk/code/name`) resolved from `nss.master_data`
+  (category `ORGANIZATION_TYPE`) via JOIN — field names unchanged from before the migration.
+- 3 lifecycle fields (`status_pk/code/name`, renamed from `organization_status_pk/code/name`)
+  resolved from the same `nss.master_data` table (category `STATUS`) via a second JOIN.
 - 2 hierarchy fields (`parent_organization_pk` + `parent_organization_name` via self-LEFT
   JOIN).
 - 2 inline address fields (`address_line_1`, `address_line_2`).
@@ -2383,14 +2482,18 @@ The largest response model in the codebase. Field groups match the `_ORG_SELECT`
 - 1 `is_active`.
 
 Every nullable field uses `UUID | None`, `str | None`, or `float | None` — matching the
-LEFT JOIN / nullable-FK reality.
+LEFT JOIN / nullable-FK reality. The docstring's closing paragraph spells out the rename
+explicitly: "Type fields are aliased from master_data columns for the ORGANIZATION_TYPE
+category. Status fields use the unified ERP-wide STATUS category."
 
-Lines 89–107 — `OrganizationHierarchyNodeResponse` (10 fields):
+Lines 109–127 — `OrganizationHierarchyNodeResponse` (10 fields):
 
 The leaner shape used by the `/hierarchy` endpoint's recursive CTE. Includes `depth: int`
 (computed by the CTE as `0` for roots, `depth + 1` for children) and the type/status
-display names, but no address/geographic fields. The docstring explicitly notes "Children
-are not nested — the tree is returned flat."
+display names — `organization_type_code`/`organization_type_name` plus `status_code`/
+`status_name` (the latter two renamed from `organization_status_code`/
+`organization_status_name`) — but no address/geographic fields. The docstring explicitly notes
+"Children are not nested — the tree is returned flat."
 
 ---
 

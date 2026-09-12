@@ -30,7 +30,7 @@ The codebase today is an early-stage skeleton: a Tier 0 + Tier 1 + Tier 2 FastAP
 plus 6 read-only Organization endpoints (no ORM, no auth, raw `psycopg2` against `nss.*`) behind
 a cross-tier security middleware stack (security headers, opt-in CORS, rate limiting — see
 Architecture below), a growing raw-SQL PostgreSQL schema (Bootstrap RBAC: 3
-tables; Foundation: 12 tables; Organization: 3 tables — 18 tables implemented and committed in
+tables; Foundation: 12 tables; Organization: 1 table — 16 tables implemented and committed in
 total, plus a superseded Person prototype; see the `database/` detail below), a `tests/` pytest
 suite (139 integration tests against a real local Postgres), and an extensive, mature
 governance/documentation corpus that is significantly ahead of the code. Solution-layer design
@@ -169,7 +169,7 @@ dependency graph across 86 frozen tables, topologically sorted into 8 depths wit
 resolves the audit-actor circular-dependency problem via a two-pass DDL strategy) →
 `DDL_CREATION_ORDER.md` ("Gate 9" — the exact numbered `CREATE TABLE` sequence for all 86
 tables plus the Pass-2 deferred-constraint list). Tiers 1-2 (Foundation, Organization) of the
-12-tier order are executed — 15 tables live under `database/ddl/01_foundation/`/`database/ddl/
+12-tier order are executed — 13 tables live under `database/ddl/01_foundation/`/`database/ddl/
 02_organization/` and their matching seed folders; Tiers 3-12 remain unimplemented. Note:
 `IMPLEMENTATION_DEPENDENCY_ORDER.md`'s own closing status section (§79) reflects Tier 1
 completion but hasn't been updated for Tier 2.
@@ -431,8 +431,11 @@ api/
 │   │                   `field_change_log` deliberately not exposed (deferred to Tier 5 — needs
 │   │                   auth); see Key workflows below and
 │   │                   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`
-│   └── organization.py 6 endpoints under `/api/v1/organization` across 3 tables — reference
-│                       (`/types`, `/statuses`), core (`/organizations` with optional
+│   └── organization.py 6 endpoints under `/api/v1/organization` across `nss.organization` plus
+│                       Foundation's `master_data` — reference (`/types`, `/statuses`, both
+│                       querying `master_data` filtered by `master_category.category_code`
+│                       `ORGANIZATION_TYPE`/`STATUS` — 10 types, 13 statuses), core
+│                       (`/organizations` with optional
 │                       `type_code`/`status_code` filters, `/organizations/{organization_pk}`,
 │                       `/organizations/{organization_pk}/children`), navigation (`/hierarchy`,
 │                       a `WITH RECURSIVE org_tree` CTE returning a flat depth-annotated list);
@@ -448,7 +451,10 @@ api/
     │                    one per exposed table/view; excludes audit columns plus
     │                    `current_value` (sequences) and unimplemented FK columns (documents)
     └── organization.py 4 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
-                         OrganizationTypeResponse, OrganizationStatusResponse,
+                         OrganizationTypeResponse, StatusResponse (renamed from
+                         `OrganizationStatusResponse` now that it backs the unified,
+                         cross-module `STATUS` master-data category rather than an
+                         organization-only status table),
                          OrganizationResponse (full contact/online-presence fields — nullable
                          `phone_number`/`mobile_number`/`org_email`/`org_website_url`/
                          `org_youtube_channel_url`; required `email`/`website_url`/
@@ -609,26 +615,37 @@ database/
 │   │                     document_master, field_change_log, master_data, state, district,
 │   │                     city_village, postal_code, city_village_postal_code_map. Supersedes
 │   │                     an older prototype (see `database/README.md` Superseded Artifacts)
-│   ├── 02_organization/  Implemented — 3 tables: organization_type_master,
-│   │                     organization_status_master, organization (self-referencing
-│   │                     hierarchy, address inline, no `organization_address` table). Matches
-│   │                     the frozen generic structure; `organization_code` naming/width/
-│   │                     nullability and the seeded type codes don't yet match two separate
-│   │                     frozen/design specs — see Gotchas
+│   ├── 02_organization/  Implemented — 1 table: organization (self-referencing
+│   │                     hierarchy, address inline, no `organization_address` table). The
+│   │                     former `organization_type_master`/`organization_status_master` tables
+│   │                     were retired — organization type and status are now rows in
+│   │                     Foundation's generic `master_data` (categories `ORGANIZATION_TYPE`,
+│   │                     `STATUS`), referenced via `organization_type_master_data_pk`/
+│   │                     `status_master_data_pk`. This diverges from the frozen generic
+│   │                     3-table structure; `organization_code` naming/width/nullability and
+│   │                     the seeded type codes also don't yet match two separate frozen/design
+│   │                     specs — see Gotchas
 │   └── 03_person/        person_master_tables.sql (gender/marital_status/address_type masters), person.sql, person_address.sql — superseded prototype (uses per-domain masters, not the `master_data` pattern implemented in `01_foundation/`); will be replaced (see `feature/person-ddl`)
 └── seed/
     ├── 00_bootstrap/     `role_master`: 8 roles seeded (3 SYSTEM + 5 ORGANIZATIONAL,
     │                     matching SOL-ADMIN-004 §8.7 frozen catalogue);
     │                     `permission_master`/`role_permission`: empty, pending the permission
     │                     catalogue
-    ├── 01_foundation/    Implemented — 8 seed files: 11 master categories, 58 master data
+    ├── 01_foundation/    Implemented — 8 seed files: 12 master categories, 74 master data
     │                     values (GENDER/MARITAL_STATUS/ADDRESS_TYPE/DOCUMENT_TYPE/
-    │                     MEMBERSHIP_TYPE/MEMBERSHIP_STATUS/RELATIONSHIP_TYPE), 9 ID sequences
-    │                     (PERSON zero-padded to 10 digits — see Gotchas), 5 countries, 112
+    │                     MEMBERSHIP_TYPE/STATUS/RELATIONSHIP_TYPE/ORGANIZATION_TYPE — `STATUS`
+    │                     is a unified, cross-module category replacing the former
+    │                     `MEMBERSHIP_STATUS`, now 13 values; `ORGANIZATION_TYPE` moved here
+    │                     from Organization, now 10 values), 11 ID sequences (PERSON
+    │                     zero-padded to 10 digits — see Gotchas; includes 2 new sequences,
+    │                     `PARIBARIK_ASANA`/`PARIBARIK_SANGHA`, added for the 2 new organization
+    │                     types), 5 countries, 112
     │                     states, ~770 districts (India only), 4 system settings, 2 postal
     │                     codes (minimal bootstrap set — full postal code data is a future task)
-    ├── 02_organization/  Implemented — 8 organization types, 1 status master, 3 unique named
-    │                     organizations (Kendra, Nilachala Kutira, Smruti Mandira)
+    ├── 02_organization/  Implemented — 3 unique named
+    │                     organizations (Kendra, Nilachala Kutira, Smruti Mandira); organization
+    │                     type (10 values) and status (13 values) seed data now lives in
+    │                     `01_foundation/` `master_data`, not here
     └── 03_person/        gender/marital_status/address_type seed rows — superseded prototype, seeds tables that don't exist in the new pattern
 ```
 
@@ -742,7 +759,9 @@ has no API — see Key Workflow #3). **Foundation and Organization are now the e
 Foundation's Solution-layer design (10 tables described) is not just implemented in SQL (12
 tables, see above) but also has a full read-only API (`api/routers/foundation.py`, 17 endpoints)
 and verification UI (`frontend/foundation.html`); Organization's Solution-layer design (3 tables)
-is likewise implemented in SQL and now also has a full read-only API
+is **no longer** matched 1:1 in SQL — only 1 physical table (`organization`) remains, with type/
+status now sourced from Foundation's `master_data` (see Key Workflow #4 and Gotchas) — but it
+still has a full read-only API
 (`api/routers/organization.py`, 6 endpoints) and verification UI
 (`frontend/organization.html`) — both are complete DB→API→UI vertical slices, released as
 v0.7.0 (Foundation) and v0.8.0 (Organization). The only other implemented API surface in the codebase is the Tier 0
@@ -780,7 +799,7 @@ summarize the full sequence from a clean machine to a running API.
    6. `04_grant_backend.sql` (as `nss_db_owner`) — grants `nss_db_backend` read-only `SELECT` on
       all `nss.*` tables (plus future tables via `ALTER DEFAULT PRIVILEGES`), for the API layer.
 
-   The build covers 18 tables across 3 modules (3 Bootstrap RBAC + 12 Foundation + 3
+   The build covers 16 tables across 3 modules (3 Bootstrap RBAC + 12 Foundation + 1
    Organization); `03_person/` is a superseded prototype and is skipped. Cross-platform:
    `.sh` and `.ps1` wrappers are operationally identical — same SQL, same execution order, same
    password-prompt behavior. This raw-SQL schema **is** now consumed — read-only — by the
@@ -892,12 +911,15 @@ exist yet). All three endpoints are unauthenticated, read-only, and connect as `
 
 ### 3. Person business-ID generation (SQL-schema track, not yet wired to any API)
 `database/ddl/01_foundation/04_id_sequence_master.sql` defines an `id_sequence_master` table —
-a registry of `{sequence_code, prefix, current_value, padding_length}` rows, seeded with **9**
+a registry of `{sequence_code, prefix, current_value, padding_length}` rows, seeded with **11**
 sequences (`database/seed/01_foundation/03_id_sequence_master.sql`): `PERSON`→`P` (padding
 **10** — first code is `P0000000001`, 11 characters), `SANGHA_SEVI`→`SS`, `ANCHALIKA`→`ANC`,
-`ZILLA`→`ZL`, `SAKHA`→`SKH`, `SAKHA_ASANA`→`SA`, `PATHA_CHAKRA`→`PC`, `FAMILY`→`F`,
-`DOCUMENT`→`DOC` (all padding 8 except `PERSON`). The five org-type-specific prefixes
-correspond to the Organization module's frozen 8-type inventory (see Gotchas). This produces
+`ZILLA`→`ZL`, `SAKHA`→`SKH`, `SAKHA_ASANA`→`SA`, `PATHA_CHAKRA`→`PC`, `PARIBARIK_ASANA`→`PA`,
+`PARIBARIK_SANGHA`→`PS`, `FAMILY`→`F`,
+`DOCUMENT`→`DOC` (all padding 8 except `PERSON`, and `PARIBARIK_ASANA`/`PARIBARIK_SANGHA` at 5/3
+respectively). The org-type-specific prefixes now cover **10** organization types, 2 more
+(`PARIBARIK_ASANA`/`PARIBARIK_SANGHA`) than the Organization module's frozen 8-type inventory
+(see Gotchas). This produces
 IDs for the `person.person_code` column (`database/ddl/03_person/02_person.sql`, superseded
 prototype, still uses an older 4-sequence/8-digit assumption) — **but** the current Person
 module design doc (`docs/03_Solution/modules/person/05_person_table_design.md`, v1.0.0 SOURCE
@@ -914,20 +936,33 @@ tables only, address inline on `organization` (no separate `organization_address
 **The specific Kendra → Anchalika/Zilla → Sakha → Patha_Chakra type-to-type parent matrix is
 explicitly NOT frozen** — the business rules doc's §22 "Rules Explicitly Not Assumed" lists
 both the exact parent-compatibility matrix and the exact `organization_type_master` seed values
-as open items; only the generic apex + self-referencing structure is frozen. **Implemented in
-SQL** at `database/ddl/02_organization/` — the 3-table structure matches the frozen design
-exactly. Anyone picking up further organization work should treat the design docs as the
-eventual target, but should not assume the type-hierarchy specifics are settled.
+as open items; only the generic apex + self-referencing structure is frozen. **As implemented,
+this 3-table design has been superseded**: `database/ddl/02_organization/` now defines only the
+`organization` table itself. The former `organization_type_master`/`organization_status_master`
+tables were retired and their rows migrated into Foundation's generic `master_data` (categories
+`ORGANIZATION_TYPE`, `STATUS`), matching the project's frozen "Master Data Driven" principle but
+no longer matching this module's own frozen v1.1.0 table design. Anyone picking up further
+organization work should treat the design docs as the historical target, not the current
+physical schema — see Gotchas for the full reconciliation status (this diverges from
+`FK_DEPENDENCY_GRAPH.md`, `DDL_CREATION_ORDER.md`, and the Governance Baseline's naming/master-
+data-catalogue docs too, none of which have been reconciled with this migration).
 
 **API now implemented.** `api/routers/organization.py` (prefix `/api/v1/organization`) exposes 6
 read-only GET endpoints — the same raw-`psycopg2`/`Depends(get_connection)` pattern as Tier 0/1.
 Grouped by theme:
-- **Reference:** `/types`, `/statuses` — `nss.organization_type_master`/`organization_status_master`.
+- **Reference:** `/types`, `/statuses` — both now query Foundation's `nss.master_data` joined to
+  `nss.master_category`, filtered by `category_code = 'ORGANIZATION_TYPE'` (10 active values) /
+  `'STATUS'` (13 active values, a unified cross-module category replacing the former
+  per-module `MEMBERSHIP_STATUS`/`ORGANIZATION_STATUS` split) respectively — no longer the
+  dedicated `organization_type_master`/`organization_status_master` tables. The response model
+  for `/statuses` was renamed `StatusResponse` (from `OrganizationStatusResponse`) to reflect
+  that it's no longer organization-specific.
 - **Core:** `/organizations` (optional `type_code`/`status_code` filters),
   `/organizations/{organization_pk}` (404 if missing),
   `/organizations/{organization_pk}/children` (404 if the parent itself doesn't exist, then
   direct children only) — all three share one SQL fragment (`_ORG_SELECT`) that joins
-  `organization` to its type/status masters and LEFT JOINs the self-referencing parent plus
+  `organization` to `master_data` (via `organization_type_master_data_pk`/
+  `status_master_data_pk`) for type/status and LEFT JOINs the self-referencing parent plus
   Foundation's `district`/`state`/`country`/`city_village`/`postal_code` tables (address fields
   are nullable, hence LEFT JOIN).
 - **Navigation:** `/hierarchy` — a `WITH RECURSIVE org_tree` CTE (anchor:
@@ -955,18 +990,23 @@ Consumed by `frontend/organization.html`'s 3-tab UI (see `frontend/` detail abov
 doc's freeze of exactly **8 organization types** — `KENDRA`, `NILACHALA_KUTIRA`,
 `SMRUTI_MANDIRA` (unique, fixed business code) plus `ANCHALIKA`, `ZILLA`, `SAKHA`,
 `SAKHA_ASANA`, `PATHA_CHAKRA` (multiple, sequence-generated — `ANC`/`ZL`/`SKH`/`SA`/`PC`) — a
-type *inventory* freeze, distinct from the still-open type-to-type parent matrix above; (2)
+type *inventory* freeze, distinct from the still-open type-to-type parent matrix above. **As
+seeded, this is now 10 types, not 8**: `database/seed/01_foundation/02_master_data.sql`'s
+`ORGANIZATION_TYPE` category adds `PARIBARIK_ASANA`/`PARIBARIK_SANGHA` (with matching new
+`PARIBARIK_ASANA`/`PARIBARIK_SANGHA` sequences in `id_sequence_master`), neither of which is
+part of the frozen 8-type inventory — a further divergence not yet reconciled (see Gotchas); (2)
 `ORG-PENDING-001`, an `organization_short_code` column (`VARCHAR(5)`, `UNIQUE`, `NOT NULL`)
 frozen in `docs/03_Solution/architecture/CROSS_MODULE_PRINCIPLES.md` §20.1. **As implemented,
 this column does not match that spec**: `database/ddl/02_organization/03_organization.sql`
 defines it as `organization_code`, `VARCHAR(10)`, `UNIQUE`, **nullable** (comment: "3-5 chars,
 unique") — different name, wider column, and nullable rather than required. Separately, the
-seeded `organization_type_master` rows (`database/seed/02_organization/
-01_organization_type_master.sql`) use `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/`SAKHA_SANGHA` as
+seeded `ORGANIZATION_TYPE` `master_data` rows (`database/seed/01_foundation/02_master_data.sql`
+— formerly `database/seed/02_organization/01_organization_type_master.sql`, retired by this
+migration) use `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/`SAKHA_SANGHA` as
 business codes, not the short forms (`ANCHALIKA`/`ZILLA`/`SAKHA`) this module's own
 business-rules doc uses (`SAKHA_ASANA`/`PATHA_CHAKRA` do match). See Gotchas and Open questions
 for both — neither discrepancy blocks the read-only API above, which simply exposes whatever the
-DDL actually defines.
+DDL/master_data actually define.
 
 ### 5. Foundation API — master data, geography, config, runtime (implemented, Tier 1)
 `api/routers/foundation.py` (526 lines, prefix `/api/v1/foundation`) exposes 17 read-only GET
@@ -1060,11 +1100,40 @@ same directory.
   DDL on the business-identifier column name (`person_id` in the docs vs. `person_code` in SQL —
   see Key Workflow #3). Person's design used to describe a second table, `document_master`, but
   that was reassigned to Foundation (`DOC-ARCH-001` — see the Gotcha below); Person is now a
-  1-table design (`person` only). Organization's generic 3-table structure **is** implemented in
-  SQL and matches the design — but the implemented `organization_code` column doesn't match the
+  1-table design (`person` only). Organization's generic 3-table structure **is no longer**
+  implemented in SQL — only the `organization` table remains, with type/status now sourced from
+  Foundation's `master_data` (see the frozen-design-vs-implementation Gotcha below); separately,
+  the implemented `organization_code` column doesn't match the
   frozen `ORG-PENDING-001` spec (`organization_short_code`, `VARCHAR(5)`, `NOT NULL` vs. the
   actual `VARCHAR(10)`, nullable `organization_code`), and the seeded organization-type codes
   don't match the design docs' short forms — see Key Workflow #4.
+- **`organization_type_master`/`organization_status_master` retirement contradicts multiple
+  frozen/governance-aligned documents — needs a human governance decision, not a doc edit here.**
+  A migration removed the dedicated `organization_type_master`/`organization_status_master`
+  tables and replaced them with rows in Foundation's generic `master_data` (categories
+  `ORGANIZATION_TYPE`, 10 values; `STATUS`, a renamed/unified `MEMBERSHIP_STATUS`, now 13 values
+  shared across modules) — matching the project's frozen "Master Data Driven" principle, but
+  leaving several other frozen documents now factually wrong about the physical schema, and none
+  of them has been reconciled:
+  - `docs/03_Solution/architecture/FK_DEPENDENCY_GRAPH.md` (`SOL-ARCH-009`, FROZEN) still lists
+    both tables as nodes in its 86-table physical FK dependency graph.
+  - `docs/03_Solution/architecture/DDL_CREATION_ORDER.md` (`SOL-ARCH-010`, FROZEN) still lists
+    both tables in its numbered `CREATE TABLE` sequence.
+  - `docs/03_Solution/modules/organization/` design docs (v1.1.0, GOVERNANCE ALIGNED) still
+    describe a 3-table Organization design (`organization_type_master`,
+    `organization_status_master`, `organization`) as the frozen physical schema.
+  - `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md` (`SOL-DB-001`, DRAFT — already
+    tracked elsewhere in this section as having other stale/contradicted claims) references both
+    tables as worked examples.
+  - `docs/00_Project_Governance/STD/02_naming_conventions.md` and
+    `03_master_data_catalog.md` (Governance Baseline, FROZEN) both reference both tables by name.
+  Per this project's own convention that the Governance Baseline is frozen and not to be
+  redesigned without an explicit governance decision, none of the above have been edited to
+  match the new implementation, and the new implementation hasn't been rolled back to match
+  them either. This is flagged here only — a human governance decision is needed on whether the
+  frozen 3-table design should be amended to match the `master_data` implementation, or the
+  implementation should be reverted to the frozen 3-table design. See also Key Workflow #4 and
+  Open questions / TODOs.
 - **`.env` loading tolerates a Windows BOM.** `api/config.py:17` calls
   `load_dotenv(_env_path, encoding="utf-8-sig")` rather than plain UTF-8 — some Windows editors
   save `api/.env` with a UTF-8 BOM, which previously caused `DB_NAME` (the first key) to be
@@ -1338,14 +1407,17 @@ same directory.
   match the frozen spec, or the spec updated to match what was actually built. See Key Workflow
   #4/Gotchas.
 - **Reconcile seeded organization-type codes with the design docs' short forms.**
-  `database/seed/02_organization/01_organization_type_master.sql` seeds
+  `database/seed/01_foundation/02_master_data.sql` (formerly `database/seed/02_organization/
+  01_organization_type_master.sql`, retired by the `master_data` migration) seeds
   `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/`SAKHA_SANGHA`; the Organization module's own business rules
   doc uses the short forms `ANCHALIKA`/`ZILLA`/`SAKHA` (`SAKHA_ASANA`/`PATHA_CHAKRA` already
   match). Needs a decision on which form is authoritative before this seed data or the design
   docs are extended further.
 - **Seeded organization status includes `SUSPENDED`, contradicting the frozen business rule
-  that excludes it.** `database/seed/02_organization/02_organization_status_master.sql` seeds
-  6 statuses including `SUSPENDED`, but `03_organization_lifecycle.md` §81 ("No Unsupported
+  that excludes it.** `database/seed/01_foundation/02_master_data.sql` (formerly
+  `database/seed/02_organization/02_organization_status_master.sql`, retired by the
+  `master_data` migration) seeds `SUSPENDED` as one of the unified `STATUS` category's 13
+  values, but `03_organization_lifecycle.md` §81 ("No Unsupported
   States") and `04_organization_business_rules.md` ORG-BR-059 ("No Unsupported Status") both
   explicitly list `SUSPENDED` as an example of a status the design does **not** introduce
   without an approved governance change. Needs a decision on whether the seed data should drop
@@ -1391,6 +1463,13 @@ same directory.
 - **Resolve the `06_bootstrap_rbac_table_design.md`/`06_correspondence_register_erd.md`
   filename collision** in `docs/03_Solution/modules/administration/` — both are numbered `06`.
   See Gotchas.
+- **Decide how to reconcile the `organization_type_master`/`organization_status_master`
+  retirement with the frozen docs that still describe them as separate physical tables** —
+  `FK_DEPENDENCY_GRAPH.md`, `DDL_CREATION_ORDER.md`, the Organization module's own v1.1.0 design
+  docs, `DATABASE_DESIGN_STANDARDS.md`, and `STD/02_naming_conventions.md`/
+  `03_master_data_catalog.md` all still reference both tables; the implementation now uses
+  Foundation's `master_data` instead. Needs an explicit governance decision on which side
+  changes. See Gotchas.
 - ~~**Fix `database/scripts/03_validate.sh`'s `id_sequence_master` duplicate check**~~ — **FIXED.**
   Changed from `entity_name` to `sequence_code`.
 - **Reconcile `database/ddl/01_foundation/README.md`'s Design Decisions section with the actual

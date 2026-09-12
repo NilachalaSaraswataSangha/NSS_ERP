@@ -62,7 +62,7 @@ for f in database/seed/01_foundation/0*.sql; do
 done
 
 # ─────────────────────────────────────────────────
-# Phase 3: Organization DDL (3 tables, Depths 0–3)
+# Phase 3: Organization DDL (1 table, Depth 1)
 # ─────────────────────────────────────────────────
 for f in database/ddl/02_organization/0*.sql; do
     psql -U nss_db_owner -d nss_erp -f "$f"
@@ -157,11 +157,10 @@ dependency and may be created in any order.
 | 1 | Foundation | `12_postal_code.sql` | `postal_code` | 2 | #88 |
 | 1 | Foundation | `11_city_village.sql` | `city_village` | 3 | #32 |
 | 1 | Foundation | `13_city_village_postal_code_map.sql` | `city_village_postal_code_map` | 4 | #89 |
-| 3 | Organization | `01_organization_type_master.sql` | `organization_type_master` | 0 | #7 |
-| 3 | Organization | `02_organization_status_master.sql` | `organization_status_master` | 0 | #8 |
-| 3 | Organization | `03_organization.sql` | `organization` | 3 | #33 |
+| 3 | Organization | `03_organization.sql` | `organization` | 1 | #33 |
 
-**Total implemented: 18 tables (3 Bootstrap RBAC + 12 Foundation + 3 Organization)**
+**Total implemented: 16 tables (3 Bootstrap RBAC + 12 Foundation + 1 Organization)**
+**Organization type/status moved to Foundation `master_data` — standalone tables retired.**
 **Phase 0 seed partial: `role_master` seeded (8 roles); `permission_master`/`role_permission` empty, pending the permission catalogue freeze**
 
 See module READMEs for per-file details:
@@ -197,12 +196,12 @@ database/
 ├── ddl/
 │   ├── 00_bootstrap/     3 RBAC tables (Depths 0–1) — IMPLEMENTED
 │   ├── 01_foundation/    12 tables (Depths 0–4) — IMPLEMENTED
-│   ├── 02_organization/  3 tables (Depths 0–3) — IMPLEMENTED
+│   ├── 02_organization/  1 table (Depth 1) — IMPLEMENTED
 │   └── 03_person/        superseded prototype — WILL BE REPLACED
 ├── seed/
 │   ├── 00_bootstrap/     8 roles seeded; permission catalogue PENDING
 │   ├── 01_foundation/    reference data — IMPLEMENTED
-│   ├── 02_organization/  type masters + 3 unique orgs — IMPLEMENTED
+│   ├── 02_organization/  3 unique orgs (type/status via Foundation master_data) — IMPLEMENTED
 │   └── 03_person/        superseded prototype — WILL BE REPLACED
 └── README.md             this file
 ```
@@ -215,7 +214,7 @@ database/
 |--------|-------:|-----------|-------------|
 | Bootstrap RBAC | 3 | ✅ IMPLEMENTED | `permission_master`/`role_permission` seed pending permission catalogue freeze |
 | Foundation | 12 | ✅ IMPLEMENTED | — |
-| Organization | 3 | ✅ IMPLEMENTED | — |
+| Organization | 1 | ✅ IMPLEMENTED | — |
 | Person | 1 | ⬜ SUPERSEDED — will be rewritten | Freeze column list |
 | Authentication | 2 | ⏳ DESIGN | Freeze user_account, password_history columns |
 | Administration | 5 | ⏳ DESIGN | 3 RBAC tables in Bootstrap; correspondence columns pending |
@@ -311,8 +310,8 @@ Phases executed:
 | 0 | Bootstrap RBAC | 3 tables + seed (roles, permissions, mappings) |
 | 1 | Foundation | 12 tables (Depths 0–4) |
 | 2 | Foundation | Seed data (categories, locations, settings, postal codes) |
-| 3 | Organization | 3 tables (Depths 0–3) |
-| 4 | Organization | Seed data (types, statuses, named orgs) |
+| 3 | Organization | 1 table (Depth 1) |
+| 4 | Organization | Seed data (named orgs; types/statuses come from Foundation seed) |
 
 **Not executed:** `03_person/` (superseded prototype), Pass 2
 audit-actor FK constraints (deferred until `sangha_sevi` exists).
@@ -340,7 +339,7 @@ Validation checks per module:
 |--------|-------:|--------|
 | Bootstrap RBAC | 3 | Existence, 8 roles seeded, unique `role_code`, FK integrity (`role_permission` → both parents) |
 | Foundation | 12 | Existence, row counts (categories, locations, settings, postal codes), unique codes, FK integrity (location hierarchy, `master_data` → `master_category`), deferred columns on `document_master` |
-| Organization | 3 | Existence, 8 types / 6 statuses / 3 orgs seeded, unique codes, FK integrity (org → type, status, country, city_village, postal_code) |
+| Organization | 1 | Existence, 10 types / 13 unified statuses / 3 orgs seeded, unique codes, FK integrity (org → type, status, country, city_village, postal_code) |
 
 **Extend this script when new modules are added to `02_build.sh`.**
 

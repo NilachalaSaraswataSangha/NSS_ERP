@@ -36,8 +36,9 @@ migration tool for this track). Bootstrap sequence (full commands and rationale 
    `nss` schema (all tables live under `nss.*`, not `public`; `search_path` is `nss, public`).
 3. `database/scripts/02_build.sh`/`.ps1` (as `nss_db_owner`) — runs all implemented DDL+seed in
    phase order: `00_bootstrap` (RBAC, 3 tables, seeded 8 roles) → `01_foundation` (12 tables,
-   seeded) → `02_organization` (3 tables, seeded). `03_person` is a superseded prototype — not
-   run, don't build on it.
+   seeded, incl. ORGANIZATION_TYPE + unified STATUS in master_data) → `02_organization`
+   (1 table, seeded — type via Foundation ORGANIZATION_TYPE, status via unified STATUS). `03_person` is a superseded
+   prototype — not run, don't build on it.
 4. `database/scripts/03_validate.sh`/`.ps1` — row-count/FK integrity checks.
 5. `database/scripts/04_grant_backend.sql` (as `nss_db_owner`) — grants `nss_db_backend`
    read-only `SELECT`, needed before the API can connect.

@@ -3,9 +3,11 @@
 Version: 1.1.0
 
 Status: DRAFT — overview/ERD at SOURCE ALIGNED v1.0.0, lifecycle/business-rules/table-design at
-GOVERNANCE ALIGNED v1.1.0. The generic 3-table structure is SQL Implemented at
-`database/ddl/02_organization/` — see "SQL Implementation" below; the still-open items
-(type-to-type parent matrix, `organization_code` naming) are unaffected.
+GOVERNANCE ALIGNED v1.1.0. **The generic 3-table structure this design freezes is no longer what
+is SQL Implemented** at `database/ddl/02_organization/` — see "SQL Implementation" below for the
+current state and `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas for the full
+reconciliation status; the still-open items (type-to-type parent matrix, `organization_code`
+naming) are unaffected.
 
 ---
 
@@ -52,7 +54,9 @@ PATHA_CHAKRA (multiple instances). See ORG-BR-064 for details and ID prefix assi
 ## Current Status
 
 Design Complete · ERD Complete · Lifecycle Complete · Business Rules GOVERNANCE ALIGNED ·
-Table Design GOVERNANCE ALIGNED · **SQL Implemented** (3 tables, seeded) ·
+Table Design GOVERNANCE ALIGNED · **SQL Implemented — but no longer as 3 tables** (see "SQL
+Implementation" below: only `organization` remains as Organization-specific SQL; type/status are
+now Foundation `master_data` rows) ·
 **API/UI Implementation Complete** — `api/routers/organization.py` exposes 6 read-only
 endpoints (`/types`, `/statuses`, `/organizations` list/detail/children, `/hierarchy` via a
 `WITH RECURSIVE` CTE), consumed by `frontend/organization.html`'s 3-tab verification UI
@@ -65,29 +69,48 @@ v0.8.0.
 
 ## SQL Implementation
 
-`database/ddl/02_organization/` implements `organization_type_master`,
-`organization_status_master`, and `organization` — matching the frozen generic structure exactly
-(self-referencing `parent_organization_pk`, address inline, no `organization_address` table, no
-stored `hierarchical_level` column). Three things this does **not** resolve, all still open:
+**This module's own frozen v1.1.0 design specifies 3 tables** (`organization_type_master`,
+`organization_status_master`, `organization`) as the generic structure satisfying GOV-002. **A
+later migration retired the two master tables**, replacing their rows with entries in
+Foundation's generic `master_data` (categories `ORGANIZATION_TYPE`, 10 values; `STATUS`, a
+unified cross-module category also covering the former `MEMBERSHIP_STATUS`, 13 values) —
+consistent with the project's frozen "Master Data Driven" principle, but no longer matching this
+module's own frozen table design. `database/ddl/02_organization/` now defines only
+`organization` (self-referencing `parent_organization_pk`, address inline, no
+`organization_address` table, no stored `hierarchical_level` column), which references
+`master_data` via `organization_type_master_data_pk`/`status_master_data_pk`. This divergence
+between the frozen 3-table design and the implemented 1-table + `master_data` schema has not
+been reconciled by a governance decision either way — see
+`docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas (the
+`organization_type_master`/`organization_status_master` retirement entry) for the full
+reconciliation status, including the other frozen documents (`FK_DEPENDENCY_GRAPH.md`,
+`DDL_CREATION_ORDER.md`, the Governance Baseline's naming/master-data-catalogue docs) that still
+describe the old 3-table physical schema.
+
+Three other things this does **not** resolve, all still open:
 
 - **`organization_code` vs. `organization_short_code`.** `ORG-PENDING-001`
   (`CROSS_MODULE_PRINCIPLES.md` §20.1) froze a column named `organization_short_code`,
   `VARCHAR(5)`, `UNIQUE`, `NOT NULL`. The implemented column is named `organization_code`,
   `VARCHAR(10)`, `UNIQUE`, **nullable**. Same purpose, different name/width/nullability — not
   yet reconciled with the frozen cross-module spec.
-- **Seeded type codes don't match this doc's short-form codes.** `database/seed/
-  02_organization/01_organization_type_master.sql` seeds `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/
+- **Seeded type codes don't match this doc's short-form codes.**
+  `database/seed/01_foundation/02_master_data.sql` (formerly `database/seed/
+  02_organization/01_organization_type_master.sql`, retired by the `master_data` migration)
+  seeds `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/
   `SAKHA_SANGHA` (plus `SAKHA_ASANA`/`PATHA_CHAKRA`, which do match) — this doc and
   `04_organization_business_rules.md` describe the short forms `ANCHALIKA`/`ZILLA`/`SAKHA`.
 - **Seeded status includes `SUSPENDED`, which the docs explicitly say is unsupported.**
-  `database/seed/02_organization/02_organization_status_master.sql` seeds 6 statuses including
-  `SUSPENDED`. But `03_organization_lifecycle.md` §81 ("No Unsupported States") and
+  `database/seed/01_foundation/02_master_data.sql` (formerly `database/seed/
+  02_organization/02_organization_status_master.sql`, retired by the `master_data` migration)
+  seeds `SUSPENDED` as one of the unified `STATUS` category's 13 values. But
+  `03_organization_lifecycle.md` §81 ("No Unsupported States") and
   `04_organization_business_rules.md` ORG-BR-059 ("No Unsupported Status") both explicitly list
   `SUSPENDED` as an example status the design does **not** introduce without an approved
   governance change. The seed data and the frozen business rule currently contradict each other
   — not reconciled here.
 
-See `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs for all three.
+See `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs for all four.
 
 ---
 
@@ -97,5 +120,6 @@ A prior Django prototype (`backend/foundation/models.py`, a much simpler `Organi
 placeholder — no hierarchy, no self-reference) predated this design but was removed along with
 the rest of the Django prototype (`backend/`) — see CLAUDE.md and
 `docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`. It is preserved in Git history only,
-not on disk. The real implementation is now the SQL DDL at `database/ddl/02_organization/`
+not on disk. The real implementation is now the SQL DDL at `database/ddl/02_organization/` plus
+Foundation's `master_data` for type/status
 (see "SQL Implementation" above), not any Django model.

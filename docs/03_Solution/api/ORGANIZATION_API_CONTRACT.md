@@ -3,10 +3,19 @@
 | Field       | Value                                          |
 |-------------|------------------------------------------------|
 | Document    | ORGANIZATION_API_CONTRACT                      |
-| Version     | 1.0                                            |
+| Version     | 1.1                                            |
 | Tier        | 2 — Organization                               |
 | Authority   | SOL-ARCH-010, SOL-ORG-005 SS19-SS52            |
 | Status      | DRAFT                                          |
+
+> **v1.1 (2026-09-12):** `organization_type_master` and `organization_status_master`
+> are retired. `types` and `statuses` are now backed by Foundation's shared
+> `nss.master_data`/`nss.master_category` tables (categories `ORGANIZATION_TYPE`
+> and `STATUS`). `organization_type_master_data_pk` and `status_master_data_pk`
+> replace the old dedicated-table FKs on `organization`. `OrganizationStatusResponse`
+> is renamed to `StatusResponse` (fields `organization_status_*` → `status_*`).
+> Type count is now 10 (was 8); status count is now 13 (was 6) since `STATUS` is a
+> unified ERP-wide category shared across modules.
 
 ---
 
@@ -78,7 +87,8 @@ administration and authorization exist.
 GET /api/v1/organization/types
 ```
 
-Returns all active organization types from `nss.organization_type_master`.
+Returns all active organization types from Foundation's shared `nss.master_data`
+table, filtered to category `ORGANIZATION_TYPE` (JOINed via `nss.master_category`).
 
 **Query Parameters:** None
 
@@ -97,31 +107,40 @@ Returns all active organization types from `nss.organization_type_master`.
 ]
 ```
 
-**Tier 2 state:** 8 frozen types matching the NSS Bye-Law hierarchy
-(Kendra, Nilachala Kutira, Smruti Mandira, Anchalika, Zilla, Sakha,
-Patha Chakra, Mahila Sangha).
+**Tier 2 state:** 10 frozen types matching the NSS Bye-Law hierarchy
+(Kendra, Nilachala Kutira, Smruti Mandira, Anchalika Sangha, Zilla Sangha,
+Sakha Sangha, Sakha Asana, Paribarik Asana, Paribarik Sangha, Patha Chakra).
 
 **SQL Pattern:**
 
 ```sql
-SELECT organization_type_pk, organization_type_code,
-       organization_type_name, description,
-       sort_order, is_active
-FROM   nss.organization_type_master
-WHERE  is_active = TRUE
-ORDER BY sort_order
+SELECT md.master_data_pk  AS organization_type_pk,
+       md.value_code      AS organization_type_code,
+       md.value_name      AS organization_type_name,
+       md.description,
+       md.display_order   AS sort_order,
+       md.is_active
+FROM   nss.master_data md
+JOIN   nss.master_category mc
+       ON mc.master_category_pk = md.master_category_pk
+WHERE  mc.category_code = 'ORGANIZATION_TYPE'
+  AND  md.is_active = TRUE
+ORDER BY md.display_order
 ```
 
 ---
 
-#### 3.1.2 List Organization Statuses
+#### 3.1.2 List Statuses
 
 ```
 GET /api/v1/organization/statuses
 ```
 
-Returns all active organization lifecycle statuses from
-`nss.organization_status_master`.
+Returns all active lifecycle statuses from Foundation's shared `nss.master_data`
+table, filtered to the unified ERP-wide category `STATUS` (JOINed via
+`nss.master_category`). This is the same `STATUS` category shared by other
+modules (memberships, governance, etc.) — Organization does not own a
+dedicated status list.
 
 **Query Parameters:** None
 
@@ -130,28 +149,35 @@ Returns all active organization lifecycle statuses from
 ```json
 [
   {
-    "organization_status_pk": "uuid",
-    "organization_status_code": "ACTIVE",
-    "organization_status_name": "Active",
+    "status_pk": "uuid",
+    "status_code": "ACTIVE",
+    "status_name": "Active",
     "description": "...",
-    "sort_order": 1,
+    "sort_order": 3,
     "is_active": true
   }
 ]
 ```
 
-**Tier 2 state:** 6 statuses (Active, Proposed, Suspended, Dissolved,
-Merged, Under Review).
+**Tier 2 state:** 13 unified lifecycle statuses (Proposed, Approved, Active,
+Inactive, Suspended, Lapsed, Transferred, Resigned, Expelled, Deceased,
+Dissolved, Archived, Expired).
 
 **SQL Pattern:**
 
 ```sql
-SELECT organization_status_pk, organization_status_code,
-       organization_status_name, description,
-       sort_order, is_active
-FROM   nss.organization_status_master
-WHERE  is_active = TRUE
-ORDER BY sort_order
+SELECT md.master_data_pk  AS status_pk,
+       md.value_code      AS status_code,
+       md.value_name      AS status_name,
+       md.description,
+       md.display_order   AS sort_order,
+       md.is_active
+FROM   nss.master_data md
+JOIN   nss.master_category mc
+       ON mc.master_category_pk = md.master_category_pk
+WHERE  mc.category_code = 'STATUS'
+  AND  md.is_active = TRUE
+ORDER BY md.display_order
 ```
 
 ---
@@ -194,9 +220,9 @@ not an error.
     "organization_type_code": "KENDRA",
     "organization_type_name": "Kendra Sangha",
 
-    "organization_status_pk": "uuid",
-    "organization_status_code": "ACTIVE",
-    "organization_status_name": "Active",
+    "status_pk": "uuid",
+    "status_code": "ACTIVE",
+    "status_name": "Active",
 
     "parent_organization_pk": null,
     "parent_organization_name": null,
@@ -243,12 +269,12 @@ SELECT o.organization_pk,
        o.organization_id,
        o.organization_name,
        o.organization_code,
-       ot.organization_type_pk,
-       ot.organization_type_code,
-       ot.organization_type_name,
-       os.organization_status_pk,
-       os.organization_status_code,
-       os.organization_status_name,
+       ot.master_data_pk   AS organization_type_pk,
+       ot.value_code       AS organization_type_code,
+       ot.value_name       AS organization_type_name,
+       os.master_data_pk   AS status_pk,
+       os.value_code       AS status_code,
+       os.value_name       AS status_name,
        o.parent_organization_pk,
        p.organization_name AS parent_organization_name,
        o.address_line_1,
@@ -275,10 +301,10 @@ SELECT o.organization_pk,
        o.longitude,
        o.is_active
 FROM   nss.organization o
-JOIN   nss.organization_type_master ot
-       ON ot.organization_type_pk = o.organization_type_pk
-JOIN   nss.organization_status_master os
-       ON os.organization_status_pk = o.organization_status_pk
+JOIN   nss.master_data ot
+       ON ot.master_data_pk = o.organization_type_master_data_pk
+JOIN   nss.master_data os
+       ON os.master_data_pk = o.status_master_data_pk
 LEFT JOIN nss.organization p
        ON p.organization_pk = o.parent_organization_pk
 LEFT JOIN nss.district d
@@ -292,11 +318,11 @@ LEFT JOIN nss.city_village cv
 LEFT JOIN nss.postal_code pc
        ON pc.postal_code_pk = o.postal_code_pk
 WHERE  o.is_active = TRUE
-ORDER BY ot.sort_order, o.organization_name
+ORDER BY ot.display_order, o.organization_name
 ```
 
-When `type_code` is provided, add: `AND ot.organization_type_code = %s`
-When `status_code` is provided, add: `AND os.organization_status_code = %s`
+When `type_code` is provided, add: `AND ot.value_code = %s`
+When `status_code` is provided, add: `AND os.value_code = %s`
 
 ---
 
@@ -370,7 +396,7 @@ WHERE  organization_pk = %s AND is_active = TRUE
 -- Step 2: Fetch children
 _ORG_SELECT
 WHERE  o.parent_organization_pk = %s AND o.is_active = TRUE
-ORDER BY ot.sort_order, o.organization_name
+ORDER BY ot.display_order, o.organization_name
 ```
 
 ---
@@ -398,8 +424,8 @@ Uses a recursive CTE starting from root nodes (`parent = NULL`).
     "organization_code": "KEN",
     "organization_type_code": "KENDRA",
     "organization_type_name": "Kendra Sangha",
-    "organization_status_code": "ACTIVE",
-    "organization_status_name": "Active",
+    "status_code": "ACTIVE",
+    "status_name": "Active",
     "parent_organization_pk": null,
     "depth": 0,
     "is_active": true
@@ -424,15 +450,17 @@ WITH RECURSIVE org_tree AS (
     -- Anchor: root nodes (no parent)
     SELECT o.organization_pk, o.organization_name,
            o.organization_code,
-           ot.organization_type_code, ot.organization_type_name,
-           os.organization_status_code, os.organization_status_name,
+           ot.value_code  AS organization_type_code,
+           ot.value_name  AS organization_type_name,
+           os.value_code  AS status_code,
+           os.value_name  AS status_name,
            o.parent_organization_pk,
            0 AS depth, o.is_active
     FROM   nss.organization o
-    JOIN   nss.organization_type_master ot
-           ON ot.organization_type_pk = o.organization_type_pk
-    JOIN   nss.organization_status_master os
-           ON os.organization_status_pk = o.organization_status_pk
+    JOIN   nss.master_data ot
+           ON ot.master_data_pk = o.organization_type_master_data_pk
+    JOIN   nss.master_data os
+           ON os.master_data_pk = o.status_master_data_pk
     WHERE  o.parent_organization_pk IS NULL
       AND  o.is_active = TRUE
 
@@ -441,15 +469,17 @@ WITH RECURSIVE org_tree AS (
     -- Recursive: children
     SELECT o.organization_pk, o.organization_name,
            o.organization_code,
-           ot.organization_type_code, ot.organization_type_name,
-           os.organization_status_code, os.organization_status_name,
+           ot.value_code  AS organization_type_code,
+           ot.value_name  AS organization_type_name,
+           os.value_code  AS status_code,
+           os.value_name  AS status_name,
            o.parent_organization_pk,
            t.depth + 1, o.is_active
     FROM   nss.organization o
-    JOIN   nss.organization_type_master ot
-           ON ot.organization_type_pk = o.organization_type_pk
-    JOIN   nss.organization_status_master os
-           ON os.organization_status_pk = o.organization_status_pk
+    JOIN   nss.master_data ot
+           ON ot.master_data_pk = o.organization_type_master_data_pk
+    JOIN   nss.master_data os
+           ON os.master_data_pk = o.status_master_data_pk
     JOIN   org_tree t
            ON t.organization_pk = o.parent_organization_pk
     WHERE  o.is_active = TRUE
@@ -467,7 +497,7 @@ ORDER BY depth, organization_name
 | Model                              | Endpoint(s)                          | Field Count |
 |------------------------------------|--------------------------------------|-------------|
 | `OrganizationTypeResponse`         | types                                | 6           |
-| `OrganizationStatusResponse`       | statuses                             | 6           |
+| `StatusResponse`                   | statuses                             | 6           |
 | `OrganizationResponse`             | organizations, detail, children      | 36          |
 | `OrganizationHierarchyNodeResponse`| hierarchy                            | 10          |
 
@@ -477,7 +507,7 @@ ORDER BY depth, organization_name
 |--------------------|-------------------------------------------------------------------------------------------------|
 | Core (4)           | organization_pk, organization_id, organization_name, organization_code                          |
 | Classification (3) | organization_type_pk, organization_type_code, organization_type_name                            |
-| Lifecycle (3)      | organization_status_pk, organization_status_code, organization_status_name                      |
+| Lifecycle (3)      | status_pk, status_code, status_name                                                              |
 | Hierarchy (2)      | parent_organization_pk, parent_organization_name                                                |
 | Address (2)        | address_line_1, address_line_2                                                                  |
 | Contact (4)        | phone_number, mobile_number, email, org_email                                                   |
@@ -512,10 +542,10 @@ those go in the `org_*` columns. The UI displays both when present.
 
 | Group              | Endpoints | Tables Covered                                            |
 |--------------------|-----------|-----------------------------------------------------------|
-| Reference Data     | 2         | organization_type_master, organization_status_master      |
+| Reference Data     | 2         | master_data (categories ORGANIZATION_TYPE, STATUS)         |
 | Core Organizations | 3         | organization (list, detail, children)                     |
 | Navigation         | 1         | organization (recursive CTE)                              |
-| **Total**          | **6**     | **3 tables exposed**                                      |
+| **Total**          | **6**     | **1 table (`organization`) + 2 shared Foundation master_data categories** |
 
 ---
 
@@ -542,13 +572,15 @@ api/
     organization.py             <- 4 Pydantic response models
 database/
   ddl/02_organization/
-    01_organization_type_master.sql
-    02_organization_status_master.sql
-    03_organization.sql
+    03_organization.sql              (FKs → nss.master_data)
   seed/02_organization/
-    01_organization_type_master.sql   (8 types)
-    02_organization_status_master.sql (6 statuses)
     03_organization.sql              (3 organizations)
+  ddl/01_foundation/
+    02_master_category.sql           (includes ORGANIZATION_TYPE, STATUS)
+    08_master_data.sql                (type/status values live here)
+  seed/01_foundation/
+    01_master_category.sql           (ORGANIZATION_TYPE, STATUS categories)
+    02_master_data.sql               (10 ORGANIZATION_TYPE values, 13 STATUS values)
 tests/
   test_organization.py          <- Integration tests
 frontend/

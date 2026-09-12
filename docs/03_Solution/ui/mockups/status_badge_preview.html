@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSS ERP — Status Badge Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 24px; color: #1f2937; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 32px; }
+  .card { background: #fff; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .order { font-size: 11px; color: #9ca3af; font-weight: 600; min-width: 18px; }
+  .badge { padding: 4px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; }
+  .info { flex: 1; }
+  .code { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #6b7280; }
+  .desc { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+  .badge-PROPOSED    { background: #2563eb; }
+  .badge-APPROVED    { background: #0d9488; }
+  .badge-ACTIVE      { background: #16a34a; }
+  .badge-INACTIVE    { background: #6b7280; }
+  .badge-SUSPENDED   { background: #dc2626; }
+  .badge-LAPSED      { background: #d97706; }
+  .badge-TRANSFERRED { background: #7c3aed; }
+  .badge-RESIGNED    { background: #9ca3af; }
+  .badge-EXPELLED    { background: #991b1b; }
+  .badge-DECEASED    { background: #1f2937; }
+  .badge-DISSOLVED   { background: #78350f; }
+  .badge-ARCHIVED    { background: #374151; }
+  .badge-EXPIRED     { background: #4b5563; }
+
+  h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #374151; }
+  .size-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .size-label { font-size: 12px; color: #6b7280; min-width: 70px; }
+  .badge-xs { padding: 2px 8px; font-size: 11px; }
+  .badge-sm { padding: 3px 10px; font-size: 12px; }
+  .badge-md { padding: 4px 14px; font-size: 13px; }
+  .badge-lg { padding: 6px 18px; font-size: 15px; }
+
+  .section { background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .dark-bg { background: #1f2937; padding: 20px; border-radius: 10px; margin-top: 12px; }
+  .dark-bg .badge { box-shadow: 0 0 0 1px rgba(255,255,255,0.1); }
+  .dark-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
+  .module-card { background: #f9fafb; border-radius: 8px; padding: 10px 12px; }
+  .module-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .module-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+  .module-badges .badge { font-size: 10px; padding: 2px 8px; }
+</style>
+</head>
+<body>
+
+<h1>NSS ERP — Unified STATUS Badge Preview</h1>
+<p class="subtitle">13 lifecycle statuses shared across all ERP modules (Organization, Membership, Governance, etc.)</p>
+
+<div class="grid">
+  <div class="card"><span class="order">1</span><span class="badge badge-PROPOSED">Proposed</span><div class="info"><div class="code">PROPOSED</div><div class="desc">Entity proposed, not yet approved</div></div></div>
+  <div class="card"><span class="order">2</span><span class="badge badge-APPROVED">Approved</span><div class="info"><div class="code">APPROVED</div><div class="desc">Approved, pending activation</div></div></div>
+  <div class="card"><span class="order">3</span><span class="badge badge-ACTIVE">Active</span><div class="info"><div class="code">ACTIVE</div><div class="desc">Currently operational</div></div></div>
+  <div class="card"><span class="order">4</span><span class="badge badge-INACTIVE">Inactive</span><div class="info"><div class="code">INACTIVE</div><div class="desc">Temporarily non-operational</div></div></div>
+  <div class="card"><span class="order">5</span><span class="badge badge-SUSPENDED">Suspended</span><div class="info"><div class="code">SUSPENDED</div><div class="desc">Suspended by governance</div></div></div>
+  <div class="card"><span class="order">6</span><span class="badge badge-LAPSED">Lapsed</span><div class="info"><div class="code">LAPSED</div><div class="desc">Non-renewal / absence</div></div></div>
+  <div class="card"><span class="order">7</span><span class="badge badge-TRANSFERRED">Transferred</span><div class="info"><div class="code">TRANSFERRED</div><div class="desc">Transferred to another unit</div></div></div>
+  <div class="card"><span class="order">8</span><span class="badge badge-RESIGNED">Resigned</span><div class="info"><div class="code">RESIGNED</div><div class="desc">Voluntarily departed</div></div></div>
+  <div class="card"><span class="order">9</span><span class="badge badge-EXPELLED">Expelled</span><div class="info"><div class="code">EXPELLED</div><div class="desc">Expelled by governance</div></div></div>
+  <div class="card"><span class="order">10</span><span class="badge badge-DECEASED">Deceased</span><div class="info"><div class="code">DECEASED</div><div class="desc">Person is deceased</div></div></div>
+  <div class="card"><span class="order">11</span><span class="badge badge-DISSOLVED">Dissolved</span><div class="info"><div class="code">DISSOLVED</div><div class="desc">Organization dissolved</div></div></div>
+  <div class="card"><span class="order">12</span><span class="badge badge-ARCHIVED">Archived</span><div class="info"><div class="code">ARCHIVED</div><div class="desc">Retained for history</div></div></div>
+  <div class="card"><span class="order">13</span><span class="badge badge-EXPIRED">Expired</span><div class="info"><div class="code">EXPIRED</div><div class="desc">Term has expired</div></div></div>
+</div>
+
+<div class="section">
+  <h2>Badge Sizes (using Active as example)</h2>
+  <div class="size-row"><span class="size-label">XS (tables)</span><span class="badge badge-xs badge-ACTIVE">Active</span><span class="badge badge-xs badge-SUSPENDED">Suspended</span><span class="badge badge-xs badge-LAPSED">Lapsed</span></div>
+  <div class="size-row"><span class="size-label">SM (cards)</span><span class="badge badge-sm badge-ACTIVE">Active</span><span class="badge badge-sm badge-SUSPENDED">Suspended</span><span class="badge badge-sm badge-LAPSED">Lapsed</span></div>
+  <div class="size-row"><span class="size-label">MD (default)</span><span class="badge badge-md badge-ACTIVE">Active</span><span class="badge badge-md badge-SUSPENDED">Suspended</span><span class="badge badge-md badge-LAPSED">Lapsed</span></div>
+  <div class="size-row"><span class="size-label">LG (headers)</span><span class="badge badge-lg badge-ACTIVE">Active</span><span class="badge badge-lg badge-SUSPENDED">Suspended</span><span class="badge badge-lg badge-LAPSED">Lapsed</span></div>
+</div>
+
+<div class="section">
+  <h2>Dark Background Contrast Check</h2>
+  <div class="dark-bg">
+    <div class="dark-row">
+      <span class="badge badge-PROPOSED">Proposed</span>
+      <span class="badge badge-APPROVED">Approved</span>
+      <span class="badge badge-ACTIVE">Active</span>
+      <span class="badge badge-INACTIVE">Inactive</span>
+      <span class="badge badge-SUSPENDED">Suspended</span>
+      <span class="badge badge-LAPSED">Lapsed</span>
+      <span class="badge badge-TRANSFERRED">Transferred</span>
+      <span class="badge badge-RESIGNED">Resigned</span>
+      <span class="badge badge-EXPELLED">Expelled</span>
+      <span class="badge badge-DECEASED">Deceased</span>
+      <span class="badge badge-DISSOLVED">Dissolved</span>
+      <span class="badge badge-ARCHIVED">Archived</span>
+      <span class="badge badge-EXPIRED">Expired</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Per-Module Applicability (advisory)</h2>
+  <div class="module-grid">
+    <div class="module-card">
+      <div class="module-name">Organization</div>
+      <div class="module-badges">
+        <span class="badge badge-xs badge-PROPOSED">Proposed</span>
+        <span class="badge badge-xs badge-APPROVED">Approved</span>
+        <span class="badge badge-xs badge-ACTIVE">Active</span>
+        <span class="badge badge-xs badge-INACTIVE">Inactive</span>
+        <span class="badge badge-xs badge-SUSPENDED">Suspended</span>
+        <span class="badge badge-xs badge-DISSOLVED">Dissolved</span>
+        <span class="badge badge-xs badge-ARCHIVED">Archived</span>
+      </div>
+    </div>
+    <div class="module-card">
+      <div class="module-name">Membership</div>
+      <div class="module-badges">
+        <span class="badge badge-xs badge-ACTIVE">Active</span>
+        <span class="badge badge-xs badge-INACTIVE">Inactive</span>
+        <span class="badge badge-xs badge-SUSPENDED">Suspended</span>
+        <span class="badge badge-xs badge-LAPSED">Lapsed</span>
+        <span class="badge badge-xs badge-TRANSFERRED">Transferred</span>
+        <span class="badge badge-xs badge-RESIGNED">Resigned</span>
+        <span class="badge badge-xs badge-EXPELLED">Expelled</span>
+        <span class="badge badge-xs badge-DECEASED">Deceased</span>
+      </div>
+    </div>
+    <div class="module-card">
+      <div class="module-name">Governance</div>
+      <div class="module-badges">
+        <span class="badge badge-xs badge-ACTIVE">Active</span>
+        <span class="badge badge-xs badge-EXPIRED">Expired</span>
+        <span class="badge badge-xs badge-RESIGNED">Resigned</span>
+        <span class="badge badge-xs badge-DECEASED">Deceased</span>
+      </div>
+    </div>
+    <div class="module-card">
+      <div class="module-name">Person</div>
+      <div class="module-badges">
+        <span class="badge badge-xs badge-ACTIVE">Active</span>
+        <span class="badge badge-xs badge-INACTIVE">Inactive</span>
+        <span class="badge badge-xs badge-DECEASED">Deceased</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

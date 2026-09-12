@@ -48,7 +48,7 @@ api/
     ├── foundation.py     11 plain Pydantic models, one per exposed table/view — audit columns,
     │                     `current_value`, and unimplemented FK columns deliberately excluded
     └── organization.py   4 Pydantic models (OrganizationTypeResponse,
-                          OrganizationStatusResponse, OrganizationResponse,
+                          StatusResponse, OrganizationResponse,
                           OrganizationHierarchyNodeResponse) — OrganizationResponse includes
                           contact/online-presence fields (phone_number, mobile_number, email,
                           org_email, website_url, org_website_url, youtube_channel_url,
@@ -124,14 +124,17 @@ tests (`tests/test_foundation.py`).
 
 ## Endpoints (Tier 2)
 
-6 read-only endpoints under `/api/v1/organization`, across 3 tables — no auth, no ORM, raw
-parameterized SQL. Organization LEFT JOINs Foundation's geography tables (country, state,
-district, city_village, postal_code) for address resolution, since those FKs are nullable.
+6 read-only endpoints under `/api/v1/organization` — no auth, no ORM, raw
+parameterized SQL. Organization type values come from Foundation `master_data`
+(category `ORGANIZATION_TYPE`). Status values come from the unified ERP-wide
+`STATUS` category. Organization LEFT JOINs
+Foundation's geography tables (country, state, district, city_village, postal_code)
+for address resolution, since those FKs are nullable.
 
 | Method | Path | Returns |
 |--------|------|---------|
-| GET | `/api/v1/organization/types` | The 8 frozen organization types from `nss.organization_type_master` |
-| GET | `/api/v1/organization/statuses` | The 6 lifecycle statuses from `nss.organization_status_master` |
+| GET | `/api/v1/organization/types` | The 10 frozen organization types from `nss.master_data` (category `ORGANIZATION_TYPE`) |
+| GET | `/api/v1/organization/statuses` | The 13 unified lifecycle statuses from `nss.master_data` (category `STATUS`) |
 | GET | `/api/v1/organization/organizations` | Organizations with resolved type/status/parent/geography context; optional `type_code`/`status_code` filters |
 | GET | `/api/v1/organization/organizations/{organization_pk}` | Single organization detail; 404 if missing/inactive |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children` | Direct children of an organization; 404 if the parent `organization_pk` doesn't exist |

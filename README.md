@@ -348,9 +348,12 @@ Notes:
 > above). This is a type-*inventory* freeze only, separate from the still-open parent-matrix
 > question.
 
-> **Open:** the generic 3-table structure is implemented in SQL, but the seeded
-> `organization_type_master` rows use `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/`SAKHA_SANGHA` as their
-> business codes, not the short `ANCHALIKA`/`ZILLA`/`SAKHA` forms shown in the diagram above. See
+> **Open:** the frozen 3-table structure is no longer what's implemented in SQL — the former
+> `organization_type_master`/`organization_status_master` tables were retired in favor of rows
+> in Foundation's generic `master_data` (see `docs/PROJECT_DOCUMENTATION.md` → Gotchas for the
+> full reconciliation status). Separately, the seeded `ORGANIZATION_TYPE` `master_data` rows use
+> `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/`SAKHA_SANGHA` as their business codes, not the short
+> `ANCHALIKA`/`ZILLA`/`SAKHA` forms shown in the diagram above. See
 > `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs.
 
 ---
@@ -728,11 +731,14 @@ Completed:
   `database/ddl/01_foundation/`/`database/seed/01_foundation/` — 11 of the 12 tables are now
   consumed by the Tier 1 Foundation API, see below; `field_change_log` remains unconsumed,
   deferred to Tier 5)
-* Organization Database Schema ("Organization Vertical Slice" — 3 tables
-  (`organization_type_master`, `organization_status_master`, `organization`) + full seed data
-  under `database/ddl/02_organization/`/`database/seed/02_organization/`, matching the frozen
-  generic structure exactly — now consumed by the Tier 2 Organization API (see below). Combined
-  with Foundation and Bootstrap RBAC: **18 tables implemented** — see `database/README.md`)
+* Organization Database Schema ("Organization Vertical Slice" — 1 table (`organization`) + full
+  seed data under `database/ddl/02_organization/`/`database/seed/02_organization/`; the former
+  `organization_type_master`/`organization_status_master` tables were retired in favor of
+  Foundation's generic `master_data` (categories `ORGANIZATION_TYPE`, 10 values; `STATUS`, 13
+  values, shared across modules) — now consumed by the Tier 2 Organization API (see below). This
+  diverges from the frozen 3-table module design — see `docs/PROJECT_DOCUMENTATION.md` →
+  Gotchas. Combined with Foundation and Bootstrap RBAC: **16 tables implemented** — see
+  `database/README.md`)
 * Bootstrap RBAC DDL (`role_master`/`permission_master`/`role_permission`, `SOL-BOOT-001`/
   `SOL-ARCH-011` — DDL implemented and committed; `role_master` seeded with 8 roles,
   the other two empty pending the permission catalogue; ownership stays with Administration,
@@ -806,7 +812,7 @@ Current Focus:
 
 * Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
   documented modules — every module now has a complete (or largely complete) design. Two
-  modules have real SQL implementation (Foundation: 12 tables; Organization: 3 tables) — 15
+  modules have real SQL implementation (Foundation: 12 tables; Organization: 1 table) — 13
   tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full Tier 1 API +
   Web UI (17 endpoints, 59 tests), released as v0.7.0. Organization now also has a full Tier 2
   API + Web UI (6 endpoints, 51 tests), released as v0.8.0.
@@ -822,7 +828,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 |------|---------|-------|----|-----|--------|--------|
 | **0** | Bootstrap RBAC | Infrastructure bootstrap — `role_master`, `permission_master`, `role_permission` (3 tables) | Done | Done (4 endpoints) | Done (Bootstrap Verification) | -- |
 | **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Done (17 endpoints) | Done (Foundation Verification) | -- |
-| **2** | Organization | Org types, statuses, self-referencing hierarchy (3 tables) | Done | Done (6 endpoints) | Done (Organization Verification) | -- |
+| **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (6 endpoints) | Done (Organization Verification) | -- |
 | **3** | Person | Person identity, contact, address (2 tables designed) | Superseded (rewrite pending) | Not started | Not started | -- |
 | **4** | Family, Membership | Family groups/relationships + membership registration/approval/transfer/lifecycle | Not started | Not started | Not started | -- |
 | **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | Not started | Not started | Not started | -- |

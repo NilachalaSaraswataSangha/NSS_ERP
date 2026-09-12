@@ -3,9 +3,9 @@
 | Field       | Value                                                                  |
 |-------------|-------------------------------------------------------------------------|
 | Document    | UI_CODE_EXPLANATIONS                                                   |
-| Version     | 1.1                                                                     |
+| Version     | 1.2                                                                     |
 | Scope       | All source files under `frontend/`, excluding binary assets (images)    |
-| Status      | Complete (updated: Tier 2 Organization)                                 |
+| Status      | Complete (updated: org-to-master-data migration)                       |
 
 ---
 
@@ -100,21 +100,31 @@ file):
   complete DOM.
 - The local stylesheet `/assets/css/style.css` (§2.5) is loaded last, after the CDN
   stylesheets, so any override rules in it win on specificity ties.
-- A page-local `<style>` block (identical across `index.html`, `foundation.html`, and
-  `organization.html`) follows the `style.css` link, overriding DaisyUI's default
+- A page-local `<style>` block follows the `style.css` link, overriding DaisyUI's default
   `.badge`/`.badge-xs`/`.badge-sm` padding and defining 6 `.badge-status-*` classes for
-  distinct per-status colors. The padding override affects every badge on this page (the
-  health-status dot and the roles-count badge); the `.badge-status-*` classes themselves are
-  unused here — they only apply to Organization's 6 lifecycle statuses (see §2.6) — but the
-  block is duplicated on all three pages rather than factored into `style.css` itself.
+  distinct per-status colors. This block used to be identical across `index.html`,
+  `foundation.html`, and `organization.html`; as of the v2.0 org-to-master-data migration
+  (2026-09-12), `organization.html`'s copy grew to 13 `.badge-status-*` classes (matching the
+  unified `STATUS` category's 13 values — see §2.6), while `index.html` and `foundation.html`
+  still carry the older 6-class copy, since neither page renders a lifecycle-status badge. The
+  padding override affects every badge on this page (the health-status dot and the
+  roles-count badge); the `.badge-status-*` classes themselves are unused here — only
+  Organization's Reference Data/Organizations/Hierarchy tabs render lifecycle-status badges
+  (see §2.6) — but the block is duplicated rather than factored into `style.css` itself.
 
 ---
 
 ### 2.6 `frontend/organization.html`
 
+> **v2.0 (2026-09-12):** Type/status field references renamed `organization_status_*` →
+> `status_*` throughout (fetch URLs unchanged); type count 8→10 and status count 6→13 following
+> the org-to-master-data migration; badge CSS grew from 6 `.badge-status-*` classes to 13; the
+> children-hidden-for-types list grew to include `PARIBARIK_ASANA`/`PARIBARIK_SANGHA`.
+
 **Requirement.** This is the Tier 2 "Organization Verification UI" — the visual proof that
-the 6 read-only `/api/v1/organization/*` endpoints correctly expose the 3 Organization
-tables (organization_type_master, organization_status_master, organization). It is
+the 6 read-only `/api/v1/organization/*` endpoints correctly expose `organization` plus
+Foundation's shared `master_data`/`master_category` tables (for type/status, categories
+`ORGANIZATION_TYPE` and `STATUS`). It is
 structurally parallel to `foundation.html` (same head boilerplate, same System Status card
 reusing the Tier 0 health endpoint, same nav bar with three tier links) and organizes its
 surface area into three tabs: Reference Data, Organizations, and Hierarchy. Mobile-
@@ -132,10 +142,15 @@ Served by FastAPI's `GET /organization` route, conditional on the file existing 
 - A page-local `<style>` block (also duplicated in `index.html`/`foundation.html` — see below)
   overrides DaisyUI's default `.badge`/`.badge-xs`/`.badge-sm` padding (`!important`, since
   DaisyUI's CDN stylesheet loads after any plain CSS in `style.css` and would otherwise win)
-  and defines 6 `.badge-status-*` classes (`active`/`proposed`/`approved`/`suspended`/
-  `inactive`/`archived`), each a solid background color with white text — replacing DaisyUI's
-  generic semantic badges (`badge-success`/`badge-warning`/`badge-ghost`) so all 6 lifecycle
-  statuses get their own distinct, readable color instead of 3 statuses sharing `badge-ghost`.
+  and defines 13 `.badge-status-*` classes (`active`/`proposed`/`approved`/`suspended`/
+  `inactive`/`lapsed`/`transferred`/`resigned`/`expelled`/`deceased`/`dissolved`/`archived`/
+  `expired`), each a solid background color with white text — replacing DaisyUI's
+  generic semantic badges (`badge-success`/`badge-warning`/`badge-ghost`) so all 13 lifecycle
+  statuses (from Foundation's unified `STATUS` category — see §2.7) get their own distinct,
+  readable color instead of sharing a handful of generic badges. The 7 classes added in the
+  v2.0 migration (`lapsed`/`transferred`/`resigned`/`expelled`/`deceased`/`dissolved`/
+  `expired`) cover status values that `STATUS` absorbed from the wider, ERP-unified lifecycle
+  vocabulary — values the old 6-status, Organization-only set never needed.
 
 **Root component:**
 ```html
@@ -165,10 +180,15 @@ bar has three links: Bootstrap, Foundation, Organization — with Organization s
   screens. Same DaisyUI `tabs tabs-boxed` pattern as `foundation.html`.
 
 **Tab 1 — Reference Data:** Two-column grid (`grid-cols-1 xl:grid-cols-2`) with
-Organization Types (8 frozen types) on the left and Organization Statuses (6 lifecycle
-statuses) on the right. Each card follows the standard loading/error/data `x-if` triad.
+Organization Types (10 frozen types, sourced from Foundation `master_data` category
+`ORGANIZATION_TYPE`) on the left and Lifecycle Statuses (13 unified statuses, category
+`STATUS`) on the right. Each card follows the standard loading/error/data `x-if` triad.
 Type and status badges use `whitespace-nowrap` on both the `<td>` and `<span>` to prevent
-text spill for long names like "Anchalika Sangha".
+text spill for long names like "Anchalika Sangha". Every status `<tr>`/badge binding reads
+`s.status_pk`/`s.status_code`/`s.status_name` (renamed from `organization_status_*` in the
+pre-migration schema) — the `status_pk + '-row'` key expression on the `<template x-for>` is
+a leftover disambiguation pattern from when multiple tables shared row keys, kept for
+uniqueness safety.
 
 **Tab 2 — Organizations:** Filter controls at the top (type and status dropdowns, both
 `x-model`-bound to `selectedTypeFilter`/`selectedStatusFilter`, triggering
@@ -178,20 +198,23 @@ auto-select-on-single-result behavior). The status `<select>` is `:disabled` (an
 `NILACHALA_KUTIRA`, or `SMRUTI_MANDIRA` — each is a unique singleton type with no meaningful
 status dimension. Below, a responsive table of organizations with
 clickable rows (`@click="selectOrganization(org)"`); each row's status badge uses the
-`badge-status-*` classes (one `:class` binding per status code — `active`/`proposed`/
-`approved`/`suspended`/`inactive`/`archived`) rather than DaisyUI's generic semantic badges.
+`badge-status-*` classes (one `:class` binding per status code, now 13 — see the `<head>`
+notes above) rather than DaisyUI's generic semantic badges, reading `org.status_code`/
+`org.status_name` (renamed from `organization_status_code`/`organization_status_name`).
 When an organization is selected, a detail panel appears below the table showing:
-- Full organization metadata (name, code, ID, type, status).
+- Full organization metadata (name, code, ID, type, status) — the Status field reads
+  `selectedOrg.status_name` (renamed from `organization_status_name`).
 - Address information (address lines, city/village, district, state, country, postal code).
 - Coordinates (latitude, longitude) if present.
 - A Children section — wrapped in `<template x-if="!['NILACHALA_KUTIRA', 'SMRUTI_MANDIRA',
-  'PATHA_CHAKRA', 'SAKHA_ASANA'].includes(selectedOrg.organization_type_code)">` — entirely
-  hidden for org types that structurally cannot have children (the two unique institutional
-  types, plus `PATHA_CHAKRA` and `SAKHA_ASANA`, both leaf types in the hierarchy). When shown,
-  the children list (fetched via `/organizations/{pk}/children`) has its own loading/empty
-  state handling and, since the fix, the same `badge-status-*` classes as the parent table
-  (previously every child row was hardcoded `badge-status-active`/`badge-success` regardless
-  of its actual status).
+  'PATHA_CHAKRA', 'SAKHA_ASANA', 'PARIBARIK_ASANA', 'PARIBARIK_SANGHA'].includes(selectedOrg.organization_type_code)">`
+  — entirely hidden for org types that structurally cannot have children (the two unique
+  institutional types, plus `PATHA_CHAKRA`, `SAKHA_ASANA`, and — new in the v2.0 migration —
+  the two family-level types `PARIBARIK_ASANA` and `PARIBARIK_SANGHA`, all leaf types in the
+  hierarchy). When shown, the children list (fetched via `/organizations/{pk}/children`) has
+  its own loading/empty state handling and the same `badge-status-*` classes as the parent
+  table, reading `child.status_code`/`child.status_name` (renamed from
+  `organization_status_code`/`organization_status_name`).
 
 **Tab 3 — Hierarchy:** Flat tree rendering of the recursive CTE result. Each node is
 rendered as a row with indentation controlled by:
@@ -200,10 +223,11 @@ rendered as a row with indentation controlled by:
 ```
 - `depthIndent(depth)` returns `padding-left: ${depth * 1.5}rem` — depth 0 (roots) has no
   indent, depth 1 gets 1.5rem, depth 2 gets 3rem, etc. Each node shows its name,
-  type badge, and status badge (also using the 6 `badge-status-*` classes, replacing an
-  earlier 3-way `active`/`proposed`/"everything else" `badge-ghost` mapping that collapsed
-  `approved`/`suspended`/`inactive`/`archived` into one indistinguishable grey badge), and
-  code.
+  type badge, and status badge (also using the now-13 `badge-status-*` classes, reading
+  `node.status_code`/`node.status_name` — renamed from `organization_status_code`/
+  `organization_status_name` — replacing an earlier 3-way `active`/`proposed`/"everything
+  else" `badge-ghost` mapping that collapsed the rest into one indistinguishable grey badge),
+  and code.
 
 **Footer and script include:** Same copyright footer as the other pages. Loads
 `<script src="/assets/js/organization.js"></script>` at the bottom.
@@ -212,17 +236,26 @@ rendered as a row with indentation controlled by:
 
 ### 2.7 `frontend/assets/js/organization.js`
 
+> **v2.0 (2026-09-12):** State/fetch logic unchanged (fetch URLs are still
+> `/api/v1/organization/types` and `/statuses` — Organization does **not** call Foundation's
+> `master-data` endpoint directly). Comment banners updated to say "10 frozen types" and "13
+> unified lifecycle statuses." All downstream field consumption (in `organization.html`) reads
+> `status_*` instead of `organization_status_*` — see §2.6.
+
 **Requirement.** The client-side state/behaviour layer for `organization.html`, mirroring
 the role `foundation.js` plays for `foundation.html` but scoped to the Organization
 module's 6 API endpoints across 3 tabs. Defines one global factory function,
 `organizationApp()`.
 
-**Full file, 199 lines. Walkthrough:**
+**Full file, 214 lines. Walkthrough:**
 
 ```javascript
 const ORG_API = "/api/v1/organization";
 ```
-- Same relative-path pattern as `app.js`'s `API_BASE` and `foundation.js`'s `FND_API`.
+- Same relative-path pattern as `app.js`'s `API_BASE` and `foundation.js`'s `FND_API`. Points
+  at the Organization router's own `/types`/`/statuses` endpoints — those endpoints internally
+  query Foundation's `master_data` (see `API_CODE_EXPLANATIONS.md` §2.9), but this file never
+  calls `/api/v1/foundation/master-data` itself; the indirection is entirely server-side.
 
 **State properties** (grouped by the file's own comment banners):
 
@@ -243,7 +276,10 @@ orgStatuses: [],
 orgStatusesLoading: true,
 orgStatusesError: false,
 ```
-- Both start `loading: true` because they're fetched eagerly by `init()`.
+- Both start `loading: true` because they're fetched eagerly by `init()`. The file's module
+  docstring documents these as "1. Organization Types (10 frozen types)" and "2. Statuses (13
+  unified lifecycle statuses)" — both counts bumped by the org-to-master-data migration (from
+  8 and 6 respectively).
 
 **Organizations group:**
 ```javascript
@@ -1025,13 +1061,19 @@ Foundation has no `/api/v1/foundation/health` of its own; it deliberately reuses
 - `setting_key` (mono), `setting_value` in `font-semibold`, a `data_type` outline badge,
   and a truncated `description` with the full text in `:title`.
 
-**ID Sequences card** — table with a `Format Sample` column:
+**ID Sequences card** — table with "Max Digits" and "Range" columns (renamed from "Padding"
+and "Format Sample" in the v2.0 migration — see the note at §2.4):
 ```html
+<td class="text-xs text-center" x-text="seq.padding_length"></td>
 <td class="font-mono text-xs text-primary" x-text="formatSample(seq)"></td>
 ```
-- Calls the `formatSample(seq)` helper (§2.4) per row to synthesize a preview ID
-  string from `prefix` + `padding_length` — the column deliberately does **not**
-  display `current_value`, because the API response (`SequenceResponse`) never
+- The "Max Digits" column displays the raw `seq.padding_length` value directly (no helper
+  call) — unchanged column content, just a clearer header than the old "Padding," since
+  `padding_length` no longer implies a single fixed-width sample is the most useful preview
+  (see below).
+- The "Range" column calls the `formatSample(seq)` helper (§2.4) per row to synthesize a
+  `min → max` preview range string from `prefix` + `padding_length` — the column deliberately
+  does **not** display `current_value`, because the API response (`SequenceResponse`) never
   includes that field at all (it is infrastructure state, excluded by design at the
   Pydantic-schema layer).
 
@@ -1593,20 +1635,32 @@ get filteredMasterData() {
   but it also protects the badge counter (`filteredMasterData.length`) and table body
   from ever transiently showing unfiltered data while a filtered fetch is in flight.
 
+> **v2.0 (2026-09-12):** `formatSample(seq)` changed from returning a single zero-padded
+> sample to a `min → max` range string, because `id_sequence_master`'s padding-length CHECK
+> was loosened to allow `padding_length = 3` (see `DATABASE_CODE_EXPLANATIONS.md`'s
+> `04_id_sequence_master.sql` section) — a single fixed-width sample like `PS001` is far less
+> informative for a narrow-range sequence than seeing the full `PS1 → PS999` span. The ID
+> Sequences table's "Padding"/"Format Sample" column headers became "Max Digits"/"Range" to
+> match (see §2.3).
+
 ```javascript
 formatSample(seq) {
-    const padded = "1".padStart(seq.padding_length, "0");
-    return `${seq.prefix}${padded}`;
+    const max = "9".repeat(seq.padding_length);
+    return `${seq.prefix}1 → ${seq.prefix}${max}`;
 },
 ```
 - Plain (non-getter, non-async) helper method, called per-row from the ID Sequences
-  table (`x-text="formatSample(seq)"`). Builds a preview business-ID string by
-  left-padding the literal string `"1"` to `seq.padding_length` characters with `"0"`,
-  then prepending `seq.prefix`. For example, `prefix: "SS"`, `padding_length: 8` →
-  `"1".padStart(8, "0")` → `"00000001"` → `"SS00000001"`. It deliberately uses the
-  constant `"1"`, never `seq.current_value` — the API's `SequenceResponse` never
-  includes `current_value` in the first place (excluded at the schema layer as
-  infrastructure state), so this helper has no such field available even if it wanted
+  table's "Range" column (`x-text="formatSample(seq)"`). Builds a `min → max` range string by
+  repeating the literal character `"9"` `seq.padding_length` times to get the widest possible
+  value for that padding, then formatting `${prefix}1 → ${prefix}${max}`. For example,
+  `prefix: "SS"`, `padding_length: 8` → `"9".repeat(8)` → `"99999999"` →
+  `"SS1 → SS99999999"`. Unlike the pre-migration version (which zero-padded a single sample
+  value, e.g. `"SS00000001"`), this shows the full range a sequence can produce — more
+  informative now that `padding_length` varies more widely across sequences (3 for
+  `PARIBARIK_SANGHA` up to 10 for `PERSON`). It deliberately uses the
+  constant `"9"` (for the max) and `"1"` (for the min), never `seq.current_value` — the API's
+  `SequenceResponse` never includes `current_value` in the first place (excluded at the schema
+  layer as infrastructure state), so this helper has no such field available even if it wanted
   to use it; it exists purely to preview the *format*, not to predict or display the
   next real ID that will be issued.
 

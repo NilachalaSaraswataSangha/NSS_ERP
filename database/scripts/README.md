@@ -60,8 +60,8 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 
 | Step | File | Seeds |
 |-----:|------|-------|
-| Seed | `seed/01_foundation/01_master_category.sql` | Master categories |
-| Seed | `seed/01_foundation/02_master_data.sql` | Master data rows |
+| Seed | `seed/01_foundation/01_master_category.sql` | 12 master categories (incl. ORGANIZATION_TYPE, unified STATUS) |
+| Seed | `seed/01_foundation/02_master_data.sql` | Master data rows (incl. 10 org types + 13 unified statuses) |
 | Seed | `seed/01_foundation/03_id_sequence_master.sql` | ID sequence definitions |
 | Seed | `seed/01_foundation/04_country.sql` | Countries |
 | Seed | `seed/01_foundation/05_state.sql` | States |
@@ -69,21 +69,22 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 | Seed | `seed/01_foundation/07_system_setting.sql` | System settings |
 | Seed | `seed/01_foundation/08_postal_code.sql` | Postal codes |
 
-### Phase 3 — Organization DDL (3 tables, Depths 0–3)
+### Phase 3 — Organization DDL (1 table, Depth 1)
+
+Organization type and status are now stored in Foundation `master_data`
+(category `ORGANIZATION_TYPE` for types, unified `STATUS` for lifecycle
+statuses). The standalone `organization_type_master` and
+`organization_status_master` tables are retired.
 
 | Step | File | Table | Depth |
 |-----:|------|-------|------:|
-| DDL | `ddl/02_organization/01_organization_type_master.sql` | `organization_type_master` | 0 |
-| DDL | `ddl/02_organization/02_organization_status_master.sql` | `organization_status_master` | 0 |
-| DDL | `ddl/02_organization/03_organization.sql` | `organization` | 3 |
+| DDL | `ddl/02_organization/03_organization.sql` | `organization` | 1 |
 
 ### Phase 4 — Organization Seed Data
 
 | Step | File | Seeds |
 |-----:|------|-------|
-| Seed | `seed/02_organization/01_organization_type_master.sql` | Organization types |
-| Seed | `seed/02_organization/02_organization_status_master.sql` | Organization statuses |
-| Seed | `seed/02_organization/03_organization.sql` | Organizations |
+| Seed | `seed/02_organization/03_organization.sql` | 3 organizations (resolves type/status via master_data) |
 
 ### Not executed (future phases)
 
