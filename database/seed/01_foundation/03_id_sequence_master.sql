@@ -66,6 +66,20 @@ VALUES
     8
 ),
 (
+    'PARIBARIK_ASANA',
+    'Paribarik Asana Code',
+    'PA',
+    0,
+    5
+),
+(
+    'PARIBARIK_SANGHA',
+    'Paribarik Sangha Code',
+    'PS',
+    0,
+    3
+),
+(
     'FAMILY',
     'Family Code',
     'F',

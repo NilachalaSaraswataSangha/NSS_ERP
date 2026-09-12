@@ -9,7 +9,7 @@
 #
 # Authority: SOL-ARCH-010 (DDL Creation Order),
 #            SOL-ARCH-011 (Bootstrap Architecture)
-# Version: 1.0
+# Version: 2.0
 #
 # Usage:
 #   ./database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
@@ -29,8 +29,9 @@
 # Implemented phases:
 #   Phase 0  — Bootstrap RBAC (3 tables + seed)
 #   Phase 1  — Foundation DDL (12 tables)
-#   Phase 2  — Foundation seed data
-#   Phase 3  — Organization DDL (3 tables)
+#   Phase 2  — Foundation seed data (incl. ORGANIZATION_TYPE
+#              category and unified STATUS category in master_data)
+#   Phase 3  — Organization DDL (1 table)
 #   Phase 4  — Organization seed data
 #
 # NOT executed:
@@ -139,6 +140,8 @@ echo ""
 
 # -------------------------------------------------
 # Phase 2: Foundation Seed Data
+# (includes ORGANIZATION_TYPE + unified STATUS
+#  categories and values in master_data)
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 2] Foundation — Seed Data${NC}"
 FOUNDATION_SEED=(
@@ -159,11 +162,12 @@ done
 echo ""
 
 # -------------------------------------------------
-# Phase 3: Organization DDL (3 tables, Depths 0–3)
+# Phase 3: Organization DDL (1 table, Depth 1)
+# Note: organization_type_master and
+#       organization_status_master are retired —
+#       type/status now use Foundation master_data.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 3] Organization — DDL (3 tables)${NC}"
-run_sql "organization_type_master"   "${DDL_BASE}/02_organization/01_organization_type_master.sql"
-run_sql "organization_status_master" "${DDL_BASE}/02_organization/02_organization_status_master.sql"
+echo -e "${CYAN}[Phase 3] Organization — DDL (1 table)${NC}"
 run_sql "organization"               "${DDL_BASE}/02_organization/03_organization.sql"
 echo ""
 
@@ -171,8 +175,6 @@ echo ""
 # Phase 4: Organization Seed Data
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 4] Organization — Seed Data${NC}"
-run_sql "organization_type_master (seed)"   "${SEED_BASE}/02_organization/01_organization_type_master.sql"
-run_sql "organization_status_master (seed)" "${SEED_BASE}/02_organization/02_organization_status_master.sql"
 run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
 echo ""
 

@@ -46,7 +46,7 @@ CREATE TABLE nss.id_sequence_master
         UNIQUE (sequence_name),
 
     CONSTRAINT chk_id_sequence_padding
-        CHECK (padding_length BETWEEN 4 AND 12),
+        CHECK (padding_length BETWEEN 2 AND 12),
 
     CONSTRAINT chk_id_sequence_current_value
         CHECK (current_value >= 0),

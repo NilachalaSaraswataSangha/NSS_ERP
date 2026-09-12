@@ -116,9 +116,9 @@ $foundationTables = @("master_category","system_setting","id_sequence_master","c
 foreach ($t in $foundationTables) { Check-TableExists $t }
 
 Write-Host "  Row counts:"
-Check-RowCount "master_category" 11
-Check-RowCount "master_data" 58
-Check-RowCount "id_sequence_master" 9
+Check-RowCount "master_category" 12
+Check-RowCount "master_data" 74
+Check-RowCount "id_sequence_master" 11
 Check-RowCount "country" 5
 Check-RowCount "state" 112
 Check-RowCount "district" 700
@@ -142,26 +142,20 @@ Check-ColumnExists "document_master" "person_pk"
 Check-ColumnExists "document_master" "uploaded_by_sangha_sevi_pk"
 Write-Host ""
 
-# Organization
+# Organization (1 table - type/status via master_data)
 Write-Host "--- Organization ---" -ForegroundColor Cyan
 Write-Host "  Tables:"
-Check-TableExists "organization_type_master"
-Check-TableExists "organization_status_master"
 Check-TableExists "organization"
 
 Write-Host "  Row counts:"
-Check-RowCount "organization_type_master" 8
-Check-RowCount "organization_status_master" 6
 Check-RowCount "organization" 3
 
 Write-Host "  Unique constraints:"
-Check-NoDuplicates "organization_type_master" "organization_type_code"
-Check-NoDuplicates "organization_status_master" "organization_status_code"
 Check-NoDuplicates "organization" "organization_code"
 
 Write-Host "  FK integrity:"
-Check-FkIntegrity "organization -> organization_type_master" "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.organization_type_master otm ON o.organization_type_pk = otm.organization_type_pk WHERE otm.organization_type_pk IS NULL;"
-Check-FkIntegrity "organization -> organization_status_master" "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.organization_status_master osm ON o.organization_status_pk = osm.organization_status_pk WHERE osm.organization_status_pk IS NULL;"
+Check-FkIntegrity "organization -> master_data (type)" "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.master_data md ON o.organization_type_master_data_pk = md.master_data_pk WHERE md.master_data_pk IS NULL;"
+Check-FkIntegrity "organization -> master_data (status)" "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.master_data md ON o.status_master_data_pk = md.master_data_pk WHERE md.master_data_pk IS NULL;"
 Check-FkIntegrity "organization -> country" "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.country c ON o.country_pk = c.country_pk WHERE o.country_pk IS NOT NULL AND c.country_pk IS NULL;"
 Check-FkIntegrity "organization -> city_village" "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.city_village cv ON o.city_village_pk = cv.city_village_pk WHERE o.city_village_pk IS NOT NULL AND cv.city_village_pk IS NULL;"
 Check-FkIntegrity "organization -> postal_code" "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.postal_code pc ON o.postal_code_pk = pc.postal_code_pk WHERE o.postal_code_pk IS NOT NULL AND pc.postal_code_pk IS NULL;"

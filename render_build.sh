@@ -113,15 +113,11 @@ else
     run_sql "postal_code (seed)"        "${SEED_BASE}/01_foundation/08_postal_code.sql"
 
     echo ""
-    echo "--- Phase 3: Organization — DDL ---"
-    run_sql "organization_type_master"   "${DDL_BASE}/02_organization/01_organization_type_master.sql"
-    run_sql "organization_status_master" "${DDL_BASE}/02_organization/02_organization_status_master.sql"
+    echo "--- Phase 3: Organization — DDL (type via ORGANIZATION_TYPE, status via unified STATUS in Foundation master_data) ---"
     run_sql "organization"               "${DDL_BASE}/02_organization/03_organization.sql"
 
     echo ""
     echo "--- Phase 4: Organization — Seed ---"
-    run_sql "organization_type_master (seed)"   "${SEED_BASE}/02_organization/01_organization_type_master.sql"
-    run_sql "organization_status_master (seed)" "${SEED_BASE}/02_organization/02_organization_status_master.sql"
     run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
 
     echo ""

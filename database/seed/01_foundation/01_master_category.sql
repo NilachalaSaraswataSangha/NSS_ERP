@@ -34,9 +34,9 @@ VALUES
     3
 ),
 (
-    'MEMBERSHIP_STATUS',
-    'Membership Status',
-    'Lifecycle status of membership',
+    'STATUS',
+    'Status',
+    'Unified lifecycle status for all ERP entities (organizations, memberships, governance, etc.)',
     4
 ),
 (
@@ -80,4 +80,10 @@ VALUES
     'Address Type',
     'Types of addresses',
     11
+),
+(
+    'ORGANIZATION_TYPE',
+    'Organization Type',
+    'Types of organizations in the NSS hierarchy',
+    12
 );

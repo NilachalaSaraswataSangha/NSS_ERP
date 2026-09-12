@@ -88,22 +88,32 @@ CROSS JOIN (VALUES
 WHERE mc.category_code = 'MEMBERSHIP_TYPE';
 
 -- -------------------------------------------------
--- MEMBERSHIP_STATUS values
+-- STATUS values (unified ERP-wide lifecycle statuses)
+-- Replaces per-module MEMBERSHIP_STATUS and
+-- ORGANIZATION_STATUS. Each module picks its
+-- applicable subset at the application layer.
+-- Authority: NSS Bye-Law §D(d), §12, §I, §C
 -- -------------------------------------------------
 
-INSERT INTO nss.master_data (master_category_pk, value_code, value_name, display_order)
-SELECT mc.master_category_pk, v.value_code, v.value_name, v.display_order
+INSERT INTO nss.master_data (master_category_pk, value_code, value_name, description, display_order)
+SELECT mc.master_category_pk, v.value_code, v.value_name, v.description, v.display_order
 FROM nss.master_category mc
 CROSS JOIN (VALUES
-    ('ACTIVE',      'Active',      1),
-    ('INACTIVE',    'Inactive',    2),
-    ('SUSPENDED',   'Suspended',   3),
-    ('TRANSFERRED', 'Transferred', 4),
-    ('RESIGNED',    'Resigned',    5),
-    ('EXPELLED',    'Expelled',    6),
-    ('DECEASED',    'Deceased',    7)
-) AS v(value_code, value_name, display_order)
-WHERE mc.category_code = 'MEMBERSHIP_STATUS';
+    ('PROPOSED',    'Proposed',    'Entity proposed but not yet approved',                                1),
+    ('APPROVED',    'Approved',    'Approved by governance, pending activation',                          2),
+    ('ACTIVE',      'Active',      'Currently operational / active',                                     3),
+    ('INACTIVE',    'Inactive',    'Temporarily non-operational',                                        4),
+    ('SUSPENDED',   'Suspended',   'Suspended by governance decision',                                   5),
+    ('LAPSED',      'Lapsed',      'Lapsed due to non-renewal or non-attendance (Bye-Law §D(d))',        6),
+    ('TRANSFERRED', 'Transferred', 'Transferred to another unit',                                        7),
+    ('RESIGNED',    'Resigned',    'Voluntarily departed',                                               8),
+    ('EXPELLED',    'Expelled',    'Expelled by governance decision (Bye-Law §D(d)(iii))',                9),
+    ('DECEASED',    'Deceased',    'Person is deceased (Bye-Law §D(d)(i))',                              10),
+    ('DISSOLVED',   'Dissolved',   'Organization permanently dissolved (Bye-Law §I)',                    11),
+    ('ARCHIVED',    'Archived',    'Permanently closed, retained for history',                           12),
+    ('EXPIRED',     'Expired',     'Term or period has expired (Bye-Law §C(1)(c))',                      13)
+) AS v(value_code, value_name, description, display_order)
+WHERE mc.category_code = 'STATUS';
 
 -- -------------------------------------------------
 -- RELATIONSHIP_TYPE values
@@ -154,3 +164,30 @@ CROSS JOIN (VALUES
     ('OTHER',              'Other Relative',          29)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'RELATIONSHIP_TYPE';
+
+-- -------------------------------------------------
+-- ORGANIZATION_TYPE values
+-- (10 types per NSS Bye-Law hierarchy + preamble)
+-- -------------------------------------------------
+
+INSERT INTO nss.master_data (master_category_pk, value_code, value_name, description, display_order)
+SELECT mc.master_category_pk, v.value_code, v.value_name, v.description, v.display_order
+FROM nss.master_category mc
+CROSS JOIN (VALUES
+    ('KENDRA',           'Kendra Sangha',     'Central Body — Apex Organization',                                    1),
+    ('NILACHALA_KUTIRA', 'Nilachala Kutira',   'Eternal Abode - Puri',                                               2),
+    ('SMRUTI_MANDIRA',   'Smruti Mandira',     'Nigamananda Smruti Mandir',                                          3),
+    ('ANCHALIKA_SANGHA', 'Anchalika Sangha',   'Administrative unit — intermediate organizational level',             4),
+    ('ZILLA_SANGHA',     'Zilla Sangha',       'Administrative unit — intermediate organizational level',             5),
+    ('SAKHA_SANGHA',     'Sakha Sangha',       'Physical Sangha location — branch with own building',                 6),
+    ('SAKHA_ASANA',      'Sakha Asana',        'Approved Sakha without own building',                                 7),
+    ('PARIBARIK_ASANA',  'Paribarik Asana',    'Family-level Asana — per Parichay Patra holder; renewed with Parichay Patra — Bye-Law §C(2)(iii)', 8),
+    ('PARIBARIK_SANGHA', 'Paribarik Sangha',   'Family organisation attached to Kendra — Bye-Law Preamble',             9),
+    ('PATHA_CHAKRA',     'Patha Chakra',       'Study Circle',                                                        10)
+) AS v(value_code, value_name, description, display_order)
+WHERE mc.category_code = 'ORGANIZATION_TYPE';
+
+-- -------------------------------------------------
+-- (STATUS values are above — unified ERP-wide category
+--  replaces the former per-module ORGANIZATION_STATUS)
+-- -------------------------------------------------

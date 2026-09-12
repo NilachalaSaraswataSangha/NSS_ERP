@@ -7,7 +7,7 @@
 # modules only.
 #
 # Authority: SOL-ARCH-010, SOL-ARCH-011
-# Version: 1.0
+# Version: 2.0
 #
 # Usage:
 #   .\database\scripts\02_build.ps1 [-DbName nss_erp] [-DbUser nss_db_owner] [-DbHost localhost] [-DbPort 5432]
@@ -105,7 +105,7 @@ foreach ($entry in $foundationDdl) {
 }
 Write-Host ""
 
-# Phase 2: Foundation Seed
+# Phase 2: Foundation Seed (includes ORGANIZATION_TYPE + unified STATUS in master_data)
 Write-Host "[Phase 2] Foundation - Seed Data" -ForegroundColor Cyan
 $foundationSeed = @(
     @("master_category (seed)",    "01_master_category.sql"),
@@ -122,17 +122,13 @@ foreach ($entry in $foundationSeed) {
 }
 Write-Host ""
 
-# Phase 3: Organization DDL
-Write-Host "[Phase 3] Organization - DDL (3 tables)" -ForegroundColor Cyan
-Invoke-Sql "organization_type_master"   "$DdlBase\02_organization\01_organization_type_master.sql"
-Invoke-Sql "organization_status_master" "$DdlBase\02_organization\02_organization_status_master.sql"
+# Phase 3: Organization DDL (1 table — type/status now in Foundation master_data)
+Write-Host "[Phase 3] Organization - DDL (1 table)" -ForegroundColor Cyan
 Invoke-Sql "organization"               "$DdlBase\02_organization\03_organization.sql"
 Write-Host ""
 
 # Phase 4: Organization Seed
 Write-Host "[Phase 4] Organization - Seed Data" -ForegroundColor Cyan
-Invoke-Sql "organization_type_master (seed)"   "$SeedBase\02_organization\01_organization_type_master.sql"
-Invoke-Sql "organization_status_master (seed)" "$SeedBase\02_organization\02_organization_status_master.sql"
 Invoke-Sql "organization (seed)"               "$SeedBase\02_organization\03_organization.sql"
 Write-Host ""
 

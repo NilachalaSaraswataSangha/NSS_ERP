@@ -24,7 +24,7 @@
 # Modules validated:
 #   - Bootstrap RBAC (3 tables)
 #   - Foundation (12 tables)
-#   - Organization (3 tables)
+#   - Organization (1 table — type/status in Foundation master_data)
 #
 # Extend this script when new modules are added.
 # =====================================================
@@ -176,9 +176,9 @@ for t in "${FOUNDATION_TABLES[@]}"; do
 done
 
 echo "  Row counts:"
-check_row_count "master_category" 11
-check_row_count "master_data" 58
-check_row_count "id_sequence_master" 9
+check_row_count "master_category" 12
+check_row_count "master_data" 74
+check_row_count "id_sequence_master" 11
 check_row_count "country" 5
 check_row_count "state" 112
 check_row_count "district" 700
@@ -208,29 +208,23 @@ check_column_exists "document_master" "uploaded_by_sangha_sevi_pk"
 echo ""
 
 # =====================================================
-# Module 3: Organization (3 tables)
+# Module 3: Organization (1 table — type/status via master_data)
 # =====================================================
 echo -e "${CYAN}--- Organization ---${NC}"
 echo "  Tables:"
-check_table_exists "organization_type_master"
-check_table_exists "organization_status_master"
 check_table_exists "organization"
 
 echo "  Row counts:"
-check_row_count "organization_type_master" 8
-check_row_count "organization_status_master" 6
 check_row_count "organization" 3
 
 echo "  Unique constraints:"
-check_no_duplicates "organization_type_master" "organization_type_code"
-check_no_duplicates "organization_status_master" "organization_status_code"
 check_no_duplicates "organization" "organization_code"
 
 echo "  FK integrity:"
-check_fk_integrity "organization -> organization_type_master" \
-    "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.organization_type_master otm ON o.organization_type_pk = otm.organization_type_pk WHERE otm.organization_type_pk IS NULL;"
-check_fk_integrity "organization -> organization_status_master" \
-    "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.organization_status_master osm ON o.organization_status_pk = osm.organization_status_pk WHERE osm.organization_status_pk IS NULL;"
+check_fk_integrity "organization -> master_data (type)" \
+    "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.master_data md ON o.organization_type_master_data_pk = md.master_data_pk WHERE md.master_data_pk IS NULL;"
+check_fk_integrity "organization -> master_data (status)" \
+    "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.master_data md ON o.status_master_data_pk = md.master_data_pk WHERE md.master_data_pk IS NULL;"
 check_fk_integrity "organization -> country" \
     "SELECT COUNT(*) FROM nss.organization o LEFT JOIN nss.country c ON o.country_pk = c.country_pk WHERE o.country_pk IS NOT NULL AND c.country_pk IS NULL;"
 check_fk_integrity "organization -> city_village" \

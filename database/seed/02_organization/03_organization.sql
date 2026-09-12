@@ -2,7 +2,7 @@
 -- NSS ERP
 -- Module: Organization
 -- Seed File: 03_organization.sql
--- Version: 1.0
+-- Version: 2.0
 -- Authority: SOL-ARCH-010 §8, SOL-ORG-005 §48
 -- Owner: NSS_ERP_ADMIN
 -- Note: Seeds the three unique organizations of NSS.
@@ -26,10 +26,11 @@
 --       postal_code_pk references Foundation postal_code
 --       seed (08_postal_code.sql).
 --
---       Requires 01_organization_type_master.sql and
---       02_organization_status_master.sql to have been
---       executed first.
---       Uses subqueries to resolve type/status/postal PKs.
+-- v2.0 Migration (2026-09-12):
+--       Type/status now resolved via Foundation master_data
+--       (categories ORGANIZATION_TYPE / STATUS) instead of
+--       standalone organization_type_master /
+--       organization_status_master tables.
 -- =====================================================
 
 -- -------------------------------------------------
@@ -37,15 +38,15 @@
 -- -------------------------------------------------
 
 INSERT INTO nss.organization
-    (organization_name, organization_type_pk,
-     organization_status_pk, parent_organization_pk,
+    (organization_name, organization_type_master_data_pk,
+     status_master_data_pk, parent_organization_pk,
      organization_code,
      address_line_1, address_line_2, postal_code_pk, country_pk,
      phone_number, mobile_number)
 SELECT
     'Nilachala Saraswata Sangha',
-    ot.organization_type_pk,
-    os.organization_status_pk,
+    ot.master_data_pk,
+    os.master_data_pk,
     NULL,
     'KEN',
     'Satsikshya Mandir, A/4, Unit-9',
@@ -54,12 +55,18 @@ SELECT
     c.country_pk,
     '+91-674-2390055',
     '+91-9238106823'
-FROM nss.organization_type_master ot
-CROSS JOIN nss.organization_status_master os
+FROM nss.master_data ot
+JOIN nss.master_category mc_type
+     ON mc_type.master_category_pk = ot.master_category_pk
+CROSS JOIN nss.master_data os
+JOIN nss.master_category mc_status
+     ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
-WHERE ot.organization_type_code = 'KENDRA'
-  AND os.organization_status_code = 'ACTIVE'
+WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
+  AND ot.value_code = 'KENDRA'
+  AND mc_status.category_code = 'STATUS'
+  AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '751022'
   AND pc.country_pk = c.country_pk;
@@ -69,26 +76,32 @@ WHERE ot.organization_type_code = 'KENDRA'
 -- -------------------------------------------------
 
 INSERT INTO nss.organization
-    (organization_name, organization_type_pk,
-     organization_status_pk, parent_organization_pk,
+    (organization_name, organization_type_master_data_pk,
+     status_master_data_pk, parent_organization_pk,
      organization_code,
      address_line_1, address_line_2, postal_code_pk, country_pk)
 SELECT
     'Nilachala Kutira',
-    ot.organization_type_pk,
-    os.organization_status_pk,
+    ot.master_data_pk,
+    os.master_data_pk,
     NULL,
     'NKT',
     'Puri',
     NULL,
     pc.postal_code_pk,
     c.country_pk
-FROM nss.organization_type_master ot
-CROSS JOIN nss.organization_status_master os
+FROM nss.master_data ot
+JOIN nss.master_category mc_type
+     ON mc_type.master_category_pk = ot.master_category_pk
+CROSS JOIN nss.master_data os
+JOIN nss.master_category mc_status
+     ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
-WHERE ot.organization_type_code = 'NILACHALA_KUTIRA'
-  AND os.organization_status_code = 'ACTIVE'
+WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
+  AND ot.value_code = 'NILACHALA_KUTIRA'
+  AND mc_status.category_code = 'STATUS'
+  AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '752001'
   AND pc.country_pk = c.country_pk;
@@ -98,15 +111,15 @@ WHERE ot.organization_type_code = 'NILACHALA_KUTIRA'
 -- -------------------------------------------------
 
 INSERT INTO nss.organization
-    (organization_name, organization_type_pk,
-     organization_status_pk, parent_organization_pk,
+    (organization_name, organization_type_master_data_pk,
+     status_master_data_pk, parent_organization_pk,
      organization_code,
      address_line_1, address_line_2, postal_code_pk, country_pk,
      phone_number)
 SELECT
     'Sri Shri Nigamananda Smruti Mandir',
-    ot.organization_type_pk,
-    os.organization_status_pk,
+    ot.master_data_pk,
+    os.master_data_pk,
     NULL,
     'SMR',
     'Swargadwar Rd, Bali Sahi',
@@ -114,12 +127,18 @@ SELECT
     pc.postal_code_pk,
     c.country_pk,
     '+91-6752-230631'
-FROM nss.organization_type_master ot
-CROSS JOIN nss.organization_status_master os
+FROM nss.master_data ot
+JOIN nss.master_category mc_type
+     ON mc_type.master_category_pk = ot.master_category_pk
+CROSS JOIN nss.master_data os
+JOIN nss.master_category mc_status
+     ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
-WHERE ot.organization_type_code = 'SMRUTI_MANDIRA'
-  AND os.organization_status_code = 'ACTIVE'
+WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
+  AND ot.value_code = 'SMRUTI_MANDIRA'
+  AND mc_status.category_code = 'STATUS'
+  AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '752001'
   AND pc.country_pk = c.country_pk;
