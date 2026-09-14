@@ -2,7 +2,7 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 03_id_sequence_master.sql
--- Version: 2.0
+-- Version: 2.1
 -- Authority: SOL-FND-004 §11
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
@@ -92,4 +92,25 @@ VALUES
     'DOC',
     0,
     8
+),
+(
+    'KUMARI_SANGHA',
+    'Kumari Sangha Code',
+    'KS',
+    0,
+    5
+),
+(
+    'SEVAK_SANGHA',
+    'Sevak Sangha Code',
+    'SEV',
+    0,
+    5
+),
+(
+    'MAHILA_SANGHA',
+    'Mahila Sangha Code',
+    'MS',
+    0,
+    5
 );

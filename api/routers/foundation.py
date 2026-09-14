@@ -92,7 +92,8 @@ def list_master_data(
         SELECT md.master_data_pk, md.master_category_pk,
                mc.category_code, mc.category_name,
                md.value_code, md.value_name,
-               md.description, md.display_order, md.is_active
+               md.description, md.applicable_modules,
+               md.display_order, md.is_active
         FROM   nss.master_data md
         JOIN   nss.master_category mc
                ON mc.master_category_pk = md.master_category_pk
@@ -129,7 +130,8 @@ def get_master_data(
             SELECT md.master_data_pk, md.master_category_pk,
                    mc.category_code, mc.category_name,
                    md.value_code, md.value_name,
-                   md.description, md.display_order, md.is_active
+                   md.description, md.applicable_modules,
+                   md.display_order, md.is_active
             FROM   nss.master_data md
             JOIN   nss.master_category mc
                    ON mc.master_category_pk = md.master_category_pk

@@ -91,28 +91,31 @@ WHERE mc.category_code = 'MEMBERSHIP_TYPE';
 -- STATUS values (unified ERP-wide lifecycle statuses)
 -- Replaces per-module MEMBERSHIP_STATUS and
 -- ORGANIZATION_STATUS. Each module picks its
--- applicable subset at the application layer.
+-- applicable subset via applicable_modules column.
 -- Authority: NSS Bye-Law §D(d), §12, §I, §C
 -- -------------------------------------------------
 
-INSERT INTO nss.master_data (master_category_pk, value_code, value_name, description, display_order)
-SELECT mc.master_category_pk, v.value_code, v.value_name, v.description, v.display_order
+INSERT INTO nss.master_data (master_category_pk, value_code, value_name, description, display_order, applicable_modules)
+SELECT mc.master_category_pk, v.value_code, v.value_name, v.description, v.display_order, v.applicable_modules
 FROM nss.master_category mc
 CROSS JOIN (VALUES
-    ('PROPOSED',    'Proposed',    'Entity proposed but not yet approved',                                1),
-    ('APPROVED',    'Approved',    'Approved by governance, pending activation',                          2),
-    ('ACTIVE',      'Active',      'Currently operational / active',                                     3),
-    ('INACTIVE',    'Inactive',    'Temporarily non-operational',                                        4),
-    ('SUSPENDED',   'Suspended',   'Suspended by governance decision',                                   5),
-    ('LAPSED',      'Lapsed',      'Lapsed due to non-renewal or non-attendance (Bye-Law §D(d))',        6),
-    ('TRANSFERRED', 'Transferred', 'Transferred to another unit',                                        7),
-    ('RESIGNED',    'Resigned',    'Voluntarily departed',                                               8),
-    ('EXPELLED',    'Expelled',    'Expelled by governance decision (Bye-Law §D(d)(iii))',                9),
-    ('DECEASED',    'Deceased',    'Person is deceased (Bye-Law §D(d)(i))',                              10),
-    ('DISSOLVED',   'Dissolved',   'Organization permanently dissolved (Bye-Law §I)',                    11),
-    ('ARCHIVED',    'Archived',    'Permanently closed, retained for history',                           12),
-    ('EXPIRED',     'Expired',     'Term or period has expired (Bye-Law §C(1)(c))',                      13)
-) AS v(value_code, value_name, description, display_order)
+    ('PROPOSED',    'Proposed',    'Entity proposed but not yet approved',                                1, '{ORGANIZATION}'::TEXT[]),
+    ('APPROVED',    'Approved',    'Approved by governance, pending activation',                          2, '{ORGANIZATION}'::TEXT[]),
+    ('ACTIVE',      'Active',      'Currently operational / active',                                     3, '{ORGANIZATION,MEMBERSHIP,PERSON}'::TEXT[]),
+    ('INACTIVE',    'Inactive',    'Temporarily non-operational',                                        4, '{ORGANIZATION,MEMBERSHIP,PERSON}'::TEXT[]),
+    ('SUSPENDED',   'Suspended',   'Suspended by governance decision',                                   5, '{ORGANIZATION,MEMBERSHIP}'::TEXT[]),
+    ('LAPSED',      'Lapsed',      'Lapsed due to non-renewal or non-attendance (Bye-Law §D(d))',        6, '{MEMBERSHIP}'::TEXT[]),
+    ('TRANSFERRED', 'Transferred', 'Transferred to another unit',                                        7, '{MEMBERSHIP}'::TEXT[]),
+    ('RESIGNED',    'Resigned',    'Voluntarily departed',                                               8, '{MEMBERSHIP}'::TEXT[]),
+    ('EXPELLED',    'Expelled',    'Expelled by governance decision (Bye-Law §D(d)(iii))',                9, '{MEMBERSHIP}'::TEXT[]),
+    ('DECEASED',    'Deceased',    'Person is deceased (Bye-Law §D(d)(i))',                              10, '{PERSON}'::TEXT[]),
+    ('DISSOLVED',   'Dissolved',   'Organization permanently dissolved (Bye-Law §I)',                    11, '{ORGANIZATION}'::TEXT[]),
+    ('ARCHIVED',    'Archived',    'Permanently closed, retained for history',                           12, '{ORGANIZATION,MEMBERSHIP,PERSON}'::TEXT[]),
+    ('EXPIRED',          'Expired',          'Credential or document term has expired (Bye-Law §C(1)(c))',            13, '{CREDENTIAL}'::TEXT[]),
+    ('RENEWAL_PENDING',  'Renewal Pending',  'Membership renewal requested, awaiting approval',                    14, '{MEMBERSHIP}'::TEXT[]),
+    ('ON_HOLD',          'On Hold',          'Membership temporarily on hold (administrative)',                     15, '{MEMBERSHIP}'::TEXT[]),
+    ('DISCIPLINARY_REVIEW', 'Disciplinary Review', 'Under disciplinary review by governance (Bye-Law §D(d)(iii))', 16, '{MEMBERSHIP}'::TEXT[])
+) AS v(value_code, value_name, description, display_order, applicable_modules)
 WHERE mc.category_code = 'STATUS';
 
 -- -------------------------------------------------
@@ -183,7 +186,10 @@ CROSS JOIN (VALUES
     ('SAKHA_ASANA',      'Sakha Asana',        'Approved Sakha without own building',                                 7),
     ('PARIBARIK_ASANA',  'Paribarik Asana',    'Family-level Asana — per Parichay Patra holder; renewed with Parichay Patra — Bye-Law §C(2)(iii)', 8),
     ('PARIBARIK_SANGHA', 'Paribarik Sangha',   'Family organisation attached to Kendra — Bye-Law Preamble',             9),
-    ('PATHA_CHAKRA',     'Patha Chakra',       'Study Circle',                                                        10)
+    ('PATHA_CHAKRA',     'Patha Chakra',       'Study Circle',                                                        10),
+    ('KUMARI_SANGHA',    'Kumari Sangha',      'Kumari Sangha — unmarried female participants organization (Kumari Module §24)', 11),
+    ('SEVAK_SANGHA',     'Sevak Sangha',       'Sevak Sangha — service-oriented wing organization',                     12),
+    ('MAHILA_SANGHA',    'Mahila Sangha',      'Mahila Sangha — women''s wing organization (NSS Mahila Sangha Bye-Law)', 13)
 ) AS v(value_code, value_name, description, display_order)
 WHERE mc.category_code = 'ORGANIZATION_TYPE';
 
