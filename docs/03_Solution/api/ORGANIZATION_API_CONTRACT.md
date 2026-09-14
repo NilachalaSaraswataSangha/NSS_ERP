@@ -167,9 +167,16 @@ dedicated status list.
 ]
 ```
 
-**Tier 2 state:** 13 unified lifecycle statuses (Proposed, Approved, Active,
-Inactive, Suspended, Lapsed, Transferred, Resigned, Expelled, Deceased,
-Dissolved, Archived, Expired).
+**Tier 2 state:** as of Tier 4, `/statuses` returns only the subset of the unified `STATUS`
+category applicable to Organization (via the new `master_data.applicable_modules TEXT[]`
+column, checked with `'ORGANIZATION' = ANY(applicable_modules)` or `applicable_modules IS
+NULL`) — **7 statuses**: Proposed, Approved, Active, Inactive, Suspended, Dissolved, Archived.
+The unified `STATUS` category itself now holds 16 values total (13 original + `RENEWAL_PENDING`/
+`ON_HOLD`/`DISCIPLINARY_REVIEW`, added for Membership) — Organization no longer sees the
+Membership-only ones (Lapsed, Transferred, Resigned, Expelled, Deceased, Expired, and the 3 new
+Membership statuses). **Known test gap:** `tests/test_organization.py::test_list_returns_13_statuses`
+still asserts the old unfiltered count of 13 and has not been updated for this filter — it will
+fail against the current code.
 
 **SQL Pattern:**
 
@@ -185,6 +192,7 @@ JOIN   nss.master_category mc
        ON mc.master_category_pk = md.master_category_pk
 WHERE  mc.category_code = 'STATUS'
   AND  md.is_active = TRUE
+  AND  ('ORGANIZATION' = ANY(md.applicable_modules) OR md.applicable_modules IS NULL)
 ORDER BY md.display_order
 ```
 

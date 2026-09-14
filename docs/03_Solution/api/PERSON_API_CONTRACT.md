@@ -69,7 +69,9 @@ administration and authorization exist.
   (422 on violation)
 - **Trigram search:** Uses PostgreSQL `pg_trgm` extension for fuzzy name
   matching with `similarity()` ranking, plus ILIKE prefix matching on
-  `person_id` and `mobile_number`. Hardcoded `LIMIT 50`
+  `person_id`, `mobile_number`, and `email`. Email-like queries use
+  `re.split(r'[.@]', q)[0]` for trigram params to prevent false
+  positives. Hardcoded `LIMIT 50`
 - **Person existence guard:** The addresses endpoint verifies the person
   exists before querying, preventing `200 []` for non-existent persons
 
@@ -318,11 +320,13 @@ ORDER BY pa.is_primary DESC, at.value_name
 GET /api/v1/person/search
 ```
 
-Searches active persons by name, person_id, or mobile number. Uses
+Searches active persons by name, person_id, mobile number, or email. Uses
 PostgreSQL trigram similarity (`pg_trgm`) on first_name and last_name for
-fuzzy matching, plus ILIKE prefix matching on `person_id` and
-`mobile_number`. Results ranked by trigram similarity (best match first),
-capped at 50 results.
+fuzzy matching, plus ILIKE prefix matching on `person_id`,
+`mobile_number`, and `email`. For email-like queries (containing `.` or
+`@`), the trigram comparison uses only the name portion before the
+delimiter to prevent false positives. Results ranked by trigram similarity
+(best match first), capped at 50 results.
 
 **Query Parameters:**
 
@@ -344,19 +348,25 @@ capped at 50 results.
 _PERSON_SUMMARY_SELECT
 WHERE p.is_active = TRUE
   AND (
-      p.first_name %% %s
-      OR p.last_name %% %s
+      similarity(p.first_name, %s) > 0.45
+      OR similarity(p.last_name, %s) > 0.45
       OR p.person_id ILIKE %s
       OR p.mobile_number ILIKE %s
+      OR p.email ILIKE %s
   )
 ORDER BY similarity(p.first_name, %s) DESC,
          p.first_name, p.last_name
 LIMIT 50
 ```
 
-The `%%` is psycopg2's escaped `%` operator for the pg_trgm `%` (similarity)
-operator. The ILIKE pattern is `f"{q}%"` (prefix match), passed as a `%s`
-parameter — never interpolated into the SQL string.
+`similarity()` is `pg_trgm`'s explicit similarity function, called directly with a
+`> 0.45` threshold rather than the `%` operator (which relies on the session's
+`pg_trgm.similarity_threshold` GUC) — this matches the Membership module's identical
+threshold, making the two modules' fuzzy-match behavior predictable and independent
+of any session-level GUC configuration. The ILIKE pattern is `f"{q}%"` (prefix match), passed as a `%s`
+parameter — never interpolated into the SQL string. For trigram parameters,
+email-like queries use `name_q = re.split(r'[.@]', q)[0]` to extract the
+name portion before `.` or `@`.
 
 ---
 
@@ -546,7 +556,6 @@ These can be added later without changing existing contracts:
 |-------------------------|------------------------------------------------------------|
 | Include inactive        | Add `?include_inactive=true` (auth-gated)                  |
 | Address pagination      | Add `limit`/`offset` to addresses endpoint                 |
-| Search by email         | Add `OR p.email ILIKE %s` to search WHERE clause           |
 | Search pagination       | Replace hardcoded `LIMIT 50` with query parameter          |
 | Person count            | Add `GET /persons/count` with same filters                 |
 
