@@ -25,8 +25,18 @@ until the tier's implementation is frozen.
   `person_address` tables. Master-data FKs (gender, marital status, blood group, emergency
   relationship, address type) are resolved via JOINs; `aadhaar_encrypted`/`aadhaar_hash` are
   never returned — only `aadhaar_last4` for masked display.
+- **`API_CONTRACT.md`** (`SOL-API-001`, v1.0.0, Draft) — a consolidated cross-tier quick
+  reference covering Tiers 0–4 (Bootstrap/Foundation/Organization/Person/Family/Membership) in
+  one document: common conventions (pagination, error responses, audit-column exclusion,
+  sensitive-data rules, UUID path parameters), a condensed endpoint table per tier, frontend
+  routes, and a full endpoint-count summary (42 endpoints total). It does **not** replace the
+  per-tier contract docs above for Tiers 0–3 — those remain the source of full request/response
+  detail, example payloads, and file maps. For Tier 4 (Family, Membership), `API_CONTRACT.md` is
+  currently the **only** contract document — there is no dedicated `FAMILY_API_CONTRACT.md` or
+  `MEMBERSHIP_API_CONTRACT.md`, a deliberate departure from the one-file-per-tier convention used
+  for Tiers 0–3.
 
-Each contract documents conventions, the full endpoint catalogue with example
+Each per-tier contract documents conventions, the full endpoint catalogue with example
 requests/responses and SQL patterns, a response-schema summary, error responses, and an
 implementation file map tying the contract back to its router/schema/test/frontend files.
 Write operations (POST/PATCH/DELETE) are deferred to Tier 5 across all four contracts, once
