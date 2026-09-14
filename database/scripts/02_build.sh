@@ -34,6 +34,10 @@
 #   Phase 3  — Organization DDL (1 table)
 #   Phase 4  — Organization seed data
 #   Phase 5  — Person DDL (2 tables)
+#   Phase 6  — Family DDL (4 tables)
+#   Phase 7  — Membership DDL (12 tables)
+#   Phase 8  — Tier 4 Verification Seed Data
+#   Phase 9  — Grant nss_db_backend read-only access
 #
 # NOT executed:
 #   - database/ddl/03_person/01_person_master_tables.sql (superseded)
@@ -200,6 +204,57 @@ run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
 echo ""
 
 # -------------------------------------------------
+# Phase 6: Family DDL (4 tables, Depths 2–3)
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 6] Family — DDL (4 tables)${NC}"
+run_sql "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
+run_sql "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
+run_sql "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
+run_sql "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 7: Membership DDL (12 tables, Depths 2–4)
+# Note: sangha_sevi must be created first — all
+#       other membership tables depend on it.
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 7] Membership — DDL (12 tables)${NC}"
+run_sql "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
+run_sql "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
+run_sql "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
+run_sql "membership_renewal_history"     "${DDL_BASE}/05_membership/04_membership_renewal_history.sql"
+run_sql "membership_transfer_history"    "${DDL_BASE}/05_membership/05_membership_transfer_history.sql"
+run_sql "membership_sakha_affiliation"   "${DDL_BASE}/05_membership/06_membership_sakha_affiliation.sql"
+run_sql "membership_journey_event"       "${DDL_BASE}/05_membership/07_membership_journey_event.sql"
+run_sql "probationary_member_review"     "${DDL_BASE}/05_membership/08_probationary_member_review.sql"
+run_sql "parichaya_patra"                "${DDL_BASE}/05_membership/09_parichaya_patra.sql"
+run_sql "parichaya_patra_history"        "${DDL_BASE}/05_membership/10_parichaya_patra_history.sql"
+run_sql "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_patra.sql"
+run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 8: Tier 4 Verification Seed Data
+# Order: Organization → Person → Family → Membership
+# (dependency chain respected)
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 8] Tier 4 Verification — Seed Data${NC}"
+run_sql "tier4 organizations (seed)"    "${SEED_BASE}/02_organization/04_tier4_verification_orgs.sql"
+run_sql "tier4 persons (seed)"          "${SEED_BASE}/03_person/02_tier4_verification_persons.sql"
+run_sql "tier4 family (seed)"           "${SEED_BASE}/04_family/01_tier4_verification_family.sql"
+run_sql "tier4 membership (seed)"       "${SEED_BASE}/05_membership/01_tier4_verification_membership.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 9: Grant nss_db_backend read-only access
+# Must run AFTER all DDL so GRANT SELECT ON ALL
+# TABLES covers every table just created.
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 9] Grant nss_db_backend read-only access${NC}"
+run_sql "grant_backend" "${SCRIPT_DIR}/04_grant_backend.sql"
+echo ""
+
+# -------------------------------------------------
 # Summary
 # -------------------------------------------------
 echo -e "${CYAN}=============================================${NC}"
@@ -214,7 +269,6 @@ if [ "$failed" -eq 0 ]; then
     echo -e "  ${GREEN}Database build completed successfully.${NC}"
     echo ""
     echo -e "  ${YELLOW}Not executed (future phases):${NC}"
-    echo "    - Person seed (03_person/ is superseded — data in Foundation seed)"
     echo "    - Authentication, Administration, remaining modules"
     echo "    - Pass 2 audit-actor FK constraints"
     exit 0
