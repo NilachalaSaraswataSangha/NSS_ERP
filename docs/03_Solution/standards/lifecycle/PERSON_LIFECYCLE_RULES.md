@@ -89,7 +89,7 @@ No ID is deleted or changed:
 - Kishor ID remains
 - All permanent business identifiers remain
 
-Example: SS00000123 does not disappear. It becomes SS00000123, Status: DECEASED.
+Example: SS123 does not disappear. It becomes SS123, Status: DECEASED.
 
 ---
 
