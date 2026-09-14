@@ -56,9 +56,9 @@ Each NSS Family shall have a unique Family ID.
 Example:
 
 ```text
-FG000001
-FG000002
-FG000003
+F1
+F2
+F3
 ```
 
 Rules:

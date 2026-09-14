@@ -109,6 +109,15 @@ The operational Darshak concept is defined separately by:
 DARSHAK_BUSINESS_RULE.md
 ```
 
+In the portal UI, a Probationary Member shall be displayed as
+**"Darshaka"**. This is an operational/UI label only — the database
+stores `PROBATIONARY`. The mapping is:
+
+```text
+Database value:  PROBATIONARY
+Portal display:  Darshaka
+```
+
 ---
 
 ## MBR-008 — Full Member Terminology
@@ -136,6 +145,11 @@ A Person may be enrolled as a Probationary Member after satisfying the applicabl
 A Probationary Member shall be associated with an Anumati Patra according to the applicable NSS process.
 
 The Bye-Law states that an enrolled Probationary Member is issued an Anumati Patra.
+
+When a Probationary Member progresses to Regular Membership, their
+Anumati Patra record shall be preserved with `EXPIRED` status. The
+historical Anumati Patra remains visible in the member's credential
+history alongside any subsequent Parichaya Patra.
 
 ---
 
@@ -177,7 +191,13 @@ The Bye-Law specifies at least one year of Probationary Membership and at least 
 
 ## MBR-014 — Parichaya Patra
 
-A Regular Member shall be associated with a Parichaya Patra according to the applicable NSS process.
+A Regular Member or Associate Member shall be associated with a Parichaya Patra according to the applicable NSS process.
+
+The Bye-Law section (d) Cessation of Membership states that membership
+ceases on non-renewal of "the Annual Parichaya Patra (Identity Card)
+or Anumati Patra (Admit Card) as the case may be." This applies to
+all membership types that hold a Parichaya Patra — Regular and
+Associate.
 
 ---
 
@@ -214,6 +234,36 @@ Associate Members may attend functions of Sakha Sanghas and the Kendra Sangha ac
 Associate Members shall not be granted governance rights beyond those permitted by the authoritative NSS rules.
 
 The ERP shall derive governance eligibility from the Governance Module rather than assuming that Membership alone grants governance authority.
+
+---
+
+## MBR-019A — Associate Parichaya Patra
+
+An Associate Member shall be issued a Parichaya Patra (Identity Card)
+upon enrollment. The Bye-Law's cessation clause (section (d)) applies
+the Parichaya Patra renewal requirement to Associate Members.
+
+**Source:** NSS Bye-Law, section (d) Cessation of Membership — "non-renewal
+of the Annual Parichaya Patra (Identity Card) or Anumati Patra (Admit Card)
+as the case may be."
+
+---
+
+## MBR-019B — Associate Members Do Not Receive Anumati Patra
+
+An Associate Member shall NOT be issued an Anumati Patra. The Anumati
+Patra is exclusive to Probationary Members per the Bye-Law.
+
+Associate Members are enrolled directly (no probationary period),
+therefore the Anumati Patra pathway does not apply.
+
+**Credential matrix by type:**
+
+| Membership Type | Anumati Patra | Parichaya Patra |
+|-----------------|---------------|-----------------|
+| PROBATIONARY    | Yes (ACTIVE)  | No              |
+| REGULAR         | Yes (EXPIRED, historical) | Yes (ACTIVE) |
+| ASSOCIATE       | No            | Yes (ACTIVE)    |
 
 ---
 
@@ -299,11 +349,62 @@ The approved Membership Transfer workflow establishes Dola Purnima as the effect
 
 ---
 
-## MBR-030 — Local Sakha Number
+## MBR-030 — Local Sakha ERP Number (ERP Number)
 
-A Member may receive a new local Sakha number following transfer.
+A Member may receive a new Local Sakha ERP Number following transfer.
 
-The local number is not the global Membership identity.
+The Local Sakha Number and ERP Number are the same identity — these are
+two names for a single concept.
+
+```text
+Local Sakha Number = ERP Number
+```
+
+The Local Sakha ERP Number is scoped to the member's recognized/base Sakha
+and is **auto-generated** by the system at enrollment or transfer:
+
+```text
+Format:  <Sakha Short Code><sequence>
+Example: ESS1192 (Ekamra Sakha), CTC42 (Cuttack Sakha)
+```
+
+The local number is not the global Membership identity. The global
+identity is the Sangha Sevi ID (Tier 1).
+
+Stored on: `membership_sakha_affiliation.local_sakha_erp_id`
+
+---
+
+## MBR-030A — Kendra Number
+
+A Regular Member's Parichaya Patra carries a Kendra Number as the
+`document_number`.
+
+```text
+Format:  <number>/<financial_year_start>/<financial_year_end>
+Example: 345/2026/2027
+```
+
+The Kendra Number is the Kendra Sangha's own registration reference
+for the member.
+
+The Kendra Number does not change on Sakha transfer.
+
+Stored on: `parichaya_patra.document_number`
+
+---
+
+## MBR-030B — Three-Tier Identity Summary
+
+Every NSS Member is identified by three distinct identity tiers:
+
+```text
+Tier 1: Sangha Sevi ID          — NSS-wide, permanent
+Tier 2: Local Sakha ERP Number  — Sakha-scoped (= ERP Number)
+Tier 3: Kendra Number           — via Parichaya Patra document_number
+```
+
+Only Tier 2 (Local Sakha ERP Number) changes on transfer.
 
 ---
 

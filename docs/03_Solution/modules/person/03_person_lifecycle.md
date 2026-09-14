@@ -54,6 +54,23 @@ ACTIVE-DECEASED     is_active=TRUE, date_of_death=SET, deleted_at=NULL
 INACTIVE            is_active=FALSE, deleted_at=SET
 ```
 
+## 3a. Unified STATUS Mapping (ERP Implementation Note)
+
+The ERP's unified STATUS category (`nss.master_data` with
+`applicable_modules = '{PERSON}'`) provides four Person-applicable
+statuses for UI display and API filtering:
+
+| Unified STATUS | Maps to field-level state | Description |
+|---------------|--------------------------|-------------|
+| ACTIVE | is_active=TRUE, date_of_death=NULL | Currently active person record |
+| INACTIVE | is_active=FALSE | Temporarily non-operational |
+| DECEASED | is_active=TRUE, date_of_death=SET | Person is deceased (Bye-Law §D(d)(i)) |
+| ARCHIVED | is_active=FALSE, deleted_at=SET | Permanently closed, retained for history |
+
+DECEASED is a Person-only status — a membership cannot be deceased, a
+member (person) can. EXPIRED is a Credential-only status (Anumati Patra /
+Parichaya Patra documents), not applicable to Person.
+
 ---
 
 # 4. State Definitions

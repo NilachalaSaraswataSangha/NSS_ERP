@@ -40,7 +40,13 @@ Design Complete
 
 ERD Complete
 
-Lifecycle Documented
+Lifecycle Documented — includes Member vs Membership status distinction:
+- Member Statuses (person-level): ACTIVE, INACTIVE, DECEASED, ARCHIVED (4)
+- Membership Statuses (record-level): ACTIVE, INACTIVE, SUSPENDED, LAPSED,
+  TRANSFERRED, RESIGNED, EXPELLED, ARCHIVED, RENEWAL_PENDING, ON_HOLD,
+  DISCIPLINARY_REVIEW (11)
+- DECEASED is Person-only (a member is a person; a membership cannot be deceased)
+- EXPIRED is Credential-only (Anumati Patra / Parichaya Patra documents)
 
 Business Rules Drafted (not yet Frozen)
 

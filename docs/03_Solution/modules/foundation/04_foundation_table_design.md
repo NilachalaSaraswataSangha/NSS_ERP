@@ -260,10 +260,38 @@ The table requires a stable representation of:
     Value Code
     Value / Display Name
     Description
+    Module Scope (applicable_modules)
     Ordering / Display Sequence
     Active State
 
 The exact physical column catalogue remains subject to final SQL approval.
+
+---
+
+## 7.4a Module-Scoped Status Filtering (`applicable_modules`)
+
+The `applicable_modules` column (`TEXT[] NULL`) enables shared categories
+(e.g. STATUS) to be filtered per-module. Each value is tagged with the
+modules it applies to:
+
+    NULL                               — applies to all modules (default for
+                                         single-module categories like GENDER,
+                                         BLOOD_GROUP)
+    '{ORGANIZATION}'                   — Organization only
+    '{ORGANIZATION,MEMBERSHIP}'        — Organization and Membership
+    '{ORGANIZATION,MEMBERSHIP,PERSON}' — all three core modules
+    '{CREDENTIAL}'                     — Credential documents only
+
+API filters use: `WHERE '<MODULE>' = ANY(md.applicable_modules)`.
+
+Current unified STATUS distribution (16 values total):
+
+| Module       | Count | Statuses |
+|-------------|------:|----------|
+| Organization | 7 | PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, DISSOLVED, ARCHIVED |
+| Membership   | 11 | ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, ARCHIVED, RENEWAL_PENDING, ON_HOLD, DISCIPLINARY_REVIEW |
+| Person       | 4 | ACTIVE, INACTIVE, DECEASED, ARCHIVED |
+| Credential   | 1 | EXPIRED |
 
 ---
 

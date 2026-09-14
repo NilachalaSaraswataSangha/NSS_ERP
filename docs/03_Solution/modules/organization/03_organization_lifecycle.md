@@ -90,6 +90,26 @@ INACTIVE
 ARCHIVED
 ```
 
+The ERP implementation extends this with two additional governance-controlled
+states from the unified STATUS category (`applicable_modules = '{ORGANIZATION}'`):
+
+```text
+SUSPENDED    — Suspended by governance decision
+DISSOLVED    — Organization permanently dissolved (Bye-Law §I)
+```
+
+The full set of Organization-applicable statuses (7 total):
+
+```text
+PROPOSED     — Entity proposed but not yet approved
+APPROVED     — Approved by governance, pending activation
+ACTIVE       — Currently operational
+INACTIVE     — Temporarily non-operational
+SUSPENDED    — Suspended by governance decision
+DISSOLVED    — Organization permanently dissolved (Bye-Law §I)
+ARCHIVED     — Permanently closed, retained for history
+```
+
 These states represent the current approved lifecycle vocabulary.
 
 The source does not provide a complete mandatory transition matrix.
@@ -1058,21 +1078,27 @@ to understand previous states or relationships.
 
 ---
 
-# 81. No Unsupported State
+# 81. Additional States
 
-The Organization Module shall use only the approved lifecycle vocabulary.
-
-This document does not introduce additional states such as:
+The ERP implementation has introduced two additional states beyond the
+original GOV-002 vocabulary:
 
 ```text
-SUSPENDED
+SUSPENDED    — Governance-controlled suspension (added by ERP implementation)
+DISSOLVED    — Permanent dissolution per Bye-Law §I (added by ERP implementation)
+```
+
+These are now part of the unified STATUS category with
+`applicable_modules = '{ORGANIZATION}'` and are displayed in the
+Organization UI's lifecycle status reference section.
+
+The following states remain NOT established:
+
+```text
 CLOSED
-DISSOLVED
 PENDING_REVIEW
 REJECTED
 ```
-
-because these are not established by the current GOV-002 lifecycle rule.
 
 If such states become necessary, they require an approved governance change.
 

@@ -106,9 +106,9 @@ family_id
 Example:
 
 ```text
-FG000001
-FG000002
-FG000003
+F1
+F2
+F3
 ```
 
 Rules:
@@ -231,7 +231,7 @@ created_at
 Example:
 
 ```text
-Family FG000001
+Family F1
 
 2020
     |
