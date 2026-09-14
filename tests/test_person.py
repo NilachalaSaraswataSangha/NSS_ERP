@@ -382,6 +382,13 @@ class TestPersonSearch:
         assert r.status_code == 200
         assert r.json() == []
 
+    def test_search_by_email(self, client):
+        """Searching by email prefix finds the person."""
+        # P1 has email 'ramesh.mishra@example.com'
+        data = client.get(f"{BASE}/search", params={"q": "ramesh.mishra"}).json()
+        ids = [p["person_id"] for p in data]
+        assert "P1" in ids, f"Expected P1 when searching by email prefix, got: {ids}"
+
     def test_search_max_50_results(self, client):
         """Search results are capped at 50."""
         r = client.get(f"{BASE}/search", params={"q": "aa"})
@@ -519,3 +526,28 @@ class TestPersonUI:
         """Page contains a search input for trigram search."""
         html = client.get("/person").text
         assert "trigram" in html.lower()
+
+    def test_page_has_search_detail_panel(self, client):
+        """Search tab includes an inline detail panel for person view."""
+        html = client.get("/person").text
+        assert "Person Detail" in html
+
+    def test_search_results_call_selectPerson(self, client):
+        """Search results click calls selectPerson directly (no tab switch)."""
+        html = client.get("/person").text
+        assert "selectPerson(p)" in html
+        # Must NOT switch to persons tab on search result click
+        assert "switchTab('persons'); selectPersonByPk" not in html
+
+    def test_search_tab_has_grid_layout(self, client):
+        """Search tab uses grid layout for results + detail side by side."""
+        html = client.get("/person").text
+        assert "xl:col-span-2" in html
+
+    def test_search_auto_selects_single_result(self, client):
+        """Person JS auto-selects when search returns exactly 1 result."""
+        res = client.get("/assets/js/person.js")
+        assert res.status_code == 200
+        js = res.text
+        assert "searchResults.length === 1" in js
+        assert "selectPerson" in js

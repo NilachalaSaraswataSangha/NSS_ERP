@@ -15,6 +15,7 @@ Security:
   - Audit actor FKs excluded per API convention
 """
 
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -269,27 +270,35 @@ def search_persons(
         min_length=2,
         max_length=100,
         description="Search term — matches against first_name (trigram), "
-        "last_name (trigram), person_id, or mobile_number",
+        "last_name (trigram), person_id, mobile_number, or email",
     ),
     conn=Depends(get_connection),
 ) -> list[PersonSummaryResponse]:
     """
-    Search active persons by name, person_id, or mobile number.
+    Search active persons by name, person_id, mobile number, or email.
 
-    Uses PostgreSQL trigram similarity (pg_trgm) on first_name for
-    fuzzy matching. Also matches exact prefix on person_id and
-    mobile_number. Results ordered by trigram similarity (best match
-    first), limited to 50 results.
+    Uses PostgreSQL trigram similarity (pg_trgm) on first_name and
+    last_name for fuzzy matching. If the query contains '.' or '@'
+    (email-like), trigram runs on the portion before the first
+    separator to avoid false positives (e.g. "aniket.mishra" uses
+    "aniket" for name matching, full string for email prefix).
+    Also matches exact prefix on person_id, mobile_number, and email.
+    Results ordered by trigram similarity (best match first), limited
+    to 50 results.
     """
+    # For trigram: strip email-like suffix so "aniket.mishra" → "aniket"
+    name_q = re.split(r'[.@]', q)[0] if ('.' in q or '@' in q) else q
+
     sql = (
         _PERSON_SUMMARY_SELECT
         + """
         WHERE p.is_active = TRUE
           AND (
-              p.first_name %% %s
-              OR p.last_name %% %s
+              similarity(p.first_name, %s) > 0.45
+              OR similarity(p.last_name, %s) > 0.45
               OR p.person_id ILIKE %s
               OR p.mobile_number ILIKE %s
+              OR p.email ILIKE %s
           )
         ORDER BY similarity(p.first_name, %s) DESC,
                  p.first_name, p.last_name
@@ -300,5 +309,5 @@ def search_persons(
     prefix_pattern = f"{q}%"
 
     with conn.cursor() as cur:
-        cur.execute(sql, (q, q, prefix_pattern, prefix_pattern, q))
+        cur.execute(sql, (name_q, name_q, prefix_pattern, prefix_pattern, prefix_pattern, name_q))
         return rows_to_models(cur, PersonSummaryResponse)
