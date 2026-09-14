@@ -1,10 +1,11 @@
 # frontend/
 
 Tier 0 Bootstrap Verification UI, Tier 1 Foundation Verification UI, Tier 2 Organization
-Verification UI, and Tier 3 Person Verification UI for Nilachala Saraswata Sangha.
+Verification UI, Tier 3 Person Verification UI, and Tier 4 Family + Membership Verification UIs
+for Nilachala Saraswata Sangha.
 
 **Purpose:** Verify the database → API → frontend integration for each tier as it's built.
-None of the four pages is an operational administration dashboard. Together they establish the
+None of the six pages is an operational administration dashboard. Together they establish the
 frontend shell that later tiers grow into.
 
 **Tech stack:** Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla
@@ -24,6 +25,8 @@ frontend/
 ├── foundation.html         Tier 1 Foundation Verification UI (Alpine.js application)
 ├── organization.html       Tier 2 Organization Verification UI (Alpine.js application)
 ├── person.html             Tier 3 Person Verification UI (Alpine.js application)
+├── family.html             Tier 4 Family Verification UI (Alpine.js application)
+├── membership.html         Tier 4 Membership Verification UI (Alpine.js application)
 ├── assets/
 │   ├── css/
 │   │   └── style.css       Minimal project-specific CSS overrides
@@ -33,13 +36,15 @@ frontend/
 │       ├── app.js          Alpine.js data component + API fetch logic for index.html
 │       ├── foundation.js   Alpine.js data component + API fetch logic for foundation.html
 │       ├── organization.js Alpine.js data component + API fetch logic for organization.html
-│       └── person.js       Alpine.js data component + API fetch logic for person.html
+│       ├── person.js       Alpine.js data component + API fetch logic for person.html
+│       ├── family.js       Alpine.js data component + API fetch logic for family.html
+│       └── membership.js   Alpine.js data component + API fetch logic for membership.html
 └── README.md               This file
 ```
 
-All four pages share the same header pattern with a nav bar linking between `/` ("Bootstrap"),
-`/foundation` ("Foundation"), `/organization` ("Organization"), and `/person` ("Person"), so any
-page is one click away from the other three.
+All six pages share the same header pattern with a nav bar linking between `/` ("Bootstrap"),
+`/foundation` ("Foundation"), `/organization` ("Organization"), `/person` ("Person"), `/family`
+("Family"), and `/membership` ("Membership"), so any page is one click away from any other.
 
 ---
 
@@ -89,7 +94,7 @@ Each section is rendered by Alpine.js directives bound to the
 - Grid gap scales: `gap-4` base, `xl:gap-6` on desktop
 
 **CDN dependencies (loaded in `<head>`, identical on `index.html`, `foundation.html`,
-`organization.html`, and `person.html`):**
+`organization.html`, `person.html`, `family.html`, and `membership.html`):**
 
 | Library | Version | Purpose |
 |---------|---------|---------|
@@ -278,7 +283,7 @@ card, a DaisyUI `tabs tabs-boxed` bar with 2 tabs, each lazily loaded on first v
 | Tab | Contents |
 |-----|----------|
 | **Persons** | Filterable list (2-column layout): left/wide panel is the person table (person_id/name/gender/DOB/mobile/email/marital status/blood group/status) with `<select>` filters for gender, marital status, and blood group (all sourced from Foundation master-data via `GET /api/v1/foundation/master-data?category_code=`); right panel is a detail view — identity, demographics, contact, masked Aadhaar ("XXXX XXXX 1234"), emergency contact section (name/phone/relationship), remarks, and an Addresses sub-section showing each address as a card with type badge, primary badge, address lines, landmark, and resolved location chain (city/village, postal code, district, state, country). Addresses auto-load on row click (`selectPerson()`, toggle-deselect on repeat click). Person lifecycle states (Active/Deceased/Inactive) are derived from `is_active` + `date_of_death` and shown via dedicated `.badge-status-*` CSS classes |
-| **Search** | Trigram fuzzy search input (min 2 chars, 300ms debounce) querying `GET /api/v1/person/search?q=`; results table (person_id/name/gender/DOB/mobile/email/status); clicking a search result switches to the Persons tab and selects that person for detail view |
+| **Search** | Trigram fuzzy search input (min 2 chars, 300ms debounce) querying `GET /api/v1/person/search?q=`; results table (person_id/name/gender/DOB/mobile/email/status) in a grid layout (`xl:col-span-2`) alongside its own inline "Person Detail" panel — clicking a result calls `selectPerson(p)` directly (no tab switch, same pattern as `membership.js`'s Search tab); if the search returns exactly one result it is auto-selected |
 
 Loads `<script src="/assets/js/person.js">` at the bottom.
 
@@ -322,6 +327,134 @@ try/fetch/check `res.ok`/parse JSON → catch sets error flag only → finally c
 
 ---
 
+### family.html
+
+The Tier 4 Family Verification UI entry point, structurally parallel to `person.html`: same head
+boilerplate and System Status card (reusing `GET /api/v1/bootstrap/health`), but with "Family"
+active in the nav bar and subtitle "Tier 4 — Family Verification". Unlike every earlier tier
+page, it has **no tab bar** — Family's surface area (a families list plus one family's detail)
+is small enough to render as a single-screen master-detail layout, `grid-cols-1 xl:grid-cols-3`:
+the families table occupies `xl:col-span-2` (left, wider — Family ID, Family Name, Sakha,
+Formed Date, Status) and the detail panel occupies the remaining column (right — identity
+fields, a Members sub-table showing each current relationship, and a Head History sub-section
+rendered as bordered cards rather than a table, each showing a "Current" badge when
+`effective_to` is null). Selecting a family row fetches its members and head history in
+parallel via `Promise.all`; both fetches are treated as non-fatal, so a transient failure never
+blocks the family's own core fields from displaying.
+
+Loads `<script src="/assets/js/family.js">` at the bottom.
+
+---
+
+### assets/js/family.js
+
+Alpine.js data component for `family.html`. Defines one global function: `familyApp()`.
+Constant `FAMILY_API = "/api/v1/family"`.
+
+**State groups:** `health{loading,connected}` (shared pattern with `app.js`), families
+(`families`, `selectedFamily`, `detailLoading`), members (`familyMembers`, `membersLoading`),
+head history (`headHistory`, `headLoading`). No `activeTab` state — this is the only tier page
+with a single, tab-less screen.
+
+**Lifecycle:** `init()` calls `fetchHealth()` then `fetchFamilies()` sequentially (not in
+parallel, unlike most other tier pages' `init()`).
+
+**API calls** (all relative, all under `${FAMILY_API}` except the shared health check):
+`GET /api/v1/bootstrap/health`, `GET ${FAMILY_API}/families` (no filter UI exists yet, so always
+called with no query parameters), `GET ${FAMILY_API}/families/{family_group_pk}/members`,
+`GET ${FAMILY_API}/families/{family_group_pk}/head-history` (the latter two fetched together via
+`Promise.all` in `selectFamily()`).
+
+**Error-handling pattern:** identical to other tier JS files for the top-level families fetch —
+loading=true/error=false → try/fetch/check `res.ok`/parse JSON → catch sets error flag only →
+finally clears loading. The members/head-history fetch inside `selectFamily()` deliberately
+does **not** set an error flag on failure — comments in the code call this out explicitly
+("Non-fatal — family detail still shows") — a departure from `person.js`'s addresses fetch,
+which does track its own error state. `selectFamily(f)` toggle-deselects, same as
+`selectPerson()`/`selectOrganization()`. Unlike `person.js`'s `selectPerson()`, selecting a
+family does **not** issue a separate detail-fetch call — the row object already fetched by
+`fetchFamilies()` (which carries every `FamilyGroupResponse` field) is reused directly as
+`selectedFamily`.
+
+**Helper:**
+- `formatMemberName(m)` — joins first/middle/last name parts, filtering nulls (same
+  implementation as `person.js`'s `formatName()` and `membership.js`'s `formatName()`); used for
+  both member rows and head-history cards.
+
+---
+
+### membership.html
+
+The Tier 4 Membership Verification UI entry point, structurally parallel to `person.html`: same
+head boilerplate and System Status card, but with "Membership" active in the nav bar and
+subtitle "Tier 4 — Membership Verification". Below the status card, a compact "Three-Tier Member
+Identity" legend card explains the module's central non-obvious concept before any data loads:
+
+| Tier | Column | Example | Scope |
+|------|--------|---------|-------|
+| Sangha Sevi ID | `sangha_sevi_id` | `SS1` | NSS-wide, permanent, never reused |
+| Sakha Sangha ID (Local Sakha ERP Number) | `local_sakha_erp_id` | `ESS1192` | Sakha-scoped, auto-generated, changes on transfer |
+| Kendra Number | `parichaya_patra.document_number` | `345/2026/2027` | Kendra-wide, annual (financial year) |
+
+Below the legend, a DaisyUI `tabs tabs-boxed` bar with 2 tabs (driven by `activeTab` /
+`switchTab(tab)` in `membership.js`):
+
+| Tab | Contents |
+|-----|----------|
+| **Members** | Filterable list (2-column layout): left/wide panel is the member table (Sangha Sevi ID/Person ID/Person/Mobile/Email/Type/Status/Sakha/Sakha Sangha ID/Joining Date/Renewal Due) with `<select>` filters for membership type and status (`selectedTypeFilter`/`selectedStatusFilter`); right panel is a detail view — identity block, then four sub-sections that lazy-load together on row click: Sakha Affiliations (effective-dated history), Parichaya Patra (Kendra Number + issuance snapshot), Anumati Patra (hidden entirely for Associate members, who don't receive one — `x-show="selectedMember.membership_type_code !== 'ASSOCIATE'"`), and a Journey Timeline rendered as DaisyUI vertical steps |
+| **Search** | Trigram + prefix search input (min 2 chars, 300ms debounce) querying `GET /api/v1/membership/search?q=` across all three identity tiers plus name, mobile, and email; same inline-detail-panel pattern as the Members tab — clicking a result calls `selectMember()` directly without switching tabs |
+
+**UI label convention:** the database column `local_sakha_erp_id` is always displayed as
+**"Sakha Sangha ID"** in this UI (table headers, detail panel, Parichaya Patra snapshot) — the
+UI-facing label differs from both the DB column name and the API-contract term "Local Sakha ERP
+Number"/"ERP Number" used in `docs/03_Solution/api/API_CONTRACT.md`. `PROBATIONARY` membership
+type likewise displays as **"Darshaka"** (`typeDisplayName()`, MBR-007) — the database stores
+`PROBATIONARY`, the portal shows the Odia/NSS operational term.
+
+Loads `<script src="/assets/js/membership.js?v=3.5">` at the bottom.
+
+---
+
+### assets/js/membership.js
+
+Alpine.js data component for `membership.html`. Defines one global function:
+`membershipApp()`. Constant `MEMBERSHIP_API = "/api/v1/membership"`.
+
+**State groups:** `activeTab`, `health{loading,connected}` (shared pattern with `app.js`),
+members (`members`, `selectedTypeFilter`, `selectedStatusFilter`, `selectedMember`,
+`detailLoading`), sub-data (`affiliations`, `parichayaPatras`, `anumatiPatras`,
+`journeyEvents` — all four fetched together per selected member), search (`searchQuery`,
+`searchResults`, `searchExecuted`, `_searchDebounce`). Each collection has matching
+`*Loading`/`*Error` booleans following the same convention as the other tier JS files.
+
+**Lifecycle:** `init()` calls `fetchHealth()` then `fetchMembers()`. `switchTab()` re-fetches
+members only if the list is still empty (guard against redundant refetch on repeat tab visits).
+
+**API calls** (all relative, all under `${MEMBERSHIP_API}` except the shared health check):
+`GET /api/v1/bootstrap/health`, `GET ${MEMBERSHIP_API}/members` (optional
+`?type_code=&status_code=`), `GET ${MEMBERSHIP_API}/members/{sangha_sevi_pk}/affiliations`,
+`GET ${MEMBERSHIP_API}/members/{sangha_sevi_pk}/parichaya-patra`,
+`GET ${MEMBERSHIP_API}/members/{sangha_sevi_pk}/anumati-patra`,
+`GET ${MEMBERSHIP_API}/members/{sangha_sevi_pk}/journey` (last four fetched together via
+`Promise.all` in `selectMember()`), `GET ${MEMBERSHIP_API}/search?q=`.
+
+**Error-handling pattern:** identical to the other tier JS files — loading=true/error=false →
+try/fetch/check `res.ok`/parse JSON → catch sets error flag only → finally clears loading.
+`selectMember(member)` toggle-deselects on repeat click of the same row, same as
+`selectPerson()`/`selectOrganization()`.
+
+**Helpers:**
+- `formatName(m)` — same implementation as `person.js`'s `formatName()`
+- `typeDisplayName(m)` — returns `"Darshaka"` for `PROBATIONARY`, otherwise the resolved
+  `membership_type_name` (UI-label convention, see above)
+- `typeBadgeClass(m)`, `affBadgeClass(a)`, `docBadgeClass(doc)` — map membership type,
+  affiliation status, and document (Parichaya/Anumati Patra) status to dedicated
+  `.badge-type-*`/`.badge-aff-*`/`.badge-status-*` CSS classes defined inline in
+  `membership.html`'s `<style>` block, the same pattern `organization.html`/`person.html` use
+  for their own status badges
+
+---
+
 ### assets/css/style.css
 
 Minimal project-specific CSS. Tailwind and DaisyUI handle all styling
@@ -354,7 +487,9 @@ exists on disk:
 | `GET /foundation` | Explicit route → `FileResponse(frontend/foundation.html)` | The Foundation Verification UI |
 | `GET /organization` | Explicit route → `FileResponse(frontend/organization.html)` | The Organization Verification UI |
 | `GET /person` | Explicit route → `FileResponse(frontend/person.html)` | The Person Verification UI |
-| `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by all three pages) |
+| `GET /family` | Explicit route → `FileResponse(frontend/family.html)` | The Family Verification UI |
+| `GET /membership` | Explicit route → `FileResponse(frontend/membership.html)` | The Membership Verification UI |
+| `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by every page) |
 
 **Why not mount at `/`?** A root-level `StaticFiles` mount would shadow
 FastAPI's built-in `/docs` (Swagger UI) and `/openapi.json`. By mounting
@@ -362,10 +497,11 @@ only `/assets/*` and serving each page via an explicit route, all
 FastAPI built-in routes remain accessible.
 
 **Graceful degradation:** If `frontend/` does not exist on disk, the
-mount and all four routes are skipped entirely. If any individual HTML file is
+mount and all six routes are skipped entirely. If any individual HTML file is
 missing, `/` still works — the API continues to work in API-only mode — `/docs` and
-`/api/v1/*` are unaffected. The `/foundation`, `/organization`, and `/person` routes are only
-registered `if` the respective HTML file exists on disk (see `api/main.py`).
+`/api/v1/*` are unaffected. The `/foundation`, `/organization`, `/person`, `/family`, and
+`/membership` routes are only registered `if` the respective HTML file exists on disk (see
+`api/main.py`).
 
 ---
 
@@ -438,6 +574,38 @@ Foundation's tables. Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTR
 Response schemas are defined in `api/schemas/person.py`. Sensitive fields (`aadhaar_encrypted`,
 `aadhaar_hash`) are never returned by the API — only `aadhaar_last4` for masked display.
 
+**`family.html` (via `family.js`):**
+
+| Method | URL | Response | Tier 4 State |
+|--------|-----|----------|-------------|
+| GET | `/api/v1/bootstrap/health` | `{ status, database }` | Shared with index.html |
+| GET | `/api/v1/family/families` | `FamilyGroupResponse[]` | 1 seeded family (F1 Mishra Paribara) |
+| GET | `/api/v1/family/families/{family_group_pk}` | `FamilyGroupResponse` | Not called directly by the UI (list already carries full detail); available for future use |
+| GET | `/api/v1/family/families/{family_group_pk}/members` | `FamilyMemberResponse[]` | 3 current members (Ramesh/Sushma/Aniket Mishra) |
+| GET | `/api/v1/family/families/{family_group_pk}/head-history` | `FamilyHeadHistoryResponse[]` | 1 head-history record (Ramesh Mishra, current) |
+
+Response schemas are defined in `api/schemas/family.py`. `FamilyGroupResponse` resolves family
+status (Foundation's unified `STATUS` category) and Sakha name/code via JOINs; member and
+head-history responses resolve person name fields and (for members) relationship type via
+JOINs. Full contract: `docs/03_Solution/api/API_CONTRACT.md` §7.
+
+**`membership.html` (via `membership.js`):**
+
+| Method | URL | Response | Tier 4 State |
+|--------|-----|----------|-------------|
+| GET | `/api/v1/bootstrap/health` | `{ status, database }` | Shared with index.html |
+| GET | `/api/v1/membership/members?type_code=&status_code=` | `MemberResponse[]` | 5 seeded members (SS1–SS5) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}` | `MemberResponse` | Not called directly by the UI (list already carries full detail); available for future use |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/affiliations` | `SakhaAffiliationResponse[]` | 1 row per member, 2 for the transferred member (SS3) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/parichaya-patra` | `ParichayaPatraResponse[]` | Regular/Associate members only — Probationary members have none |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/anumati-patra` | `AnumatiPatraResponse[]` | Probationary members (current) + Regular members who progressed from Probationary (historical, EXPIRED); Associate members have none |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/journey` | `JourneyEventResponse[]` | Chronological lifecycle events per member |
+| GET | `/api/v1/membership/search?q=` | `MemberResponse[]` | Trigram + prefix search across all 3 identity tiers, name, mobile, and email; max 50 results |
+
+Response schemas are defined in `api/schemas/membership.py`. `MemberResponse` resolves person
+name/contact, membership type, status, organization (Sakha), and the current active
+`local_sakha_erp_id` via JOINs. Full contract: `docs/03_Solution/api/API_CONTRACT.md` §8.
+
 ## Future Growth
 
 This shell is designed to evolve:
@@ -447,6 +615,7 @@ Tier 0   Bootstrap Verification (current)
 Tier 1   Foundation Verification (current)
 Tier 2   Organization Verification (current)
 Tier 3   Person Verification (current)
+Tier 4   Family + Membership Verification (current)
   ...
 Tier 5   Authentication + login/session UI
   ...
@@ -454,5 +623,5 @@ Tier 5   Authentication + login/session UI
 ```
 
 The page structure, CSS framework, and Alpine.js pattern established
-here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-3
+here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-4
 intentionally have no login, no session, no fake credentials.
