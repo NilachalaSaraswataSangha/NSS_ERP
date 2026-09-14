@@ -3,9 +3,9 @@
 | Field       | Value                                                                  |
 |-------------|-------------------------------------------------------------------------|
 | Document    | UI_CODE_EXPLANATIONS                                                   |
-| Version     | 1.3                                                                     |
+| Version     | 1.4                                                                     |
 | Scope       | All source files under `frontend/`, excluding binary assets (images)    |
-| Status      | Complete (updated: Tier 3 Person)                                       |
+| Status      | Complete (updated: Tier 4 Family, Membership)                           |
 
 ---
 
@@ -183,7 +183,9 @@ bar has three links: Bootstrap, Foundation, Organization — with Organization s
 
 **Tab 1 — Reference Data:** Two-column grid (`grid-cols-1 xl:grid-cols-2`) with
 Organization Types (10 frozen types, sourced from Foundation `master_data` category
-`ORGANIZATION_TYPE`) on the left and Lifecycle Statuses (13 unified statuses, category
+`ORGANIZATION_TYPE`) on the left and Lifecycle Statuses (7 statuses — as of Tier 4, `/statuses`
+filters the 16-value unified `STATUS` category down to only those with `ORGANIZATION` in
+`applicable_modules`, category
 `STATUS`) on the right. Each card follows the standard loading/error/data `x-if` triad.
 Type and status badges use `whitespace-nowrap` on both the `<td>` and `<span>` to prevent
 text spill for long names like "Anchalika Sangha". Every status `<tr>`/badge binding reads
@@ -862,10 +864,11 @@ rather than rendering empty labels:
   country names — all resolved server-side via JOINs against Foundation's geography
   tables — filtering out any that are `null`/falsy before joining with `", "`.
 
-**Tab 2 — Search:** A single card with a debounced free-text search box wired to the
-trigram `/search` endpoint:
+**Tab 2 — Search:** Uses the same grid layout as the Persons tab
+(`xl:grid-cols-3`) — search results on the left (2/3 width), detail panel on the right
+(1/3 width). The search input is wired to the trigram `/search` endpoint:
 ```html
-<input type="text" placeholder="Name, Person ID, or mobile number (min 2 chars)"
+<input type="text" placeholder="Name, Person ID, Mobile, or Email (min 2 chars)"
        class="input input-bordered input-sm w-full"
        x-model="searchQuery"
        @keydown.enter="executeSearch()"
@@ -884,14 +887,15 @@ trigram `/search` endpoint:
 - The results table has seven columns (Person ID, Name, Gender, DOB, Mobile, Email,
   Status) — one fewer than the Persons tab's table (no Marital Status/Blood Group
   columns, since `PersonSummary`/search-result rows don't carry those fields). Clicking a
-  result row does double duty:
+  result row calls `selectPerson(p)` directly — the detail loads **inline** in the
+  right-hand panel without switching tabs:
 ```html
 <tr class="cursor-pointer hover"
-    @click="switchTab('persons'); selectPersonByPk(p.person_pk)">
+    @click="selectPerson(p)">
 ```
-  — switches back to the Persons tab and then resolves the clicked search hit to a full
-  detail view via `selectPersonByPk()` (§2.9), so a search result behaves like a shortcut
-  into the same detail panel the Persons tab uses.
+  — the search tab has its own detail panel (identical to the Persons tab's) so the user
+  never loses the search context. This replaced the earlier `switchTab('persons');
+  selectPersonByPk(p.person_pk)` pattern.
 
 **Footer and script include:** Same copyright footer as the other three pages. Loads
 `<script src="/assets/js/person.js"></script>` at the bottom.
@@ -1137,33 +1141,6 @@ async selectPerson(personSummary) {
   source (`// Addresses may legitimately be empty — don't fail detail for it`) documents
   this intentional asymmetry.
 
-```javascript
-async selectPersonByPk(pk) {
-    if (this.persons.length === 0) {
-        this.selectedGenderFilter = "";
-        this.selectedMaritalFilter = "";
-        this.selectedBloodGroupFilter = "";
-        await this.fetchPersons();
-    }
-    const match = this.persons.find(p => p.person_pk === pk);
-    if (match) {
-        await this.selectPerson(match);
-    } else {
-        await this.selectPerson({ person_pk: pk });
-    }
-},
-```
-- Called from `person.html`'s search-result row click (`switchTab('persons');
-  selectPersonByPk(p.person_pk)`). If the Persons tab's list has never been loaded, it
-  resets all three filters to `""` and fetches the unfiltered list first — so a search hit
-  that would otherwise be excluded by a stale filter is still reachable. It then looks for
-  the matching person object (needed because `selectPerson()` expects a full summary
-  object, not just a PK, so it can implement its toggle-off-if-same-row check); if the
-  person isn't in the (possibly filtered) list at all, it falls back to calling
-  `selectPerson({ person_pk: pk })` — a minimal stand-in object with only `person_pk` set,
-  which still works because `selectPerson()` immediately fetches the full detail from the
-  API regardless of what was in `personSummary` to begin with.
-
 **Search:**
 ```javascript
 async executeSearch() {
@@ -1185,6 +1162,9 @@ async executeSearch() {
             );
             if (!res.ok) throw new Error(res.statusText);
             this.searchResults = await res.json();
+            if (this.searchResults.length === 1) {
+                await this.selectPerson(this.searchResults[0]);
+            }
         } catch {
             this.searchError = true;
         } finally {
@@ -1201,6 +1181,10 @@ async executeSearch() {
   (`clearTimeout`) and schedules a new one 300ms out; only the last keystroke within any
   300ms window actually reaches `GET /search?q=...`, preventing a request-per-keystroke
   flood while typing. `q` is `encodeURIComponent`-encoded in the URL.
+  After results are loaded, the **auto-select single result** pattern fires: if exactly
+  one person matches, `selectPerson()` is called immediately — the user sees the detail
+  panel populate without needing to click. This matches the same auto-select behavior
+  used by `filterPersons()` and `membership.js`'s `executeSearch()`.
 
 **Helpers:**
 ```javascript
@@ -1634,12 +1618,12 @@ and "Format Sample" in the v2.0 migration — see the note at §2.4):
 <td class="text-xs text-center" x-text="seq.padding_length"></td>
 <td class="font-mono text-xs text-primary" x-text="formatSample(seq)"></td>
 ```
-- The "Max Digits" column displays the raw `seq.padding_length` value directly (no helper
-  call) — unchanged column content, just a clearer header than the old "Padding," since
-  `padding_length` no longer implies a single fixed-width sample is the most useful preview
-  (see below).
+- The "Max Digits" column displays the raw `seq.padding_length` value directly — the
+  maximum number of digits the numeric portion of an ID can grow to (e.g. 8 means up to
+  8 digits, so up to 99,999,999).
 - The "Range" column calls the `formatSample(seq)` helper (§2.4) per row to synthesize a
-  `min → max` preview range string from `prefix` + `padding_length` — the column deliberately
+  `min → max` range string from `prefix` + `padding_length` (e.g. `SS1 → SS99999999` for
+  `padding_length: 8`) — the column deliberately
   does **not** display `current_value`, because the API response (`SequenceResponse`) never
   includes that field at all (it is infrastructure state, excluded by design at the
   Pydantic-schema layer).
@@ -2203,12 +2187,13 @@ get filteredMasterData() {
   from ever transiently showing unfiltered data while a filtered fetch is in flight.
 
 > **v2.0 (2026-09-12):** `formatSample(seq)` changed from returning a single zero-padded
-> sample to a `min → max` range string, because `id_sequence_master`'s padding-length CHECK
-> was loosened to allow `padding_length = 3` (see `DATABASE_CODE_EXPLANATIONS.md`'s
-> `04_id_sequence_master.sql` section) — a single fixed-width sample like `PS001` is far less
-> informative for a narrow-range sequence than seeing the full `PS1 → PS999` span. The ID
-> Sequences table's "Padding"/"Format Sample" column headers became "Max Digits"/"Range" to
-> match (see §2.3).
+> sample to a `min → max` range string, because `padding_length` now represents the maximum
+> number of digits the numeric portion of an ID can grow to ("Max Digits"), not the
+> zero-padding width. `id_sequence_master`'s CHECK was loosened to `BETWEEN 0 AND 12`
+> (see `DATABASE_CODE_EXPLANATIONS.md`'s `04_id_sequence_master.sql` section); the default
+> is 8. A single fixed-width sample like `SS1` is far less informative than seeing
+> the full `SS1 → SS99999999` span. The ID Sequences table's "Padding"/"Format Sample"
+> column headers became "Max Digits"/"Range" to match (see §2.3).
 
 ```javascript
 formatSample(seq) {
@@ -2217,19 +2202,16 @@ formatSample(seq) {
 },
 ```
 - Plain (non-getter, non-async) helper method, called per-row from the ID Sequences
-  table's "Range" column (`x-text="formatSample(seq)"`). Builds a `min → max` range string by
-  repeating the literal character `"9"` `seq.padding_length` times to get the widest possible
-  value for that padding, then formatting `${prefix}1 → ${prefix}${max}`. For example,
-  `prefix: "SS"`, `padding_length: 8` → `"9".repeat(8)` → `"99999999"` →
-  `"SS1 → SS99999999"`. Unlike the pre-migration version (which zero-padded a single sample
-  value, e.g. `"SS00000001"`), this shows the full range a sequence can produce — more
-  informative now that `padding_length` varies more widely across sequences (3 for
-  `PARIBARIK_SANGHA` up to 10 for `PERSON`). It deliberately uses the
-  constant `"9"` (for the max) and `"1"` (for the min), never `seq.current_value` — the API's
-  `SequenceResponse` never includes `current_value` in the first place (excluded at the schema
-  layer as infrastructure state), so this helper has no such field available even if it wanted
-  to use it; it exists purely to preview the *format*, not to predict or display the
-  next real ID that will be issued.
+  table's "Range" column (`x-text="formatSample(seq)"`). Builds a `min → max` range string
+  by repeating the literal character `"9"` `seq.padding_length` times to get the widest
+  possible value for that many digits, then formatting `${prefix}1 → ${prefix}${max}`.
+  For example, `prefix: "SS"`, `padding_length: 8` → `"SS1 → SS99999999"`;
+  `prefix: "PS"`, `padding_length: 3` → `"PS1 → PS999"`. It deliberately uses the
+  constant `"9"` (for the max) and `"1"` (for the min), never `seq.current_value` — the
+  API's `SequenceResponse` never includes `current_value` in the first place (excluded at
+  the schema layer as infrastructure state), so this helper has no such field available
+  even if it wanted to use it; it exists purely to preview the *range*, not to predict or
+  display the next real ID that will be issued.
 
 ---
 
@@ -2280,6 +2262,333 @@ smallest file in the frontend layer, shared unmodified by both `index.html` and
 
 ---
 
+## 2.10 `frontend/membership.html`
+
+**Requirement.** The Membership Verification page — Tier 4 — displaying all NSS
+members with their three-tier identity (Sangha Sevi ID, Sakha Sangha ID, Kendra
+Number), credentials (Parichaya Patra, Anumati Patra), Sakha affiliations, and
+journey timeline. Two tabs: Members (list + detail) and Search (trigram + prefix).
+
+**Layout:** Same responsive grid pattern as `person.html` — `xl:grid-cols-3` with
+list/results taking 2 columns, detail panel taking 1.
+
+**Three-Tier Identity Legend:** A compact card between the system status and tabs
+displays the three identity tiers with examples (SS1, ESS1192, 345/2026/2027).
+
+**UI Label Convention:** The Tier 2 identity (stored as `local_sakha_erp_id` in the
+database) is labeled **"Sakha Sangha ID"** in all UI contexts — table headers,
+detail panels, and Parichaya Patra snapshots. Documentation may refer to the
+concept as "Local Sakha ERP Number" or "ERP Number"; the UI consistently uses
+"Sakha Sangha ID".
+
+**Tab 1 — Members:** Member list table with 11 columns: Sangha Sevi ID, Person ID,
+Person, Mobile, Email, Type, Status, Sakha, Sakha Sangha ID, Joining Date, Renewal
+Due. Filters for membership type (Regular / Darshaka / Associate / Honorary) and
+status. Detail panel shows:
+
+- **Identity section:** Sangha Sevi ID, Sakha Sangha ID, Person ID, Name, Mobile,
+  Email, Type (badge with `typeDisplayName()` — PROBATIONARY displays as
+  "Darshaka"), Status, Sakha, Joining Date, Renewal Due.
+- **Sakha Affiliations:** Effective-dated history with Local Sakha ERP ID, Sakha
+  name, affiliation status badge, and source event type.
+- **Parichaya Patra:** Kendra Number, issue date, validity period, affiliated Sakha
+  snapshot, Sakha Sangha ID snapshot at time of issuance.
+- **Anumati Patra:** Conditionally hidden for Associate members:
+  ```html
+  <div x-show="selectedMember.membership_type_code !== 'ASSOCIATE'">
+  ```
+  Associate members do not receive an Anumati Patra (Probationary-only credential).
+  Regular members may have EXPIRED historical AP records from their probationary
+  period.
+- **Journey Timeline:** Chronological events (MEMBERSHIP_CREATED,
+  PROBATIONARY_STARTED, REGULAR_ENROLMENT, etc.) rendered as DaisyUI vertical steps.
+
+**Tab 2 — Search:** Same inline-detail grid pattern as Person's search tab.
+Search input placeholder: `"ID, Name, Mobile, Email, or Kendra # (min 2 chars)"`.
+Searches across all 3 identity tiers plus name, contact, and Kendra Number (7
+search fields — see `API_CONTRACT.md` search fields table). Clicking a result
+calls `selectMember(m)` directly — detail loads inline without tab switch.
+
+**Auto-select single result:** Both `executeSearch()` (search tab) and
+`filterMembers()` (members tab) auto-call `selectMember()` when exactly one result
+is returned, same pattern as person.js.
+
+---
+
+## 2.11 `frontend/assets/js/membership.js`
+
+**Requirement.** Client-side state/behaviour for `membership.html`. Defines one
+global factory function `membershipApp()`. Consumes 7 membership API endpoints.
+
+**Key behavioral patterns:**
+
+- **`selectMember()`:** Fetches member detail plus all sub-resources (affiliations,
+  Parichaya Patra, Anumati Patra, journey events) via `Promise.all`. Toggle-off on
+  re-click (same as person.js/organization.js).
+- **`typeDisplayName()`:** Returns `"Darshaka"` for `PROBATIONARY` membership type
+  (MBR-007); all other types display their `membership_type_name` as-is.
+- **`typeBadgeClass()`:** Color-coded badges per type: Regular (blue), Probationary
+  (amber), Associate (purple), Honorary (green).
+- **Debounced search:** 300ms debounce on `executeSearch()`, same pattern as person.js.
+- **`formatName()`:** Same implementation as person.js (joins first/middle/last,
+  drops falsy parts).
+
+---
+
+## 2.12 `frontend/family.html`
+
+**Requirement.** The Tier 4 "Family Verification UI" — visual proof that the 4 read-only
+`/api/v1/family/*` endpoints correctly expose `family_group`, `family_relationship`, and
+`family_head_history` joined against Foundation's `master_data` (unified `STATUS` category and
+`RELATIONSHIP_TYPE` category) and Organization/Person. Structurally parallel to `person.html`:
+same head boilerplate, same System Status card reusing the Tier 0 health endpoint, same
+mobile-first padding scale (`px-3 sm:px-6`, etc.). Unlike Foundation/Organization/Person, it has
+**no tab bar at all** — a single-screen master-detail layout is sufficient because Family's
+surface area (families list + one family's detail) is small enough to fit without tabs. Served
+by FastAPI's `GET /family` route, conditional on the file existing on disk.
+
+**Section-by-section walkthrough:**
+
+**`<head>`:** Same CDN dependency block as the other tier pages (Tailwind Play CDN, DaisyUI
+4.12.14 with SRI, Alpine.js 3.14.8 with SRI, local `style.css`), only the `<title>` differs
+("— Family Verification"). The page-local style block defines just two `.badge-status-*`
+classes — `active`/`inactive` — the smallest set of any tier page, since a family's lifecycle
+(resolved from Foundation's unified `STATUS` category rather than Person's derived
+`is_active`/`date_of_death` pair) only ever needs the two.
+
+**Root component and header:** `<div x-data="familyApp()" x-init="init()" ...>` calls
+`familyApp()` (§2.13). The nav bar is the first to carry **six** links — Bootstrap, Foundation,
+Organization, Person, Family, Membership — with Family styled `btn-active`:
+
+```html
+<nav class="flex gap-2 flex-wrap">
+    <a href="/" class="btn btn-sm btn-ghost">Bootstrap</a>
+    <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
+    <a href="/organization" class="btn btn-sm btn-ghost">Organization</a>
+    <a href="/person" class="btn btn-sm btn-ghost">Person</a>
+    <a href="/family" class="btn btn-sm btn-active">Family</a>
+    <a href="/membership" class="btn btn-sm btn-ghost">Membership</a>
+</nav>
+```
+
+`flex-wrap` is added here (absent from earlier pages' nav bars) because six links no longer
+reliably fit on one row at narrow viewport widths — same plain-anchor-tag, each-page-hardcodes-
+its-own-`btn-active` pattern as every earlier page.
+
+**System Status card:** Identical `x-if` triad to every other tier page, bound to
+`familyApp().health`.
+
+**Main content — two-column grid (`grid-cols-1 xl:grid-cols-3`):**
+
+*Families list (left, `xl:col-span-2`):* Standard loading/error/empty/data `x-if` quadruple, then
+a table with five columns (Family ID, Family Name, Sakha, Formed Date, Status):
+
+```html
+<tr class="cursor-pointer hover"
+    :class="{ 'bg-base-200': selectedFamily?.family_group_pk === f.family_group_pk }"
+    @click="selectFamily(f)">
+    <td class="font-mono text-xs whitespace-nowrap" x-text="f.family_id"></td>
+    <td class="text-xs font-medium" x-text="f.family_name"></td>
+    <td class="text-xs whitespace-nowrap">
+        <span x-text="f.sakha_name"></span>
+        <span class="text-base-content/40 font-mono ml-1" x-text="f.sakha_code ? '(' + f.sakha_code + ')' : ''"></span>
+    </td>
+    <td class="text-xs whitespace-nowrap" x-text="f.formed_date || '—'"></td>
+    <td class="whitespace-nowrap">
+        <span class="badge badge-xs whitespace-nowrap"
+              :class="f.is_active ? 'badge-status-active' : 'badge-status-inactive'"
+              x-text="f.status_name"></span>
+    </td>
+</tr>
+```
+
+The same clickable-row/highlight-on-select pattern as every prior tier's list table, calling
+`selectFamily(f)` (§2.13). The Sakha cell concatenates the resolved `sakha_name` with its
+`sakha_code` in parentheses (e.g. "Ekamra Sakha (SKH1)") rather than showing either alone — a
+display convention unique to this page, since no earlier tier's list table shows both a name and
+a code for the same joined entity in one cell.
+
+*Family Detail (right):* Three mutually exclusive states — a "select a family" prompt
+(`!selectedFamily && !detailLoading`), a spinner (`detailLoading`), and the populated body
+(`selectedFamily && !detailLoading`). The populated body has no wrapping `detailError` state at
+all (unlike `person.html`'s detail panel) — `selectFamily()` (§2.13) treats member/head-history
+fetch failures as non-fatal so the family's own fields still render.
+
+The populated body is Identity (Family ID, Status badge, Name, Sakha, Formed date), a
+conditional Remarks line, then two always-fetched sub-sections:
+
+- **Members** — a `table-xs` with four columns (Person ID, Name, Relationship, Since):
+```html
+<tr>
+    <td class="font-mono text-xs" x-text="m.person_id"></td>
+    <td class="text-xs" x-text="formatMemberName(m)"></td>
+    <td class="text-xs">
+        <span class="badge badge-xs badge-primary" x-text="m.relationship_type_name"></span>
+    </td>
+    <td class="text-xs" x-text="m.effective_from"></td>
+</tr>
+```
+  populated from `GET /api/v1/family/families/{pk}/members` — always the family's **current**
+  roster only (the API itself filters `is_current = TRUE`; this page does no additional
+  client-side filtering).
+- **Head History** — rendered as a list of bordered cards rather than a table (the only
+  history-style presentation in the Family UI, since a family typically has few head-history
+  rows):
+```html
+<div class="border border-base-300 rounded-lg p-2 text-xs">
+    <div class="flex items-center gap-2">
+        <span class="font-semibold" x-text="formatMemberName(h)"></span>
+        <span class="font-mono text-base-content/40" x-text="h.person_id"></span>
+        <template x-if="!h.effective_to">
+            <span class="badge badge-xs badge-status-active">Current</span>
+        </template>
+    </div>
+    <div class="text-base-content/60 mt-0.5">
+        <span x-text="h.effective_from"></span>
+        <span x-text="h.effective_to ? ' — ' + h.effective_to : ' — present'"></span>
+    </div>
+</div>
+```
+  A "Current" badge appears only when `h.effective_to` is falsy — the same derive-current-from-
+  a-null-date convention documented in `API_CODE_EXPLANATIONS.md` §2.13 for the head-history
+  endpoint itself, now mirrored client-side rather than relying on any `is_current` field (this
+  response shape has none).
+
+**Footer and script include:** Same copyright footer as every other page. Loads
+`<script src="/assets/js/family.js"></script>` at the bottom.
+
+---
+
+## 2.13 `frontend/assets/js/family.js`
+
+**Requirement.** The client-side state/behaviour layer for `family.html`, mirroring the role
+`person.js` plays for `person.html` but scoped to Family's 4 read-only endpoints and with no tab
+state at all (there is only one "screen"). Defines one global factory function `familyApp()`.
+
+**Line-by-line:**
+
+```js
+const FAMILY_API = "/api/v1/family";
+```
+
+Same relative-path, no-hardcoded-hostname convention as every earlier tier's `*_API` constant.
+
+```js
+families: [],
+familiesLoading: true,
+familiesError: false,
+
+selectedFamily: null,
+detailLoading: false,
+
+familyMembers: [],
+membersLoading: false,
+
+headHistory: [],
+headLoading: false,
+```
+
+State groups: the families list (with its own loading/error flags), the currently selected
+family plus a single `detailLoading` flag, and two independent sub-resource collections
+(`familyMembers`, `headHistory`) each with their own loading flag but — notably — **no error
+flag of their own**. This is a deliberate simplification versus `person.js`'s addresses fetch:
+member/head-history failures are swallowed silently (see `selectFamily()` below) rather than
+surfaced as a distinct error state, since the family's own core fields are still useful without
+them.
+
+```js
+async init() {
+    await this.fetchHealth();
+    await this.fetchFamilies();
+},
+```
+
+Sequential, not parallel (`Promise.all`) — a minor departure from `person.js`'s `init()`, which
+fires its health check and its first data fetch in parallel. Functionally equivalent for a
+single-page (no-tabs) UI where there's nothing else to render while health is still loading.
+
+```js
+async fetchFamilies() {
+    this.familiesLoading = true;
+    this.familiesError = false;
+    try {
+        const res = await fetch(`${FAMILY_API}/families`);
+        if (!res.ok) throw new Error(res.statusText);
+        this.families = await res.json();
+    } catch {
+        this.familiesError = true;
+    } finally {
+        this.familiesLoading = false;
+    }
+},
+```
+
+The same loading=true/error=false → try/fetch/check `res.ok`/parse JSON → catch sets error flag
+only → finally clears loading pattern used by every `fetch*` method across every tier's JS file.
+Called with no query parameters — `family.html` has no filter UI, so the full (paginated-by-
+default, `DEFAULT_LIMIT=100`) family list is always requested as-is.
+
+```js
+async selectFamily(family) {
+    if (this.selectedFamily?.family_group_pk === family.family_group_pk) {
+        this.selectedFamily = null;
+        this.familyMembers = [];
+        this.headHistory = [];
+        return;
+    }
+
+    this.detailLoading = true;
+    this.selectedFamily = family;
+    this.familyMembers = [];
+    this.headHistory = [];
+
+    try {
+        const [membersRes, headRes] = await Promise.all([
+            fetch(`${FAMILY_API}/families/${family.family_group_pk}/members`),
+            fetch(`${FAMILY_API}/families/${family.family_group_pk}/head-history`),
+        ]);
+
+        if (membersRes.ok) {
+            this.familyMembers = await membersRes.json();
+        }
+        if (headRes.ok) {
+            this.headHistory = await headRes.json();
+        }
+    } catch {
+        // Non-fatal — family detail still shows
+    } finally {
+        this.detailLoading = false;
+    }
+},
+```
+
+Toggle-deselect on re-click of the same row, same as `selectOrganization()`/`selectPerson()` in
+every earlier tier's JS. On a genuine new selection, `selectedFamily` is set **directly from the
+row object already in memory** — unlike `person.js`'s `selectPerson()`, which issues a separate
+`GET /persons/{pk}` detail fetch, `family.html` never re-fetches the family's own core fields; the
+list row's data (already carrying every `FamilyGroupResponse` field via the JOIN-resolved list
+endpoint) is reused as the detail view's data source. Only the two sub-resources — members and
+head history — are fetched, via `Promise.all` in parallel. The `try`/`catch` here explicitly
+comments its own leniency: a fetch failure is swallowed (`// Non-fatal — family detail still
+shows`) rather than setting any error flag, so a transient member/head-history fetch failure
+never blocks the user from seeing the family's own identity fields.
+
+```js
+formatMemberName(m) {
+    return [m.first_name, m.middle_name, m.last_name]
+        .filter(Boolean)
+        .join(" ");
+},
+```
+
+Identical implementation to `person.js`'s `formatName()` (and `membership.js`'s `formatName()`)
+— joins first/middle/last name parts, dropping any that are falsy (`null`/`undefined`/empty
+string) before joining with a space. Used for both member rows and head-history cards, since both
+response shapes (`FamilyMemberResponse`, `FamilyHeadHistoryResponse`) carry the same three
+name fields.
+
+---
+
 ## 3. Cross-references
 
 - `frontend/README.md` — primary human-facing reference for this folder: directory
@@ -2298,3 +2607,6 @@ smallest file in the frontend layer, shared unmodified by both `index.html` and
   the 4 `/api/v1/person/*` endpoints consumed by `person.html` / `person.js` (request/
   response shapes, filter query parameters, the trigram `/search` endpoint, and the
   deliberate exclusion of `aadhaar_encrypted`/`aadhaar_hash`).
+- `docs/03_Solution/api/API_CONTRACT.md` — the authoritative API contract for
+  the 7 `/api/v1/membership/*` endpoints consumed by `membership.html` / `membership.js`
+  (three-tier identity, search fields, sub-resource endpoints).

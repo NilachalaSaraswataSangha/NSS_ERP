@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|-------------------------------------------|
 | Document    | TESTING_CODE_EXPLANATIONS                 |
-| Version     | 1.2                                       |
+| Version     | 1.4                                       |
 | Scope       | All pytest integration tests under `tests/` |
-| Status      | Complete (updated: Tier 3 Person)         |
+| Status      | Complete (updated: Tier 4 Family + Membership) |
 
 ---
 
@@ -30,11 +30,13 @@ verification harness, spanning every other layer document (`API_CODE_EXPLANATION
 testing gets its own dedicated document rather than being folded into whichever layer happens to
 be tested by the largest file.
 
-**208 tests total** across 6 files (per `grep -rc "def test_" tests/*.py`): `test_bootstrap.py`
+**259 tests total** across 7 files (per `grep -rc "def test_" tests/*.py`): `test_bootstrap.py`
 (21 — 9 API + 12 UI), `test_foundation.py` (59 — 46 API + 13 UI), `test_organization.py`
 (64 — 35 API/hierarchy + 13 pagination + 13 UI + 3 security), `test_security.py` (8),
 `test_person.py` (56 — 29 list/detail/addresses/search + 7 pagination + 15 UI + 5 security —
-see the breakdown in §2.6), plus `conftest.py`'s shared fixture (no tests of its own).
+see the breakdown in §2.6), `test_family.py` (51 — 17 list/pagination + 5 detail + 8 members +
+7 head-history + 4 security + 10 UI — see the breakdown in §2.7), plus `conftest.py`'s shared
+fixture (no tests of its own).
 
 ---
 
@@ -1049,6 +1051,14 @@ extra 7 (`LAPSED`, `TRANSFERRED`, `RESIGNED`, `EXPELLED`, `DECEASED`, `DISSOLVED
 were added so the same `STATUS` category can serve organization *and* person/membership
 lifecycles in later tiers, per the "Unified Body Governance Model" project principle.
 
+> **Known broken test (as of Tier 4):** `api/routers/organization.py`'s `/statuses` endpoint
+> now filters `STATUS` by a new `master_data.applicable_modules TEXT[]` column
+> (`'ORGANIZATION' = ANY(applicable_modules) OR applicable_modules IS NULL`), returning only 7
+> Organization-applicable statuses (Proposed/Approved/Active/Inactive/Suspended/Dissolved/
+> Archived) — not all 13-of-what-is-now-16 unified `STATUS` values. This test still asserts the
+> old unfiltered count/set and has not been updated; it will fail against the current code. See
+> `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs.
+
 ```python
 def test_list_has_required_fields(self, client):
     """Each status has the expected response fields."""
@@ -1732,11 +1742,598 @@ Person is the newest tier. `test_page_has_two_tabs` (lines 491–495) checks for
 
 ---
 
+### 2.7 `tests/test_family.py`
+
+**Requirement**
+
+The 4 Tier 4 Family endpoints span 3 tables (`family_group`, `family_relationship`,
+`family_head_history`) and — unlike Person — **do** have seed data (one family, "Mishra
+Paribara," with 3 current members and 1 head-history record; see
+`database/seed/04_family/README.md`), so this file can pin literal counts and field values
+directly rather than writing everything defensively. It is nonetheless still guarded with
+`pytest.skip("No family data seeded")` wherever a test needs a real `family_group_pk`, so the
+suite stays green if it's ever run against a database bootstrapped without the Tier 4
+verification seed. This file is the executable specification for the Family API contract, its
+`is_current`/`is_active` filtering behaviour, and the Family Verification UI's structure.
+**51 tests across 6 classes.**
+
+**Line-by-line**
+
+```python
+"""
+NSS ERP — Tier 4 Family API tests.
+
+Integration tests for the 4 Family GET endpoints across 3 tables.
+Runs against local PostgreSQL (not Neon). The database must be
+bootstrapped with DDL + seed before running.
+
+Seed data: 1 family (F1 Mishra), 3 members (P1 Ramesh HEAD, P2
+Priyanka WIFE, P4 Debasis SON), head history (P1 since 2010).
+
+Endpoint groups tested:
+  1. Family List:       /families (with filters)
+  2. Family Detail:     /families/{family_group_pk}
+  3. Family Members:    /families/{family_group_pk}/members
+  4. Head History:      /families/{family_group_pk}/head-history
+  5. Security:          security headers, cache control
+  6. UI Route:          /family serves HTML
+"""
+
+import pytest
+
+
+pytestmark = pytest.mark.integration
+
+BASE = "/api/v1/family"
+FAKE_UUID = "00000000-0000-0000-0000-000000000000"
+```
+
+Module docstring states "4 Family GET endpoints across 3 tables" and lists the six test groups —
+same shape as `test_person.py`'s and `test_organization.py`'s docstrings. Note the docstring's
+own seed-data summary (P1 Ramesh HEAD, P2 Priyanka WIFE, P4 Debasis SON) doesn't quite match the
+actual seed file's data (P1 Ramesh FATHER, P2 Sushma SPOUSE, P3 Aniket SON — see
+`database/seed/04_family/README.md`) — a stale docstring comment, not a functional issue, since
+none of the tests below hardcode "Priyanka" or "P4"; they assert on relationship *type* codes
+(`HEAD`... actually `FATHER` per the seed) and counts, which do match the real data.
+`pytestmark`, `BASE`, `FAKE_UUID` follow the same convention as every other tier's test file.
+
+```python
+def _get_first_family_pk(client):
+    """Return the PK of the first family, or None if no data."""
+    data = client.get(f"{BASE}/families").json()
+    return data[0]["family_group_pk"] if data else None
+```
+
+A module-level helper, same `_get_first_*_pk` pattern as `test_person.py`'s
+`_get_first_person_pk` and `test_organization.py`'s equivalent — every detail/members/head-history
+test calls this first and skips if it returns `None`.
+
+#### `TestFamilyList` (lines 45–166, 17 tests)
+
+```python
+def test_seeded_family_has_correct_data(self, client):
+    """Seeded family F1 has expected name and status."""
+    data = client.get(f"{BASE}/families").json()
+    mishra = [f for f in data if f["family_id"] == "F1"]
+    if not mishra:
+        pytest.skip("F1 Mishra family not seeded")
+    f = mishra[0]
+    assert f["family_name"] == "Mishra"
+    assert f["status_code"] == "ACTIVE"
+```
+
+Unlike Person, this test pins a literal expected value (`family_name == "Mishra"`) rather than
+just structure — the seed data is deterministic, so the test can assert on it directly, still
+wrapped in a `pytest.skip` guard for a database bootstrapped without the seed. (The assertion
+checks for the surname "Mishra" as a substring match against the full seeded `family_name`,
+"Mishra Paribara" — read literally, `f["family_name"] == "Mishra"` would only pass if the seed
+value were exactly "Mishra"; in practice this couples the test tightly to whatever the seed file
+currently sets `family_name` to.)
+
+`test_filter_by_sakha_code`/`test_filter_by_status_code`/`test_multiple_filters` exercise
+`sakha_code`/`status_code` exactly like `test_organization.py`'s `type_code`/`status_code`
+filter tests — both independently combinable, verified by asserting the returned rows' own
+`status_code` field matches the filter value. The remaining 10 tests are the standard
+pagination contract suite (`limit=0` → 422, `limit=501` → 422, `offset=-1` → 422, `limit=500`
+accepted, over-range offset → empty list not error) — byte-for-byte the same pattern
+`test_person.py`'s `TestPersonList` and `test_organization.py`'s equivalent already establish
+for every paginated list endpoint in the API.
+
+#### `TestFamilyDetail` (lines 174–227, 5 tests)
+
+```python
+def test_detail_fake_pk_returns_404(self, client):
+    """Fetching a nonexistent family returns 404."""
+    r = client.get(f"{BASE}/families/{FAKE_UUID}")
+    assert r.status_code == 404
+```
+
+The standard fake-UUID-404 / malformed-UUID-422 / valid-PK-200 / required-fields /
+audit-column-exclusion quintet used by every detail endpoint's test class across the suite.
+
+#### `TestFamilyMembers` (lines 235–317, 8 tests)
+
+```python
+def test_members_seeded_count(self, client):
+    """F1 Mishra family has 3 seeded members."""
+    pk = _get_first_family_pk(client)
+    if pk is None:
+        pytest.skip("No family data seeded")
+    data = client.get(f"{BASE}/families/{pk}/members").json()
+    assert len(data) == 3, f"Expected 3 members, got {len(data)}"
+```
+
+```python
+def test_members_has_head_relationship(self, client):
+    """F1 Mishra has a HEAD relationship (Ramesh)."""
+    pk = _get_first_family_pk(client)
+    if pk is None:
+        pytest.skip("No family data seeded")
+    data = client.get(f"{BASE}/families/{pk}/members").json()
+    heads = [m for m in data if m["relationship_type_code"] == "HEAD"]
+    assert len(heads) == 1, "Expected exactly 1 HEAD"
+```
+
+Two data-pinned tests unique to this endpoint group: an exact seeded-count assertion (`== 3`,
+not `>= 1`) and a filter-in-Python assertion that exactly one member carries relationship type
+code `HEAD`. Read against the actual seed file (`database/seed/04_family/01_tier4_verification_family.sql`),
+Ramesh Mishra (`P1`) is actually seeded with relationship type `FATHER`, not `HEAD` — so as
+written, `test_members_has_head_relationship` would find zero `HEAD` rows (not one) against the
+real seed data and fail on `assert len(heads) == 1`, unless a `HEAD` relationship-type row is
+present in some other seed path this file doesn't otherwise account for. `test_members_fake_pk_
+returns_404`/`test_members_bad_uuid_returns_422` verify the endpoint's "verify parent exists,
+then fetch children" 404 behaviour (see `API_CODE_EXPLANATIONS.md` §2.13), and
+`test_members_all_current` asserts every returned row has `is_current: true` — proving the
+router's `WHERE fr.is_current = TRUE` filter is actually applied, not just documented.
+
+#### `TestFamilyHeadHistory` (lines 324–392, 7 tests)
+
+```python
+def test_head_history_current_head_has_no_end_date(self, client):
+    """Current head should have effective_to=None."""
+    pk = _get_first_family_pk(client)
+    if pk is None:
+        pytest.skip("No family data seeded")
+    data = client.get(f"{BASE}/families/{pk}/head-history").json()
+    current = [h for h in data if h["effective_to"] is None]
+    assert len(current) >= 1, "Expected at least 1 current head"
+```
+
+The one test that directly exercises the "current head is the row with `effective_to IS NULL`"
+convention documented in `API_CODE_EXPLANATIONS.md` §2.13 and enforced at the DDL level by
+`uq_family_head_current` (a partial unique index guaranteeing **at most** one such row per
+family) — this test only checks **at least** one, which is the correct client-observable
+half of that guarantee (the uniqueness half is a database-level invariant, not something an
+API integration test needs to re-verify). The remaining 6 tests are the same
+404/422/200/required-fields/seeded-count/audit-exclusion pattern as every other sub-resource
+list endpoint in the suite.
+
+#### `TestFamilySecurity` (lines 400–427, 4 tests)
+
+```python
+def test_family_ui_no_cache_control_no_store(self, client):
+    """Family UI page does NOT have Cache-Control: no-store."""
+    r = client.get("/family")
+    assert r.status_code == 200
+    assert r.headers.get("Cache-Control") != "no-store"
+```
+
+The same cross-tier security contract verified for every other module in `test_security.py` and
+re-verified per-module here: `/api/v1/family/*` responses carry the four core security headers
+and `Cache-Control: no-store`, while the `/family` UI page itself does *not* get `no-store`
+(HTML pages are cacheable; API JSON responses are not) — and even a 404 response still carries
+the security headers, proving `add_security_headers` runs regardless of the eventual status
+code.
+
+#### `TestFamilyUI` (lines 435–489, 10 tests)
+
+```python
+def test_page_has_nav_links(self, client):
+    """Page navigation includes links to tier UIs."""
+    html = client.get("/family").text
+    assert 'href="/"' in html
+    assert 'href="/family"' in html
+    assert 'href="/membership"' in html
+```
+
+The standard UI-structure smoke-test suite (title, branding, Alpine.js/DaisyUI CDN references,
+`family.js` script tag, `x-data="familyApp()"` binding, nav links, NSS logo, copyright footer) —
+identical in shape to `TestPersonUI`/`TestOrganizationUI`, just re-pointed at `/family` and
+`familyApp()`. The nav-link assertion checking for `/membership` (rather than stopping at
+`/person`) is this file's one piece of evidence that the six-tier nav bar (§UI_CODE_EXPLANATIONS
+§2.12) was already in place when this test file was written.
+
+---
+
+### 2.8 `tests/test_membership.py`
+
+**Requirement**
+
+The 7 Tier 4 Membership endpoints span 5 tables (`sangha_sevi`, `membership_sakha_affiliation`,
+`parichaya_patra`, `anumati_patra`, `membership_journey_event`) and are the executable
+specification for the module's central non-obvious concept: the **three-tier identity model**
+(Sangha Sevi ID / Local Sakha ERP Number / Kendra Number). Unlike Person, Membership *does* have
+real seed data (5 members — see `database/seed/05_membership/README.md`), so most tests pin
+literal seeded values (`SS1` is Regular, `SS3` was transferred, etc.) rather than defensively
+skipping on empty tables — the file's job is proving the three-tier identity resolves correctly
+across every endpoint, that trigram/prefix search covers all three tiers plus name/mobile/email,
+and that the transfer/Kumari-transition/Associate-has-no-Anumati-Patra business rules encoded in
+the seed data are actually visible through the API. **99 tests across 9 classes** — the largest
+test file in the repository.
+
+**Line-by-line**
+
+```python
+"""
+NSS ERP — Tier 4 Membership API tests.
+
+Integration tests for the 7 Membership GET endpoints across 5 tables.
+Runs against local PostgreSQL (not Neon). The database must be
+bootstrapped with DDL + seed before running.
+
+Seed data: 5 members (SS1 Ramesh Regular, SS2 Aniket Probationary,
+SS3 Suresh Transferred Regular, SS4 Debasis Associate, SS5 Smita
+Kumari-transition Regular). Historical Anumati Patras for SS1/SS3.
+Transfer: SS3 SKH1→SKH2.
+
+Three-tier identity model:
+  - Sangha Sevi ID (SS1) — NSS-wide, permanent
+  - ERP Number / Local Sakha Number (ESS1192) — Sakha-scoped, auto-generated
+  - Kendra Number (345/2026/2027) — Kendra-wide, annual
+"""
+
+import pytest
+
+
+pytestmark = pytest.mark.integration
+
+BASE = "/api/v1/membership"
+FAKE_UUID = "00000000-0000-0000-0000-000000000000"
+```
+
+The module docstring states "7 Membership GET endpoints across 5 tables," summarizes the 5 seeded
+members and their roles in one line each, and restates the three-tier identity model — the same
+three lines that appear in `api/routers/membership.py`'s own docstring and
+`API_CONTRACT.md` §8, kept in sync across all three so a reader lands on the same mental model
+regardless of which file they open first.
+
+```python
+def _get_first_member_pk(client):
+    """Return the PK of the first member, or None if no data."""
+    data = client.get(f"{BASE}/members").json()
+    return data[0]["sangha_sevi_pk"] if data else None
+
+
+def _get_member_by_id(client, sangha_sevi_id):
+    """Return the member dict matching the given sangha_sevi_id, or None."""
+    data = client.get(f"{BASE}/members").json()
+    matches = [m for m in data if m["sangha_sevi_id"] == sangha_sevi_id]
+    return matches[0] if matches else None
+```
+
+Two module-level helpers. `_get_first_member_pk` is the same `pytest.skip`-if-empty pattern used
+by every other tier's "get any valid PK" helper. `_get_member_by_id` is new — Membership is the
+first module where individual seeded rows have known, permanent business identifiers (`SS1`
+through `SS5`) worth looking up by name rather than by position, since so many tests need to
+assert something specific about *this particular member* (e.g. "SS3 was transferred," "SS4 is
+Associate"). Nearly every test that depends on a specific seeded member calls this helper and
+`pytest.skip(f"{id} not seeded")` if it returns `None` — the same availability-guard discipline
+as `test_person.py`, applied to named rows instead of "any row."
+
+#### `TestMemberList` (lines 62–213, 20 tests)
+
+```python
+def test_list_has_required_fields_if_data(self, client):
+    """Each member has the expected response fields."""
+    required = {
+        "sangha_sevi_pk", "sangha_sevi_id",
+        "person_pk", "person_id",
+        "first_name", "middle_name", "last_name",
+        "membership_type_master_data_pk",
+        "membership_type_code", "membership_type_name",
+        "membership_status_master_data_pk",
+        "status_code", "status_name",
+        "organization_pk", "organization_name", "organization_code",
+        "local_sakha_erp_id",
+        "joining_date", "renewal_due_date",
+        "remarks", "is_active",
+    }
+    for m in client.get(f"{BASE}/members").json():
+        assert required.issubset(m.keys()), (
+            f"Missing fields in member {m.get('sangha_sevi_id', '?')}: "
+            f"{required - m.keys()}"
+        )
+```
+
+Proves `MemberResponse` carries both Tier 1 (`sangha_sevi_id`) and Tier 2 (`local_sakha_erp_id`)
+identity fields plus resolved person/type/status/organization context — the same "one big
+resolved row" shape `_MEMBER_SELECT` builds via five JOINs in the router. This exact required-set
+is repeated verbatim in `TestMemberDetail.test_detail_has_required_fields`, since both endpoints
+share `MemberResponse`.
+
+```python
+def test_seeded_member_ss1_is_regular(self, client):
+    """SS1 (Ramesh) is a Regular member."""
+    m = _get_member_by_id(client, "SS1")
+    if m is None:
+        pytest.skip("SS1 not seeded")
+    assert m["membership_type_code"] == "REGULAR"
+    assert m["status_code"] == "ACTIVE"
+```
+
+Three near-identical tests (`test_seeded_member_ss1_is_regular`, `_ss2_is_probationary`,
+`_ss4_is_associate`) each pin one seeded member's `membership_type_code`, directly verifying the
+seed file's own claims (`SS1`/`SS3` Regular, `SS2`/`SS5` Probationary, `SS4` Associate) actually
+surface through the API — not just that the INSERT succeeded, but that the type/status JOINs
+resolve to the right `master_data` row.
+
+```python
+def test_filter_by_type_code(self, client):
+    """Filtering by type_code returns only matching members."""
+    r = client.get(f"{BASE}/members", params={"type_code": "REGULAR"})
+    assert r.status_code == 200
+    for m in r.json():
+        assert m["membership_type_code"] == "REGULAR"
+```
+
+Three independent filters (`type_code`, `status_code`, `org_code`) each get their own
+every-row-matches test, the same rigor as Organization's/Person's filter tests, plus
+`test_filter_nonexistent_type_returns_empty` (fabricated code → `200 []`, not 404) and
+`test_multiple_filters` (all three combined in one request, proving `AND`-composition). The
+pagination group (6 tests: custom limit, `limit=0`→422, `limit=501`→422, `offset=-1`→422,
+`offset=9999`→`200 []`, `limit=500`→200) is identical in shape to every other tier's pagination
+suite — Membership reuses the same `DEFAULT_LIMIT`/`MAX_LIMIT` constants from `api/helpers.py`.
+
+| Test | What it checks |
+|---|---|
+| `test_list_returns_200` | `GET /members` → 200, list |
+| `test_list_all_active` | Every returned member has `is_active is True` |
+| `test_list_excludes_audit_columns` | 6 audit columns absent from every row |
+| `test_list_returns_seeded_members` | At least 5 seeded members exist |
+| `test_members_have_local_sakha_erp_id` | At least 1 member has a non-null `local_sakha_erp_id` |
+
+#### `TestMemberDetail` (lines 221–281, 5 tests)
+
+Same 404/422/200/required-fields/audit-exclusion pattern as every other tier's detail endpoint
+(`test_detail_fake_pk_returns_404`, `test_detail_bad_uuid_returns_422`,
+`test_detail_valid_pk_returns_200`, `test_detail_has_required_fields`,
+`test_detail_excludes_audit_columns`) — no Membership-specific behaviour here beyond reusing
+`MemberResponse`'s field set from `TestMemberList`.
+
+#### `TestMemberSearch` (lines 288–434, 16 tests)
+
+```python
+def test_search_by_erp_number(self, client):
+    """Searching by ERP Number prefix finds the member."""
+    members = client.get(f"{BASE}/members").json()
+    erp_members = [m for m in members if m["local_sakha_erp_id"]]
+    if not erp_members:
+        pytest.skip("No members with ERP numbers seeded")
+    erp_id = erp_members[0]["local_sakha_erp_id"]
+    data = client.get(f"{BASE}/search", params={"q": erp_id[:3]}).json()
+    erp_ids = [m["local_sakha_erp_id"] for m in data]
+    assert erp_id in erp_ids, (
+        f"Expected {erp_id} in search results, got: {erp_ids}"
+    )
+```
+
+This is the largest class in the file, and the only one to directly exercise all **three**
+identity tiers as independent search paths: `test_search_by_sangha_sevi_id` (Tier 1 prefix),
+`test_search_by_erp_number` (Tier 2 prefix, shown above — discovers a real seeded ERP number
+first rather than hardcoding one, so the test survives seed-data changes), and
+`test_search_by_kendra_number` (Tier 3 prefix, fetched via a nested call to the Parichaya Patra
+sub-endpoint for SS1 before extracting the prefix before the first `/`) — plus
+`test_search_by_person_id`, `test_search_by_name_trigram`, `test_search_by_mobile_number`, and
+`test_search_by_email` covering the four non-tiered match paths. Together these seven tests are
+the executable proof of `api/routers/membership.py::search_members`'s WHERE clause, field by
+field.
+
+```python
+def test_search_by_email(self, client):
+    """Searching by email prefix finds the member."""
+    # P1 (SS1) has email 'ramesh.mishra@example.com'
+    data = client.get(f"{BASE}/search", params={"q": "ramesh.mishra"}).json()
+    ids = [r["sangha_sevi_id"] for r in data]
+    assert "SS1" in ids, f"Expected SS1 when searching by email prefix, got: {ids}"
+```
+
+Notably searches `"ramesh.mishra"` — a string containing a `.` — which exercises the router's
+`re.split(r'[.@]', q)[0]` email-prefix handling (splits to `"ramesh"` for the trigram comparison
+while still using the full string for the `ILIKE` email-prefix match) without asserting on the
+split logic directly; the test only cares that the end-to-end result still finds `SS1`.
+
+| Test | What it checks |
+|---|---|
+| `test_search_requires_q` | Omitting `q` → 422 |
+| `test_search_q_too_short_returns_422` | `q="A"` (1 char) → 422 |
+| `test_search_returns_200` | `q="SS"` → 200, list |
+| `test_search_nonexistent_returns_empty` | `q="ZZZZNOTEXIST99"` → `200 []` |
+| `test_search_max_50_results` | `len(results) <= 50` |
+| `test_search_returns_member_response_fields` | Search results use full `MemberResponse` shape |
+| `test_search_excludes_audit_columns` | Audit columns absent |
+| `test_search_only_returns_active_members` | Every result has `is_active is True` |
+| `test_search_has_security_headers` | `/search` carries the four core headers + `Cache-Control: no-store` |
+
+#### `TestMemberAffiliations` (lines 442–513, 7 tests)
+
+```python
+def test_transferred_member_has_archived_and_active(self, client):
+    """SS3 should have one ARCHIVED and one ACTIVE affiliation."""
+    m = _get_member_by_id(client, "SS3")
+    if m is None:
+        pytest.skip("SS3 not seeded")
+    data = client.get(f"{BASE}/members/{m['sangha_sevi_pk']}/affiliations").json()
+    statuses = {a["affiliation_status"] for a in data}
+    assert "ARCHIVED" in statuses, "Expected ARCHIVED affiliation for transfer"
+    assert "ACTIVE" in statuses, "Expected ACTIVE affiliation at new Sakha"
+```
+
+Beyond the standard 404/422/200/required-fields/audit-exclusion set, this class has two tests
+specific to the seeded transfer scenario: `test_transferred_member_has_multiple_affiliations`
+(SS3 has ≥2 affiliation rows) and the one above, which confirms the *specific* status split the
+DDL's `chk_mem_sakha_aff_status_consistency` constraint guarantees — the old Sakha's row is
+`ARCHIVED` (closed, `effective_to` set) and the new Sakha's row is `ACTIVE` (open-ended) — proving
+`membership_sakha_affiliation`'s "current + history via row closure" design (see
+`database/ddl/05_membership/README.md`) is both stored correctly and visible through the API.
+
+#### `TestParichayaPatra` (lines 521–607, 8 tests)
+
+```python
+def test_probationary_has_no_parichaya_patra(self, client):
+    """SS2 (Probationary) should have no Parichaya Patra."""
+    m = _get_member_by_id(client, "SS2")
+    if m is None:
+        pytest.skip("SS2 not seeded")
+    data = client.get(
+        f"{BASE}/members/{m['sangha_sevi_pk']}/parichaya-patra"
+    ).json()
+    assert len(data) == 0, "Probationary member should not have PP"
+```
+
+`test_regular_member_has_parichaya_patra` (SS1, ≥1 record) and this test are a matched pair
+proving the business rule "only Regular/Associate members receive a Parichaya Patra" is a fact
+about the *seed data*, not something the API enforces — the endpoint itself has no type-based
+filtering; it simply returns whatever `parichaya_patra` rows exist for the given
+`sangha_sevi_pk`. `test_pp_document_number_is_kendra_number` only asserts `"/" in doc` — a loose
+format check (Kendra numbers are `<seq>/<FY start>/<FY end>`), deliberately not over-specified
+against the exact seeded value so the test survives future seed changes.
+
+#### `TestAnumatiPatra` (lines 615–712, 9 tests)
+
+```python
+def test_regular_member_has_historical_expired_ap(self, client):
+    """SS1 (Regular, was Probationary) has EXPIRED Anumati Patra."""
+    m = _get_member_by_id(client, "SS1")
+    if m is None:
+        pytest.skip("SS1 not seeded")
+    data = client.get(
+        f"{BASE}/members/{m['sangha_sevi_pk']}/anumati-patra"
+    ).json()
+    expired = [ap for ap in data if ap["status"] == "EXPIRED"]
+    assert len(expired) >= 1, (
+        "Expected EXPIRED AP for SS1 (was probationary before Regular)"
+    )
+```
+
+`test_regular_member_has_historical_expired_ap` and `test_ss3_has_historical_expired_ap` are
+this class's most conceptually important tests: they prove Anumati Patra history survives
+promotion to Regular — a member who has since been promoted still has their old, `EXPIRED`
+credential retrievable, not deleted, consistent with the project's frozen "History Never
+Deleted" principle. `test_probationary_has_anumati_patra` (SS2, ≥1 `ACTIVE` record) and
+`test_ap_document_number_format` (`doc.startswith("AP/")`) round out the seed-specific
+assertions; the remaining four tests (`_fake_pk_404`, `_bad_uuid_422`, `_valid_pk_200`,
+`_has_required_fields`, `_excludes_audit_columns`) follow the standard sub-resource pattern.
+
+#### `TestJourneyEvents` (lines 720–807, 9 tests)
+
+```python
+def test_kumari_transition_has_event(self, client):
+    """SS5 (Smita, Kumari→Membership) has KUMARI_TRANSITION event."""
+    m = _get_member_by_id(client, "SS5")
+    if m is None:
+        pytest.skip("SS5 not seeded")
+    data = client.get(f"{BASE}/members/{m['sangha_sevi_pk']}/journey").json()
+    event_types = {e["event_type"] for e in data}
+    assert "KUMARI_TRANSITION" in event_types, (
+        f"Expected KUMARI_TRANSITION event for SS5, got: {event_types}"
+    )
+```
+
+`test_transferred_member_has_transfer_event` (SS3, `TRANSFER` in `event_types`) and this test
+each pin one seeded member's lifecycle narrative to a specific `event_type` string —
+`membership_journey_event.event_type` is a free-form `VARCHAR`, not an FK to `master_data` (see
+`database/ddl/05_membership/README.md`), so these tests are the only guard that the *application
+layer's* event-type vocabulary (`TRANSFER`, `KUMARI_TRANSITION`, `MEMBERSHIP_CREATED`,
+`REGULAR_ENROLMENT`, `ASSOCIATE_ENROLMENT`, …) stays consistent between seed data and any future
+consumer. `test_journey_events_ordered_by_date` asserts `dates == sorted(dates)` only when
+`len(data) >= 2`, confirming the router's `ORDER BY mje.event_date ASC` without requiring a
+specific event count.
+
+#### `TestMembershipSecurity` (lines 815–848, 5 tests)
+
+The same four-header-plus-cache-control contract verified per-module throughout the suite
+(`test_membership_api_has_security_headers`, `test_membership_api_has_cache_control_no_store`,
+`test_membership_ui_no_cache_control_no_store`, `test_404_has_security_headers`), plus one test
+unique to Membership's deeper URL nesting:
+
+```python
+def test_sub_endpoints_have_security_headers(self, client):
+    """Sub-resource 404s also get security headers."""
+    r = client.get(f"{BASE}/members/{FAKE_UUID}/affiliations")
+    assert r.status_code == 404
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+```
+
+Membership is the first module with four distinct sub-resource routes hanging off a single
+detail PK (`/affiliations`, `/parichaya-patra`, `/anumati-patra`, `/journey`); this test spot-checks
+one of them to confirm `add_security_headers` wraps sub-resource 404s too, not just the top-level
+`/members` and `/members/{pk}` routes.
+
+#### `TestMembershipUI` (lines 856–967, 20 tests)
+
+The standard UI-structure smoke-test suite (title, branding, Alpine.js/DaisyUI CDN references,
+`membership.js` script tag, `x-data="membershipApp()"` binding, nav links, NSS logo, copyright
+footer, tab bar) plus several Membership-specific assertions:
+
+```python
+def test_page_has_three_tier_legend(self, client):
+    """Page contains the three-tier identity legend."""
+    html = client.get("/membership").text
+    assert "Sangha Sevi ID" in html
+    assert "Sakha Sangha ID" in html
+
+
+def test_page_has_darshaka_filter(self, client):
+    """Page type filter includes Darshaka (not Probationary)."""
+    html = client.get("/membership").text
+    assert "Darshaka" in html
+
+
+def test_anumati_patra_hidden_for_associate(self, client):
+    """Anumati Patra section is conditionally hidden for Associate members."""
+    html = client.get("/membership").text
+    assert "membership_type_code !== 'ASSOCIATE'" in html
+```
+
+`test_page_has_three_tier_legend` and `test_page_has_sakha_sangha_id_label` both guard the
+three-tier identity legend and the "Sakha Sangha ID" UI-label convention (see
+`frontend/README.md`'s `membership.html` section) — the database column is `local_sakha_erp_id`,
+but the UI never shows that name to a user. `test_page_has_darshaka_filter` guards the
+`typeDisplayName()` UI convention that displays `PROBATIONARY` as "Darshaka" (MBR-007).
+`test_anumati_patra_hidden_for_associate` is a literal substring match on the Alpine `x-show`
+directive itself (`membership_type_code !== 'ASSOCIATE'`) — a white-box assertion that the
+conditional-hide logic exists in the template at all, complementing
+`TestAnumatiPatra.test_ap_has_required_fields`'s black-box proof that Associate members' API
+responses are empty. `test_search_auto_selects_single_result` inspects
+`assets/js/membership.js` directly (not the HTML) for the `searchResults.length === 1` /
+`selectMember` auto-select pattern shared with `person.js`.
+
+| Test | What it checks |
+|---|---|
+| `test_membership_page_returns_200` | `GET /membership` → 200, `text/html` |
+| `test_page_contains_title` / `_branding` | "Membership" / "Nilachala Saraswata Sangha" in HTML |
+| `test_page_loads_alpine_js` / `_daisyui` / `_membership_js` | CDN + script tag references |
+| `test_page_has_alpine_data_binding` | `x-data="membershipApp()"` |
+| `test_page_has_nav_links` | Links to `/`, `/family`, `/membership` |
+| `test_page_has_tab_bar` | `switchTab('members')` / `switchTab('search')` |
+| `test_page_has_search_tab_content` / `_search_detail_panel` | "Member Search" heading; ≥2 "Member Detail" headings (one per tab) |
+| `test_page_has_person_id_column` | "Person ID" column present |
+| `test_page_has_nss_logo` / `_copyright_footer` | Logo + "All rights reserved" |
+
+---
+
 ## 3. Cross-references
 
 - **`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`** — the
   routers/schemas that `test_bootstrap.py`, `test_foundation.py`, `test_organization.py`,
-  and `test_person.py` exercise.
+  `test_person.py`, and `test_membership.py` exercise.
+- **`docs/03_Solution/api/API_CONTRACT.md`** — the Tier 4 Membership API contract (§8) that
+  `test_membership.py` is the executable specification for, including the three-tier identity
+  model and the full search-fields table.
+- **`database/ddl/05_membership/README.md`** and
+  **`database/seed/05_membership/README.md`** — the table design and seed-data reference
+  that many `test_membership.py` assertions (transfer, Kumari transition, Associate-has-no-AP)
+  are directly checking against.
 - **`docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** — the
   middleware that `test_security.py` exercises and that `test_organization.py`'s
   `TestOrganizationSecurity` class and `test_person.py`'s `TestPersonSecurity` class each

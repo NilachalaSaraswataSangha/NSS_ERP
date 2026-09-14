@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | API_CODE_EXPLANATIONS                    |
-| Version     | 1.3                                      |
-| Scope       | All source files under `api/` and `tests/` |
-| Status      | Complete (updated: Tier 3 Person)         |
+| Version     | 1.5                                      |
+| Scope       | All source files under `api/` (except `api/middleware.py`) |
+| Status      | Complete (updated: Tier 4 Family + Membership) |
 
 ---
 
@@ -2283,7 +2283,7 @@ Lines 136–156 — `GET /statuses`:
 def list_statuses(
     conn=Depends(get_connection),
 ) -> list[StatusResponse]:
-    """List all active lifecycle statuses (13 unified statuses from master_data)."""
+    """List active lifecycle statuses applicable to the Organization module."""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT md.master_data_pk  AS status_pk,
@@ -2297,6 +2297,8 @@ def list_statuses(
                    ON mc.master_category_pk = md.master_category_pk
             WHERE  mc.category_code = 'STATUS'
               AND  md.is_active = TRUE
+              AND  ('ORGANIZATION' = ANY(md.applicable_modules)
+                    OR md.applicable_modules IS NULL)
             ORDER BY md.display_order
         """)
         return _rows_to_models(cur, StatusResponse)
@@ -2306,10 +2308,21 @@ Identical shape to `/types`, filtered to `category_code = 'STATUS'` instead. Thi
 handler name change as the schema rename — `list_organization_statuses` became `list_statuses`,
 and the docstring/route now says "lifecycle statuses" rather than "organization lifecycle
 statuses," since `STATUS` is a unified category shared across modules, not owned by
-Organization. Returns the 13 lifecycle statuses (PROPOSED, APPROVED, ACTIVE, INACTIVE,
-SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, DECEASED, DISSOLVED, ARCHIVED, EXPIRED) —
-more than double the pre-migration 6, since `STATUS` absorbs values that used to be split across
-a hypothetical per-module `ORGANIZATION_STATUS` and Person/Membership's `MEMBERSHIP_STATUS`.
+Organization. **As of Tier 4**, `master_data` gained an `applicable_modules TEXT[]` column so
+each module sees only its own applicable subset of the now-16-value `STATUS` category — this
+query's `WHERE` clause gained the `'ORGANIZATION' = ANY(...)  OR ... IS NULL` predicate, and the
+docstring was reworded from "(13 unified statuses from master_data)" to the module-scoped
+description above. Returns 7 lifecycle statuses for Organization (PROPOSED, APPROVED, ACTIVE, INACTIVE,
+SUSPENDED, DISSOLVED, ARCHIVED) — the other 9 values are filtered out: Membership-only
+(LAPSED, TRANSFERRED, RESIGNED, EXPELLED, plus the 3 new `RENEWAL_PENDING`/`ON_HOLD`/
+`DISCIPLINARY_REVIEW`), Person-only (DECEASED), and Credential-only (EXPIRED, tagged
+`{CREDENTIAL}` in `master_data` rather than `{MEMBERSHIP}` — though credential expiry from
+non-renewal of a Parichaya Patra/Anumati Patra is very much a real membership-lifecycle event
+in practice; the `{CREDENTIAL}` tag reflects that `parichaya_patra.status`/`anumati_patra.status`
+are their own inline `VARCHAR` + `CHECK` columns, not FKs into `master_data`, so this row is a
+parallel reference entry rather than what those tables actually store).
+**Known test gap:** `tests/test_organization.py::test_list_returns_13_statuses` still asserts
+the old unfiltered count of 13 and was not updated for this filter — it now fails.
 
 **Core CRUD-read endpoints (lines 164–244):**
 
@@ -3167,6 +3180,997 @@ to `None` fields rather than a validation error.
 
 ---
 
+### 2.13 `api/routers/family.py`
+
+**Requirement**
+
+Tier 4's Family module exposes 4 read-only GET endpoints across 3 of the module's 4 DDL tables
+(`family_group`, `family_relationship`, `family_head_history` — `family_transition_history` has
+no endpoint yet, since it's purely an append-only log with nothing to verify against in Tier 4's
+seed data) so the Family Verification UI can list families, view a single family's resolved
+detail, list a family's current members, and view a family's head-of-household history. Without
+this file, `nss.family_group` and friends would have no HTTP surface at all, and the
+"Family First Model" principle — a family exists independently of membership — would have no way
+to be demonstrated end-to-end (DB → API → UI) the way Bootstrap/Foundation/Organization/Person
+each were for their own tiers.
+
+**Line-by-line**
+
+Lines 1–14 — module docstring:
+
+```python
+"""
+Family API router — Tier 4 read-only endpoints.
+
+4 GET endpoints across 3 Family tables. No authentication.
+nss_db_backend connects with SELECT-only privileges.
+
+Endpoint groups:
+  - Core:     families (list with filters, detail)
+  - Members:  family members (relationships per family)
+  - History:  family head history (per family)
+
+Security:
+  - Audit actor FKs excluded per API convention
+"""
+```
+
+Same shape as `person.py`'s docstring (§2.11): endpoint count, table count, the three logical
+endpoint groups, and a "Security:" note — here just the standard audit-actor-FK exclusion, since
+Family carries no Aadhaar-grade sensitive column of its own.
+
+Lines 16–28:
+
+```python
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from api.database import get_connection
+from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
+from api.schemas.family import (
+    FamilyGroupResponse,
+    FamilyHeadHistoryResponse,
+    FamilyMemberResponse,
+)
+
+router = APIRouter(prefix="/api/v1/family", tags=["family"])
+```
+
+Imports `row_to_model`/`rows_to_models`/`DEFAULT_LIMIT`/`MAX_LIMIT` from the shared
+`api/helpers.py` module — same pattern `person.py` and `organization.py` already follow, not a
+locally-redefined pair. `router = APIRouter(prefix="/api/v1/family", tags=["family"])` gives
+Family its own prefix and Swagger tag, parallel to every other tier's router.
+
+**Shared SQL fragments (lines 33–89):**
+
+```python
+_FAMILY_SELECT = """
+    SELECT fg.family_group_pk,
+           fg.family_id,
+           fg.family_name,
+           fg.family_status_master_data_pk,
+           st.value_code  AS status_code,
+           st.value_name  AS status_name,
+           fg.sakha_organization_pk,
+           o.organization_name  AS sakha_name,
+           o.organization_code  AS sakha_code,
+           fg.formed_date,
+           fg.remarks,
+           fg.is_active
+    FROM   nss.family_group fg
+    JOIN   nss.master_data st
+           ON st.master_data_pk = fg.family_status_master_data_pk
+    JOIN   nss.organization o
+           ON o.organization_pk = fg.sakha_organization_pk
+"""
+```
+
+`_FAMILY_SELECT` resolves the family's status (via `master_data`, unified `STATUS` category — the
+same table/pattern `organization.py` uses for its own status resolution) and its Sakha (via
+`organization`) using plain `JOIN`s, not `LEFT JOIN`s, because both
+`family_status_master_data_pk` and `sakha_organization_pk` are `NOT NULL` FKs on `family_group` —
+a family row can never exist without a status or a Sakha, so an inner join can't silently drop a
+valid row.
+
+```python
+_MEMBER_SELECT = """
+    SELECT fr.family_relationship_pk,
+           fr.family_group_pk,
+           fr.person_pk,
+           p.person_id,
+           p.first_name,
+           p.middle_name,
+           p.last_name,
+           fr.relationship_type_master_data_pk,
+           rt.value_code  AS relationship_type_code,
+           rt.value_name  AS relationship_type_name,
+           fr.effective_from,
+           fr.effective_to,
+           fr.is_current,
+           fr.remarks
+    FROM   nss.family_relationship fr
+    JOIN   nss.person p
+           ON p.person_pk = fr.person_pk
+    JOIN   nss.master_data rt
+           ON rt.master_data_pk = fr.relationship_type_master_data_pk
+"""
+```
+
+`_MEMBER_SELECT` joins `person` (for display name and `person_id`) and `master_data` (for
+relationship type, category `RELATIONSHIP_TYPE`) — again both plain `JOIN`s, since
+`family_relationship.person_pk` and `.relationship_type_master_data_pk` are both `NOT NULL`.
+Notably it does **not** join anything from Person's sensitive block (`aadhaar_last4`, emergency
+contact, etc.) — only `person_id`/`first_name`/`middle_name`/`last_name` are pulled across, the
+minimum needed to display a member's name in the Family UI.
+
+```python
+_HEAD_SELECT = """
+    SELECT fh.family_head_history_pk,
+           fh.family_group_pk,
+           fh.person_pk,
+           p.person_id,
+           p.first_name,
+           p.middle_name,
+           p.last_name,
+           fh.effective_from,
+           fh.effective_to,
+           fh.remarks
+    FROM   nss.family_head_history fh
+    JOIN   nss.person p
+           ON p.person_pk = fh.person_pk
+"""
+```
+
+`_HEAD_SELECT` is the same shape again, one JOIN against `person` for display fields, applied to
+`family_head_history` instead of `family_relationship`. All three fragments share the identical
+"resolve the person's name, resolve the classification via master_data" pattern already
+established by Foundation/Organization/Person's routers — Family introduces no new SQL idiom,
+just applies the existing one to three new tables.
+
+**1. FAMILIES — core read (lines 97–150, 2 endpoints):**
+
+Lines 97–131 — `GET /families`:
+
+```python
+@router.get("/families", response_model=list[FamilyGroupResponse])
+def list_families(
+    sakha_code: str | None = Query(
+        None, description="Filter by Sakha organization_code (e.g. SKH1)"
+    ),
+    status_code: str | None = Query(
+        None, description="Filter by status value_code"
+    ),
+    limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows"),
+    offset: int = Query(0, ge=0, description="Rows to skip"),
+    conn=Depends(get_connection),
+) -> list[FamilyGroupResponse]:
+    ...
+    sql = _FAMILY_SELECT + " WHERE fg.is_active = TRUE"
+    params: list = []
+
+    if sakha_code is not None:
+        sql += " AND o.organization_code = %s"
+        params.append(sakha_code)
+    if status_code is not None:
+        sql += " AND st.value_code = %s"
+        params.append(status_code)
+
+    sql += " ORDER BY fg.family_name"
+    sql += " LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
+
+    with conn.cursor() as cur:
+        cur.execute(sql, tuple(params))
+        return rows_to_models(cur, FamilyGroupResponse)
+```
+
+Same `if`-not-`elif` independently-combinable filter pattern as `organization.py`'s
+`type_code`/`status_code` and `person.py`'s three filters: `sakha_code` and `status_code` can be
+applied together in one request. `limit`/`offset` use the same `Query(DEFAULT_LIMIT, ge=1,
+le=MAX_LIMIT, ...)`/`Query(0, ge=0, ...)` pagination contract as `person.py`'s `list_persons` —
+out-of-range values 422 before the handler body runs. `ORDER BY fg.family_name` sorts
+alphabetically before pagination is applied, giving a stable paginated sequence.
+
+Lines 134–150 — `GET /families/{family_group_pk}`:
+
+```python
+@router.get(
+    "/families/{family_group_pk}",
+    response_model=FamilyGroupResponse,
+)
+def get_family(
+    family_group_pk: UUID,
+    conn=Depends(get_connection),
+) -> FamilyGroupResponse:
+    """Get a single family by PK with resolved context."""
+    sql = _FAMILY_SELECT + " WHERE fg.family_group_pk = %s AND fg.is_active = TRUE"
+
+    with conn.cursor() as cur:
+        cur.execute(sql, (str(family_group_pk),))
+        result = row_to_model(cur, FamilyGroupResponse)
+        if result is None:
+            raise HTTPException(status_code=404, detail="Family not found")
+        return result
+```
+
+The standard PK-filter-plus-`is_active`/404 detail pattern shared by every detail endpoint in the
+codebase (`get_person`, `get_organization`, `get_category`, etc.): filter by PK and
+`is_active = TRUE`, parameterize with `(str(family_group_pk),)`, and raise
+`HTTPException(status_code=404, detail="Family not found")` if `row_to_model` returns `None`.
+
+**2. FAMILY MEMBERS — relationships (lines 158–186, 1 endpoint):**
+
+```python
+@router.get(
+    "/families/{family_group_pk}/members",
+    response_model=list[FamilyMemberResponse],
+)
+def list_family_members(
+    family_group_pk: UUID,
+    conn=Depends(get_connection),
+) -> list[FamilyMemberResponse]:
+    ...
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1 FROM nss.family_group
+            WHERE  family_group_pk = %s AND is_active = TRUE
+        """, (str(family_group_pk),))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Family not found")
+
+    sql = (
+        _MEMBER_SELECT
+        + " WHERE fr.family_group_pk = %s AND fr.is_current = TRUE"
+        + " ORDER BY rt.display_order, p.first_name"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(sql, (str(family_group_pk),))
+        return rows_to_models(cur, FamilyMemberResponse)
+```
+
+The same two-cursor "verify parent exists, then fetch children" pattern used by
+`person.py::list_person_addresses` and `organization.py`'s `/organizations/{pk}/children`: the
+first cursor's `SELECT 1 ... WHERE family_group_pk = %s AND is_active = TRUE` distinguishes
+"family exists but has zero current members" (empty list, 200) from "family doesn't exist" (404)
+— `_MEMBER_SELECT` alone can't tell the two apart. The second cursor filters
+`fr.is_current = TRUE` — only the family's **present-day** membership roster is returned, not its
+full historical relationship log — and orders by `rt.display_order` (the relationship type's
+sort order from `master_data`, e.g. HEAD/FATHER before SON/DAUGHTER) then alphabetically by first
+name, so the head/parents surface before children in the UI's members table.
+
+**3. FAMILY HEAD HISTORY (lines 194–222, 1 endpoint):**
+
+```python
+@router.get(
+    "/families/{family_group_pk}/head-history",
+    response_model=list[FamilyHeadHistoryResponse],
+)
+def list_family_head_history(
+    family_group_pk: UUID,
+    conn=Depends(get_connection),
+) -> list[FamilyHeadHistoryResponse]:
+    ...
+    sql = (
+        _HEAD_SELECT
+        + " WHERE fh.family_group_pk = %s"
+        + " ORDER BY fh.effective_from DESC"
+    )
+
+    with conn.cursor() as cur:
+        cur.execute(sql, (str(family_group_pk),))
+        return rows_to_models(cur, FamilyHeadHistoryResponse)
+```
+
+Same existence-check-then-fetch shape as the members endpoint above, but the final SELECT has no
+`is_current`-style filter at all — `family_head_history` has no such column; instead, the
+row with `effective_to IS NULL` (enforced unique per family by the DDL's
+`uq_family_head_current` partial index) is understood to be the current head, and
+`ORDER BY fh.effective_from DESC` puts it — and every past head — in most-recent-first order,
+so a caller can distinguish "current" from "past" purely by checking `effective_to === null` on
+the first row, without any special-casing in the SQL itself.
+
+---
+
+### 2.14 `api/schemas/family.py`
+
+**Requirement**
+
+`api/routers/family.py` needs three typed response models — one per resolved query shape
+(`_FAMILY_SELECT`, `_MEMBER_SELECT`, `_HEAD_SELECT`) — so FastAPI can validate, serialize, and
+document (via `/docs`) exactly what each endpoint returns, and so audit columns
+(`created_at`/`updated_at`/`deleted_at`/`*_by_sangha_sevi_pk`) are structurally excluded from every
+response the same way they are for every other tier.
+
+**Line-by-line**
+
+Lines 1–14 — module docstring:
+
+```python
+"""
+Pydantic response models for the Family API (Tier 4).
+
+All models exclude audit columns (created_at, updated_at, deleted_at)
+per the project's API convention established in Tier 0.
+
+Raw psycopg2 returns dictionaries — no ORM objects — so
+ConfigDict(from_attributes=True) is unnecessary.
+"""
+```
+
+Same "raw dicts, no ORM, no `ConfigDict(from_attributes=True)`" note carried forward verbatim
+from Organization's and Person's schema modules — a reminder that `row_to_model`/`rows_to_models`
+(in `api/helpers.py`) construct these models from plain dict rows returned by psycopg2's
+`RealDictCursor`-style access, not from mapped ORM instances.
+
+```python
+class FamilyGroupResponse(BaseModel):
+    family_group_pk: UUID
+    family_id: str
+    family_name: str
+
+    family_status_master_data_pk: UUID
+    status_code: str
+    status_name: str
+
+    sakha_organization_pk: UUID
+    sakha_name: str
+    sakha_code: str | None
+
+    formed_date: date | None
+    remarks: str | None
+    is_active: bool
+```
+
+Maps onto `_FAMILY_SELECT`. `status_code`/`status_name` and `sakha_name` are plain `str` (not
+`| None`) — matching the router's plain `JOIN`s against `master_data` and `organization`, both of
+which are `NOT NULL` FKs on `family_group`. `sakha_code` is `str | None` even though
+`organization_code` is resolved via the same non-nullable join — reflecting that `organization
+.organization_code` itself is nullable at the DDL level for some organization types (per
+`database/ddl/02_organization/README.md`'s note that `organization_id`/codes aren't universally
+populated), not a gap in the join. `family_id` is a plain `str`, following the project-wide
+unpadded business-ID convention (`F1`, not `F00000001`).
+
+```python
+class FamilyMemberResponse(BaseModel):
+    family_relationship_pk: UUID
+    family_group_pk: UUID
+
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+
+    relationship_type_master_data_pk: UUID
+    relationship_type_code: str
+    relationship_type_name: str
+
+    effective_from: date
+    effective_to: date | None
+    is_current: bool
+    remarks: str | None
+```
+
+Maps onto `_MEMBER_SELECT`. `middle_name`/`last_name` are `str | None` (Person's own nullable
+columns), while `relationship_type_code`/`relationship_type_name` are non-nullable `str` — the
+router's plain `JOIN` against `master_data` for relationship type guarantees a match, since
+`family_relationship.relationship_type_master_data_pk` is `NOT NULL`. `effective_to` is
+`date | None`: `None` for a current relationship (`is_current = True`), populated once the
+relationship ends — mirroring the DDL's `chk_family_rel_current_consistency` CHECK constraint one
+layer up in the schema.
+
+```python
+class FamilyHeadHistoryResponse(BaseModel):
+    family_head_history_pk: UUID
+    family_group_pk: UUID
+
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+
+    effective_from: date
+    effective_to: date | None
+    remarks: str | None
+```
+
+Maps onto `_HEAD_SELECT`. Structurally almost identical to `FamilyMemberResponse` minus the
+relationship-type fields and `is_current` (this table has no such column — see §2.13's note on
+how "current head" is derived from `effective_to IS NULL` rather than a boolean flag). The
+absence of an `is_current` field here, present on `FamilyMemberResponse`, is a direct
+one-to-one reflection of the two underlying tables' different DDL shapes, not an inconsistency.
+
+---
+
+### 2.15 `api/routers/membership.py`
+
+**Requirement**
+
+Tier 4 Membership exposes 7 read-only GET endpoints across 5 tables (`sangha_sevi`,
+`membership_sakha_affiliation`, `parichaya_patra`, `anumati_patra`,
+`membership_journey_event`) — the largest router in the API layer by table count. Its defining
+constraint is the **three-tier member identity model**: a Sangha Sevi ID (permanent, NSS-wide),
+a Local Sakha ERP Number / "Sakha Sangha ID" (Sakha-scoped, changes on transfer), and a Kendra
+Number (annual, printed on the Parichaya Patra) live on three different tables, so almost every
+endpoint has to reach across a JOIN or a sub-resource fetch to assemble a complete picture of "who
+this member is" rather than reading one row off `sangha_sevi` alone. Without this file,
+`nss.sangha_sevi` and its four dependent tables would have no HTTP surface, and the module's
+central non-obvious design decision (identity split across three tables, not three columns on one
+table) would have no place where a consumer could actually observe it.
+
+**Line-by-line**
+
+Lines 1–23 — module docstring:
+
+```python
+"""
+Membership API router — Tier 4 read-only endpoints.
+
+7 GET endpoints across 5 Membership tables. No authentication.
+nss_db_backend connects with SELECT-only privileges.
+
+Endpoint groups:
+  - Core:          members (list with filters, detail)
+  - Search:        trigram + prefix across all 3 identity tiers + name
+  - Affiliations:  sakha affiliation history (per member)
+  - Credentials:   parichaya patra, anumati patra (per member)
+  - Timeline:      journey events (per member)
+
+Three-tier identity model:
+  - Sangha Sevi ID (SS1) — permanent NSS-wide (sangha_sevi)
+  - ERP Number / Local Sakha Number (ESS1192) — Sakha-scoped,
+    auto-generated (membership_sakha_affiliation)
+  - Kendra Number (345/2026/2027) — annual per FY
+    (parichaya_patra.document_number)
+
+Security:
+  - Audit actor FKs excluded per API convention
+"""
+```
+
+States "7 GET endpoints across 5 Membership tables," lists five endpoint groups (one more than
+Person's three — Affiliations, Credentials, and Timeline are each their own group, reflecting
+the module's larger table count), and spells out the three-tier identity model with concrete
+examples (`SS1`, `ESS1192`, `345/2026/2027`) and which table each tier lives on — the same three
+lines repeated verbatim in `api/schemas/membership.py`, `tests/test_membership.py`, and
+`API_CONTRACT.md` §8, so a reader who lands on any one of the four files gets the identical
+mental model.
+
+Lines 25–40:
+
+```python
+import re
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from api.database import get_connection
+from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
+from api.schemas.membership import (
+    AnumatiPatraResponse,
+    JourneyEventResponse,
+    MemberResponse,
+    ParichayaPatraResponse,
+    SakhaAffiliationResponse,
+)
+
+router = APIRouter(prefix="/api/v1/membership", tags=["membership"])
+```
+
+Same shared-helper pattern as `organization.py`/`person.py`/`family.py` (`row_to_model`/
+`rows_to_models`/`DEFAULT_LIMIT`/`MAX_LIMIT` from `api/helpers.py`, not redefined locally). The
+one new import is `re` (Python's standard-library regex module) — used exactly once, in
+`search_members`, to split an email-like query string. `router = APIRouter(prefix=
+"/api/v1/membership", tags=["membership"])` gives this module its own prefix and Swagger tag,
+same as every other tier.
+
+**Shared SQL fragment (lines 43–84):**
+
+```python
+_MEMBER_SELECT = """
+    SELECT ss.sangha_sevi_pk,
+           ss.sangha_sevi_id,
+           ss.person_pk,
+           p.person_id,
+           p.first_name,
+           p.middle_name,
+           p.last_name,
+           p.country_phone_code,
+           p.mobile_number,
+           p.email,
+           ss.membership_type_master_data_pk,
+           mt.value_code  AS membership_type_code,
+           mt.value_name  AS membership_type_name,
+           ss.membership_status_master_data_pk,
+           ms.value_code  AS status_code,
+           ms.value_name  AS status_name,
+           ss.organization_pk,
+           o.organization_name,
+           o.organization_code,
+           aff.local_sakha_erp_id,
+           ss.joining_date,
+           ss.renewal_due_date,
+           ss.remarks,
+           ss.is_active
+    FROM   nss.sangha_sevi ss
+    JOIN   nss.person p
+           ON p.person_pk = ss.person_pk
+    JOIN   nss.master_data mt
+           ON mt.master_data_pk = ss.membership_type_master_data_pk
+    JOIN   nss.master_data ms
+           ON ms.master_data_pk = ss.membership_status_master_data_pk
+    JOIN   nss.organization o
+           ON o.organization_pk = ss.organization_pk
+    LEFT JOIN nss.membership_sakha_affiliation aff
+           ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
+          AND aff.effective_to IS NULL
+"""
+```
+
+`_MEMBER_SELECT` is the single SQL fragment reused by all three "core" endpoints
+(`list_members`, `get_member`, `search_members`) — the same one-fragment-many-callers pattern as
+`organization.py`'s `_ORG_SELECT`. Five JOINs resolve the full picture: `p` (person — name,
+contact), `mt`/`ms` (two separate aliases into the *same* `nss.master_data` table, for
+membership type and status respectively — the same "one physical table, multiple semantic
+roles via aliasing" pattern used throughout the Foundation-derived master-data design), `o`
+(current organization/Sakha), and — the one JOIN unique to this fragment —
+`LEFT JOIN nss.membership_sakha_affiliation aff ON aff.sangha_sevi_pk = ss.sangha_sevi_pk AND
+aff.effective_to IS NULL`. That `effective_to IS NULL` condition *inside* the JOIN (not in a
+later `WHERE`) is what selects specifically the member's **currently active** affiliation row —
+the one the partial unique index `uq_mem_sakha_aff_active` guarantees is unique per member — and
+it must be a `LEFT JOIN`, not a plain `JOIN`, because a member can theoretically have zero active
+affiliations (e.g. mid-transfer, between closing the old row and opening the new one), in which
+case `aff.local_sakha_erp_id` simply resolves to `NULL` rather than dropping the member from the
+result set entirely. The four core JOINs (`p`, `mt`, `ms`, `o`) are all plain `JOIN`s because
+their corresponding FK columns on `sangha_sevi` are all `NOT NULL`.
+
+**1. MEMBERS — core read (lines 92–152, 2 endpoints):**
+
+```python
+@router.get("/members", response_model=list[MemberResponse])
+def list_members(
+    type_code: str | None = Query(
+        None, description="Filter by membership type (REGULAR, PROBATIONARY, etc.)"
+    ),
+    status_code: str | None = Query(
+        None, description="Filter by status value_code"
+    ),
+    org_code: str | None = Query(
+        None, description="Filter by organization_code (e.g. SKH1)"
+    ),
+    limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows"),
+    offset: int = Query(0, ge=0, description="Rows to skip"),
+    conn=Depends(get_connection),
+) -> list[MemberResponse]:
+    sql = _MEMBER_SELECT + " WHERE ss.is_active = TRUE"
+    params: list = []
+
+    if type_code is not None:
+        sql += " AND mt.value_code = %s"
+        params.append(type_code)
+    if status_code is not None:
+        sql += " AND ms.value_code = %s"
+        params.append(status_code)
+    if org_code is not None:
+        sql += " AND o.organization_code = %s"
+        params.append(org_code)
+
+    sql += " ORDER BY p.first_name, p.last_name"
+    sql += " LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
+
+    with conn.cursor() as cur:
+        cur.execute(sql, tuple(params))
+        return rows_to_models(cur, MemberResponse)
+```
+
+Three independent, `AND`-composable filters (`type_code` against `mt.value_code`, `status_code`
+against `ms.value_code`, `org_code` against `o.organization_code` — note `org_code` filters on
+the resolved organization's business code, not a raw FK), the same `if`-not-`elif` pattern as
+every other filterable list endpoint, plus the standard `limit`/`offset` pagination
+(`DEFAULT_LIMIT`/`MAX_LIMIT` shared from `api/helpers.py`) appended last, after `ORDER BY`. `GET
+/members/{sangha_sevi_pk}` (lines 136–152) is the standard PK-filter-plus-`is_active`/404 detail
+pattern (`_MEMBER_SELECT + " WHERE ss.sangha_sevi_pk = %s AND ss.is_active = TRUE"`,
+`row_to_model`, `HTTPException(404, "Member not found")` if `None`) seen in every other tier's
+detail endpoint.
+
+**2. SEARCH (lines 160–223, 1 endpoint):**
+
+```python
+@router.get("/search", response_model=list[MemberResponse])
+def search_members(
+    q: str = Query(
+        ...,
+        min_length=2,
+        max_length=100,
+        description="Search term — matches against Sangha Sevi ID (prefix), "
+        "Person ID (prefix), ERP Number (prefix), name (trigram), "
+        "mobile number (prefix), email (prefix), "
+        "or Kendra Number (prefix)",
+    ),
+    conn=Depends(get_connection),
+) -> list[MemberResponse]:
+    # For trigram: strip email-like suffix so "aniket.mishra" → "aniket"
+    name_q = re.split(r'[.@]', q)[0] if ('.' in q or '@' in q) else q
+
+    sql = (
+        _MEMBER_SELECT
+        + """
+        WHERE ss.is_active = TRUE
+          AND (
+              ss.sangha_sevi_id ILIKE %s
+              OR p.person_id ILIKE %s
+              OR aff.local_sakha_erp_id ILIKE %s
+              OR similarity(p.first_name, %s) > 0.45
+              OR similarity(p.last_name, %s) > 0.45
+              OR p.mobile_number ILIKE %s
+              OR p.email ILIKE %s
+              OR EXISTS (
+                  SELECT 1 FROM nss.parichaya_patra pp
+                  WHERE  pp.sangha_sevi_pk = ss.sangha_sevi_pk
+                    AND  pp.document_number ILIKE %s
+              )
+          )
+        ORDER BY similarity(p.first_name, %s) DESC,
+                 p.first_name, p.last_name
+        LIMIT 50
+    """
+    )
+
+    prefix_pattern = f"{q}%"
+
+    with conn.cursor() as cur:
+        cur.execute(sql, (
+            prefix_pattern, prefix_pattern, prefix_pattern,
+            name_q, name_q,
+            prefix_pattern, prefix_pattern, prefix_pattern,
+            name_q,
+        ))
+        return rows_to_models(cur, MemberResponse)
+```
+
+The most elaborate WHERE clause in the API layer — seven OR-ed match strategies covering all
+three identity tiers plus name/mobile/email. `ss.sangha_sevi_id ILIKE %s` (Tier 1 prefix),
+`aff.local_sakha_erp_id ILIKE %s` (Tier 2 prefix, against the same active-affiliation alias
+`_MEMBER_SELECT` already joins), and the `EXISTS (SELECT 1 FROM nss.parichaya_patra pp WHERE
+pp.sangha_sevi_pk = ss.sangha_sevi_pk AND pp.document_number ILIKE %s)` subquery (Tier 3 prefix)
+are the three tier-specific paths; `p.person_id ILIKE %s`, `p.mobile_number ILIKE %s`, `p.email
+ILIKE %s` are prefix matches on identifying/contact fields (identical rationale to
+`person.py::search_persons`); `similarity(p.first_name, %s) > 0.45` / `similarity(p.last_name,
+%s) > 0.45` are explicit `similarity()` function calls with a **named threshold** (`0.45`) —
+unlike `person.py`'s bare `%%` trigram operator, which relies on PostgreSQL's session-level
+`pg_trgm.similarity_threshold` (default `0.3`); Membership's search hardcodes a higher bar in the
+query itself, independent of that session setting. Notably the Parichaya Patra `EXISTS` subquery
+has **no** `is_active`-style status filter — it matches `document_number` regardless of whether
+that particular card is `ACTIVE`, `EXPIRED`, `CANCELLED`, or `REPLACED`, so a member can be found
+by an old, superseded Kendra Number.
+
+The `name_q = re.split(r'[.@]', q)[0] if ('.' in q or '@' in q) else q` line is this router's one
+piece of custom pre-processing logic with no equivalent in `person.py`: an email-like query
+(containing `.` or `@`) would otherwise trigram-match nonsensically against `first_name`/
+`last_name` (e.g. `"aniket.mishra"` could spuriously score against a *different* person's
+surname `"Mishra"`), so the trigram comparison parameters use only the substring before the
+first `.`/`@` separator, while the full, unsplit `q` still drives every `ILIKE`-prefix branch via
+`prefix_pattern = f"{q}%"`. The 9-tuple of bind parameters maps positionally to the SQL's nine
+`%s` placeholders in written order: three ID/ERP-number prefixes, two name-similarity
+comparisons, mobile prefix, email prefix, Kendra-number prefix, and the `ORDER BY`
+similarity argument — `prefix_pattern` appears three times and `name_q` three times, each
+rebound at its respective placeholder position. `LIMIT 50` is hardcoded, same as `person.py`'s
+search — no `offset` parameter on this endpoint.
+
+**3. SAKHA AFFILIATIONS (lines 231–270, 1 endpoint):**
+
+```python
+@router.get(
+    "/members/{sangha_sevi_pk}/affiliations",
+    response_model=list[SakhaAffiliationResponse],
+)
+def list_member_affiliations(
+    sangha_sevi_pk: UUID,
+    conn=Depends(get_connection),
+) -> list[SakhaAffiliationResponse]:
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1 FROM nss.sangha_sevi
+            WHERE  sangha_sevi_pk = %s AND is_active = TRUE
+        """, (str(sangha_sevi_pk),))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Member not found")
+
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT msa.membership_sakha_affiliation_pk,
+                   msa.sangha_sevi_pk,
+                   msa.organization_pk,
+                   o.organization_name,
+                   o.organization_code,
+                   msa.local_sakha_erp_id,
+                   msa.effective_from,
+                   msa.effective_to,
+                   msa.affiliation_status,
+                   msa.source_event_type,
+                   msa.legacy_sakha_number
+            FROM   nss.membership_sakha_affiliation msa
+            JOIN   nss.organization o
+                   ON o.organization_pk = msa.organization_pk
+            WHERE  msa.sangha_sevi_pk = %s
+            ORDER BY msa.effective_from DESC
+        """, (str(sangha_sevi_pk),))
+        return rows_to_models(cur, SakhaAffiliationResponse)
+```
+
+This is the first of four near-identical "sub-resource" endpoints (Affiliations, Parichaya
+Patra, Anumati Patra, Journey Events) that all share one structural template: a first cursor
+verifies `sangha_sevi_pk` exists and `is_active = TRUE`, raising `HTTPException(404, "Member not
+found")` if not, then a second cursor fetches the child rows unconditionally — the same
+two-cursor "distinguish parent-missing from parent-has-no-children" pattern as
+`person.py::list_person_addresses`. Unlike `_MEMBER_SELECT`, this endpoint's query is inlined
+directly in the function rather than factored into a module-level constant, because — unlike the
+Members group's three callers — each of these four sub-resource endpoints has exactly one
+caller, so there's no duplication to factor out. `ORDER BY msa.effective_from DESC` returns the
+most recent affiliation first (current/active affiliation before historical/archived ones for a
+transferred member).
+
+**4. PARICHAYA PATRA (lines 278–320, 1 endpoint) and 5. ANUMATI PATRA (lines 328–363, 1
+endpoint):**
+
+```python
+@router.get(
+    "/members/{sangha_sevi_pk}/parichaya-patra",
+    response_model=list[ParichayaPatraResponse],
+)
+def list_member_parichaya_patra(
+    sangha_sevi_pk: UUID,
+    conn=Depends(get_connection),
+) -> list[ParichayaPatraResponse]:
+    ...
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT pp.parichaya_patra_pk,
+                   ...
+                   pp.affiliated_organization_pk,
+                   o.organization_name  AS affiliated_organization_name,
+                   o.organization_code  AS affiliated_organization_code,
+                   pp.local_sakha_erp_id,
+                   ...
+            FROM   nss.parichaya_patra pp
+            LEFT JOIN nss.organization o
+                   ON o.organization_pk = pp.affiliated_organization_pk
+            WHERE  pp.sangha_sevi_pk = %s
+            ORDER BY pp.valid_from DESC
+        """, (str(sangha_sevi_pk),))
+        return rows_to_models(cur, ParichayaPatraResponse)
+```
+
+Same verify-then-fetch two-cursor template as Affiliations. The one structural difference: the
+JOIN to `nss.organization o` is a `LEFT JOIN`, not a plain `JOIN`, because
+`parichaya_patra.affiliated_organization_pk` is nullable in the DDL — a card snapshot could in
+principle be recorded without a resolved Sakha. `local_sakha_erp_id` here is the **snapshot**
+value stored directly on the `parichaya_patra` row (what was printed on that year's card), not a
+live JOIN to the current affiliation — deliberately distinct from `_MEMBER_SELECT`'s
+`aff.local_sakha_erp_id`, which always reflects the *current* affiliation regardless of card
+history. `list_member_anumati_patra` (lines 328–363) is structurally identical minus the
+`affiliated_organization`/`local_sakha_erp_id` snapshot columns entirely — `anumati_patra` has no
+Sakha-snapshot columns in its DDL, since (per `database/ddl/05_membership/README.md`) it isn't
+tied to a specific Sakha the way the Identity Card is. Both endpoints order by `valid_from DESC`
+(most recent document first), and neither filters by `status` — a member's full document
+history, including `EXPIRED`/`CANCELLED`/`REPLACED` records, is always returned.
+
+**6. JOURNEY EVENTS (lines 371–404, 1 endpoint):**
+
+```python
+@router.get(
+    "/members/{sangha_sevi_pk}/journey",
+    response_model=list[JourneyEventResponse],
+)
+def list_member_journey(
+    sangha_sevi_pk: UUID,
+    conn=Depends(get_connection),
+) -> list[JourneyEventResponse]:
+    ...
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT mje.membership_journey_event_pk,
+                   mje.sangha_sevi_pk,
+                   mje.event_type,
+                   mje.event_date,
+                   mje.event_reference,
+                   mje.remarks
+            FROM   nss.membership_journey_event mje
+            WHERE  mje.sangha_sevi_pk = %s
+            ORDER BY mje.event_date ASC
+        """, (str(sangha_sevi_pk),))
+        return rows_to_models(cur, JourneyEventResponse)
+```
+
+The fourth and final sub-resource endpoint, and the simplest query in the router — no JOINs at
+all, since `membership_journey_event.event_type` is a plain `VARCHAR` rather than an FK (the
+event catalogue is application-controlled, not `master_data`-driven — see
+`database/ddl/05_membership/README.md`). The one notable difference from the other three
+sub-resource endpoints: `ORDER BY mje.event_date ASC` (oldest first), not `DESC` — Affiliations,
+Parichaya Patra, and Anumati Patra all sort most-recent-first, but a lifecycle *timeline* reads
+naturally in chronological order, which is also how `membership.html`'s DaisyUI vertical-steps
+component renders it.
+
+---
+
+### 2.16 `api/schemas/membership.py`
+
+**Requirement**
+
+`api/routers/membership.py` needs five typed response models — one per endpoint-group shape
+(`MemberResponse`, `SakhaAffiliationResponse`, `ParichayaPatraResponse`, `AnumatiPatraResponse`,
+`JourneyEventResponse`) — so FastAPI can validate/serialize each cursor row and so the three-tier
+identity model has a single, precise, typed definition of exactly which tier's identifier
+appears on which response shape, rather than that fact living only in prose.
+
+**Line-by-line**
+
+Lines 1–21 — module docstring and imports:
+
+```python
+"""
+Pydantic response models for the Membership API (Tier 4).
+
+All models exclude audit columns (created_at, updated_at, deleted_at)
+per the project's API convention established in Tier 0.
+
+Three-tier identity model:
+  - Sangha Sevi ID (SS1) — NSS-wide, permanent, on sangha_sevi
+  - ERP Number / Local Sakha Number (ESS1192) — Sakha-scoped,
+    auto-generated, on membership_sakha_affiliation
+  - Kendra Number (345/2026/2027) — Kendra-wide, annual,
+    on parichaya_patra.document_number
+
+Raw psycopg2 returns dictionaries — no ORM objects — so
+ConfigDict(from_attributes=True) is unnecessary.
+"""
+
+from datetime import date
+from uuid import UUID
+
+from pydantic import BaseModel
+```
+
+Restates the three-tier model one more time, now pinned to the exact table each tier's column
+lives on — `sangha_sevi_id` on `sangha_sevi`, `local_sakha_erp_id` on
+`membership_sakha_affiliation`, `document_number` on `parichaya_patra`. The
+`ConfigDict(from_attributes=True)` remark is the same boilerplate note carried over from every
+prior schema file, following the Tier 0 audit finding that it's unnecessary against raw
+dict-returning psycopg2 cursors.
+
+```python
+class MemberResponse(BaseModel):
+    # Identity
+    sangha_sevi_pk: UUID
+    sangha_sevi_id: str
+
+    # Person (resolved)
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+    country_phone_code: str | None
+    mobile_number: str | None
+    email: str | None
+
+    # Membership type (resolved from master_data)
+    membership_type_master_data_pk: UUID
+    membership_type_code: str
+    membership_type_name: str
+
+    # Status (resolved from master_data — unified STATUS)
+    membership_status_master_data_pk: UUID
+    status_code: str
+    status_name: str
+
+    # Current organization (resolved)
+    organization_pk: UUID
+    organization_name: str
+    organization_code: str | None
+
+    # Current Local Sakha ERP ID (from active affiliation)
+    local_sakha_erp_id: str | None
+
+    # Dates
+    joining_date: date
+    renewal_due_date: date | None
+
+    remarks: str | None
+    is_active: bool
+```
+
+`MemberResponse` is the widest model in the file, mirroring `_MEMBER_SELECT`'s 24 columns
+field-for-field, grouped by inline comments into Identity / Person / Type / Status /
+Organization / dates — the same "comment-delimited logical grouping within one flat model" style
+`OrganizationResponse` and `PersonResponse` use. `local_sakha_erp_id: str | None` is nullable
+specifically because `_MEMBER_SELECT`'s `LEFT JOIN` to the active-affiliation row can legitimately
+produce no match; every other identity field (`sangha_sevi_id`, `person_id`) is non-optional
+because their source JOINs are all plain `JOIN`s guaranteed to match.
+
+```python
+class SakhaAffiliationResponse(BaseModel):
+    membership_sakha_affiliation_pk: UUID
+    sangha_sevi_pk: UUID
+
+    organization_pk: UUID
+    organization_name: str
+    organization_code: str | None
+
+    local_sakha_erp_id: str
+    effective_from: date
+    effective_to: date | None
+    affiliation_status: str
+    source_event_type: str
+    legacy_sakha_number: str | None
+```
+
+Unlike `MemberResponse.local_sakha_erp_id` (nullable), `SakhaAffiliationResponse.local_sakha_erp_id:
+str` is non-optional — every row in `membership_sakha_affiliation` has a `NOT NULL`
+`local_sakha_erp_id` in the DDL by definition (it's *the* authoritative source for this field);
+the nullability lives only on the derived, JOIN-dependent copy in `MemberResponse`, not on the
+source table's own shape.
+
+```python
+class ParichayaPatraResponse(BaseModel):
+    parichaya_patra_pk: UUID
+    sangha_sevi_pk: UUID
+    document_number: str
+    issue_date: date
+    valid_from: date
+    valid_to: date
+    status: str
+
+    # Snapshot: Sakha at issuance (resolved)
+    affiliated_organization_pk: UUID | None
+    affiliated_organization_name: str | None
+    affiliated_organization_code: str | None
+
+    # Snapshot: Local Sakha number at issuance
+    local_sakha_erp_id: str | None
+
+    document_reference: str | None
+    remarks: str | None
+
+
+class AnumatiPatraResponse(BaseModel):
+    anumati_patra_pk: UUID
+    sangha_sevi_pk: UUID
+    document_number: str
+    issue_date: date
+    valid_from: date
+    valid_to: date
+    status: str
+    document_reference: str | None
+    remarks: str | None
+
+
+class JourneyEventResponse(BaseModel):
+    membership_journey_event_pk: UUID
+    sangha_sevi_pk: UUID
+    event_type: str
+    event_date: date
+    event_reference: str | None
+    remarks: str | None
+```
+
+`ParichayaPatraResponse.document_number: str` carries the Kendra Number (Tier 3) — the docstring
+explicitly calls out that its inline comments label `affiliated_organization_*` and
+`local_sakha_erp_id` as "Snapshot" fields, reinforcing at the type level (not just in the
+router's SQL comments) that these are point-in-time copies, not live references.
+`AnumatiPatraResponse` is `ParichayaPatraResponse` minus the three Sakha-snapshot fields — a
+direct, field-for-field reflection of `anumati_patra`'s DDL lacking those columns entirely (see
+§2.15's note on why). `JourneyEventResponse` is the narrowest model in the file, mirroring
+`membership_journey_event`'s six columns exactly, with `event_type: str` left as a plain string
+(not an enum) — consistent with the DDL's deliberate choice not to constrain the event catalogue
+to `master_data`.
+
+---
+
 ## 3. Cross-references
 
 - **`docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`** —
@@ -3185,6 +4189,15 @@ to `None` fields rather than a validation error.
 - **`docs/03_Solution/api/PERSON_API_CONTRACT.md`** — the Tier 3 Person API contract: the
   authoritative specification of what each of the 4 endpoints in `api/routers/person.py` must
   return, independent of this document's implementation-level walkthrough.
+- **`docs/03_Solution/api/API_CONTRACT.md`** §8 — the Tier 4 Membership API contract: the
+  authoritative specification of what each of the 7 endpoints in `api/routers/membership.py`
+  must return, including the three-tier identity model and the full search-fields table
+  (Family §7 and Membership §8 share this one cross-module contract document rather than each
+  having its own `*_API_CONTRACT.md`).
+- **`database/ddl/05_membership/README.md`** — the table design (12 tables, the
+  "current + history" pairing pattern, and the three-tier identity split across
+  `sangha_sevi`/`membership_sakha_affiliation`/`parichaya_patra`) that
+  `api/routers/membership.py`'s SQL directly reflects.
 - **`docs/03_Solution/code_explanations/TIER0_SECURITY_AUDIT.md`** and
   **`TIER1_SECURITY_AUDIT.md`** — the security audit verdicts for the Bootstrap and Foundation
   API surfaces respectively. These are *not* retired by this document — they record findings and
