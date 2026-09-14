@@ -121,7 +121,7 @@ def list_organization_types(
 def list_statuses(
     conn=Depends(get_connection),
 ) -> list[StatusResponse]:
-    """List all active lifecycle statuses (13 unified statuses from master_data)."""
+    """List active lifecycle statuses applicable to the Organization module."""
     with conn.cursor() as cur:
         cur.execute("""
             SELECT md.master_data_pk  AS status_pk,
@@ -135,6 +135,8 @@ def list_statuses(
                    ON mc.master_category_pk = md.master_category_pk
             WHERE  mc.category_code = 'STATUS'
               AND  md.is_active = TRUE
+              AND  ('ORGANIZATION' = ANY(md.applicable_modules)
+                    OR md.applicable_modules IS NULL)
             ORDER BY md.display_order
         """)
         return rows_to_models(cur, StatusResponse)
