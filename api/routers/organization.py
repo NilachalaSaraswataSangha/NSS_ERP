@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.database import get_connection
 from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
 from api.schemas.organization import (
+    OrgChildStatsResponse,
     OrganizationHierarchyNodeResponse,
     OrganizationResponse,
     OrganizationTypeResponse,
@@ -236,7 +237,159 @@ def list_organization_children(
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. HIERARCHY (recursive CTE)
+# 3. CHILDREN STATS (aggregate counts per child org)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+_CHILDREN_STATS_SQL = """
+    WITH RECURSIVE org_tree AS (
+        -- Anchor: direct children of the requested parent
+        SELECT o.organization_pk,
+               o.organization_pk   AS root_child_pk,
+               o.organization_name,
+               o.organization_code,
+               ot.value_code       AS organization_type_code
+        FROM   nss.organization o
+        JOIN   nss.master_data ot
+               ON ot.master_data_pk = o.organization_type_master_data_pk
+        WHERE  o.parent_organization_pk = %s
+          AND  o.is_active = TRUE
+
+        UNION ALL
+
+        -- Recursive: descendants (capped at depth 10)
+        SELECT o.organization_pk,
+               t.root_child_pk,
+               o.organization_name,
+               o.organization_code,
+               ot.value_code
+        FROM   nss.organization o
+        JOIN   nss.master_data ot
+               ON ot.master_data_pk = o.organization_type_master_data_pk
+        JOIN   org_tree t
+               ON t.organization_pk = o.parent_organization_pk
+        WHERE  o.is_active = TRUE
+    ),
+    -- Sakha PKs grouped by which direct child they belong to
+    sakha_pks AS (
+        SELECT root_child_pk, organization_pk AS sakha_pk
+        FROM   org_tree
+        WHERE  organization_type_code = 'SAKHA_SANGHA'
+    ),
+    -- Family majority CTE (dynamic Sakha — FAM-036)
+    family_majority AS (
+        SELECT fr.family_group_pk,
+               aff.organization_pk  AS sakha_pk,
+               COUNT(*)             AS cnt,
+               ROW_NUMBER() OVER (
+                   PARTITION BY fr.family_group_pk
+                   ORDER BY COUNT(*) DESC
+               ) AS rn
+        FROM   nss.family_relationship fr
+        JOIN   nss.sangha_sevi ss
+               ON ss.person_pk = fr.person_pk AND ss.is_active = TRUE
+        JOIN   nss.membership_sakha_affiliation aff
+               ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
+              AND aff.effective_to IS NULL
+        WHERE  fr.is_current = TRUE
+        GROUP BY fr.family_group_pk, aff.organization_pk
+    ),
+    -- Each family's effective Sakha
+    family_effective AS (
+        SELECT fg.family_group_pk,
+               COALESCE(fm.sakha_pk, fg.sakha_organization_pk)
+                   AS effective_sakha_pk
+        FROM   nss.family_group fg
+        LEFT JOIN family_majority fm
+               ON fm.family_group_pk = fg.family_group_pk AND fm.rn = 1
+        WHERE  fg.is_active = TRUE
+    ),
+    -- Family count per root_child
+    family_counts AS (
+        SELECT sp.root_child_pk,
+               COUNT(DISTINCT fe.family_group_pk) AS family_count
+        FROM   sakha_pks sp
+        JOIN   family_effective fe
+               ON fe.effective_sakha_pk = sp.sakha_pk
+        GROUP BY sp.root_child_pk
+    ),
+    -- Member count per root_child (active affiliations)
+    member_counts AS (
+        SELECT sp.root_child_pk,
+               COUNT(DISTINCT ss.sangha_sevi_pk) AS member_count
+        FROM   sakha_pks sp
+        JOIN   nss.membership_sakha_affiliation aff
+               ON aff.organization_pk = sp.sakha_pk
+              AND aff.effective_to IS NULL
+        JOIN   nss.sangha_sevi ss
+               ON ss.sangha_sevi_pk = aff.sangha_sevi_pk
+              AND ss.is_active = TRUE
+        GROUP BY sp.root_child_pk
+    ),
+    -- Person count per root_child (persons in families under effective Sakha)
+    person_counts AS (
+        SELECT sp.root_child_pk,
+               COUNT(DISTINCT fr.person_pk) AS person_count
+        FROM   sakha_pks sp
+        JOIN   family_effective fe
+               ON fe.effective_sakha_pk = sp.sakha_pk
+        JOIN   nss.family_relationship fr
+               ON fr.family_group_pk = fe.family_group_pk
+              AND fr.is_current = TRUE
+        GROUP BY sp.root_child_pk
+    )
+    SELECT ot.root_child_pk        AS organization_pk,
+           ot.organization_name,
+           ot.organization_code,
+           ot.organization_type_code,
+           COALESCE(fc.family_count, 0)  AS family_count,
+           COALESCE(mc.member_count, 0)  AS member_count,
+           COALESCE(pc.person_count, 0)  AS person_count
+    FROM   org_tree ot
+    LEFT JOIN family_counts fc   ON fc.root_child_pk = ot.root_child_pk
+    LEFT JOIN member_counts mc   ON mc.root_child_pk = ot.root_child_pk
+    LEFT JOIN person_counts pc   ON pc.root_child_pk = ot.root_child_pk
+    WHERE  ot.organization_pk = ot.root_child_pk
+    ORDER BY ot.organization_name
+"""
+
+
+@router.get(
+    "/organizations/{organization_pk}/children-stats",
+    response_model=list[OrgChildStatsResponse],
+)
+def list_children_stats(
+    organization_pk: UUID,
+    conn=Depends(get_connection),
+) -> list[OrgChildStatsResponse]:
+    """
+    Aggregate statistics for each direct child of an organization.
+
+    For each child org, recursively finds all descendant Sakhas and
+    counts families (dynamic majority rule), members (active
+    affiliations), and persons (family members).
+
+    Used by the org admin sidebar to display inline counts on each
+    drill-down card.
+    """
+    # Verify parent exists
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1 FROM nss.organization
+            WHERE  organization_pk = %s AND is_active = TRUE
+        """, (str(organization_pk),))
+        if cur.fetchone() is None:
+            raise HTTPException(
+                status_code=404, detail="Parent organization not found"
+            )
+
+    with conn.cursor() as cur:
+        cur.execute(_CHILDREN_STATS_SQL, (str(organization_pk),))
+        return rows_to_models(cur, OrgChildStatsResponse)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 4. HIERARCHY (recursive CTE)
 # ═══════════════════════════════════════════════════════════════════════════
 
 

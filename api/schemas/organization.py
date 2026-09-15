@@ -106,6 +106,26 @@ class OrganizationResponse(BaseModel):
     is_active: bool
 
 
+class OrgChildStatsResponse(BaseModel):
+    """
+    Aggregate statistics for an organization node.
+
+    Used by the org admin sidebar to show counts inline on each
+    child card during hierarchy drill-down.  Counts are computed
+    dynamically — families use the majority-rule CTE (FAM-036),
+    members use active affiliations.  For non-Sakha orgs the
+    stats aggregate across all descendant Sakhas.
+    """
+
+    organization_pk: UUID
+    organization_name: str
+    organization_code: str | None
+    organization_type_code: str
+    family_count: int = 0
+    member_count: int = 0
+    person_count: int = 0
+
+
 class OrganizationHierarchyNodeResponse(BaseModel):
     """
     Organization node in a hierarchical tree.
