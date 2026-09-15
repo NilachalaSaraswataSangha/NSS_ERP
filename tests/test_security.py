@@ -14,17 +14,8 @@ These tests run against the FastAPI TestClient (no network).
 import pytest
 from fastapi.testclient import TestClient
 
-from api.main import limiter
-
 
 pytestmark = pytest.mark.integration
-
-
-@pytest.fixture(autouse=True)
-def _reset_rate_limiter():
-    """Reset the rate limiter's in-memory storage before each test."""
-    limiter.reset()
-    yield
 
 
 class TestSecurityHeaders:
