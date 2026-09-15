@@ -10,7 +10,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.district
+CREATE TABLE IF NOT EXISTS nss.district
 (
     district_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -53,11 +53,11 @@ CREATE TABLE nss.district
         )
 );
 
-CREATE INDEX idx_district_state
+CREATE INDEX IF NOT EXISTS idx_district_state
     ON nss.district (state_pk);
 
-CREATE INDEX idx_district_active
+CREATE INDEX IF NOT EXISTS idx_district_active
     ON nss.district (is_active);
 
-CREATE INDEX idx_district_name
+CREATE INDEX IF NOT EXISTS idx_district_name
     ON nss.district USING gin (district_name gin_trgm_ops);

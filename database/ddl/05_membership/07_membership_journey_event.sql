@@ -13,7 +13,7 @@
 --       event types are extensible and module-specific).
 -- =====================================================
 
-CREATE TABLE nss.membership_journey_event
+CREATE TABLE IF NOT EXISTS nss.membership_journey_event
 (
     membership_journey_event_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -51,11 +51,11 @@ CREATE TABLE nss.membership_journey_event
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_mem_journey_sevi
+CREATE INDEX IF NOT EXISTS idx_mem_journey_sevi
     ON nss.membership_journey_event (sangha_sevi_pk);
 
-CREATE INDEX idx_mem_journey_event_type
+CREATE INDEX IF NOT EXISTS idx_mem_journey_event_type
     ON nss.membership_journey_event (event_type);
 
-CREATE INDEX idx_mem_journey_event_date
+CREATE INDEX IF NOT EXISTS idx_mem_journey_event_date
     ON nss.membership_journey_event (event_date);

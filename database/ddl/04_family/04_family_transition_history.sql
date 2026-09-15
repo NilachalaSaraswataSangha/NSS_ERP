@@ -16,7 +16,7 @@
 --       deleted (FAM-028).
 -- =====================================================
 
-CREATE TABLE nss.family_transition_history
+CREATE TABLE IF NOT EXISTS nss.family_transition_history
 (
     -- ── Identity ────────────────────────────────────────
 
@@ -82,17 +82,17 @@ CREATE TABLE nss.family_transition_history
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_family_trans_person
+CREATE INDEX IF NOT EXISTS idx_family_trans_person
     ON nss.family_transition_history (person_pk);
 
-CREATE INDEX idx_family_trans_old_family
+CREATE INDEX IF NOT EXISTS idx_family_trans_old_family
     ON nss.family_transition_history (old_family_group_pk);
 
-CREATE INDEX idx_family_trans_new_family
+CREATE INDEX IF NOT EXISTS idx_family_trans_new_family
     ON nss.family_transition_history (new_family_group_pk);
 
-CREATE INDEX idx_family_trans_effective_date
+CREATE INDEX IF NOT EXISTS idx_family_trans_effective_date
     ON nss.family_transition_history (effective_date);
 
-CREATE INDEX idx_family_trans_type
+CREATE INDEX IF NOT EXISTS idx_family_trans_type
     ON nss.family_transition_history (transition_type);

@@ -14,7 +14,7 @@
 --       of the superseded address_type_master table.
 -- =====================================================
 
-CREATE TABLE nss.person_address
+CREATE TABLE IF NOT EXISTS nss.person_address
 (
     person_address_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -76,20 +76,20 @@ CREATE TABLE nss.person_address
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_person_address_person
+CREATE INDEX IF NOT EXISTS idx_person_address_person
     ON nss.person_address (person_pk);
 
-CREATE INDEX idx_person_address_type
+CREATE INDEX IF NOT EXISTS idx_person_address_type
     ON nss.person_address (address_type_master_data_pk);
 
-CREATE INDEX idx_person_address_location
+CREATE INDEX IF NOT EXISTS idx_person_address_location
     ON nss.person_address (city_village_postal_code_map_pk);
 
-CREATE INDEX idx_person_address_active
+CREATE INDEX IF NOT EXISTS idx_person_address_active
     ON nss.person_address (is_active);
 
 -- ── Only One Primary Address Per Person ─────────────────
 
-CREATE UNIQUE INDEX uq_person_primary_address
+CREATE UNIQUE INDEX IF NOT EXISTS uq_person_primary_address
     ON nss.person_address (person_pk)
     WHERE is_primary = TRUE AND is_active = TRUE;

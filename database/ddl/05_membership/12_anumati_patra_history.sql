@@ -11,7 +11,7 @@
 --       records. Historical records are never deleted.
 -- =====================================================
 
-CREATE TABLE nss.anumati_patra_history
+CREATE TABLE IF NOT EXISTS nss.anumati_patra_history
 (
     anumati_patra_history_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -57,8 +57,8 @@ CREATE TABLE nss.anumati_patra_history
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_ap_hist_ap
+CREATE INDEX IF NOT EXISTS idx_ap_hist_ap
     ON nss.anumati_patra_history (anumati_patra_pk);
 
-CREATE INDEX idx_ap_hist_change_date
+CREATE INDEX IF NOT EXISTS idx_ap_hist_change_date
     ON nss.anumati_patra_history (change_date);

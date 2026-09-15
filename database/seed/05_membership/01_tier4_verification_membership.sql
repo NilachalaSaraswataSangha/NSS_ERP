@@ -107,7 +107,14 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P1'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'REGULAR'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date,
+    renewal_due_date                 = EXCLUDED.renewal_due_date;
 
 -- -------------------------------------------------
 -- SS2: Aniket Mishra — Probationary Member at SKH1
@@ -134,7 +141,14 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P3'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'PROBATIONARY'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date,
+    renewal_due_date                 = EXCLUDED.renewal_due_date;
 
 -- -------------------------------------------------
 -- SS3: Suresh Patel — Regular Member, now at SKH2
@@ -163,7 +177,14 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P4'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'REGULAR'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date,
+    renewal_due_date                 = EXCLUDED.renewal_due_date;
 
 -- -------------------------------------------------
 -- SS4: Debasis Rath — Associate Member at SKH1
@@ -193,7 +214,14 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P5'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'ASSOCIATE'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date,
+    renewal_due_date                 = EXCLUDED.renewal_due_date;
 
 -- -------------------------------------------------
 -- SS5: Smita Sahoo — Probationary Member at SKH1
@@ -225,7 +253,14 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P8'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'PROBATIONARY'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date,
+    renewal_due_date                 = EXCLUDED.renewal_due_date;
 
 -- =========================================================
 -- SECTION 2: SAKHA AFFILIATIONS
@@ -248,7 +283,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS1'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- -------------------------------------------------
 -- Aniket — Ekamra Sakha #1250 (ACTIVE, ENROLLMENT)
@@ -267,7 +307,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS2'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- -------------------------------------------------
 -- Suresh — Ekamra Sakha #1100 (ARCHIVED, ENROLLMENT)
@@ -291,7 +336,13 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS3'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    effective_to      = EXCLUDED.effective_to,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- -------------------------------------------------
 -- Suresh — Cuttack Sakha #1 (ACTIVE, TRANSFER)
@@ -313,7 +364,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS3'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- -------------------------------------------------
 -- Debasis — Ekamra Sakha #1300 (ACTIVE, ENROLLMENT)
@@ -333,7 +389,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS4'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- -------------------------------------------------
 -- Smita — Ekamra Sakha #1260 (ACTIVE, ENROLLMENT)
@@ -353,7 +414,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS5'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- =========================================================
 -- SECTION 3: IDENTITY DOCUMENTS
@@ -382,7 +448,15 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS1'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk             = EXCLUDED.sangha_sevi_pk,
+    issue_date                 = EXCLUDED.issue_date,
+    valid_from                 = EXCLUDED.valid_from,
+    valid_to                   = EXCLUDED.valid_to,
+    status                     = EXCLUDED.status,
+    affiliated_organization_pk = EXCLUDED.affiliated_organization_pk,
+    local_sakha_erp_id         = EXCLUDED.local_sakha_erp_id;
 
 -- -------------------------------------------------
 -- Parichaya Patra: Suresh — FY 2026-2027
@@ -407,7 +481,15 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS3'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk             = EXCLUDED.sangha_sevi_pk,
+    issue_date                 = EXCLUDED.issue_date,
+    valid_from                 = EXCLUDED.valid_from,
+    valid_to                   = EXCLUDED.valid_to,
+    status                     = EXCLUDED.status,
+    affiliated_organization_pk = EXCLUDED.affiliated_organization_pk,
+    local_sakha_erp_id         = EXCLUDED.local_sakha_erp_id;
 
 -- -------------------------------------------------
 -- Parichaya Patra: Debasis — FY 2026-2027
@@ -433,7 +515,15 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS4'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk             = EXCLUDED.sangha_sevi_pk,
+    issue_date                 = EXCLUDED.issue_date,
+    valid_from                 = EXCLUDED.valid_from,
+    valid_to                   = EXCLUDED.valid_to,
+    status                     = EXCLUDED.status,
+    affiliated_organization_pk = EXCLUDED.affiliated_organization_pk,
+    local_sakha_erp_id         = EXCLUDED.local_sakha_erp_id;
 
 -- -------------------------------------------------
 -- Anumati Patra: Ramesh — FY 2012-2013 (EXPIRED)
@@ -453,7 +543,13 @@ SELECT
     '2013-03-31',
     'EXPIRED'
 FROM nss.sangha_sevi ss
-WHERE ss.sangha_sevi_id = 'SS1';
+WHERE ss.sangha_sevi_id = 'SS1'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk = EXCLUDED.sangha_sevi_pk,
+    issue_date     = EXCLUDED.issue_date,
+    valid_from     = EXCLUDED.valid_from,
+    valid_to       = EXCLUDED.valid_to,
+    status         = EXCLUDED.status;
 
 -- -------------------------------------------------
 -- Anumati Patra: Suresh — FY 2015-2016 (EXPIRED)
@@ -473,7 +569,13 @@ SELECT
     '2016-03-31',
     'EXPIRED'
 FROM nss.sangha_sevi ss
-WHERE ss.sangha_sevi_id = 'SS3';
+WHERE ss.sangha_sevi_id = 'SS3'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk = EXCLUDED.sangha_sevi_pk,
+    issue_date     = EXCLUDED.issue_date,
+    valid_from     = EXCLUDED.valid_from,
+    valid_to       = EXCLUDED.valid_to,
+    status         = EXCLUDED.status;
 
 -- -------------------------------------------------
 -- Anumati Patra: Aniket — FY 2025-2026
@@ -492,7 +594,13 @@ SELECT
     '2026-03-31',
     'ACTIVE'
 FROM nss.sangha_sevi ss
-WHERE ss.sangha_sevi_id = 'SS2';
+WHERE ss.sangha_sevi_id = 'SS2'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk = EXCLUDED.sangha_sevi_pk,
+    issue_date     = EXCLUDED.issue_date,
+    valid_from     = EXCLUDED.valid_from,
+    valid_to       = EXCLUDED.valid_to,
+    status         = EXCLUDED.status;
 
 -- -------------------------------------------------
 -- Anumati Patra: Smita — FY 2025-2026
@@ -512,7 +620,13 @@ SELECT
     '2026-03-31',
     'ACTIVE'
 FROM nss.sangha_sevi ss
-WHERE ss.sangha_sevi_id = 'SS5';
+WHERE ss.sangha_sevi_id = 'SS5'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk = EXCLUDED.sangha_sevi_pk,
+    issue_date     = EXCLUDED.issue_date,
+    valid_from     = EXCLUDED.valid_from,
+    valid_to       = EXCLUDED.valid_to,
+    status         = EXCLUDED.status;
 
 -- =========================================================
 -- SECTION 4: TRANSFER HISTORY (MBR-027 to MBR-031)
@@ -526,6 +640,7 @@ WHERE ss.sangha_sevi_id = 'SS5';
 -- Old affiliation preserved (MBR-031).
 -- -------------------------------------------------
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_transfer_history
     (sangha_sevi_pk, old_organization_pk, new_organization_pk,
      transfer_type, transfer_reason, requested_date,
@@ -557,18 +672,21 @@ WHERE ss.sangha_sevi_id = 'SS3'
 
 -- --- Ramesh (SS1) ---
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'MEMBERSHIP_CREATED', '2012-04-01',
        'Enrolled as probationary member at Ekamra Sakha'
 FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS1';
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'REGULAR_ENROLMENT', '2013-06-15',
        'Promoted to Regular member after training completion'
 FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS1';
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'RENEWAL', '2026-04-15',
@@ -577,6 +695,7 @@ FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS1';
 
 -- --- Aniket (SS2) ---
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'MEMBERSHIP_CREATED', '2025-04-01',
@@ -585,18 +704,21 @@ FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS2';
 
 -- --- Suresh (SS3) — transfer journey ---
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'MEMBERSHIP_CREATED', '2015-04-01',
        'Enrolled as probationary member at Ekamra Sakha'
 FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS3';
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'REGULAR_ENROLMENT', '2016-06-10',
        'Promoted to Regular member at Ekamra Sakha'
 FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS3';
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'TRANSFER', '2025-03-14',
@@ -605,6 +727,7 @@ FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS3';
 
 -- --- Debasis (SS4) — associate enrolment ---
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'ASSOCIATE_ENROLMENT', '2020-04-01',
@@ -613,6 +736,7 @@ FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS4';
 
 -- --- Smita (SS5) — Kumari Transition ---
 
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_journey_event
     (sangha_sevi_pk, event_type, event_date, remarks)
 SELECT ss.sangha_sevi_pk, 'MEMBERSHIP_CREATED', '2025-04-01',
@@ -624,6 +748,7 @@ FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS5';
 -- =========================================================
 
 -- Ramesh: ACTIVE from joining
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_status_history
     (sangha_sevi_pk, membership_status_master_data_pk,
      effective_from, reason)
@@ -639,6 +764,7 @@ WHERE ss.sangha_sevi_id = 'SS1'
   AND mc.category_code = 'STATUS' AND ms.value_code = 'ACTIVE';
 
 -- Suresh: ACTIVE from joining (original)
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_status_history
     (sangha_sevi_pk, membership_status_master_data_pk,
      effective_from, reason)
@@ -654,6 +780,7 @@ WHERE ss.sangha_sevi_id = 'SS3'
   AND mc.category_code = 'STATUS' AND ms.value_code = 'ACTIVE';
 
 -- Debasis: ACTIVE from associate enrollment
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_status_history
     (sangha_sevi_pk, membership_status_master_data_pk,
      effective_from, reason)
@@ -669,6 +796,7 @@ WHERE ss.sangha_sevi_id = 'SS4'
   AND mc.category_code = 'STATUS' AND ms.value_code = 'ACTIVE';
 
 -- Smita: ACTIVE from enrollment (Kumari Transition)
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_status_history
     (sangha_sevi_pk, membership_status_master_data_pk,
      effective_from, reason)
@@ -688,6 +816,7 @@ WHERE ss.sangha_sevi_id = 'SS5'
 -- =========================================================
 
 -- Ramesh — latest renewal (FY 2026-2027)
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_renewal_history
     (sangha_sevi_pk, renewal_date, valid_from, valid_to)
 SELECT
@@ -699,6 +828,7 @@ FROM nss.sangha_sevi ss
 WHERE ss.sangha_sevi_id = 'SS1';
 
 -- Suresh — renewal at new Sakha (FY 2026-2027)
+-- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_renewal_history
     (sangha_sevi_pk, renewal_date, valid_from, valid_to)
 SELECT

@@ -16,7 +16,7 @@
 --       §B(b)(i)).
 -- =====================================================
 
-CREATE TABLE nss.anumati_patra
+CREATE TABLE IF NOT EXISTS nss.anumati_patra
 (
     anumati_patra_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -67,16 +67,16 @@ CREATE TABLE nss.anumati_patra
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_ap_sevi
+CREATE INDEX IF NOT EXISTS idx_ap_sevi
     ON nss.anumati_patra (sangha_sevi_pk);
 
-CREATE INDEX idx_ap_status
+CREATE INDEX IF NOT EXISTS idx_ap_status
     ON nss.anumati_patra (status);
 
-CREATE INDEX idx_ap_valid_range
+CREATE INDEX IF NOT EXISTS idx_ap_valid_range
     ON nss.anumati_patra (valid_from, valid_to);
 
 -- Only one active Anumati Patra per member at any time.
-CREATE UNIQUE INDEX uq_ap_active_per_member
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ap_active_per_member
     ON nss.anumati_patra (sangha_sevi_pk)
     WHERE status = 'ACTIVE';

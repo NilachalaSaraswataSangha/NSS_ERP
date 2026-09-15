@@ -10,7 +10,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.master_category
+CREATE TABLE IF NOT EXISTS nss.master_category
 (
     master_category_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -49,8 +49,8 @@ CREATE TABLE nss.master_category
         )
 );
 
-CREATE INDEX idx_master_category_active
+CREATE INDEX IF NOT EXISTS idx_master_category_active
     ON nss.master_category (is_active);
 
-CREATE INDEX idx_master_category_code
+CREATE INDEX IF NOT EXISTS idx_master_category_code
     ON nss.master_category (category_code);

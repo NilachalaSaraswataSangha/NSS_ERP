@@ -11,7 +11,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.permission_master
+CREATE TABLE IF NOT EXISTS nss.permission_master
 (
     permission_master_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -59,11 +59,11 @@ CREATE TABLE nss.permission_master
 );
 
 -- Indexes
-CREATE INDEX idx_permission_master_active
+CREATE INDEX IF NOT EXISTS idx_permission_master_active
     ON nss.permission_master (is_active);
 
-CREATE INDEX idx_permission_master_code
+CREATE INDEX IF NOT EXISTS idx_permission_master_code
     ON nss.permission_master (permission_code);
 
-CREATE INDEX idx_permission_master_module
+CREATE INDEX IF NOT EXISTS idx_permission_master_module
     ON nss.permission_master (module_code);

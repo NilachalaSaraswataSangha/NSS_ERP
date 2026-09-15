@@ -15,7 +15,7 @@
 --       (Bye-Law §B(b)(i)-(ii)).
 -- =====================================================
 
-CREATE TABLE nss.probationary_member_review
+CREATE TABLE IF NOT EXISTS nss.probationary_member_review
 (
     probationary_member_review_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -68,11 +68,11 @@ CREATE TABLE nss.probationary_member_review
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_prob_review_sevi
+CREATE INDEX IF NOT EXISTS idx_prob_review_sevi
     ON nss.probationary_member_review (sangha_sevi_pk);
 
-CREATE INDEX idx_prob_review_date
+CREATE INDEX IF NOT EXISTS idx_prob_review_date
     ON nss.probationary_member_review (review_date);
 
-CREATE INDEX idx_prob_review_outcome
+CREATE INDEX IF NOT EXISTS idx_prob_review_outcome
     ON nss.probationary_member_review (outcome);

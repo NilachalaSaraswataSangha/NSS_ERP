@@ -2,7 +2,9 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 06_district.sql
--- Version: 3.0
+-- Version: 4.0 — every INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
+--          so a partial re-run no longer silently skips every block after
+--          the first pre-existing row it hits
 -- Authority: SOL-FND-004 §15, SOL-ARCH-010 §8
 -- Owner: NSS_ERP_ADMIN
 -- Note: All districts for all Indian states/UTs.
@@ -48,7 +50,10 @@ CROSS JOIN (VALUES
     ('SOA', 'Subarnapur',      29),
     ('SDG', 'Sundargarh',      30)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'OD';
+WHERE s.state_code = 'OD'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — ANDHRA PRADESH (26 districts)
@@ -85,7 +90,10 @@ CROSS JOIN (VALUES
     ('WGD', 'West Godavari',        25),
     ('PAR', 'Parvathipuram Manyam', 26)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'AP';
+WHERE s.state_code = 'AP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — ARUNACHAL PRADESH (26 districts)
@@ -122,7 +130,10 @@ CROSS JOIN (VALUES
     ('WKM', 'West Kameng',         25),
     ('WSI', 'West Siang',          26)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'AR';
+WHERE s.state_code = 'AR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — ASSAM (35 districts)
@@ -168,7 +179,10 @@ CROSS JOIN (VALUES
     ('WKA', 'West Karbi Anglong', 34),
     ('BAJ', 'Bajali',          35)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'AS';
+WHERE s.state_code = 'AS'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — BIHAR (38 districts)
@@ -217,7 +231,10 @@ CROSS JOIN (VALUES
     ('VAI', 'Vaishali',        37),
     ('WCP', 'West Champaran',  38)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'BR';
+WHERE s.state_code = 'BR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — CHHATTISGARH (33 districts)
@@ -261,7 +278,10 @@ CROSS JOIN (VALUES
     ('SUR', 'Surajpur',            32),
     ('SGJ', 'Surguja',             33)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'CG';
+WHERE s.state_code = 'CG'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — GOA (2 districts)
@@ -274,7 +294,10 @@ CROSS JOIN (VALUES
     ('NGO', 'North Goa', 1),
     ('SGO', 'South Goa', 2)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'GA';
+WHERE s.state_code = 'GA'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — GUJARAT (33 districts)
@@ -318,7 +341,10 @@ CROSS JOIN (VALUES
     ('VAD', 'Vadodara',       32),
     ('VAL', 'Valsad',         33)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'GJ';
+WHERE s.state_code = 'GJ'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — HARYANA (22 districts)
@@ -351,7 +377,10 @@ CROSS JOIN (VALUES
     ('SON', 'Sonipat',        21),
     ('YAM', 'Yamunanagar',    22)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'HR';
+WHERE s.state_code = 'HR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — HIMACHAL PRADESH (12 districts)
@@ -374,7 +403,10 @@ CROSS JOIN (VALUES
     ('SOL', 'Solan',          11),
     ('UNA', 'Una',            12)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'HP';
+WHERE s.state_code = 'HP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — JHARKHAND (24 districts)
@@ -409,7 +441,10 @@ CROSS JOIN (VALUES
     ('SIM', 'Simdega',         23),
     ('WES', 'West Singhbhum',  24)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'JH';
+WHERE s.state_code = 'JH'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — KARNATAKA (31 districts)
@@ -451,7 +486,10 @@ CROSS JOIN (VALUES
     ('DKN', 'Dakshina Kannada',    30),
     ('VBN', 'Vijayanagara',        31)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'KA';
+WHERE s.state_code = 'KA'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — KERALA (14 districts)
@@ -476,7 +514,10 @@ CROSS JOIN (VALUES
     ('TSR', 'Thrissur',        13),
     ('WYD', 'Wayanad',         14)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'KL';
+WHERE s.state_code = 'KL'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — MADHYA PRADESH (55 districts)
@@ -542,7 +583,10 @@ CROSS JOIN (VALUES
     ('NAG', 'Nagda',           54),
     ('PNH', 'Pandhurna',       55)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MP';
+WHERE s.state_code = 'MP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — MAHARASHTRA (36 districts)
@@ -589,7 +633,10 @@ CROSS JOIN (VALUES
     ('WAS', 'Washim',          35),
     ('YAV', 'Yavatmal',        36)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MH';
+WHERE s.state_code = 'MH'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — MANIPUR (16 districts)
@@ -616,7 +663,10 @@ CROSS JOIN (VALUES
     ('THO', 'Thoubal',         15),
     ('UKH', 'Ukhrul',          16)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MN';
+WHERE s.state_code = 'MN'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — MEGHALAYA (12 districts)
@@ -639,7 +689,10 @@ CROSS JOIN (VALUES
     ('WKH', 'West Khasi Hills',        11),
     ('EKJ', 'Eastern West Khasi Hills',12)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'ML';
+WHERE s.state_code = 'ML'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — MIZORAM (11 districts)
@@ -661,7 +714,10 @@ CROSS JOIN (VALUES
     ('SER', 'Serchhip',       10),
     ('SIH', 'Siaha',          11)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MZ';
+WHERE s.state_code = 'MZ'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — NAGALAND (16 districts)
@@ -688,7 +744,10 @@ CROSS JOIN (VALUES
     ('ZUN', 'Zunheboto',       15),
     ('NIU', 'Niuland',         16)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'NL';
+WHERE s.state_code = 'NL'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — PUNJAB (23 districts)
@@ -722,7 +781,10 @@ CROSS JOIN (VALUES
     ('TAR', 'Tarn Taran',      22),
     ('SBN', 'Sri Muktsar Sahib', 23)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'PB';
+WHERE s.state_code = 'PB'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — RAJASTHAN (50 districts)
@@ -783,7 +845,10 @@ CROSS JOIN (VALUES
     ('BAL', 'Balotra',         49),
     ('KPB', 'Kotputli-Behror', 50)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'RJ';
+WHERE s.state_code = 'RJ'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — SIKKIM (6 districts)
@@ -800,7 +865,10 @@ CROSS JOIN (VALUES
     ('SOU', 'South Sikkim',     5),
     ('WES', 'West Sikkim',      6)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'SK';
+WHERE s.state_code = 'SK'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — TAMIL NADU (38 districts)
@@ -849,7 +917,10 @@ CROSS JOIN (VALUES
     ('TRV', 'Tiruvarur',            37),
     ('TNP', 'Tenkasi South',        38)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'TN';
+WHERE s.state_code = 'TN'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — TELANGANA (33 districts)
@@ -893,7 +964,10 @@ CROSS JOIN (VALUES
     ('HNK', 'Hanumakonda',         32),
     ('YDB', 'Yadadri Bhuvanagiri', 33)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'TS';
+WHERE s.state_code = 'TS'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — TRIPURA (8 districts)
@@ -912,7 +986,10 @@ CROSS JOIN (VALUES
     ('UNA', 'Unakoti',          7),
     ('WET', 'West Tripura',     8)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'TR';
+WHERE s.state_code = 'TR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — UTTAR PRADESH (75 districts)
@@ -998,7 +1075,10 @@ CROSS JOIN (VALUES
     ('VAR', 'Varanasi',         74),
     ('MOH', 'Mohamdi',          75)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'UP';
+WHERE s.state_code = 'UP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — UTTARAKHAND (13 districts)
@@ -1022,7 +1102,10 @@ CROSS JOIN (VALUES
     ('USK', 'Udham Singh Nagar', 12),
     ('UTK', 'Uttarkashi',      13)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'UK';
+WHERE s.state_code = 'UK'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — WEST BENGAL (23 districts)
@@ -1056,7 +1139,10 @@ CROSS JOIN (VALUES
     ('S24', 'South 24 Parganas',   22),
     ('UTD', 'Uttar Dinajpur',      23)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'WB';
+WHERE s.state_code = 'WB'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — DELHI (11 districts)
@@ -1078,7 +1164,10 @@ CROSS JOIN (VALUES
     ('SWD', 'South West Delhi',   10),
     ('WES', 'West Delhi',         11)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'DL';
+WHERE s.state_code = 'DL'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — JAMMU AND KASHMIR (20 districts)
@@ -1109,7 +1198,10 @@ CROSS JOIN (VALUES
     ('SRI', 'Srinagar',        19),
     ('UDH', 'Udhampur',        20)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'JK';
+WHERE s.state_code = 'JK'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — LADAKH (2 districts)
@@ -1122,7 +1214,10 @@ CROSS JOIN (VALUES
     ('LEH', 'Leh',     1),
     ('KAR', 'Kargil',  2)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'LA';
+WHERE s.state_code = 'LA'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — CHANDIGARH (1 district)
@@ -1134,7 +1229,10 @@ FROM nss.state s
 CROSS JOIN (VALUES
     ('CHD', 'Chandigarh', 1)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'CH';
+WHERE s.state_code = 'CH'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — PUDUCHERRY (4 districts)
@@ -1149,7 +1247,10 @@ CROSS JOIN (VALUES
     ('MAH', 'Mahe',         3),
     ('YAN', 'Yanam',        4)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'PY';
+WHERE s.state_code = 'PY'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — ANDAMAN AND NICOBAR ISLANDS (3 districts)
@@ -1163,7 +1264,10 @@ CROSS JOIN (VALUES
     ('NAN', 'North and Middle Andaman', 2),
     ('SAN', 'South Andaman',        3)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'AN';
+WHERE s.state_code = 'AN'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — DADRA AND NAGAR HAVELI AND DAMAN AND DIU (3 districts)
@@ -1177,7 +1281,10 @@ CROSS JOIN (VALUES
     ('DAM', 'Daman',                  2),
     ('DIU', 'Diu',                    3)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'DN';
+WHERE s.state_code = 'DN'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- INDIA — LAKSHADWEEP (1 district)
@@ -1189,7 +1296,10 @@ FROM nss.state s
 CROSS JOIN (VALUES
     ('LKD', 'Lakshadweep', 1)
 ) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'LD';
+WHERE s.state_code = 'LD'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
 
 -- =========================================================
 -- NON-INDIA COUNTRIES

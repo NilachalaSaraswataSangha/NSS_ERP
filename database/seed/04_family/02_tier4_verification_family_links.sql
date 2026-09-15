@@ -48,7 +48,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P9'
-  AND pb.person_id = 'P10';
+  AND pb.person_id = 'P10'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Ramesh (P1) SPOUSE_OF Sushma (P2)
 INSERT INTO nss.family_link
@@ -64,7 +68,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P1'
-  AND pb.person_id = 'P2';
+  AND pb.person_id = 'P2'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Rajesh (P12) SPOUSE_OF Kabita (P13)
 INSERT INTO nss.family_link
@@ -80,7 +88,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P12'
-  AND pb.person_id = 'P13';
+  AND pb.person_id = 'P13'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- ── Parent links ────────────────────────────────────
 
@@ -98,7 +110,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P9'
-  AND pb.person_id = 'P1';
+  AND pb.person_id = 'P1'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Harekrushna (P9) PARENT_OF Rajesh (P12)
 INSERT INTO nss.family_link
@@ -114,7 +130,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P9'
-  AND pb.person_id = 'P12';
+  AND pb.person_id = 'P12'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Saraswati (P10) PARENT_OF Ramesh (P1)
 INSERT INTO nss.family_link
@@ -130,7 +150,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P10'
-  AND pb.person_id = 'P1';
+  AND pb.person_id = 'P1'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Saraswati (P10) PARENT_OF Rajesh (P12)
 INSERT INTO nss.family_link
@@ -146,7 +170,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P10'
-  AND pb.person_id = 'P12';
+  AND pb.person_id = 'P12'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Ramesh (P1) PARENT_OF Aniket (P3)
 INSERT INTO nss.family_link
@@ -162,7 +190,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P1'
-  AND pb.person_id = 'P3';
+  AND pb.person_id = 'P3'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Ramesh (P1) PARENT_OF Anita (P11)
 INSERT INTO nss.family_link
@@ -178,7 +210,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P1'
-  AND pb.person_id = 'P11';
+  AND pb.person_id = 'P11'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Sushma (P2) PARENT_OF Aniket (P3)
 INSERT INTO nss.family_link
@@ -194,7 +230,11 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P2'
-  AND pb.person_id = 'P3';
+  AND pb.person_id = 'P3'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;
 
 -- Sushma (P2) PARENT_OF Anita (P11)
 INSERT INTO nss.family_link
@@ -210,4 +250,8 @@ CROSS JOIN nss.person pa
 CROSS JOIN nss.person pb
 WHERE fg.family_id = 'F1'
   AND pa.person_id = 'P2'
-  AND pb.person_id = 'P11';
+  AND pb.person_id = 'P11'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE
+    DO UPDATE SET
+        effective_from = EXCLUDED.effective_from;

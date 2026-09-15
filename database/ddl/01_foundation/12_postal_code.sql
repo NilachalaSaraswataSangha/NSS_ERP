@@ -20,7 +20,7 @@
 --       not part of the unique key.
 -- =====================================================
 
-CREATE TABLE nss.postal_code
+CREATE TABLE IF NOT EXISTS nss.postal_code
 (
     postal_code_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -63,18 +63,18 @@ CREATE TABLE nss.postal_code
         )
 );
 
-CREATE INDEX idx_postal_code_country
+CREATE INDEX IF NOT EXISTS idx_postal_code_country
     ON nss.postal_code (country_pk);
 
-CREATE INDEX idx_postal_code_state
+CREATE INDEX IF NOT EXISTS idx_postal_code_state
     ON nss.postal_code (state_pk);
 
-CREATE INDEX idx_postal_code_code
+CREATE INDEX IF NOT EXISTS idx_postal_code_code
     ON nss.postal_code (postal_code);
 
-CREATE INDEX idx_postal_code_active
+CREATE INDEX IF NOT EXISTS idx_postal_code_active
     ON nss.postal_code (is_active);
 
-CREATE INDEX idx_postal_code_post_office
+CREATE INDEX IF NOT EXISTS idx_postal_code_post_office
     ON nss.postal_code USING gin (post_office_name gin_trgm_ops)
     WHERE post_office_name IS NOT NULL;

@@ -40,7 +40,12 @@ WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND ot.value_code = 'ANCHALIKA_SANGHA'
   AND mc_status.category_code = 'STATUS'
   AND os.value_code = 'ACTIVE'
-  AND kendra.organization_code = 'KEN';
+  AND kendra.organization_code = 'KEN'
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk;
 
 -- -------------------------------------------------
 -- Sakha Sangha: Ekamra Sakha
@@ -78,7 +83,16 @@ WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '751022'
   AND pc.country_pk = c.country_pk
-  AND anch.organization_code = 'ANC1';
+  AND anch.organization_code = 'ANC1'
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk,
+    address_line_1                   = EXCLUDED.address_line_1,
+    address_line_2                   = EXCLUDED.address_line_2,
+    postal_code_pk                   = EXCLUDED.postal_code_pk,
+    country_pk                       = EXCLUDED.country_pk;
 
 -- -------------------------------------------------
 -- Anchalika Sangha: Cuttack Anchalika
@@ -106,7 +120,12 @@ WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND ot.value_code = 'ANCHALIKA_SANGHA'
   AND mc_status.category_code = 'STATUS'
   AND os.value_code = 'ACTIVE'
-  AND kendra.organization_code = 'KEN';
+  AND kendra.organization_code = 'KEN'
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk;
 
 -- -------------------------------------------------
 -- Sakha Sangha: Cuttack Sakha
@@ -145,4 +164,13 @@ WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '753001'
   AND pc.country_pk = c.country_pk
-  AND anch.organization_code = 'ANC2';
+  AND anch.organization_code = 'ANC2'
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk,
+    address_line_1                   = EXCLUDED.address_line_1,
+    address_line_2                   = EXCLUDED.address_line_2,
+    postal_code_pk                   = EXCLUDED.postal_code_pk,
+    country_pk                       = EXCLUDED.country_pk;

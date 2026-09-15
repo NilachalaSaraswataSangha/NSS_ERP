@@ -14,7 +14,7 @@
 --       sangha_sevi table exists).
 -- =====================================================
 
-CREATE TABLE nss.family_group
+CREATE TABLE IF NOT EXISTS nss.family_group
 (
     -- ── Identity ────────────────────────────────────────
 
@@ -82,17 +82,17 @@ CREATE TABLE nss.family_group
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_family_group_family_id
+CREATE INDEX IF NOT EXISTS idx_family_group_family_id
     ON nss.family_group (family_id);
 
-CREATE INDEX idx_family_group_sakha
+CREATE INDEX IF NOT EXISTS idx_family_group_sakha
     ON nss.family_group (sakha_organization_pk);
 
-CREATE INDEX idx_family_group_status
+CREATE INDEX IF NOT EXISTS idx_family_group_status
     ON nss.family_group (family_status_master_data_pk);
 
-CREATE INDEX idx_family_group_is_active
+CREATE INDEX IF NOT EXISTS idx_family_group_is_active
     ON nss.family_group (is_active);
 
-CREATE INDEX idx_family_group_family_name
+CREATE INDEX IF NOT EXISTS idx_family_group_family_name
     ON nss.family_group (family_name);

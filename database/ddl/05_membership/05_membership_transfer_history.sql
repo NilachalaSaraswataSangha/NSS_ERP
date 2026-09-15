@@ -15,7 +15,7 @@
 --       membership_sakha_affiliation (§27.1).
 -- =====================================================
 
-CREATE TABLE nss.membership_transfer_history
+CREATE TABLE IF NOT EXISTS nss.membership_transfer_history
 (
     membership_transfer_history_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -72,14 +72,14 @@ CREATE TABLE nss.membership_transfer_history
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_mem_transfer_sevi
+CREATE INDEX IF NOT EXISTS idx_mem_transfer_sevi
     ON nss.membership_transfer_history (sangha_sevi_pk);
 
-CREATE INDEX idx_mem_transfer_old_org
+CREATE INDEX IF NOT EXISTS idx_mem_transfer_old_org
     ON nss.membership_transfer_history (old_organization_pk);
 
-CREATE INDEX idx_mem_transfer_new_org
+CREATE INDEX IF NOT EXISTS idx_mem_transfer_new_org
     ON nss.membership_transfer_history (new_organization_pk);
 
-CREATE INDEX idx_mem_transfer_effective
+CREATE INDEX IF NOT EXISTS idx_mem_transfer_effective
     ON nss.membership_transfer_history (effective_date);

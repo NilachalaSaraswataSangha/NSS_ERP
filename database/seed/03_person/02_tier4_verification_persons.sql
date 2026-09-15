@@ -52,7 +52,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                         = EXCLUDED.email;
 
 -- Person 2: Sushma Mishra (spouse)
 INSERT INTO nss.person
@@ -74,7 +83,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                         = EXCLUDED.email;
 
 -- Person 3: Aniket Mishra (son — unmarried, probationary member)
 INSERT INTO nss.person
@@ -96,7 +114,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                         = EXCLUDED.email;
 
 -- Person 4: Suresh Patel (Regular member, transferred SKH1 → SKH2)
 INSERT INTO nss.person
@@ -118,7 +145,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                         = EXCLUDED.email;
 
 -- Person 5: Debasis Rath (Associate member — enrolled by Parichalak)
 INSERT INTO nss.person
@@ -140,7 +176,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                         = EXCLUDED.email;
 
 -- Person 6: Priyanka Das (Kumari participant — Person without Membership)
 -- Per 01_membership_module_overview.md §2: Kumari Participants
@@ -163,7 +208,15 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;
 
 -- Person 7: Soumya Nayak (Kishor participant — Person without Membership)
 -- Per 01_membership_module_overview.md §2: Kishor Participants
@@ -186,7 +239,15 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;
 
 -- Person 8: Smita Sahoo (Former Kumari participant → NSS member)
 -- Per 01_membership_module_overview.md §6: Kumari Transition is
@@ -211,7 +272,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                         = EXCLUDED.email;
 
 -- -------------------------------------------------
 -- Persons 9–13: Extended Mishra family for tree
@@ -236,7 +306,15 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;
 
 -- Person 10: Saraswati Mishra (Ramesh's mother — grandmother in family tree)
 INSERT INTO nss.person
@@ -257,7 +335,15 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;
 
 -- Person 11: Anita Mishra (Ramesh & Sushma's daughter)
 INSERT INTO nss.person
@@ -278,7 +364,15 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;
 
 -- Person 12: Rajesh Mishra (Ramesh's younger brother)
 INSERT INTO nss.person
@@ -299,7 +393,15 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;
 
 -- Person 13: Kabita Mishra (Rajesh's wife — sister-in-law to Ramesh)
 INSERT INTO nss.person
@@ -320,4 +422,12 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;

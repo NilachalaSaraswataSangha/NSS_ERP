@@ -15,7 +15,7 @@
 --       One active affiliation per member at any time.
 -- =====================================================
 
-CREATE TABLE nss.membership_sakha_affiliation
+CREATE TABLE IF NOT EXISTS nss.membership_sakha_affiliation
 (
     membership_sakha_affiliation_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -109,16 +109,16 @@ CREATE TABLE nss.membership_sakha_affiliation
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_mem_sakha_aff_sevi
+CREATE INDEX IF NOT EXISTS idx_mem_sakha_aff_sevi
     ON nss.membership_sakha_affiliation (sangha_sevi_pk);
 
-CREATE INDEX idx_mem_sakha_aff_org
+CREATE INDEX IF NOT EXISTS idx_mem_sakha_aff_org
     ON nss.membership_sakha_affiliation (organization_pk);
 
-CREATE INDEX idx_mem_sakha_aff_status
+CREATE INDEX IF NOT EXISTS idx_mem_sakha_aff_status
     ON nss.membership_sakha_affiliation (affiliation_status);
 
 -- One active affiliation per member at any time.
-CREATE UNIQUE INDEX uq_mem_sakha_aff_active
+CREATE UNIQUE INDEX IF NOT EXISTS uq_mem_sakha_aff_active
     ON nss.membership_sakha_affiliation (sangha_sevi_pk)
     WHERE effective_to IS NULL;
