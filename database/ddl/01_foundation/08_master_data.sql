@@ -23,6 +23,13 @@ CREATE TABLE nss.master_data
 
     description TEXT NULL,
 
+    -- Module-scope filter for shared categories (e.g. STATUS).
+    -- NULL = applies to all modules (default for single-module
+    -- categories like GENDER, BLOOD_GROUP).
+    -- Array of module codes: '{ORGANIZATION,MEMBERSHIP,PERSON}'.
+    -- API filters: WHERE '<MODULE>' = ANY(applicable_modules).
+    applicable_modules TEXT[] NULL,
+
     display_order INTEGER NOT NULL
         DEFAULT 0,
 

@@ -60,7 +60,7 @@ classification buckets; each category's individual values are seeded in
 
 ### 02_master_data.sql
 
-Seeds individual values into `master_data` for each category created above (82 values total).
+Seeds individual values into `master_data` for each category created above (88 values total).
 Uses `CROSS JOIN ... VALUES` with a subquery to resolve `master_category_pk`
 by `category_code` — no hardcoded UUIDs. `LOGIN_ROLE`, `STATUS_REASON`, `WORKFLOW_STATUS`, and
 `APPLICATION_TYPE` are seeded as categories only (0 values) — reserved for later use.
@@ -80,9 +80,16 @@ CORRESPONDENCE, PROPERTY_DOCUMENT, MEETING_MINUTES
 - `ASSOCIATE` — Associate Member (per Bye-Law §B)
 - `HONORARY` — Honorary Member (ERP-FROZEN; not in current Bye-Law — added as an operational category by project decision)
 
-**STATUS** (13 values, unified ERP-wide lifecycle status — replaces the earlier per-module
-`MEMBERSHIP_STATUS`): PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED,
-RESIGNED, EXPELLED, DECEASED, DISSOLVED, ARCHIVED, EXPIRED
+**STATUS** (16 values, unified ERP-wide lifecycle status — replaces the earlier per-module
+`MEMBERSHIP_STATUS`). Each value tagged with `applicable_modules` array:
+- Organization: PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, DISSOLVED, ARCHIVED (7)
+- Membership: ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, ARCHIVED, EXPIRED, RENEWAL_PENDING, ON_HOLD, DISCIPLINARY_REVIEW (12)
+- Person: ACTIVE, INACTIVE, DECEASED, ARCHIVED (4)
+
+EXPIRED is tagged `{MEMBERSHIP}` (a Parichaya Patra/Anumati Patra lapsing from non-renewal is a
+membership-lifecycle event) — note `parichaya_patra.status`/`anumati_patra.status` are each
+their own inline `VARCHAR` + `CHECK` column, not FKs into `master_data`, so this row is a
+reference/lookup value rather than what those two tables actually store.
 
 **RELATIONSHIP_TYPE** (29 values, comprehensive for Indian family structure):
 - Immediate family: SPOUSE, FATHER, MOTHER, SON, DAUGHTER, BROTHER, SISTER
@@ -95,9 +102,9 @@ RESIGNED, EXPELLED, DECEASED, DISSOLVED, ARCHIVED, EXPIRED
 - Guardian/ward: GUARDIAN, WARD
 - Other: OTHER
 
-**ORGANIZATION_TYPE** (10 values, per NSS Bye-Law hierarchy + preamble): KENDRA,
+**ORGANIZATION_TYPE** (13 values, per NSS Bye-Law hierarchy + preamble): KENDRA,
 NILACHALA_KUTIRA, SMRUTI_MANDIRA, ANCHALIKA_SANGHA, ZILLA_SANGHA, SAKHA_SANGHA, SAKHA_ASANA,
-PARIBARIK_ASANA, PARIBARIK_SANGHA, PATHA_CHAKRA
+PARIBARIK_ASANA, PARIBARIK_SANGHA, PATHA_CHAKRA, KUMARI_SANGHA, SEVAK_SANGHA, MAHILA_SANGHA
 
 **BLOOD_GROUP** (8 values, added for the Person module): A_POSITIVE, A_NEGATIVE, B_POSITIVE,
 B_NEGATIVE, AB_POSITIVE, AB_NEGATIVE, O_POSITIVE, O_NEGATIVE
@@ -106,22 +113,33 @@ B_NEGATIVE, AB_POSITIVE, AB_NEGATIVE, O_POSITIVE, O_NEGATIVE
 
 ### 03_id_sequence_master.sql
 
-Seeds 9 ID sequences into `id_sequence_master`. Each sequence defines a
+Seeds 14 ID sequences into `id_sequence_master`. Each sequence defines a
 prefix and counter for generating human-readable business IDs.
 
-| # | `sequence_code` | Prefix | Generated ID example | Purpose |
-|--:|-----------------|--------|---------------------|---------|
-| 1 | `PERSON` | `P` | P00000001 | Person identity |
-| 2 | `SANGHA_SEVI` | `SS` | SS00000001 | Membership identity |
-| 3 | `ANCHALIKA` | `ANC` | ANC00000001 | Anchalika organization (multiple) |
-| 4 | `ZILLA` | `ZL` | ZL00000001 | Zilla organization (multiple) |
-| 5 | `SAKHA` | `SKH` | SKH00000001 | Sakha organization (multiple) |
-| 6 | `SAKHA_ASANA` | `SA` | SA00000001 | Sakha Asana organization (multiple) |
-| 7 | `PATHA_CHAKRA` | `PC` | PC00000001 | Patha Chakra organization (multiple) |
-| 8 | `FAMILY` | `F` | F00000001 | Family group |
-| 9 | `DOCUMENT` | `DOC` | DOC00000001 | Document tracking |
+| # | `sequence_code` | Prefix | `padding_length` | Generated ID example | Purpose |
+|--:|-----------------|--------|:---:|---------------------|---------|
+| 1 | `PERSON` | `P` | 10 | P0000000001 | Person identity |
+| 2 | `SANGHA_SEVI` | `SS` | 8 | SS00000001 | Membership identity |
+| 3 | `ANCHALIKA` | `ANC` | 8 | ANC00000001 | Anchalika organization (multiple) |
+| 4 | `ZILLA` | `ZL` | 8 | ZL00000001 | Zilla organization (multiple) |
+| 5 | `SAKHA` | `SKH` | 8 | SKH00000001 | Sakha organization (multiple) |
+| 6 | `SAKHA_ASANA` | `SA` | 8 | SA00000001 | Sakha Asana organization (multiple) |
+| 7 | `PATHA_CHAKRA` | `PC` | 8 | PC00000001 | Patha Chakra organization (multiple) |
+| 8 | `PARIBARIK_ASANA` | `PA` | 5 | PA00001 | Paribarik Asana organization (multiple) |
+| 9 | `PARIBARIK_SANGHA` | `PS` | 3 | PS001 | Paribarik Sangha organization (multiple) |
+| 10 | `FAMILY` | `F` | 8 | F00000001 | Family group |
+| 11 | `DOCUMENT` | `DOC` | 8 | DOC00000001 | Document tracking |
+| 12 | `KUMARI_SANGHA` | `KS` | 5 | KS00001 | Reserved for a future module (not yet consumed by any API) |
+| 13 | `SEVAK_SANGHA` | `SEV` | 5 | SEV00001 | Reserved for a future module (not yet consumed by any API) |
+| 14 | `MAHILA_SANGHA` | `MS` | 5 | MS00001 | Reserved for a future module (not yet consumed by any API) |
 
-All sequences start at `current_value = 0` with `padding_length = 8`.
+All sequences start at `current_value = 0`. `padding_length` varies per sequence (see table
+above) — it is **not** uniformly 0. The `chk_id_sequence_padding` CHECK constraint on
+`id_sequence_master` was loosened from `BETWEEN 2 AND 12` to `BETWEEN 0 AND 12` to allow a
+future sequence to opt into unpadded IDs, but no existing sequence's `padding_length` has
+actually been changed to 0 — the zero-padded examples above reflect the real current seed
+values. (Unpadded ID examples such as `P1`/`SKH1` appear in architecture/standards docs as the
+target format for a future ID-generation pass; that pass has not yet touched this seed data.)
 
 **Note:** Unique organizations (KENDRA/`KEN`, NILACHALA_KUTIRA/`NKT`,
 SMRUTI_MANDIRA/`SMR`) do not have sequences — they receive fixed codes

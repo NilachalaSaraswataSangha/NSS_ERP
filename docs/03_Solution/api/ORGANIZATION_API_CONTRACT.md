@@ -3,7 +3,7 @@
 | Field       | Value                                          |
 |-------------|------------------------------------------------|
 | Document    | ORGANIZATION_API_CONTRACT                      |
-| Version     | 1.1                                            |
+| Version     | 1.2                                            |
 | Tier        | 2 — Organization                               |
 | Authority   | SOL-ARCH-010, SOL-ORG-005 SS19-SS52            |
 | Status      | DRAFT                                          |
@@ -16,6 +16,15 @@
 > is renamed to `StatusResponse` (fields `organization_status_*` → `status_*`).
 > Type count is now 10 (was 8); status count is now 13 (was 6) since `STATUS` is a
 > unified ERP-wide category shared across modules.
+
+> **v1.2 (Tier 4, on top of Family + Membership):** New endpoint
+> `GET /organizations/{organization_pk}/children-stats` (§3.2.4) — Organization goes from 6
+> to 7 endpoints. Aggregates family/member/person counts per direct child by recursively
+> walking descendant Sakhas and applying the FAM-036 majority-rule "effective Sakha"
+> computation also used independently by Family's `/families/{pk}/sakha-alignment` endpoint
+> (see `docs/03_Solution/api/API_CONTRACT.md` §7 — Tier 4 Family, and
+> `docs/03_Solution/modules/family/04_family_business_rules.md` § FAM-036). New response
+> model `OrgChildStatsResponse`.
 
 ---
 
@@ -81,6 +90,7 @@ administration and authorization exist.
 |--------------------------------|-------------------------------------------------|------------------------|
 | Reference data                 | types, statuses                                 | Dropdowns / filters    |
 | Core organization data         | organizations (list, detail, children)           | Application / frontend |
+| Aggregate stats                | children-stats                                   | Org admin sidebar (drill-down counts) |
 | Navigation / tree              | hierarchy                                        | Tree view UI           |
 
 ---
@@ -167,9 +177,16 @@ dedicated status list.
 ]
 ```
 
-**Tier 2 state:** 13 unified lifecycle statuses (Proposed, Approved, Active,
-Inactive, Suspended, Lapsed, Transferred, Resigned, Expelled, Deceased,
-Dissolved, Archived, Expired).
+**Tier 2 state:** as of Tier 4, `/statuses` returns only the subset of the unified `STATUS`
+category applicable to Organization (via the new `master_data.applicable_modules TEXT[]`
+column, checked with `'ORGANIZATION' = ANY(applicable_modules)` or `applicable_modules IS
+NULL`) — **7 statuses**: Proposed, Approved, Active, Inactive, Suspended, Dissolved, Archived.
+The unified `STATUS` category itself now holds 16 values total (13 original + `RENEWAL_PENDING`/
+`ON_HOLD`/`DISCIPLINARY_REVIEW`, added for Membership) — Organization no longer sees the
+Membership-only ones (Lapsed, Transferred, Resigned, Expelled, Deceased, Expired, and the 3 new
+Membership statuses). **Known test gap:** `tests/test_organization.py::test_list_returns_13_statuses`
+still asserts the old unfiltered count of 13 and has not been updated for this filter — it will
+fail against the current code.
 
 **SQL Pattern:**
 
@@ -185,6 +202,7 @@ JOIN   nss.master_category mc
        ON mc.master_category_pk = md.master_category_pk
 WHERE  mc.category_code = 'STATUS'
   AND  md.is_active = TRUE
+  AND  ('ORGANIZATION' = ANY(md.applicable_modules) OR md.applicable_modules IS NULL)
 ORDER BY md.display_order
 ```
 
@@ -413,6 +431,91 @@ ORDER BY ot.display_order, o.organization_name
 
 ---
 
+#### 3.2.4 List Children Stats (Tier 4)
+
+```
+GET /api/v1/organization/organizations/{organization_pk}/children-stats
+```
+
+For each **direct** child of the given organization, recursively walks every descendant
+Sakha (`SAKHA_SANGHA`-typed organization, at any depth) and returns aggregate
+family/member/person counts rolled up to that direct child. New on top of Tier 4 Family +
+Membership. The router docstring states this is "used by the org admin sidebar to display
+inline counts on each drill-down card" — **as of this contract version, no frontend code
+(`frontend/organization.html`, `frontend/assets/js/organization.js`) calls this endpoint
+yet; the UI consumer described in the docstring does not exist in code.**
+
+**Path Parameters:**
+
+| Param              | Type | Required | Description                    |
+|--------------------|------|----------|--------------------------------|
+| `organization_pk`  | UUID | Yes      | Parent organization primary key |
+
+**Response:** `200 OK` — list of `OrgChildStatsResponse`
+
+```json
+[
+  {
+    "organization_pk": "uuid",
+    "organization_name": "Puri Anchalika Sangha",
+    "organization_code": "PUR-ANC",
+    "organization_type_code": "ANCHALIKA_SANGHA",
+    "family_count": 12,
+    "member_count": 18,
+    "person_count": 41
+  }
+]
+```
+
+**Error Responses:**
+
+| Status | When                                |
+|--------|-------------------------------------|
+| 404    | Parent `organization_pk` not found or inactive |
+| 422    | Malformed UUID                      |
+
+**Design note — dynamic Sakha via FAM-036:** `family_count`/`member_count`/`person_count`
+are **not** simple joins against each family's stored `sakha_organization_pk`. A family's
+*effective* Sakha is computed the same way Family's own
+`GET /api/v1/family/families/{pk}/sakha-alignment` endpoint computes it (FAM-036 — see
+`docs/03_Solution/modules/family/04_family_business_rules.md`): the Sakha that holds a
+majority of the family's members' active Sangha Sevi affiliations, falling back to the
+family's stored `sakha_organization_pk` when no member has an active affiliation. This means
+a family whose members have mostly re-affiliated to a different Sakha than the one it is
+registered under counts toward the *new* Sakha's parent chain here, not the registration
+Sakha's. **`family_count`** counts distinct families whose effective Sakha falls under the
+child (rolled up through any number of intermediate levels). **`member_count`** counts
+distinct Sangha Sevis with an active affiliation (`effective_to IS NULL`) directly to one of
+the descendant Sakhas — independent of family majority, so a member whose own affiliation
+disagrees with their family's majority Sakha is counted under their own Sakha, not their
+family's. **`person_count`** counts distinct current family members (`is_current = TRUE`)
+across every family whose effective Sakha falls under the child, whether or not that person
+individually holds a membership — so `member_count <= person_count` always holds. For a
+non-Sakha organization type with no Sakha descendants at all (e.g. a leaf Patha Chakra), all
+three counts are `0`, not an error.
+
+**Maintainability note:** the FAM-036 majority-rule SQL (a `family_majority` CTE ranking each
+family's Sakha affiliations by count via `ROW_NUMBER() OVER (PARTITION BY family_group_pk
+ORDER BY COUNT(*) DESC)`) is implemented **twice** — once here in
+`_CHILDREN_STATS_SQL`, and independently again in `api/routers/family.py`'s `_FAMILY_SELECT` —
+rather than being factored into one shared SQL fragment. Not fixed as part of adding this
+endpoint; flagged here for future consolidation.
+
+**Tier 4 state:** counts depend on the Tier 4 Family + Membership verification seed data
+(family/member/person counts vary by which children/Sakhas are seeded under the queried
+parent); a leaf Sakha (no children of its own) always returns `[]`.
+
+**SQL Pattern:** a `WITH RECURSIVE` CTE (`org_tree`, anchored on the requested parent's direct
+children, each row carrying forward a `root_child_pk` column so descendants at any depth still
+know which direct child they roll up to) feeding into `sakha_pks` (Sakha-typed descendants
+only), `family_majority`/`family_effective` (the FAM-036 computation described above),
+and three `LEFT JOIN`ed aggregate CTEs (`family_counts`, `member_counts`, `person_counts`,
+each `COALESCE`d to `0`). See `api/routers/organization.py`'s `_CHILDREN_STATS_SQL` and
+`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md` §2.9 for the full query and a
+line-by-line walkthrough of each CTE.
+
+---
+
 ### 3.3 Navigation
 
 #### 3.3.1 Organization Hierarchy
@@ -520,6 +623,7 @@ LIMIT %s OFFSET %s
 | `OrganizationTypeResponse`         | types                                | 6           |
 | `StatusResponse`                   | statuses                             | 6           |
 | `OrganizationResponse`             | organizations, detail, children      | 36          |
+| `OrgChildStatsResponse`            | children-stats                       | 7           |
 | `OrganizationHierarchyNodeResponse`| hierarchy                            | 10          |
 
 ### OrganizationResponse — 34 Fields by Group
@@ -565,8 +669,9 @@ those go in the `org_*` columns. The UI displays both when present.
 |--------------------|-----------|-----------------------------------------------------------|
 | Reference Data     | 2         | master_data (categories ORGANIZATION_TYPE, STATUS)         |
 | Core Organizations | 3         | organization (list, detail, children)                     |
+| Aggregate Stats    | 1         | organization + family_group/family_relationship/sangha_sevi/membership_sakha_affiliation (children-stats, dynamic FAM-036 rollup) |
 | Navigation         | 1         | organization (recursive CTE)                              |
-| **Total**          | **6**     | **1 table (`organization`) + 2 shared Foundation master_data categories** |
+| **Total**          | **7**     | **1 table (`organization`) + 4 Family/Membership tables (read-only, for children-stats) + 2 shared Foundation master_data categories** |
 
 ---
 
@@ -590,9 +695,10 @@ Carried forward from Tier 0:
 api/
   helpers.py                        <- Shared cursor→Pydantic helpers + pagination constants
   routers/
-    organization.py             <- 6 endpoint handlers + _ORG_SELECT
+    organization.py             <- 7 endpoint handlers + _ORG_SELECT + _CHILDREN_STATS_SQL
+    family.py                   <- family_majority CTE duplicated here (see 3.2.4 note)
   schemas/
-    organization.py             <- 4 Pydantic response models
+    organization.py             <- 5 Pydantic response models (incl. OrgChildStatsResponse)
 database/
   ddl/02_organization/
     03_organization.sql              (FKs → nss.master_data)
@@ -605,9 +711,9 @@ database/
     01_master_category.sql           (ORGANIZATION_TYPE, STATUS categories)
     02_master_data.sql               (10 ORGANIZATION_TYPE values, 13 STATUS values)
 tests/
-  test_organization.py          <- Integration tests
+  test_organization.py          <- Integration tests, incl. TestChildrenStats
 frontend/
-  organization.html             <- Organization Verification UI
+  organization.html             <- Organization Verification UI (no children-stats UI wiring yet)
 docs/
   03_Solution/code_explanations/
       API_CODE_EXPLANATIONS.md        <- Code walkthrough (SS2.9-2.10)

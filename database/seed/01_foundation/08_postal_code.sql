@@ -25,3 +25,11 @@ FROM nss.country c
 JOIN nss.state s ON s.country_pk = c.country_pk
 WHERE c.country_code = 'IN'
   AND s.state_code = 'OD';
+
+-- Cuttack — Tier 4 verification (second Sakha location)
+INSERT INTO nss.postal_code (country_pk, state_pk, postal_code, post_office_name)
+SELECT c.country_pk, s.state_pk, '753001', 'Cuttack HO'
+FROM nss.country c
+JOIN nss.state s ON s.country_pk = c.country_pk
+WHERE c.country_code = 'IN'
+  AND s.state_code = 'OD';

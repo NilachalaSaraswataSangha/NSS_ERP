@@ -5,6 +5,12 @@ Overall solution architecture documentation (cross-module, above the per-module 
 
 ## Files
 
+- **`GETTING_STARTED.md`** — Step-by-step local setup guide: prerequisites, database bootstrap
+  (create DB/roles, extensions, `02_build.sh`/`.ps1`, validate, grant backend), API setup
+  (`.env`, `pip install`, `uvicorn`), running tests, and a full clean-rebuild procedure with
+  troubleshooting. Overlaps in scope with the root `README.md`'s "Getting Started" section and
+  `CLAUDE.md`'s "Setup"/"Database" sections — this is the most detailed and most recently
+  updated of the three (covers Tier 4 Family/Membership build phases and frontend routes).
 - **`TECH_STACK_DECISIONS.md`** (v1.3) — Approved technology decision record: database
   (PostgreSQL on Neon.dev), backend (FastAPI 0.136.3 on Render.com/Uvicorn — sole framework, no
   ORM, raw psycopg2; Django was implemented as an early prototype and removed in v1.3's

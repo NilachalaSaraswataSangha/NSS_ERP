@@ -43,6 +43,7 @@ class MasterDataResponse(BaseModel):
     value_code: str
     value_name: str
     description: str | None
+    applicable_modules: list[str] | None
     display_order: int
     is_active: bool
 

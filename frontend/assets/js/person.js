@@ -175,27 +175,6 @@ function personApp() {
             }
         },
 
-        /**
-         * Select a person by PK (used when clicking a search result).
-         * Loads the person list if not already loaded, then selects.
-         */
-        async selectPersonByPk(pk) {
-            if (this.persons.length === 0) {
-                // Reset filters so the full list is available
-                this.selectedGenderFilter = "";
-                this.selectedMaritalFilter = "";
-                this.selectedBloodGroupFilter = "";
-                await this.fetchPersons();
-            }
-            const match = this.persons.find(p => p.person_pk === pk);
-            if (match) {
-                await this.selectPerson(match);
-            } else {
-                // Person may be filtered out — fetch detail directly
-                await this.selectPerson({ person_pk: pk });
-            }
-        },
-
         // ── Search ─────────────────────────────────────────────────
 
         async executeSearch() {
@@ -218,6 +197,10 @@ function personApp() {
                     );
                     if (!res.ok) throw new Error(res.statusText);
                     this.searchResults = await res.json();
+                    // Auto-select if exactly one result
+                    if (this.searchResults.length === 1) {
+                        await this.selectPerson(this.searchResults[0]);
+                    }
                 } catch {
                     this.searchError = true;
                 } finally {

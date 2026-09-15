@@ -134,138 +134,7 @@ every source file, organized by layer — `API_CODE_EXPLANATIONS.md`,
 
 # Getting Started
 
-## Prerequisites
-
-- PostgreSQL 14+ (local or Neon.dev)
-- Python 3.12+ with pip
-- psql CLI (included with PostgreSQL)
-
-## Step 1: Database Setup
-
-### macOS / Linux (bash)
-
-```bash
-# 1a. Create database and roles (as superuser)
-psql -U postgres -d postgres -f database/scripts/00_create_database.sql
-
-# 1b. Set passwords for both roles (as superuser)
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
-
-# 1c. Install extensions and create nss schema (as superuser)
-psql -U postgres -d nss_erp -f database/scripts/01_extensions.sql
-
-# 1d. Build all DDL + seed (as nss_db_owner)
-./database/scripts/02_build.sh
-
-# 1e. Validate (as nss_db_owner)
-./database/scripts/03_validate.sh
-
-# 1f. Grant backend role read-only access (as nss_db_owner)
-psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
-```
-
-### Windows (PowerShell)
-
-```powershell
-# 1a. Create database and roles (as superuser)
-psql -U postgres -d postgres -f database\scripts\00_create_database.sql
-
-# 1b. Set passwords for both roles (as superuser)
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
-
-# 1c. Install extensions and create nss schema (as superuser)
-psql -U postgres -d nss_erp -f database\scripts\01_extensions.sql
-
-# 1d. Build all DDL + seed (as nss_db_owner)
-.\database\scripts\02_build.ps1
-
-# 1e. Validate (as nss_db_owner)
-.\database\scripts\03_validate.ps1
-
-# 1f. Grant backend role read-only access (as nss_db_owner)
-psql -U nss_db_owner -d nss_erp -f database\scripts\04_grant_backend.sql
-```
-
-> **Never commit real passwords.** Use `.pgpass` (macOS/Linux) or `%APPDATA%\postgresql\pgpass.conf`
-> (Windows) for passwordless `psql` connections, or set `PGPASSWORD` in your shell session.
-
-## Step 2: API Setup
-
-```bash
-# Install Python dependencies
-# macOS / Linux:
-python3 -m pip install -r requirements.txt
-# Windows:
-#   py -m pip install -r requirements.txt
-```
-
-Create `api/.env` with the `nss_db_backend` password from Step 1b:
-
-**macOS / Linux:**
-```bash
-cat > api/.env << 'EOF'
-DB_NAME=nss_erp
-DB_USER=nss_db_backend
-DB_PASSWORD=your_password_here
-DB_HOST=localhost
-DB_PORT=5432
-EOF
-```
-
-**Windows (PowerShell):**
-```powershell
-@"
-DB_NAME=nss_erp
-DB_USER=nss_db_backend
-DB_PASSWORD=your_password_here
-DB_HOST=localhost
-DB_PORT=5432
-"@ | Out-File -Encoding utf8 api\.env
-```
-
-## Step 3: Start the API
-
-```bash
-# macOS / Linux:
-python3 -m uvicorn api.main:app --reload --port 8001
-
-# Windows:
-py -m uvicorn api.main:app --reload --port 8001
-```
-
-**URLs:**
-
-| URL | What |
-|-----|------|
-| `http://localhost:8001/` | Bootstrap Verification UI |
-| `http://localhost:8001/foundation` | Foundation Verification UI |
-| `http://localhost:8001/organization` | Organization Verification UI |
-| `http://localhost:8001/person` | Person Verification UI |
-| `http://localhost:8001/docs` | Swagger UI (OpenAPI) |
-| `http://localhost:8001/api/v1/` | API endpoints |
-
-See `api/README.md` for the full per-tier endpoint list and security-middleware detail.
-
-## Step 4: Run Tests
-
-```bash
-# macOS / Linux:
-python3 -m pytest tests/ -v
-
-# Windows:
-py -m pytest tests/ -v
-```
-
-**208 tests total:** 21 (Tier 0 Bootstrap) + 59 (Tier 1 Foundation) + 64 (Tier 2 Organization) +
-56 (Tier 3 Person) + 8 (Security Middleware). See `tests/README.md` for the per-file test
-inventory.
-
-## Script Reference
-
-See `database/scripts/README.md` for detailed script reference (what each script does, build
-phases, role naming conventions, cross-platform principles).
+See [`docs/03_Solution/architecture/GETTING_STARTED.md`](docs/03_Solution/architecture/GETTING_STARTED.md) for full setup instructions (database, API, tests) and database rebuild procedures.
 
 ---
 
@@ -764,8 +633,8 @@ Completed:
   Foundation's generic `master_data` (categories `ORGANIZATION_TYPE`, 10 values; `STATUS`, 13
   values, shared across modules) — now consumed by the Tier 2 Organization API (see below). This
   diverges from the frozen 3-table module design — see `docs/PROJECT_DOCUMENTATION.md` →
-  Gotchas. Combined with Foundation, Bootstrap RBAC, and Person: **18 tables implemented** — see
-  `database/README.md`)
+  Gotchas. Combined with Foundation, Bootstrap RBAC, Person, Family, and Membership:
+  **34 tables implemented** — see `database/README.md`)
 * Bootstrap RBAC DDL (`role_master`/`permission_master`/`role_permission`, `SOL-BOOT-001`/
   `SOL-ARCH-011` — DDL implemented and committed; `role_master` seeded with 8 roles,
   the other two empty pending the permission catalogue; ownership stays with Administration,
@@ -799,13 +668,57 @@ Completed:
   search; gender/marital status/blood group/emergency relationship/address type resolved via
   JOINs against Foundation's `master_data`; `aadhaar_encrypted`/`aadhaar_hash` are never
   returned — only `aadhaar_last4` for masked display (PER-BR-081); no auth, no ORM, backed by
-  56 pytest integration tests — see `docs/03_Solution/api/PERSON_API_CONTRACT.md`)
+  61 pytest integration tests — see `docs/03_Solution/api/PERSON_API_CONTRACT.md`)
 * Tier 3 Person Verification UI (`frontend/person.html` + `assets/js/person.js` — Persons/Search
   tab layout structurally parallel to the Organization Verification UI)
 * Implemented and released as v0.9.0 — merged to `main`
+* FastAPI Tier 4 Family API (`api/routers/family.py` — 7 read-only endpoints under
+  `/api/v1/family`: family list with filters and pagination, family detail, family members
+  (relationships per family), family head history, plus 3 newer endpoints — `/graph`
+  (dynamic relationship-label computation via BFS traversal over `nss.family_link` edges, in a
+  new `api/services/family_graph.py` — no test coverage yet), `/sakha-alignment` (FAM-036
+  majority-rule "effective Sakha" computation with per-member mismatch flags), and
+  `/person/{pk}/membership-summary` (bridges family context to membership context — also no
+  test coverage yet); no auth, no ORM, backed by 67 pytest integration tests)
+* FastAPI Tier 4 Membership API (`api/routers/membership.py` — 7 read-only endpoints under
+  `/api/v1/membership`: member list with filters and pagination, member detail, a 7-field
+  member search (Sangha Sevi ID, person ID, local Sakha ERP ID, name trigram, mobile, email,
+  Kendra number) plus a 4-field person search, Sakha affiliation history, Parichaya Patra and
+  Anumati Patra records, and journey-event timeline per member; three-tier identity model —
+  Sangha Sevi ID (NSS-wide, permanent), Local Sakha Number (Sakha-scoped, auto-generated),
+  Kendra Number (annual per FY, on `parichaya_patra.document_number`); no auth, no ORM, backed
+  by 99 pytest integration tests — the largest test file in the repo)
+* FastAPI Tier 2 Organization API grew a 7th endpoint, `/organizations/{pk}/children-stats`
+  (aggregate family/member/person counts per direct child, recursing through descendant
+  Sakhas and reusing the same FAM-036 majority-rule computation — implemented independently
+  from Family's version, a real SQL duplication; its own docstring claims org-admin-sidebar UI
+  wiring that doesn't actually exist in `organization.html`/`organization.js` yet)
+* Tier 4 Family Verification UI (`frontend/family.html` + `assets/js/family.js` — now includes
+  a family-tree visualization, viewer selector, and Sakha-alignment mismatch badges) and Tier 4
+  Membership Verification UI (`frontend/membership.html` + `assets/js/membership.js`)
+* New shared frontend config: `frontend/assets/js/nss-config.js` (display-name overrides —
+  `PROBATIONARY` → "Darshaka" — badge-class lookup maps, document-visibility rules) and
+  `frontend/assets/css/badges.css` (every badge CSS class, single source of truth) — all 6
+  verification pages now include both; no more per-page duplicate inline badge styles
+* Family DDL (5 tables: `family_group`, `family_relationship`, `family_head_history`,
+  `family_transition_history`, `family_link` — the last stores only direct
+  parent/spouse edges; every other kinship term is computed dynamically) and Membership DDL
+  (12 tables: `sangha_sevi` plus
+  status/renewal/transfer/affiliation/journey/review history tables, `parichaya_patra`/
+  `anumati_patra` and their history tables) under `database/ddl/04_family/`/`05_membership/`
+* New `database/migrations/` folder (narrow ad-hoc data-fix scripts, not a schema-migration
+  tool) and two standalone `database/seed/99_*.sql` verification-data scripts (manual-run only)
+* New consolidated `docs/03_Solution/api/API_CONTRACT.md` (cross-tier reference, Tiers 0-4,
+  46 endpoints total) and security-audit docs moved from `code_explanations/` to a dedicated
+  `docs/03_Solution/security/` folder (now including `TIER4_SECURITY_AUDIT.md`)
+* New `tests/test_data_integrity.py` (23 tests) — cross-module smoke tests verifying every
+  module has at least one active entity
+* Implemented on `feature/tier4-family-membership` — not yet committed/merged or released
+  (target `v0.10.0`)
 * Global Location Model
-* Membership Module Design
-* Family Module Design
+* Membership Module Design (v1.0, DRAFT — table/column shapes now match the implemented DDL,
+  but the design doc itself hasn't been reconciled to FROZEN yet)
+* Family Module Design (v1.0, DRAFT — same: implemented DDL matches, doc still DRAFT)
 * Attendance Module Design (Review Workflow Frozen)
 * Founder & Heritage Module Design (v1.0.0, SOURCE ALIGNED — 8 tables designed; zero
   implementation exists for any of them)
@@ -848,15 +761,22 @@ Completed:
 Current Focus:
 
 * Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
-  documented modules — every module now has a complete (or largely complete) design. Three
+  documented modules — every module now has a complete (or largely complete) design. Five
   modules have real SQL implementation (Foundation: 12 tables; Organization: 1 table; Person:
-  2 tables) — 15 tables total, plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full
+  2 tables; Family: 5 tables; Membership: 12 tables) — 32 tables total, plus Bootstrap RBAC's
+  3 tables (35 total), plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full
   Tier 1 API + Web UI (17 endpoints, 59 tests), released as v0.7.0. Organization has a full
-  Tier 2 API + Web UI (6 endpoints, 64 tests), released as v0.8.0. Person now also has a full
-  Tier 3 API + Web UI (4 endpoints, 56 tests), released as v0.9.0. Also in v0.9.0: the
+  Tier 2 API + Web UI (7 endpoints, 72 tests), released as v0.8.0 (the 7th endpoint,
+  `/children-stats`, was added later on top of Tier 4). Person now also has a full
+  Tier 3 API + Web UI (4 endpoints, 61 tests), released as v0.9.0. Also in v0.9.0: the
   Organization master-data migration retiring `organization_type_master`/
   `organization_status_master` in favor of Foundation's `master_category`/`master_data`.
-  No release doc has been created yet for the module-documentation backlog beyond these three.
+  Family and Membership now also have a full Tier 4 API + Web UI (7 + 7 endpoints, 67 + 99
+  tests — 46 endpoints total across all tiers) — implemented on `feature/tier4-family-membership`, not yet committed, merged, or
+  released (target `v0.10.0`). **410 tests total** across the whole suite (1 known failing
+  test — `test_kumari_transition_has_event`, see `docs/PROJECT_DOCUMENTATION.md` →
+  Conventions & gotchas). No release doc has been created yet for the module-documentation
+  backlog beyond these five.
 
 ---
 
@@ -870,7 +790,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Done (17 endpoints) | Done (Foundation Verification) | -- |
 | **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (6 endpoints) | Done (Organization Verification) | -- |
 | **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints) | Done (Person Verification) | -- |
-| **4** | Family, Membership | Family groups/relationships + membership registration/approval/transfer/lifecycle | Not started | Not started | Not started | -- |
+| **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Implemented* | Implemented* (14 endpoints) | Implemented* | -- |
 | **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | Not started | Not started | Not started | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
 | **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
@@ -882,6 +802,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 
 **Legend:**
 - **Done** — implemented and merged to `develop`
+- **Implemented\*** — code complete and tested on a feature branch (`feature/tier4-family-membership`), but not yet committed, merged to `develop`, or released — see Current Development Status above
 - **Not started** — design docs complete, no implementation yet
 - **--** — Mobile (Flutter) starts after Web UI stabilizes per tier; no mobile work planned until core tiers (0-5) have working web UIs
 
@@ -896,15 +817,20 @@ release document under `docs/05_Releases/` before the next tier begins.
 | v0.7.0 | Tier 1 | Foundation — API + Web UI + security hardening (DB already done) (**released**) |
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) (**released**) |
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI, plus the Organization master-data migration (**released**) |
-| v0.10.0 | Tier 4 | Family + Membership — full vertical slice |
+| v0.10.0 | Tier 4 | Family + Membership — full vertical slice (implemented on a feature branch; release tagging pending) |
 | v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
 | ... | Tier 6-12 | One tag per tier through Tier 12 |
 
 Next Release Target:
 
 ```text
-v0.10.0 — Tier 4 Family + Membership: family group DDL + API, membership type/status DDL + API
-(Probationary/Regular/Associate/Honorary). Not yet started.
+v0.10.0 — Tier 4 Family + Membership: family DDL (5 tables, incl. a graph-edge table) + API
+(7 endpoints, incl. dynamic relationship-graph and Sakha-alignment computation) + Web UI,
+membership DDL (sangha_sevi, three-tier identity model) + API (7 endpoints) + Web UI, plus a
+new Organization `/children-stats` endpoint (Tier 2's count grows 6→7) and a shared
+frontend badge/config layer. Implementation is
+complete on `feature/tier4-family-membership` (67 + 99 tests, 46 endpoints total) — not yet committed, merged to
+`develop`, or tagged.
 ```
 
 ---
@@ -915,17 +841,19 @@ v0.10.0 — Tier 4 Family + Membership: family group DDL + API, membership type/
 NSS_ERP
 │
 ├── api
-│   ├── routers              (bootstrap.py, foundation.py, organization.py, person.py)
-│   └── schemas               (bootstrap.py, foundation.py, organization.py, person.py)
+│   ├── routers              (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py)
+│   ├── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py)
+│   └── services              (family_graph.py — BFS relationship computation)
 │
-├── frontend                (Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person Verification UIs, served by FastAPI)
-│   └── assets
+├── frontend                (Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person + Tier 4 Family + Tier 4 Membership Verification UIs, served by FastAPI)
+│   └── assets               (shared js/nss-config.js + css/badges.css, plus per-page files)
 │
 ├── backend                (empty — earlier Django prototype archived and removed)
 │
 ├── database
 │   ├── ddl
 │   ├── seed
+│   ├── migrations           (narrow ad-hoc data-fix scripts, not a schema-migration tool)
 │   └── scripts
 │
 ├── tests                  (pytest integration tests)

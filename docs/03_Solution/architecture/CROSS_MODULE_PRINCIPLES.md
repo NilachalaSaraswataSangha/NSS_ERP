@@ -589,7 +589,7 @@ This code is reused as:
 1. Prefix in `local_sakha_number` (member identity within Sakha)
 2. Prefix in correspondence reference (`ESS/OUT/2027-28/001`)
 
-The existing `organization_id` format (`SKH00000001`, `ANC00000001`) remains
+The existing `organization_id` format (`SKH1`, `ANC1`) remains
 unchanged — it is the system-generated permanent business identifier.
 `organization_short_code` is a separate human-assigned attribute.
 
@@ -605,26 +605,26 @@ physical model ACCEPTED (`membership_sakha_affiliation`).
 ### Format — FROZEN
 
 ```text
-<3–5 character Organization/Sakha Short Code><8-digit sequence>
-Examples: ESS00000123, PURI00000001, BBSR00000042
+<3–5 character Organization/Sakha Short Code><numeric sequence>
+Examples: ESS123, PURI1, BBSR42
 ```
 
-`ESS00000123` is a canonical example, not a restriction to three-character
+`ESS123` is a canonical example, not a restriction to three-character
 codes. The short code length varies by organization (see ORG-PENDING-001).
 
 The short code is the `organization_short_code` defined in
-ORG-PENDING-001. The 8-digit zero-padded sequence is Sakha-assigned
-and increments per Sakha independently.
+ORG-PENDING-001. The numeric sequence is Sakha-assigned, not
+zero-padded, and increments per Sakha independently.
 
 ### Conceptual Identity Rules — FROZEN
 
 1. Every Sangha Sevi has one permanent, NSS-wide **Sangha Sevi ID**
-   (e.g. `SS00000001`).
+   (e.g. `SS1`).
 2. A person has **one active Local Sakha ERP ID** associated with their
    current recognized/base Sakha membership.
 3. Existing Sakha register numbers should be **carried forward into the
    ERP Local Sakha ID wherever they can be reliably mapped** (e.g. old
-   Sakha number `123` → `ESS00000123`), avoiding unnecessary
+   Sakha number `123` → `ESS123`), avoiding unnecessary
    renumbering.
 4. Existing Sakha numbers remain available as historical migration
    references (legacy numbers are never discarded).
@@ -652,7 +652,7 @@ and increments per Sakha independently.
                 │                     │
          NEW local ERP ID       EXISTING base ID
                 │                     │
-         CTC00000124            ESS00000123
+         CTC124            ESS123
    ```
 
 6. When Parichaya Patra/membership is formally transferred:
@@ -711,10 +711,10 @@ Sangha Sevi ID         → UNCHANGED
 ### Lifecycle
 
 ```text
-Member joins Sakha A     → ESS00000123 (ACTIVE)
-Darshak at Sakha B       → ESS00000123 (still ACTIVE at base Sakha A)
-Transfer to Sakha B      → ESS00000123 (ARCHIVED), CTC00000042 (ACTIVE)
-Returns to Sakha A       → CTC00000042 (ARCHIVED), ESS00000123 (REACTIVATED)
+Member joins Sakha A     → ESS123 (ACTIVE)
+Darshak at Sakha B       → ESS123 (still ACTIVE at base Sakha A)
+Transfer to Sakha B      → ESS123 (ARCHIVED), CTC42 (ACTIVE)
+Returns to Sakha A       → CTC42 (ARCHIVED), ESS123 (REACTIVATED)
 ```
 
 Archived IDs are never reassigned to another person. If the same
@@ -799,9 +799,9 @@ created_at / created_by / updated_at / updated_by
 reopened** — this preserves clean historical periods for audit:
 
 ```text
-2019 ─────── 2023    Ekamra   ESS00000123   ARCHIVED
-2023 ─────── 2026    Cuttack  CTC00000042   ARCHIVED
-2026 ─────── →       Ekamra   ESS00000123   REACTIVATED
+2019 ─────── 2023    Ekamra   ESS123   ARCHIVED
+2023 ─────── 2026    Cuttack  CTC42    ARCHIVED
+2026 ─────── →       Ekamra   ESS123   REACTIVATED
 ```
 
 **Decisions recorded:**

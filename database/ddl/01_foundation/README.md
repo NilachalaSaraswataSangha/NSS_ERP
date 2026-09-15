@@ -97,9 +97,15 @@ don't warrant a code deployment to change.
 ### 3. `id_sequence_master` (Depth 0, #3 of 88)
 
 Configuration registry for generating human-readable business IDs. Each row
-defines a sequence with a prefix and zero-padded counter. The application layer
-reads `current_value`, increments it, and formats the ID as
-`{prefix}{zero-padded current_value}` (e.g. `SKH00000001` for the first Sakha).
+defines a sequence with a prefix, a counter, and a `padding_length`. The
+application layer reads `current_value`, increments it, and formats the ID as
+`{prefix}{current_value, zero-padded to padding_length}` (e.g. `SKH00000001`
+for the first Sakha, since the seeded `SAKHA` sequence has `padding_length =
+8`). The `chk_id_sequence_padding` CHECK constraint allows `padding_length`
+between 0 and 12 (loosened from 2–12) so a future sequence can opt into
+unpadded IDs (`{prefix}{current_value}`, e.g. `SKH1`), but no currently
+seeded sequence has `padding_length = 0` yet — see
+`database/seed/01_foundation/README.md` for the actual per-sequence values.
 
 Unique organizations (KENDRA, NILACHALA_KUTIRA, SMRUTI_MANDIRA) do not use
 sequences — they receive fixed codes directly from seed data.
