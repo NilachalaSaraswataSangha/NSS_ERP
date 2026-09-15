@@ -29,6 +29,7 @@ frontend/
 ├── membership.html         Tier 4 Membership Verification UI (Alpine.js application)
 ├── assets/
 │   ├── css/
+│   │   ├── badges.css      Shared badge-status/type/affiliation/gender CSS classes + data-identity typography (all six pages)
 │   │   └── style.css       Minimal project-specific CSS overrides
 │   ├── img/
 │   │   └── nss-logo.png    NSS logo (PNG with transparency)
@@ -38,13 +39,22 @@ frontend/
 │       ├── organization.js Alpine.js data component + API fetch logic for organization.html
 │       ├── person.js       Alpine.js data component + API fetch logic for person.html
 │       ├── family.js       Alpine.js data component + API fetch logic for family.html
-│       └── membership.js   Alpine.js data component + API fetch logic for membership.html
+│       ├── membership.js   Alpine.js data component + API fetch logic for membership.html
+│       └── nss-config.js   Shared `NSS` config object — badge-class lookups, Bye-Law display-name
+│                           overrides, document-visibility rules (all six pages)
 └── README.md               This file
 ```
 
 All six pages share the same header pattern with a nav bar linking between `/` ("Bootstrap"),
 `/foundation` ("Foundation"), `/organization` ("Organization"), `/person` ("Person"), `/family`
-("Family"), and `/membership` ("Membership"), so any page is one click away from any other.
+("Family"), and `/membership` ("Membership"), so any page is one click away from any other. Every
+page also loads `assets/css/badges.css` and `assets/js/nss-config.js` in `<head>`, immediately
+after `style.css` — these two files are the single source of truth for badge CSS classes and
+their display-name/visibility logic across the whole frontend. **Convention for future page
+authors:** individual pages must **not** redefine `badge-status-*`/`badge-type-*`/`badge-aff-*`
+classes in a page-local inline `<style>` block — add any new status/type/affiliation value to
+`badges.css` (and, if it needs a lookup helper, to `nss-config.js`'s `NSS` object) instead, so
+every page picks it up automatically.
 
 ---
 
@@ -411,7 +421,7 @@ Number"/"ERP Number" used in `docs/03_Solution/api/API_CONTRACT.md`. `PROBATIONA
 type likewise displays as **"Darshaka"** (`typeDisplayName()`, MBR-007) — the database stores
 `PROBATIONARY`, the portal shows the Odia/NSS operational term.
 
-Loads `<script src="/assets/js/membership.js?v=3.5">` at the bottom.
+Loads `<script src="/assets/js/membership.js?v=3.9">` at the bottom.
 
 ---
 
@@ -445,13 +455,63 @@ try/fetch/check `res.ok`/parse JSON → catch sets error flag only → finally c
 
 **Helpers:**
 - `formatName(m)` — same implementation as `person.js`'s `formatName()`
-- `typeDisplayName(m)` — returns `"Darshaka"` for `PROBATIONARY`, otherwise the resolved
-  `membership_type_name` (UI-label convention, see above)
-- `typeBadgeClass(m)`, `affBadgeClass(a)`, `docBadgeClass(doc)` — map membership type,
-  affiliation status, and document (Parichaya/Anumati Patra) status to dedicated
-  `.badge-type-*`/`.badge-aff-*`/`.badge-status-*` CSS classes defined inline in
-  `membership.html`'s `<style>` block, the same pattern `organization.html`/`person.html` use
-  for their own status badges
+- `typeDisplayName(m)` — delegates to shared `NSS.typeDisplayName()` (`assets/js/nss-config.js`);
+  still returns `"Darshaka"` for `PROBATIONARY` (UI-label convention, see above)
+- `typeBadgeClass(m)`, `statusBadgeClass(m)`, `affBadgeClass(a)`, `docBadgeClass(doc)` — thin
+  wrappers delegating to shared `NSS.typeBadgeClass()`/`NSS.statusBadgeClass()`/
+  `NSS.affBadgeClass()` (`assets/js/nss-config.js`), which map membership type, lifecycle
+  status, affiliation status, and document (Parichaya/Anumati Patra) status to `.badge-type-*`/
+  `.badge-status-*`/`.badge-aff-*` classes now centralized in `assets/css/badges.css` — no
+  longer defined inline in `membership.html`'s own `<style>` block
+
+---
+
+### assets/css/badges.css
+
+Single source of truth for every badge CSS class used across all six pages, plus the three-tier
+identity typographic classes. Loaded by every page's `<head>`, right after `style.css` and
+right before `nss-config.js`.
+
+**Class families:**
+
+| Prefix | Count | Purpose |
+|--------|-------|---------|
+| `.badge-status-*` | 18 | Unified lifecycle status (Organization/Membership/Family — the full `STATUS` category superset) |
+| `.badge-type-*` | 4 | Membership type (`probationary`/`regular`/`associate`/`honorary`) |
+| `.badge-aff-*` | 3 | Sakha affiliation status (`active`/`archived`/`reactivated`) |
+| `.badge-gender-*` | 3 | Gender (`male`/`female`/`other`) |
+| `.badge-marital` | 1 | Marital status (single generic style, not per-value) |
+| `.badge-role-*` | 2 | Family-tree role indicators (`viewer` = "YOU", `head` = "HEAD") |
+| `.data-*` | 6 | Typographic classes for identity fields: `data-sevi-id`/`data-erp-no`/`data-kendra-no` (three-tier identity, theme-aware via DaisyUI CSS variables), `data-sakha-name`, `data-family-id`, `data-label` |
+
+**Rule for future page authors:** individual pages must **not** define `badge-status-*`,
+`badge-type-*`, or `badge-aff-*` classes in a page-local inline `<style>` block — this file is
+the only place they're allowed to live. Also overrides DaisyUI's default `.badge`/`.badge-xs`
+padding (`!important`, since DaisyUI's CDN stylesheet would otherwise win).
+
+---
+
+### assets/js/nss-config.js
+
+Global `NSS` config object, loaded by every page's `<head>` right after `badges.css` and before
+the page's own `*.js` file. Not an Alpine.js component (no `x-data` registration) — plain shared
+state/logic that any page's inline bindings or `*.js` file calls directly as `NSS.methodName()`.
+
+**What it provides:**
+
+| Member | Purpose |
+|--------|---------|
+| `TYPE_DISPLAY_NAMES` / `typeDisplayName(code, dbName)` | Bye-Law display-name overrides (currently just `PROBATIONARY` → `"Darshaka"`, MBR-007); falls back to the API's `value_name`, then the raw code |
+| `STATUS_BADGE_MAP` / `statusBadgeClass(code)` | Lifecycle status → `.badge-status-*` class, falling back to `badge-ghost` for unknown codes |
+| `TYPE_BADGE_MAP` / `typeBadgeClass(code)` | Membership type → `.badge-type-*` class |
+| `AFF_BADGE_MAP` / `affBadgeClass(status)` | Affiliation status → `.badge-aff-*` class |
+| `GENDER_BADGE_MAP` / `genderBadgeClass(code)` | Gender → `.badge-gender-*` class |
+| `showParichayaPatra(typeCode)` | Always `true` — kept as a named method for one documented home, even though the rule doesn't currently vary |
+| `showAnumatiPatra(typeCode)` | `true` for every membership type except `ASSOCIATE` (MBR-019A/B) — used by `membership.html` and `family.html`'s `x-show` bindings |
+
+Extracted from what used to be near-duplicate `if`/`else` chains inside `membership.js` (and an
+inline `!== 'ASSOCIATE'` check repeated in both `membership.html` and `family.html`) — see
+`docs/03_Solution/code_explanations/UI_CODE_EXPLANATIONS.md` §2.14 for the full walkthrough.
 
 ---
 
