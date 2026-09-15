@@ -714,8 +714,7 @@ Completed:
   `docs/03_Solution/security/` folder (now including `TIER4_SECURITY_AUDIT.md`)
 * New `tests/test_data_integrity.py` (23 tests) — cross-module smoke tests verifying every
   module has at least one active entity
-* Implemented on `feature/tier4-family-membership` — not yet committed/merged or released
-  (target `v0.10.0`)
+* Merged to `develop` and `main`, tagged `v0.10.0` (see `docs/05_Releases/v0.10.0.md`)
 * Global Location Model
 * Membership Module Design (v1.0, DRAFT — table/column shapes now match the implemented DDL,
   but the design doc itself hasn't been reconciled to FROZEN yet)
@@ -773,9 +772,8 @@ Current Focus:
   Organization master-data migration retiring `organization_type_master`/
   `organization_status_master` in favor of Foundation's `master_category`/`master_data`.
   Family and Membership now also have a full Tier 4 API + Web UI (7 + 7 endpoints, 67 + 99
-  tests — 46 endpoints total across all tiers), merged to `develop` from
-  `feature/tier4-family-membership` — not yet tagged or merged to `main`
-  (target `v0.10.0`, release notes drafted at `docs/05_Releases/v0.10.0.md`). **410 tests
+  tests — 46 endpoints total across all tiers), released as v0.10.0 (see
+  `docs/05_Releases/v0.10.0.md`). **410 tests
   total** across the whole suite (1 known failing test — `test_kumari_transition_has_event`,
   see `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas).
 
@@ -817,20 +815,16 @@ release document under `docs/05_Releases/` before the next tier begins.
 | v0.7.0 | Tier 1 | Foundation — API + Web UI + security hardening (DB already done) (**released**) |
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) (**released**) |
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI, plus the Organization master-data migration (**released**) |
-| v0.10.0 | Tier 4 | Family + Membership — full vertical slice, family graph, Organization children-stats (merged to `develop`; release notes drafted, tag/main-merge pending) |
+| v0.10.0 | Tier 4 | Family + Membership — full vertical slice, family graph, Organization children-stats (**released**) |
 | v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
 | ... | Tier 6-12 | One tag per tier through Tier 12 |
 
 Next Release Target:
 
 ```text
-v0.10.0 — Tier 4 Family + Membership: family DDL (5 tables, incl. a graph-edge table) + API
-(7 endpoints, incl. dynamic relationship-graph and Sakha-alignment computation) + Web UI,
-membership DDL (sangha_sevi, three-tier identity model) + API (7 endpoints) + Web UI, plus a
-new Organization `/children-stats` endpoint (Tier 2's count grows 6→7) and a shared
-frontend badge/config layer. Merged to `develop` from `feature/tier4-family-membership`
-(67 + 99 tests, 410 tests total, 46 endpoints total) — release notes drafted at
-`docs/05_Releases/v0.10.0.md`; not yet tagged or merged to `main`.
+v0.11.0 — Tier 5 Authentication + Administration: user_account, password_history, RBAC
+management, JWT/session; exposes field_change_log via API (deferred until now, needs auth);
+adds nss_db_writer role + first write endpoints.
 ```
 
 ---
