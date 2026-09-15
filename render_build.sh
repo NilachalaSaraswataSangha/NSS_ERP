@@ -158,6 +158,31 @@ run_sql "tier4 family_link (seed)"      "${SEED_BASE}/04_family/02_tier4_verific
 run_sql "tier4 membership (seed)"       "${SEED_BASE}/05_membership/01_tier4_verification_membership.sql"
 
 echo ""
+echo "--- Ensuring nss_db_owner and nss_db_backend roles exist ---"
+# database/scripts/00_create_database.sql normally creates both roles,
+# but that script requires a true Postgres superuser + dblink back to
+# localhost -- meaningless on managed Neon -- so it's never been run
+# there. Created here instead, idempotently, so the naming convention
+# matches local dev and Phase 9's GRANT has a target role. Both reuse
+# DB_PASSWORD since Render only configures one credential set for this
+# service; note the running API here connects as whatever DB_USER is
+# (the Neon-provided owner role used to run this whole build), not as
+# nss_db_backend -- so the grant below is not yet actually enforcing
+# least-privilege access in this deployment, only preparing for it.
+${PSQL} <<SQL
+DO \$do\$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'nss_db_owner') THEN
+        CREATE ROLE nss_db_owner LOGIN PASSWORD '${DB_PASSWORD}';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'nss_db_backend') THEN
+        CREATE ROLE nss_db_backend LOGIN PASSWORD '${DB_PASSWORD}';
+    END IF;
+END
+\$do\$;
+SQL
+
+echo ""
 echo "--- Phase 9: Grant nss_db_backend read-only access ---"
 run_sql "grant_backend" "${REPO_ROOT}/database/scripts/04_grant_backend.sql"
 
