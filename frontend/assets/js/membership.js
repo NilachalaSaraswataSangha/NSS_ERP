@@ -194,59 +194,34 @@ function membershipApp() {
         },
 
         typeBadgeClass(m) {
-            const code = m.membership_type_code;
-            if (code === "REGULAR") return "badge-type-regular";
-            if (code === "PROBATIONARY") return "badge-type-probationary";
-            if (code === "ASSOCIATE") return "badge-type-associate";
-            if (code === "HONORARY") return "badge-type-honorary";
-            return "badge-ghost";
+            return NSS.typeBadgeClass(m.membership_type_code);
         },
 
         /**
          * Badge class for member lifecycle status.
-         * Maps status_code to badge-status-* CSS classes.
-         * Covers all 11 membership-applicable unified statuses.
+         * Delegates to shared NSS.statusBadgeClass().
          */
         statusBadgeClass(m) {
             const code = m.status_code || (m.is_active ? "ACTIVE" : "INACTIVE");
-            if (code === "ACTIVE") return "badge-status-active";
-            if (code === "INACTIVE") return "badge-status-inactive";
-            if (code === "SUSPENDED") return "badge-status-suspended";
-            if (code === "LAPSED") return "badge-status-lapsed";
-            if (code === "TRANSFERRED") return "badge-status-transferred";
-            if (code === "RESIGNED") return "badge-status-resigned";
-            if (code === "EXPELLED") return "badge-status-expelled";
-            if (code === "ARCHIVED") return "badge-status-archived";
-            if (code === "RENEWAL_PENDING") return "badge-status-renewal-pending";
-            if (code === "ON_HOLD") return "badge-status-on-hold";
-            if (code === "DISCIPLINARY_REVIEW") return "badge-status-disciplinary-review";
-            return "badge-ghost";
+            return NSS.statusBadgeClass(code);
         },
 
         /**
          * Display name for membership type.
-         * PROBATIONARY → "Darshaka" (operational UI label — MBR-007).
-         * Database stores PROBATIONARY; portal shows Darshaka.
+         * Delegates to shared NSS.typeDisplayName().
+         * DB now stores "Darshaka" directly; override in
+         * NSS config remains as safety net (MBR-007).
          */
         typeDisplayName(m) {
-            const code = m.membership_type_code;
-            if (code === "PROBATIONARY") return "Darshaka";
-            return m.membership_type_name;
+            return NSS.typeDisplayName(m.membership_type_code, m.membership_type_name);
         },
 
         affBadgeClass(a) {
-            if (a.affiliation_status === "ACTIVE") return "badge-aff-active";
-            if (a.affiliation_status === "ARCHIVED") return "badge-aff-archived";
-            if (a.affiliation_status === "REACTIVATED") return "badge-aff-reactivated";
-            return "badge-ghost";
+            return NSS.affBadgeClass(a.affiliation_status);
         },
 
         docBadgeClass(doc) {
-            if (doc.status === "ACTIVE") return "badge-status-active";
-            if (doc.status === "EXPIRED") return "badge-status-expired";
-            if (doc.status === "CANCELLED") return "badge-status-cancelled";
-            if (doc.status === "REPLACED") return "badge-status-replaced";
-            return "badge-ghost";
+            return NSS.statusBadgeClass(doc.status);
         },
     };
 }

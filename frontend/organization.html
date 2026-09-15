@@ -14,27 +14,8 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="/assets/css/style.css">
-
-    <!-- Badge breathing room — must be last to override DaisyUI CDN -->
-    <style>
-        .badge { padding: 0.25rem 0.75rem !important; }
-        .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
-        .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
-        /* Status colors — white text on distinct backgrounds */
-        .badge-status-active     { background-color: #16a34a !important; color: #fff !important; }
-        .badge-status-proposed   { background-color: #2563eb !important; color: #fff !important; }
-        .badge-status-approved   { background-color: #0d9488 !important; color: #fff !important; }
-        .badge-status-suspended  { background-color: #dc2626 !important; color: #fff !important; }
-        .badge-status-inactive   { background-color: #6b7280 !important; color: #fff !important; }
-        .badge-status-lapsed     { background-color: #d97706 !important; color: #fff !important; }
-        .badge-status-transferred{ background-color: #7c3aed !important; color: #fff !important; }
-        .badge-status-resigned   { background-color: #9ca3af !important; color: #fff !important; }
-        .badge-status-expelled   { background-color: #991b1b !important; color: #fff !important; }
-        .badge-status-deceased   { background-color: #1f2937 !important; color: #fff !important; }
-        .badge-status-dissolved  { background-color: #78350f !important; color: #fff !important; }
-        .badge-status-archived   { background-color: #374151 !important; color: #fff !important; }
-        .badge-status-expired    { background-color: #4b5563 !important; color: #fff !important; }
-    </style>
+    <link rel="stylesheet" href="/assets/css/badges.css">
+    <script src="/assets/js/nss-config.js"></script>
 </head>
 <body class="bg-base-200 min-h-screen">
 
