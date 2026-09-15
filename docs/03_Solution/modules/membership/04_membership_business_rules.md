@@ -262,8 +262,30 @@ therefore the Anumati Patra pathway does not apply.
 | Membership Type | Anumati Patra | Parichaya Patra |
 |-----------------|---------------|-----------------|
 | PROBATIONARY    | Yes (ACTIVE)  | No              |
-| REGULAR         | Yes (EXPIRED, historical) | Yes (ACTIVE) |
+| REGULAR         | Depends on admission path — see MBR-019C | Yes (ACTIVE) |
 | ASSOCIATE       | No            | Yes (ACTIVE)    |
+
+---
+
+## MBR-019C — Darshaka Stage Is Not Mandatory for Kishor/Kumari-Origin Regular Members
+
+For a non-youth applicant, enrollment as a Probationary/Darshaka member
+is mandatory before promotion to Regular. A Darshaka holds an Anumati
+Patra that expires on promotion, so these Regular members always carry
+a historical EXPIRED Anumati Patra.
+
+For an applicant who came up through Kishor Puja participation or
+Kumari Sangha membership, the Darshaka stage is optional: the
+sanctioning Sangha President may admit them directly to Regular
+membership. In that case no Anumati Patra — active or historical —
+exists for that member at all.
+
+Consequently, "a Regular member has a historical EXPIRED Anumati
+Patra" is true for members who came up through the Darshaka pathway,
+but not universally true for every Regular member — Kishor/Kumari-origin
+members admitted directly are a legitimate exception.
+
+**Rule maturity:** ERP-OPERATIONAL
 
 ---
 
