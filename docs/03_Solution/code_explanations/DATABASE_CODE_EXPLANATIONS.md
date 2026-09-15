@@ -3,9 +3,9 @@
 | Field       | Value                                                                     |
 |-------------|----------------------------------------------------------------------------|
 | Document    | DATABASE_CODE_EXPLANATIONS                                               |
-| Version     | 1.2                                                                       |
+| Version     | 1.3                                                                       |
 | Scope       | All SQL DDL, seed, and build/validate scripts under `database/`          |
-| Status      | Complete (updated: Tier 4 Family + Membership — real, implemented DDL)   |
+| Status      | Complete (updated: Tier 4 Family — `family_link` graph-edge table)      |
 
 ---
 
@@ -67,8 +67,8 @@ reference (see `database/ddl/03_person/README.md` and `database/README.md` → "
 Artifacts"). They are still explained fully below because they are still code in the
 repository, but every section for them opens with an explicit supersession notice.
 
-Addendum (Tier 4 Family): `database/ddl/04_family/` (4 tables — `family_group`,
-`family_relationship`, `family_head_history`, `family_transition_history`) and
+Addendum (Tier 4 Family): `database/ddl/04_family/` (5 tables — `family_group`,
+`family_relationship`, `family_head_history`, `family_transition_history`, `family_link`) and
 `database/seed/04_family/` are **real, implemented DDL** — unlike the `03_person/` prototype
 directly above, Family's tables are built against the current, real `nss.*` schema (schema-
 qualified table names, `master_category`/`master_data`-driven classification, the real
@@ -3997,6 +3997,200 @@ Indexes: one per FK (`idx_family_trans_person`, `idx_family_trans_old_family`,
 `idx_family_trans_new_family`) plus `idx_family_trans_effective_date` and
 `idx_family_trans_type` — the latter two support querying a person's transition timeline in date
 order and filtering/reporting by transition type.
+
+---
+
+### database/ddl/04_family/05_family_link.sql
+
+**Requirement**
+
+Defines `nss.family_link` — the fifth table added to the Family module, and a **different**
+kind of table from the other four: instead of resolving a family member's kinship *label*
+against a lookup category, it stores only the raw, directed biological/legal edges
+(`PARENT_OF`, `SPOUSE_OF`) between two persons in a family, leaving every other kinship term
+(Grandfather, Cousin, Sister-in-Law, ...) to be computed at query time by graph traversal
+relative to whoever is viewing the family (`api/services/family_graph.py` — see
+`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md` §2.15). Depth 3 (depends on
+`family_group`, `person`, same depth as `family_relationship`/`family_head_history`). Without
+this table, the graph endpoint (`GET /families/{family_group_pk}/graph`) would have nothing to
+traverse — `family_relationship` alone records *family-unit membership* (who belongs to the
+family and their static relationship-type code), not the *direct edges* a graph algorithm needs
+to derive extended kinship dynamically.
+
+**Line-by-line explanation**
+
+Lines 1–21 — header comment (Authority + design rationale):
+
+```sql
+-- =====================================================
+-- NSS ERP
+-- Module: Family
+-- File: 05_family_link.sql
+-- Table: nss.family_link
+-- Depth: 3 (depends on family_group, person)
+-- Version: 1.0
+-- Authority: ERP-DECISION — Graph-based dynamic
+--            relationship model
+-- Owner: NSS_ERP_ADMIN
+-- Note: Stores only direct biological/legal edges
+--       between family members. All extended
+--       relationships (grandfather, uncle, cousin,
+--       etc.) are computed dynamically via graph
+--       traversal relative to the viewer.
+--
+--       link_type semantics:
+--         PARENT_OF — person_a is parent of person_b
+--         SPOUSE_OF — person_a and person_b are spouses
+--                     (bidirectional; store one row)
+-- =====================================================
+```
+
+Authority is `ERP-DECISION — Graph-based dynamic relationship model` — a distinct authority tag
+from `SOL-FAM-005`/`SOL-FAM-003`/`SOL-ARCH-010`, which govern the other four Family tables (per
+`database/ddl/04_family/README.md`) — signalling this table implements a specific, separately
+decided design choice rather than the original Family module design doc. The comment states the
+rationale this whole file exists to encode: only *direct* edges are persisted; every derived
+kinship label is computed, never stored, which is why the module needs no `KINSHIP_TYPE` master
+data category no matter how many labels `PATH_LABELS` (in `family_graph.py`) eventually grows to
+cover. It also documents `link_type`'s two-value semantics inline: `PARENT_OF` is a *directed*
+edge (`person_a_pk` is the parent, `person_b_pk` the child), while `SPOUSE_OF` is conceptually
+*bidirectional* but the convention is to store exactly one row per couple, not two — the
+traversal code (`FamilyGraph.add_link`) is what expands that single stored row into two adjacency
+entries at read time, not the DDL.
+
+```sql
+CREATE TABLE nss.family_link
+(
+    family_link_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    family_group_pk UUID NOT NULL,
+
+    -- The "from" person in the directed edge
+    person_a_pk UUID NOT NULL,
+
+    -- The "to" person in the directed edge
+    person_b_pk UUID NOT NULL,
+
+    -- Only two link types allowed
+    link_type VARCHAR(20) NOT NULL,
+
+    effective_from DATE NOT NULL,
+
+    effective_to DATE NULL,
+
+    is_current BOOLEAN NOT NULL
+        DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    updated_by_sangha_sevi_pk UUID NULL,
+
+    CONSTRAINT fk_family_link_family_group
+        FOREIGN KEY (family_group_pk)
+        REFERENCES nss.family_group (family_group_pk),
+
+    CONSTRAINT fk_family_link_person_a
+        FOREIGN KEY (person_a_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT fk_family_link_person_b
+        FOREIGN KEY (person_b_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT chk_family_link_type
+        CHECK (link_type IN ('PARENT_OF', 'SPOUSE_OF')),
+
+    CONSTRAINT chk_family_link_no_self
+        CHECK (person_a_pk <> person_b_pk),
+
+    CONSTRAINT chk_family_link_effective_range
+        CHECK
+        (
+            effective_to IS NULL
+            OR effective_to >= effective_from
+        ),
+
+    CONSTRAINT chk_family_link_current_consistency
+        CHECK
+        (
+            (is_current = TRUE AND effective_to IS NULL)
+            OR
+            (is_current = FALSE AND effective_to IS NOT NULL)
+        )
+);
+```
+
+Columns: `family_link_pk UUID PRIMARY KEY DEFAULT gen_random_uuid()` — the standard PK shape
+shared by every table in this document; `family_group_pk UUID NOT NULL` — which family this edge
+belongs to (an edge is always scoped to one family, never cross-family); `person_a_pk`/
+`person_b_pk UUID NOT NULL` — the two endpoints of the directed edge, named generically ("from"/
+"to" per the inline comments) rather than e.g. `parent_pk`/`child_pk`, because the same pair of
+columns serves both `PARENT_OF` (directional) and `SPOUSE_OF` (nominally symmetric but stored
+once) edge types; `link_type VARCHAR(20) NOT NULL` — the two-value edge type discussed above;
+`effective_from DATE NOT NULL` / `effective_to DATE NULL` / `is_current BOOLEAN NOT NULL DEFAULT
+TRUE` — the same effective-dated triple `family_relationship` uses, so an edge (e.g. a marriage
+that later ends, or a corrected parentage record) can be superseded without being deleted, per
+the "History Never Deleted" principle; audit columns are `created_at`/`created_by_sangha_sevi_pk`/
+`updated_at`/`updated_by_sangha_sevi_pk` only — no `deleted_at`/`deleted_by_sangha_sevi_pk` and no
+`is_active`, unlike `family_group`/`family_relationship` — because a link's lifecycle is already
+fully expressed by `is_current`/`effective_to` (a link is either current, or historical-but-kept,
+never "soft-deleted" as a separate state); like every other Family/Person/Organization table, the
+`*_by_sangha_sevi_pk` audit-actor FKs are nullable, unconstrained columns in this pass (Pass 2 FK
+constraints deferred until `sangha_sevi` exists, per `database/ddl/04_family/README.md`).
+
+Constraints: `fk_family_link_family_group`, `fk_family_link_person_a`, `fk_family_link_person_b`
+— three plain FKs (`family_group`, and `person` referenced *twice* under two different FK names,
+the same "two FKs to the same table" idiom `family_transition_history` uses for its
+`old_family_group_pk`/`new_family_group_pk`); `chk_family_link_type CHECK (link_type IN
+('PARENT_OF', 'SPOUSE_OF'))` — the closed two-value enumeration, enforced the same
+CHECK-not-master_data way `family_transition_history.transition_type` is, for the same reason (a
+small, fixed, metadata-free code set); `chk_family_link_no_self CHECK (person_a_pk <>
+person_b_pk)` — a person cannot be their own parent or spouse, the same
+"self-referencing-pair must differ" idiom used elsewhere in the schema (e.g.
+`chk_family_trans_different_families`); `chk_family_link_effective_range` — the standard
+"can't end before it started" CHECK, identical in shape to `family_relationship`'s own effective-
+range constraint; `chk_family_link_current_consistency` — ties `is_current` to `effective_to`,
+the same pattern as `chk_family_rel_current_consistency` on `family_relationship`: a current edge
+must have `effective_to IS NULL`, a historical one must have it set, so which is true is always
+derivable from either column without them drifting out of sync.
+
+```sql
+CREATE INDEX idx_family_link_family_group
+    ON nss.family_link (family_group_pk);
+
+CREATE INDEX idx_family_link_person_a
+    ON nss.family_link (person_a_pk);
+
+CREATE INDEX idx_family_link_person_b
+    ON nss.family_link (person_b_pk);
+
+CREATE INDEX idx_family_link_is_current
+    ON nss.family_link (is_current);
+
+-- A given directed edge should not be duplicated
+-- while current.
+CREATE UNIQUE INDEX uq_family_link_current
+    ON nss.family_link (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE;
+```
+
+Indexes: one per FK (`idx_family_link_family_group`, `idx_family_link_person_a`,
+`idx_family_link_person_b`) — the standard per-FK set, and specifically what makes
+`api/routers/family.py`'s `_GRAPH_PERSONS_SQL`/`_GRAPH_LINKS_SQL` (filtered by
+`family_group_pk`) efficient; plus `idx_family_link_is_current`, supporting the
+`WHERE is_current = TRUE` filter both of those queries also apply. `uq_family_link_current` is a
+**partial unique index** (not a table-level `UNIQUE` constraint) on `(family_group_pk,
+person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE` — the same partial-unique-index
+technique `uq_family_rel_person_current`/`uq_family_head_current` already use elsewhere in this
+module: it prevents the *same directed edge* (e.g. "A is parent of B") from being recorded twice
+while current, without blocking a historical (`is_current = FALSE`) duplicate of a
+superseded/corrected edge from coexisting alongside its replacement.
 
 ---
 

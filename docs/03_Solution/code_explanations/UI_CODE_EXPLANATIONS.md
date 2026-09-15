@@ -3,9 +3,9 @@
 | Field       | Value                                                                  |
 |-------------|-------------------------------------------------------------------------|
 | Document    | UI_CODE_EXPLANATIONS                                                   |
-| Version     | 1.4                                                                     |
+| Version     | 1.6                                                                     |
 | Scope       | All source files under `frontend/`, excluding binary assets (images)    |
-| Status      | Complete (updated: Tier 4 Family, Membership)                           |
+| Status      | Complete (updated: `family.html`/`family.js` rebuilt for the dynamic family-tree graph, Sakha-alignment display, and Selected Person panel) |
 
 ---
 
@@ -102,17 +102,27 @@ file):
   complete DOM.
 - The local stylesheet `/assets/css/style.css` (§2.5) is loaded last, after the CDN
   stylesheets, so any override rules in it win on specificity ties.
-- A page-local `<style>` block follows the `style.css` link, overriding DaisyUI's default
-  `.badge`/`.badge-xs`/`.badge-sm` padding and defining 6 `.badge-status-*` classes for
-  distinct per-status colors. This block used to be identical across `index.html`,
-  `foundation.html`, and `organization.html`; as of the v2.0 org-to-master-data migration
-  (2026-09-12), `organization.html`'s copy grew to 13 `.badge-status-*` classes (matching the
-  unified `STATUS` category's 13 values — see §2.6), while `index.html` and `foundation.html`
-  still carry the older 6-class copy, since neither page renders a lifecycle-status badge. The
-  padding override affects every badge on this page (the health-status dot and the
-  roles-count badge); the `.badge-status-*` classes themselves are unused here — only
-  Organization's Reference Data/Organizations/Hierarchy tabs render lifecycle-status badges
-  (see §2.6) — but the block is duplicated rather than factored into `style.css` itself.
+- **(v1.5, Tier 4 shared-config extraction.)** The page-local `<style>` block described in
+  earlier revisions of this document — a `.badge`/`.badge-xs`/`.badge-sm` padding override plus
+  6 `.badge-status-*` classes, duplicated near-identically across `index.html`,
+  `foundation.html`, and `organization.html` — has been **removed**. In its place, two shared
+  files are now linked/scripted immediately after `style.css`:
+```html
+<link rel="stylesheet" href="/assets/css/badges.css">
+<script src="/assets/js/nss-config.js"></script>
+```
+  `/assets/css/badges.css` (§2.14) is now the single source of truth for every
+  `.badge-status-*`/`.badge-type-*`/`.badge-aff-*`/`.badge-gender-*` class across all six pages —
+  it centralizes what used to be several slightly-diverging per-page copies (6 classes here, 13
+  on `organization.html`, 3 on `person.html`, etc.) into one 18-status superset, so every page
+  gets every status color regardless of whether that particular page currently renders that
+  status. `/assets/js/nss-config.js` (§2.15) defines the global `NSS` object — badge-class
+  lookup helpers (`NSS.statusBadgeClass()`, `NSS.typeBadgeClass()`, etc.) and the `PROBATIONARY`
+  → "Darshaka" display-name override — that page-specific JS (e.g. `membership.js`, §2.11) now
+  delegates to instead of hardcoding its own `if`/`else` chains. This page renders no
+  lifecycle-status badge itself, so it calls no `NSS.*` helper, but still loads both files for
+  consistency with the other five pages, and because `badges.css`'s `.badge`/`.badge-xs` padding
+  overrides still apply to its health-status dot and roles-count badge.
 
 ---
 
@@ -153,6 +163,11 @@ Served by FastAPI's `GET /organization` route, conditional on the file existing 
   v2.0 migration (`lapsed`/`transferred`/`resigned`/`expelled`/`deceased`/`dissolved`/
   `expired`) cover status values that `STATUS` absorbed from the wider, ERP-unified lifecycle
   vocabulary — values the old 6-status, Organization-only set never needed.
+
+> **Cross-reference (Tier 4 shared-config extraction):** the page-local `<style>` block
+> described above has since been removed from `organization.html`; the file now loads
+> `/assets/css/badges.css` and `/assets/js/nss-config.js` in `<head>` instead (see §2.14–§2.15
+> for the shared files these classes now live in).
 
 **Root component:**
 ```html
@@ -705,27 +720,23 @@ the opportunity to render them — only the masked `aadhaar_last4` is displayed.
 
 **`<head>`:**
 ```html
-<style>
-    .badge { padding: 0.25rem 0.75rem !important; }
-    .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
-    .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
-    /* Lifecycle status colors */
-    .badge-status-active   { background-color: #16a34a !important; color: #fff !important; }
-    .badge-status-inactive { background-color: #6b7280 !important; color: #fff !important; }
-    .badge-status-deceased { background-color: #374151 !important; color: #fff !important; }
-</style>
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="/assets/css/badges.css">
+<script src="/assets/js/nss-config.js"></script>
 ```
 - Same CDN dependency block as the other three pages: Tailwind Play CDN, DaisyUI 4.12.14
   with SRI, Alpine.js 3.14.8 with SRI, local `style.css`. Only the `<title>` differs
   ("— Person Verification").
-- The page-local `.badge`/`.badge-xs`/`.badge-sm` padding override is the same pattern as
-  the other three pages, but the `.badge-status-*` set here has only **3** classes
-  (`active`/`inactive`/`deceased`) — smaller than Organization's 13 — because Person's
-  lifecycle status is not sourced from Foundation's unified `STATUS` category at all; it is
-  derived client-side from two raw columns (`is_active` boolean and `date_of_death`) via
-  the `statusLabel()`/`statusBadgeClass()` helpers in `person.js` (§2.9), giving exactly
-  three possible states: Active, Active-but-deceased ("Deceased"), and Inactive
-  (soft-deleted).
+- **(v1.5, Tier 4 shared-config extraction.)** The page-local `<style>` block quoted in
+  earlier revisions of this document — a `.badge`/`.badge-xs`/`.badge-sm` padding override
+  plus 3 `.badge-status-*` classes (`active`/`inactive`/`deceased`) — has been **removed**
+  and replaced with the two shared includes shown above. `badges.css` (§2.14) now supplies
+  all 18 `.badge-status-*` classes (a superset covering every page's needs, not just
+  Person's 3); this page's `statusLabel()`/`statusBadgeClass()` helpers in `person.js`
+  (§2.9) are unchanged — they still derive exactly three possible states (Active / Deceased
+  / Inactive) client-side from `is_active` and `date_of_death`, since Person's lifecycle
+  status is not sourced from Foundation's unified `STATUS` category at all — they simply now
+  resolve to class names defined in the shared file instead of a page-local one.
 
 **Root component:**
 ```html
@@ -1460,9 +1471,10 @@ route, conditional on the file existing on disk.
   `integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR"`
   hash, same Alpine.js 3.14.8 `<script defer>` with the identical
   `integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb"`
-  hash, same local `/assets/css/style.css` link, and the same trailing `.badge-status-*`
-  `<style>` block described in §2.1. Only the `<title>` differs
-  ("— Foundation Verification").
+  hash, same local `/assets/css/style.css` link, and — as of the Tier 4 shared-config
+  extraction (see §2.1) — the same `/assets/css/badges.css` + `/assets/js/nss-config.js`
+  `<head>` includes (§2.14–§2.15) in place of the old per-page `.badge-status-*` `<style>`
+  block. Only the `<title>` differs ("— Foundation Verification").
 
 **Root component and header (lines 20–35):**
 ```html
@@ -2272,6 +2284,13 @@ journey timeline. Two tabs: Members (list + detail) and Search (trigram + prefix
 **Layout:** Same responsive grid pattern as `person.html` — `xl:grid-cols-3` with
 list/results taking 2 columns, detail panel taking 1.
 
+**`<head>` note:** loads `/assets/css/badges.css` and `/assets/js/nss-config.js` (shared
+across all six tier pages — see §2.14–§2.15) in place of the page-local `.badge-status-*`/
+`.badge-type-*`/`.badge-aff-*` `<style>` block described in earlier revisions of this
+document; `typeDisplayName()`/`typeBadgeClass()`/`statusBadgeClass()`/`affBadgeClass()`/
+`docBadgeClass()` in `membership.js` (§2.11) now delegate to `NSS.*` helpers instead of
+hardcoding their own class maps.
+
 **Three-Tier Identity Legend:** A compact card between the system status and tabs
 displays the three identity tiers with examples (SS1, ESS1192, 345/2026/2027).
 
@@ -2337,259 +2356,664 @@ global factory function `membershipApp()`. Consumes 7 membership API endpoints.
 
 ## 2.12 `frontend/family.html`
 
-**Requirement.** The Tier 4 "Family Verification UI" — visual proof that the 4 read-only
+**Requirement.** The Tier 4 "Family Verification UI" — visual proof that the now-7 read-only
 `/api/v1/family/*` endpoints correctly expose `family_group`, `family_relationship`, and
-`family_head_history` joined against Foundation's `master_data` (unified `STATUS` category and
-`RELATIONSHIP_TYPE` category) and Organization/Person. Structurally parallel to `person.html`:
-same head boilerplate, same System Status card reusing the Tier 0 health endpoint, same
-mobile-first padding scale (`px-3 sm:px-6`, etc.). Unlike Foundation/Organization/Person, it has
-**no tab bar at all** — a single-screen master-detail layout is sufficient because Family's
-surface area (families list + one family's detail) is small enough to fit without tabs. Served
-by FastAPI's `GET /family` route, conditional on the file existing on disk.
+`family_head_history` (joined against Foundation's `master_data` and Organization/Person), plus
+three newer endpoints layered on top: `/graph` (dynamic per-viewer relationship computation),
+`/sakha-alignment` (FAM-036 majority-rule effective Sakha), and `/person/{pk}/membership-summary`
+(family-to-membership bridge). Structurally still parallel to `person.html` in its head
+boilerplate and mobile-first padding scale, but the body has been rebuilt from the original
+two-column list+detail grid into a **3-panel layout** (left sidebar / center tree / right detail)
+plus a second top-level view mode. Served by FastAPI's `GET /family` route, conditional on the
+file existing on disk.
 
 **Section-by-section walkthrough:**
 
 **`<head>`:** Same CDN dependency block as the other tier pages (Tailwind Play CDN, DaisyUI
-4.12.14 with SRI, Alpine.js 3.14.8 with SRI, local `style.css`), only the `<title>` differs
-("— Family Verification"). The page-local style block defines just two `.badge-status-*`
-classes — `active`/`inactive` — the smallest set of any tier page, since a family's lifecycle
-(resolved from Foundation's unified `STATUS` category rather than Person's derived
-`is_active`/`date_of_death` pair) only ever needs the two.
+4.12.14 with SRI, Alpine.js 3.14.8 with SRI, local `style.css`), plus `/assets/css/badges.css` and
+`/assets/js/nss-config.js` (see §2.14–§2.15) — the old two-class page-local
+`.badge-status-active`/`.badge-status-inactive` block has been fully replaced by shared classes.
+The page-local `<style>` block is now much larger than before: alongside CSS custom properties for
+text colors (`--nss-text-primary`/`-secondary`/`-muted`/`-accent`) and the tree's connector color
+(`--conn-color`), it defines every class the new center-panel tree and right-panel detail card
+need — `.tree-canvas`/`.tree-container`/`.tree-node`/`.node-avatar`/`.node-name`/`.node-role`
+(the tree infographic), `.conn-v`/`.conn-h`/`.bracket-wrap`/`.bracket-row`/`.couple-group`/
+`.couple-join-line` (the connector-line geometry), `.av-viewer`/`.av-spouse`/`.av-parent`/
+`.av-grandparent`/`.av-child`/`.av-grandchild`/`.av-sibling`/`.av-other` (per-generation avatar
+gradients), `.node-indicator`/`.indicator-viewer`/`.indicator-head` (the eye/star corner badges),
+`.gen-divider`/`.gen-divider-line`/`.gen-divider-text` (generation-band labels), and
+`.detail-card`/`.detail-section`/`.detail-label`/`.spouse-card` (right-panel Selected Person
+layout). `NSS.genderBadgeClass()`/`NSS.typeBadgeClass()`/`NSS.statusBadgeClass()`/
+`NSS.showAnumatiPatra()` from `nss-config.js` are used inside the Selected Person panel's
+membership snapshot, alongside the shared `.data-label`/`.data-sevi-id`/`.data-erp-no`/
+`.data-kendra-no`/`.data-sakha-name`/`.data-family-id`/`.badge-role-viewer`/`.badge-role-head`/
+`.badge-marital` classes from `badges.css`.
 
 **Root component and header:** `<div x-data="familyApp()" x-init="init()" ...>` calls
-`familyApp()` (§2.13). The nav bar is the first to carry **six** links — Bootstrap, Foundation,
-Organization, Person, Family, Membership — with Family styled `btn-active`:
+`familyApp()` (§2.13). The nav bar still carries the same six links — Bootstrap, Foundation,
+Organization, Person, Family, Membership — with Family styled `btn-active`, unchanged from the
+prior version of this page.
+
+**System Status:** Same connected/checking/unavailable `x-if` triad as every other tier page,
+bound to `familyApp().health`, now rendered as a small pill rather than a full status card.
+
+**Main content — 3-panel grid** (`grid-cols-1 lg:grid-cols-[220px_1fr] xl:grid-cols-[220px_1fr_360px]`
+— sidebar / tree / detail, the detail panel collapsing off-screen below `xl`):
+
+**LEFT — Navigation & Family List panel.** New in this revision: a **view-mode toggle** (`My
+Family` / `Org View`) drives `viewMode`, switched via `switchViewMode('member'|'admin')` (§2.13).
+In `admin` mode the panel shows an org-hierarchy breadcrumb (`orgBreadcrumb`, navigated via
+`breadcrumbNav(i)`) and a drill-down list of child organizations (`orgChildren`, entered via
+`drillIntoOrg(org)`) sourced from `/api/v1/organization/organizations/{pk}/children` plus
+per-child family/member/person counts from `/api/v1/organization/organizations/{pk}/children-stats`
+(rendered via `getOrgStats(orgPk)`); drilling into a `SAKHA_SANGHA`-type org switches to a
+sakha-filtered family list (`fetchFamilies(sakhaCode)`) instead of drilling further. This
+Kendra→Anchalika/Zilla→Sakha→Families navigation path is a genuinely separate feature from the
+three items below and is only summarized here — it consumes Organization's `/children` and
+`/children-stats` endpoints, not any of the three new Family endpoints this pass is documenting.
+In `member` mode (the default-equivalent path used by every test in this file) the panel simply
+lists families as before, each row now a card (`.family-item`) rather than a table row, still
+calling `selectFamily(f)` on click.
+
+**CENTER — Family Tree panel (new).** Replaces the old "select a family to see detail" text with
+an always-visible tree canvas once a family is selected. Immediately below the panel header, a
+**"View as" selector** lets the user pick any current family member as the traversal viewer:
 
 ```html
-<nav class="flex gap-2 flex-wrap">
-    <a href="/" class="btn btn-sm btn-ghost">Bootstrap</a>
-    <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
-    <a href="/organization" class="btn btn-sm btn-ghost">Organization</a>
-    <a href="/person" class="btn btn-sm btn-ghost">Person</a>
-    <a href="/family" class="btn btn-sm btn-active">Family</a>
-    <a href="/membership" class="btn btn-sm btn-ghost">Membership</a>
-</nav>
+<select class="select select-xs select-bordered flex-1 bg-white"
+        :value="viewerPersonPk"
+        @change="changeViewer($event.target.value)">
+    <template x-for="m in familyMembers" :key="m.person_pk">
+        <option :value="m.person_pk"
+                :selected="m.person_pk === viewerPersonPk"
+                x-text="formatName(m) + (m.is_head ? ' ★ HEAD' : '')">
+        </option>
+    </template>
+</select>
 ```
 
-`flex-wrap` is added here (absent from earlier pages' nav bars) because six links no longer
-reliably fit on one row at narrow viewport widths — same plain-anchor-tag, each-page-hardcodes-
-its-own-`btn-active` pattern as every earlier page.
+Changing the selector calls `changeViewer(personPk)` (§2.13), which re-fetches
+`GET /api/v1/family/families/{pk}/graph?viewer_person_pk=...` and rebuilds the tree — this is the
+UI's direct exercise of the new `/graph` endpoint's whole reason for existing: relabeling every
+member relative to whoever is picked, with zero server-side data re-entry. Below the selector, one
+of four mutually exclusive states renders: the pre-selection empty state, a loading spinner
+(`detailLoading`), a `graphError` message ("Failed to compute family graph"), or the tree itself —
+`<div class="tree-container" @click="handleTreeClick($event)" x-html="renderTree()"></div>`. The
+tree is rendered via `x-html` from a string built entirely in JS (`renderTree()`/
+`_renderSubtree()`/`_renderCouple()`/`_renderPerson()`, §2.13) rather than native Alpine
+`x-for`/`x-if` directives — the only place in the whole frontend that builds markup as a string
+instead of declaratively, because the tree's shape (arbitrary depth, sibling brackets, couple
+grouping) isn't expressible as a fixed template. Clicks are handled by a single delegated listener
+(`handleTreeClick`) on the container rather than one handler per rendered node, since the nodes
+themselves are raw HTML strings with no Alpine bindings. Each person renders as a `.tree-node` with
+a colored `.node-avatar` (color keyed to generation via `avatarClass()`), two-letter initials, a
+viewer/head corner indicator (👁 / ★), a name, and the computed `relationship_label`. Couples
+(spouse pairs) render inside a shared `.couple-group` box joined by `.couple-join-line`; sibling
+couples at the same generation render inside a `.bracket-row` with a horizontal `.conn-h` bar and
+per-item `::before` drop connectors; each generation band is preceded by a `.gen-divider` label
+(`Parents`/`Self & Siblings`/`Children`/etc., from the `GEN_LABELS` map, falling back to
+"Ancestors (N)"/"Descendants (N)" for anything beyond ±3 generations).
 
-**System Status card:** Identical `x-if` triad to every other tier page, bound to
-`familyApp().health`.
+**RIGHT — Detail panel.** Three top-level sections, all still gated on `selectedFamily`:
 
-**Main content — two-column grid (`grid-cols-1 xl:grid-cols-3`):**
+- **Family Info** — the same Identity fields as before (ID, Status, Name, Sakha, Formed date),
+  now styled with the shared `.data-label`/`.data-family-id`/`.data-sakha-name` classes instead of
+  inline `text-base-content/50` utility classes.
+- **Selected Person** (new) — appears only `x-if="selectedPerson"`, populated by clicking any tree
+  node (via `handleTreeClick`) or any row in the Members list below. Header: avatar + name +
+  `person_id` + a badge row (`YOU`/`HEAD`/`Active`/`Inactive`, the first two via the shared
+  `.badge-role-viewer`/`.badge-role-head` classes), then a relationship pill showing
+  `displayRelationship(selectedPerson)`. Below that, once `GET /api/v1/person/persons/{pk}` and
+  `GET /api/v1/family/person/{pk}/membership-summary` both resolve (fired in parallel by
+  `selectPerson()`, §2.13):
+  - Person fields (DOB, gender badge via `NSS.genderBadgeClass()`, marital-status badge via the
+    shared `.badge-marital` class, blood group, mobile, email, masked Aadhaar last-4) — the same
+    fields `person.html`'s detail panel shows, now reused here rather than duplicated markup.
+  - A clickable **Spouse mini-card** (`.spouse-card`), shown only if `getSpouseName()` resolves one
+    from the graph — clicking it calls `selectSpouse()` to jump the panel to the spouse.
+  - A **Sangha Membership** block — this is the UI's direct consumption of
+    `/person/{pk}/membership-summary`: Sangha Sevi ID (`.data-sevi-id`), membership type/status
+    badges (`NSS.typeBadgeClass()`/`NSS.statusBadgeClass()`), the person's current Sakha
+    (`.data-sakha-name`) with an amber "⚠ Different" badge when
+    `isMemberSakhaMismatch(selectedPerson.person_pk)` is true (cross-referencing the
+    `/sakha-alignment` response — see below), and the local Sakha Sangha ERP ID
+    (`.data-erp-no`). Falls back to "No record found" when `membership_summary.sangha_sevi_id` is
+    empty (the endpoint's own no-membership shape).
+  - **Parichaya Patra** (`.data-kendra-no`) and, gated on `NSS.showAnumatiPatra(membership_type_code)`
+    (MBR-019A/B — Associate members are excluded), **Anumati Patra** blocks, each with a
+    status badge and a "Valid to" date when present.
+  - An Emergency Contact block when the person detail carries one.
+  - If the person-detail fetch is still pending or the person has no graph/membership data yet, a
+    fallback shows just `effective_from`/`is_current` from the raw member row.
+- **Members** — now a compact clickable list (`selectPerson(m)` per row) rather than a table, each
+  row showing the member's name, `YOU`/`HEAD` badges, an amber Sakha-mismatch warning icon (again
+  via `isMemberSakhaMismatch()`), and a relationship label resolved with a graph-first fallback
+  chain (`graphMembers.find(...)?.relationship_label || displayRelationship(m)`).
+- **Head History** — the same bordered-card-per-row presentation as before (`Now` badge when
+  `effective_to` is falsy), just restyled to match the new panel's flat-list look.
 
-*Families list (left, `xl:col-span-2`):* Standard loading/error/empty/data `x-if` quadruple, then
-a table with five columns (Family ID, Family Name, Sakha, Formed Date, Status):
-
-```html
-<tr class="cursor-pointer hover"
-    :class="{ 'bg-base-200': selectedFamily?.family_group_pk === f.family_group_pk }"
-    @click="selectFamily(f)">
-    <td class="font-mono text-xs whitespace-nowrap" x-text="f.family_id"></td>
-    <td class="text-xs font-medium" x-text="f.family_name"></td>
-    <td class="text-xs whitespace-nowrap">
-        <span x-text="f.sakha_name"></span>
-        <span class="text-base-content/40 font-mono ml-1" x-text="f.sakha_code ? '(' + f.sakha_code + ')' : ''"></span>
-    </td>
-    <td class="text-xs whitespace-nowrap" x-text="f.formed_date || '—'"></td>
-    <td class="whitespace-nowrap">
-        <span class="badge badge-xs whitespace-nowrap"
-              :class="f.is_active ? 'badge-status-active' : 'badge-status-inactive'"
-              x-text="f.status_name"></span>
-    </td>
-</tr>
-```
-
-The same clickable-row/highlight-on-select pattern as every prior tier's list table, calling
-`selectFamily(f)` (§2.13). The Sakha cell concatenates the resolved `sakha_name` with its
-`sakha_code` in parentheses (e.g. "Ekamra Sakha (SKH1)") rather than showing either alone — a
-display convention unique to this page, since no earlier tier's list table shows both a name and
-a code for the same joined entity in one cell.
-
-*Family Detail (right):* Three mutually exclusive states — a "select a family" prompt
-(`!selectedFamily && !detailLoading`), a spinner (`detailLoading`), and the populated body
-(`selectedFamily && !detailLoading`). The populated body has no wrapping `detailError` state at
-all (unlike `person.html`'s detail panel) — `selectFamily()` (§2.13) treats member/head-history
-fetch failures as non-fatal so the family's own fields still render.
-
-The populated body is Identity (Family ID, Status badge, Name, Sakha, Formed date), a
-conditional Remarks line, then two always-fetched sub-sections:
-
-- **Members** — a `table-xs` with four columns (Person ID, Name, Relationship, Since):
-```html
-<tr>
-    <td class="font-mono text-xs" x-text="m.person_id"></td>
-    <td class="text-xs" x-text="formatMemberName(m)"></td>
-    <td class="text-xs">
-        <span class="badge badge-xs badge-primary" x-text="m.relationship_type_name"></span>
-    </td>
-    <td class="text-xs" x-text="m.effective_from"></td>
-</tr>
-```
-  populated from `GET /api/v1/family/families/{pk}/members` — always the family's **current**
-  roster only (the API itself filters `is_current = TRUE`; this page does no additional
-  client-side filtering).
-- **Head History** — rendered as a list of bordered cards rather than a table (the only
-  history-style presentation in the Family UI, since a family typically has few head-history
-  rows):
-```html
-<div class="border border-base-300 rounded-lg p-2 text-xs">
-    <div class="flex items-center gap-2">
-        <span class="font-semibold" x-text="formatMemberName(h)"></span>
-        <span class="font-mono text-base-content/40" x-text="h.person_id"></span>
-        <template x-if="!h.effective_to">
-            <span class="badge badge-xs badge-status-active">Current</span>
-        </template>
-    </div>
-    <div class="text-base-content/60 mt-0.5">
-        <span x-text="h.effective_from"></span>
-        <span x-text="h.effective_to ? ' — ' + h.effective_to : ' — present'"></span>
-    </div>
-</div>
-```
-  A "Current" badge appears only when `h.effective_to` is falsy — the same derive-current-from-
-  a-null-date convention documented in `API_CODE_EXPLANATIONS.md` §2.13 for the head-history
-  endpoint itself, now mirrored client-side rather than relying on any `is_current` field (this
-  response shape has none).
-
-**Footer and script include:** Same copyright footer as every other page. Loads
-`<script src="/assets/js/family.js"></script>` at the bottom.
+**Footer and script include:** Same copyright footer, cache-busted script tag
+(`<script src="/assets/js/family.js?v=23"></script>`) — the `?v=23` query string is a manual
+cache-buster incremented as the file has grown across revisions, not present on any other tier
+page's script tag.
 
 ---
 
 ## 2.13 `frontend/assets/js/family.js`
 
-**Requirement.** The client-side state/behaviour layer for `family.html`, mirroring the role
-`person.js` plays for `person.html` but scoped to Family's 4 read-only endpoints and with no tab
-state at all (there is only one "screen"). Defines one global factory function `familyApp()`.
+**Requirement.** The client-side state/behaviour layer for `family.html`. Originally mirrored
+`person.js`'s role scoped to Family's 4 original read-only endpoints with no tab state; now much
+larger (~740 lines added), adding: dynamic-relationship graph fetching + a recursive tree builder,
+a Sakha-alignment mismatch lookup, a Selected-Person detail fetch (bridging into Person and the
+new membership-summary endpoint), and a separate org-hierarchy browsing mode. Still one global
+factory function, `familyApp()`.
 
-**Line-by-line:**
-
-```js
-const FAMILY_API = "/api/v1/family";
-```
-
-Same relative-path, no-hardcoded-hostname convention as every earlier tier's `*_API` constant.
+**State — new groups added on top of the original four (families/detail/members/headHistory,
+unchanged from before):**
 
 ```js
-families: [],
-familiesLoading: true,
-familiesError: false,
+viewMode: "admin",
+orgBreadcrumb: [], orgChildren: [], orgChildrenLoading: false,
+orgChildrenStats: {}, selectedSakhaCode: null,
 
-selectedFamily: null,
-detailLoading: false,
+viewerPersonPk: null, graphMembers: [], graphLoading: false, graphError: false,
 
-familyMembers: [],
-membersLoading: false,
+selectedPerson: null, selectedPersonDetail: null, selectedPersonLoading: false,
+selectedPersonMembership: null, selectedPersonMembershipLoading: false,
 
-headHistory: [],
-headLoading: false,
+sakhaAlignment: null, sakhaAlignmentLoading: false,
+
+treeHead: null, treeSpouse: null, treeNodes: [], _allTreePersons: [],
 ```
 
-State groups: the families list (with its own loading/error flags), the currently selected
-family plus a single `detailLoading` flag, and two independent sub-resource collections
-(`familyMembers`, `headHistory`) each with their own loading flag but — notably — **no error
-flag of their own**. This is a deliberate simplification versus `person.js`'s addresses fetch:
-member/head-history failures are swallowed silently (see `selectFamily()` below) rather than
-surfaced as a distinct error state, since the family's own core fields are still useful without
-them.
+Five new state groups: org-hierarchy navigation (admin view — out of scope for this pass, see
+`ORGANIZATION_API_CONTRACT.md`), the graph/viewer state, the selected-person detail state, the
+Sakha-alignment state, and the rebuilt-tree state. Notably `viewMode` defaults to `"admin"`, not
+`"member"` — the org-drill-down view is the page's landing state, not the direct family view.
 
 ```js
 async init() {
     await this.fetchHealth();
-    await this.fetchFamilies();
-},
-```
-
-Sequential, not parallel (`Promise.all`) — a minor departure from `person.js`'s `init()`, which
-fires its health check and its first data fetch in parallel. Functionally equivalent for a
-single-page (no-tabs) UI where there's nothing else to render while health is still loading.
-
-```js
-async fetchFamilies() {
-    this.familiesLoading = true;
-    this.familiesError = false;
-    try {
-        const res = await fetch(`${FAMILY_API}/families`);
-        if (!res.ok) throw new Error(res.statusText);
-        this.families = await res.json();
-    } catch {
-        this.familiesError = true;
-    } finally {
-        this.familiesLoading = false;
+    if (this.viewMode === "admin") {
+        await this.fetchOrgRoot();
+    } else {
+        await this.fetchFamilies();
     }
 },
 ```
 
-The same loading=true/error=false → try/fetch/check `res.ok`/parse JSON → catch sets error flag
-only → finally clears loading pattern used by every `fetch*` method across every tier's JS file.
-Called with no query parameters — `family.html` has no filter UI, so the full (paginated-by-
-default, `DEFAULT_LIMIT=100`) family list is always requested as-is.
+`init()` now branches on `viewMode` — since it defaults to `"admin"`, a fresh page load fetches
+the Kendra root org and its children (`fetchOrgRoot()`) rather than the flat family list.
+
+**`selectFamily()` — extended, not replaced:**
 
 ```js
 async selectFamily(family) {
-    if (this.selectedFamily?.family_group_pk === family.family_group_pk) {
-        this.selectedFamily = null;
-        this.familyMembers = [];
-        this.headHistory = [];
-        return;
-    }
-
-    this.detailLoading = true;
-    this.selectedFamily = family;
-    this.familyMembers = [];
-    this.headHistory = [];
-
+    ...
     try {
         const [membersRes, headRes] = await Promise.all([
             fetch(`${FAMILY_API}/families/${family.family_group_pk}/members`),
             fetch(`${FAMILY_API}/families/${family.family_group_pk}/head-history`),
         ]);
 
-        if (membersRes.ok) {
-            this.familyMembers = await membersRes.json();
+        // Sakha alignment — fire-and-forget (non-blocking)
+        this.fetchSakhaAlignment(family.family_group_pk);
+
+        if (membersRes.ok) this.familyMembers = await membersRes.json();
+        if (headRes.ok) this.headHistory = await headRes.json();
+
+        // Auto-select the HEAD as default viewer
+        const head = this.familyMembers.find(m => m.is_head);
+        if (head) {
+            this.viewerPersonPk = head.person_pk;
+            await this.fetchGraph();
+        } else if (this.familyMembers.length > 0) {
+            this.viewerPersonPk = this.familyMembers[0].person_pk;
+            await this.fetchGraph();
         }
-        if (headRes.ok) {
-            this.headHistory = await headRes.json();
-        }
-    } catch {
-        // Non-fatal — family detail still shows
-    } finally {
-        this.detailLoading = false;
-    }
+    } catch { /* Non-fatal */ } finally { this.detailLoading = false; }
 },
 ```
 
-Toggle-deselect on re-click of the same row, same as `selectOrganization()`/`selectPerson()` in
-every earlier tier's JS. On a genuine new selection, `selectedFamily` is set **directly from the
-row object already in memory** — unlike `person.js`'s `selectPerson()`, which issues a separate
-`GET /persons/{pk}` detail fetch, `family.html` never re-fetches the family's own core fields; the
-list row's data (already carrying every `FamilyGroupResponse` field via the JOIN-resolved list
-endpoint) is reused as the detail view's data source. Only the two sub-resources — members and
-head history — are fetched, via `Promise.all` in parallel. The `try`/`catch` here explicitly
-comments its own leniency: a fetch failure is swallowed (`// Non-fatal — family detail still
-shows`) rather than setting any error flag, so a transient member/head-history fetch failure
-never blocks the user from seeing the family's own identity fields.
+Same toggle-deselect-on-re-click / members+head-history-in-parallel / swallow-fetch-errors
+structure as the original version (see prior revisions of this section for that base
+behaviour — unchanged), plus two new side effects on a genuine selection: `fetchSakhaAlignment()`
+is fired without being awaited (a deliberate "fire-and-forget" — alignment is informational and
+must not block the members/head-history render), and the family's current **head** (or, absent a
+head, its first member) is auto-picked as the default graph viewer, immediately triggering
+`fetchGraph()`.
 
 ```js
-formatMemberName(m) {
-    return [m.first_name, m.middle_name, m.last_name]
-        .filter(Boolean)
-        .join(" ");
+async fetchGraph() {
+    if (!this.selectedFamily || !this.viewerPersonPk) return;
+    this.graphLoading = true;
+    this.graphError = false;
+    try {
+        const url = `${FAMILY_API}/families/${this.selectedFamily.family_group_pk}/graph?viewer_person_pk=${this.viewerPersonPk}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(res.statusText);
+        this.graphMembers = await res.json();
+        this.buildTree();
+    } catch {
+        this.graphError = true;
+    } finally {
+        this.graphLoading = false;
+    }
+},
+
+async changeViewer(personPk) {
+    this.viewerPersonPk = personPk;
+    this.selectedPerson = null;
+    this.selectedPersonDetail = null;
+    this.selectedPersonMembership = null;
+    await this.fetchGraph();
 },
 ```
 
-Identical implementation to `person.js`'s `formatName()` (and `membership.js`'s `formatName()`)
-— joins first/middle/last name parts, dropping any that are falsy (`null`/`undefined`/empty
-string) before joining with a space. Used for both member rows and head-history cards, since both
-response shapes (`FamilyMemberResponse`, `FamilyHeadHistoryResponse`) carry the same three
-name fields.
+`fetchGraph()` is the UI's direct call into the new `GET /families/{pk}/graph?viewer_person_pk=`
+endpoint — standard loading/error try-fetch-catch-finally shape, but on success it immediately
+calls `buildTree()` (below) rather than just storing the raw response, since the raw
+`FamilyGraphMemberResponse[]` list has no parent/child nesting of its own. `changeViewer()` is the
+"View as" `<select>`'s `@change` handler (§2.12) — clearing any previously selected person (their
+relationship label would be stale relative to the new viewer) before re-fetching.
+
+```js
+buildTree() {
+    const members = this.graphMembers;
+    ...
+    // 1. Synthesize the viewer node (not in graph response)
+    // 2. Infer viewer's parent PKs from graph labels (Father/Mother/Step-Father/Step-Mother)
+    // 3. Combine viewer + graph members into allPersons
+    // 4. Group into couples via spouse_person_pk (falls back to a reverse scan
+    //    when the API's spouse_person_pk points the "wrong" direction)
+    // 5. Build a parent-couple → [child couples] map via parent_person_pks
+    // 6. Couples with no parent couple found become rootCouples
+    // 7. attach(node) recursively assigns each couple's children array
+    this.treeNodes = rootCouples;
+},
+```
+
+The most substantial new method. The `/graph` endpoint's response never includes the viewer
+themself (the whole point of the endpoint is to compute labels *relative to* the viewer, so the
+viewer has no label relative to themself) — `buildTree()` first synthesizes a `treeHead` node for
+the viewer (label hardcoded to `"You (Viewer)"`), inferring their parent PKs by scanning the graph
+response for anyone labeled Father/Mother/Step-Father/Step-Mother (there is no `parent_person_pks`
+field for the viewer since they're not a row in the response). It then groups every person (viewer
+included) into couples by matching `spouse_person_pk` pairs, and links couples into a tree by
+matching each couple's `parent_person_pks` against a `person_pk → couple` map built during the
+grouping pass — a couple with no resolvable parent couple becomes a tree root (this correctly
+places a "married-in" spouse, who has no `parent_person_pks` of their own, under their spouse's
+parents rather than as an orphan root). `attach()` is a local recursive closure, not a method on
+`this`, since it only needs the `childCouplesOf` map from its enclosing closure.
+
+```js
+renderTree() {
+    if (!this.treeNodes?.length) return "";
+    return this._renderSubtree(this.treeNodes, true);
+},
+_renderSubtree(nodes, isRoot) { ... },
+_renderCouple(node) { ... },
+_renderPerson(m) { ... },
+_esc(s) {
+    if (!s) return "";
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+},
+handleTreeClick(event) {
+    const el = event.target.closest("[data-person-pk]");
+    if (!el) return;
+    const pk = el.dataset.personPk;
+    const member = this._allTreePersons?.find(m => m.person_pk === pk);
+    if (member) this.selectPerson(member);
+},
+```
+
+`renderTree()`/`_renderSubtree()`/`_renderCouple()`/`_renderPerson()` recursively build the tree's
+HTML as a plain string, consumed by `family.html`'s `x-html="renderTree()"` (§2.12) — the one place
+in the frontend that hand-assembles markup rather than using Alpine directives, because a tree of
+arbitrary, data-driven depth isn't expressible as a fixed `x-for` template.
+`_renderSubtree()` recurses per generation band (emitting a `.gen-divider` label first, then either
+a single `.gen-row` or a bracketed `.bracket-row` for multiple sibling couples, then recursing into
+each node's `.children`); `_renderCouple()` wraps two `_renderPerson()` calls in a `.couple-group`
+when the node has a spouse, otherwise renders the single person directly; `_renderPerson()` emits
+one `.tree-node data-person-pk="..."` div per person, with `_esc()` HTML-escaping every
+user-supplied string (name, relationship label) before interpolation — the only manual XSS
+escaping anywhere in the frontend, required specifically because this content bypasses Alpine's
+normally-auto-escaping `x-text` bindings. `handleTreeClick()` is the single delegated listener
+bound once on the tree container (§2.12): it walks up from the click target to the nearest
+`[data-person-pk]` ancestor, looks the PK up in the flat `_allTreePersons` array (built in
+`buildTree()`), and forwards to `selectPerson()`.
+
+```js
+async fetchSakhaAlignment(familyGroupPk) {
+    this.sakhaAlignmentLoading = true;
+    try {
+        const res = await fetch(`${FAMILY_API}/families/${familyGroupPk}/sakha-alignment`);
+        if (res.ok) this.sakhaAlignment = await res.json();
+    } catch {
+        // Non-fatal — alignment is informational
+    } finally {
+        this.sakhaAlignmentLoading = false;
+    }
+},
+
+isMemberSakhaMismatch(personPk) {
+    if (!this.sakhaAlignment?.members) return false;
+    const m = this.sakhaAlignment.members.find(x => x.person_pk === personPk);
+    return m?.has_membership && m?.is_home_sakha === false;
+},
+
+getMemberSakhaName(personPk) {
+    if (!this.sakhaAlignment?.members) return null;
+    const m = this.sakhaAlignment.members.find(x => x.person_pk === personPk);
+    return m?.affiliated_sakha_name || null;
+},
+```
+
+The UI's entire consumption of the new `/sakha-alignment` endpoint: `fetchSakhaAlignment()` (fired
+non-blocking from `selectFamily()`, above) stores the full `FamilySakhaAlignmentResponse`, and
+`isMemberSakhaMismatch()`/`getMemberSakhaName()` are pure lookup helpers over its `members[]`
+array, called from both the Members list and the Selected Person panel (§2.12) to render the amber
+"⚠ Different" warning. `isMemberSakhaMismatch()` deliberately checks `has_membership` first —
+a member with no active `sangha_sevi` affiliation at all has `is_home_sakha: null`, which must
+read as "not a mismatch" (no data to be mismatched), not as a false "aligned".
+
+```js
+async selectPerson(member) {
+    if (this.selectedPerson?.person_pk === member.person_pk) {
+        this.selectedPerson = null; // toggle off
+        this.selectedPersonDetail = null;
+        this.selectedPersonMembership = null;
+        return;
+    }
+    this.selectedPerson = member;
+    this.selectedPersonDetail = null;
+    this.selectedPersonLoading = true;
+    this.selectedPersonMembership = null;
+    this.selectedPersonMembershipLoading = true;
+
+    const personFetch = fetch(`/api/v1/person/persons/${member.person_pk}`)
+        .then(r => r.ok ? r.json() : null).catch(() => null);
+    const membershipFetch = fetch(`${FAMILY_API}/person/${member.person_pk}/membership-summary`)
+        .then(r => r.ok ? r.json() : null).catch(() => null);
+
+    const [personData, membershipData] = await Promise.all([personFetch, membershipFetch]);
+    this.selectedPersonDetail = personData;
+    this.selectedPersonLoading = false;
+    this.selectedPersonMembership = membershipData;
+    this.selectedPersonMembershipLoading = false;
+},
+```
+
+The Selected Person panel's data loader — toggle-deselect on re-click of the same person (same
+pattern as `selectFamily()`), then two independent fetches issued in parallel via `Promise.all`:
+`GET /api/v1/person/persons/{pk}` (an existing Tier 3 endpoint, reused here rather than
+duplicated) and `GET /api/v1/family/person/{pk}/membership-summary` (the third new endpoint this
+pass documents). Both fetches use an inline `.then(r => r.ok ? r.json() : null).catch(() => null)`
+chain instead of the file's usual try/catch-around-await style — a non-fatal-by-construction
+shape where either request failing simply leaves its half of the panel showing "no data" rather
+than blocking the other half or the person's own header fields.
+
+**Helpers — new/changed:**
+
+```js
+formatName(m) {
+    return [m.first_name, m.middle_name, m.last_name].filter(Boolean).join(" ");
+},
+```
+
+Renamed from the original `formatMemberName()` to `formatName()` (matching `person.js`'s
+convention) — same first/middle/last, drop-falsy, join-with-space implementation as before.
+
+```js
+displayRelationship(m) {
+    if (m._isViewer) return "You (Viewer)";
+    if (m.relationship_label) return m.relationship_label;
+    if (m.person_pk === this.viewerPersonPk) return "You (Viewer)";
+    const graphMember = this.graphMembers.find(g => g.person_pk === m.person_pk);
+    if (graphMember?.relationship_label) return graphMember.relationship_label;
+    if (m.is_head) return "Head of Family";
+    return m.relationship_type_name || m.relationship_type_code || "—";
+},
+```
+
+A five-way fallback chain, needed because the same person can be displayed from three different
+data sources with different shapes (a raw tree node already carrying `relationship_label`, a
+`familyMembers` row that only has the old static `relationship_type_name`/`_code`, or the viewer
+who has neither) — it prefers the dynamic graph-computed label wherever available and only falls
+back to the static `RELATIONSHIP_TYPE` master-data name as a last resort.
+
+`getInitials()`, `getAvatarClass()`, `getViewerName()`, `getSpouseName()`, `getSpousePersonPk()`,
+`getSpouseInitials()`, and `selectSpouse()` are small, single-purpose lookup/formatting helpers
+supporting the tree and Selected Person panel — respectively: two-letter initials for an avatar
+circle; resolving a `._avatarClass` (falling back to a graph lookup, then `"av-other"`); the
+current viewer's display name; a person's spouse's name/PK/initials (checked first via the graph
+response, then via the synthesized `treeSpouse` for the viewer themself); and jumping the Selected
+Person panel to a person's spouse when their mini-card is clicked.
+
+```js
+_resetDetail() {
+    this.familyMembers = []; this.headHistory = [];
+    this.graphMembers = []; this.viewerPersonPk = null;
+    this.selectedPerson = null; this.selectedPersonDetail = null;
+    this.selectedPersonLoading = false;
+    this.selectedPersonMembership = null; this.selectedPersonMembershipLoading = false;
+    this.sakhaAlignment = null; this.sakhaAlignmentLoading = false;
+    this.graphError = false;
+    this.treeHead = null; this.treeSpouse = null;
+    this.treeNodes = []; this._allTreePersons = [];
+},
+```
+
+A new centralizing reset helper — every place that used to hand-clear `familyMembers`/
+`headHistory` inline (toggle-deselect in `selectFamily()`, switching families, switching view
+mode) now calls this one method, so the much larger set of graph/person/alignment/tree state
+introduced in this revision can't be forgotten in any one of those call sites.
+
+**Org-hierarchy navigation** (`fetchOrgRoot()`, `fetchOrgChildren()`, `getOrgStats()`,
+`drillIntoOrg()`, `breadcrumbNav()`, `switchViewMode()`) is a separate feature added alongside the
+three Family endpoints above — it consumes Organization's `/organizations?type_code=`,
+`/organizations/{pk}/children`, and `/organizations/{pk}/children-stats` endpoints, not any new
+Family endpoint, and is out of scope for this pass; see `ORGANIZATION_API_CONTRACT.md` for that
+endpoint's contract.
 
 ---
 
-## 3. Cross-references
+## 2.14 `frontend/assets/js/nss-config.js`
+
+**Requirement.** As the tier pages multiplied (six by Tier 4), each page's own JS file had grown
+its own copy of the same three things: a `PROBATIONARY` → "Darshaka" display-name override
+(MBR-007), a `value_code` → CSS-class lookup per badge family (lifecycle status, membership
+type, affiliation status, gender), and the MBR-019A/B rule for which membership types receive an
+Anumati Patra. `membership.js`'s `typeBadgeClass()`/`statusBadgeClass()`/`affBadgeClass()`/
+`docBadgeClass()`/`typeDisplayName()` (§2.11) and `family.js`'s Anumati-Patra visibility check in
+`family.html` (§2.12) were the two clearest duplicate-logic offenders. This file factors all of
+it into one global object, `NSS`, loaded by every one of the six tier pages immediately before
+their own page-specific script, so page JS calls `NSS.typeBadgeClass(code)` etc. instead of
+re-deriving the mapping.
+
+**Full file, 150 lines. Walkthrough:**
+
+```javascript
+const NSS = {
+    TYPE_DISPLAY_NAMES: {
+        PROBATIONARY: "Darshaka",
+    },
+```
+- A single global `const NSS = { ... }` object literal — no factory function, no Alpine
+  `x-data` registration; this is plain shared state/logic, not a reactive component. Every
+  property and method below is accessed as `NSS.propertyName`/`NSS.methodName()` from any
+  page's inline `x-text`/`:class` bindings or from its `*.js` file.
+- `TYPE_DISPLAY_NAMES` holds only the one Bye-Law display-name override the codebase currently
+  needs: `PROBATIONARY` → `"Darshaka"`. The design rule (stated in the file's header comment) is
+  that `value_code` is the stable DB key and `master_data.value_name` is the default display
+  name — this map is consulted only as an override, not a full replacement lookup table, so
+  `REGULAR`/`ASSOCIATE`/`HONORARY` are deliberately absent (their DB `value_name` is used as-is).
+
+```javascript
+typeDisplayName(code, dbName) {
+    return this.TYPE_DISPLAY_NAMES[code] || dbName || code;
+},
+```
+- Three-way fallback: the Bye-Law override first, then whatever `value_name` the API already
+  resolved server-side, then the raw `value_code` itself as a last-resort non-blank string (so a
+  brand-new membership type added to the DB before this map is updated still renders *something*
+  readable rather than `undefined`).
+
+```javascript
+STATUS_BADGE_MAP: { ACTIVE: "badge-status-active", /* ...18 entries... */ },
+TYPE_BADGE_MAP: { PROBATIONARY: "badge-type-probationary", /* ...4 entries... */ },
+AFF_BADGE_MAP: { ACTIVE: "badge-aff-active", /* ...3 entries... */ },
+GENDER_BADGE_MAP: { MALE: "badge-gender-male", /* ...3 entries... */ },
+```
+- Four `value_code`/`status`/`affiliation_status` → CSS-class lookup tables, one per badge
+  family. `STATUS_BADGE_MAP`'s 18 entries are the full unified `STATUS` category superset (every
+  status value seen across Organization/Membership/Family, not just the subset any one page
+  currently renders) — every class it maps to is defined in `badges.css` (§2.15).
+
+```javascript
+statusBadgeClass(code) {
+    return this.STATUS_BADGE_MAP[code] || "badge-ghost";
+},
+typeBadgeClass(code) {
+    return this.TYPE_BADGE_MAP[code] || "badge-ghost";
+},
+affBadgeClass(status) {
+    return this.AFF_BADGE_MAP[status] || "badge-ghost";
+},
+genderBadgeClass(code) {
+    return this.GENDER_BADGE_MAP[code] || "badge-ghost";
+},
+```
+- Four near-identical lookup methods, each falling back to DaisyUI's neutral `badge-ghost` class
+  for any code not present in its map — the same "unknown code degrades to a generic grey badge
+  rather than throwing" convention every tier page's inline JS used before extraction (e.g. the
+  pre-extraction `membership.js` versions of these methods, quoted in §2.11's git history, ended
+  every `if`/`else` chain with `return "badge-ghost"`).
+
+```javascript
+showParichayaPatra(typeCode) {
+    return true; // All membership types receive Parichaya Patra
+},
+showAnumatiPatra(typeCode) {
+    return typeCode !== "ASSOCIATE";
+},
+```
+- Document-visibility rules, authority NSS Bye-Law §B, MBR-019A/B. `showParichayaPatra()` always
+  returns `true` (kept as a named method — not just a hardcoded `x-show="true"` in markup — so
+  the rule has one documented, greppable home even though it doesn't currently vary by type).
+  `showAnumatiPatra()` is the one rule that does vary: every membership type except `ASSOCIATE`
+  receives an Anumati Patra. `membership.html` and `family.html` both call
+  `NSS.showAnumatiPatra(selectedMember.membership_type_code)` in an `x-show` directly, replacing
+  each page's previous local `x-show="selectedMember.membership_type_code !== 'ASSOCIATE'"`
+  inline expression — the same boolean, now expressed once instead of copy-pasted per page.
+
+---
+
+## 2.15 `frontend/assets/css/badges.css`
+
+**Requirement.** Companion file to `nss-config.js` (§2.14): every CSS class its lookup maps
+resolve to (`badge-status-*`, `badge-type-*`, `badge-aff-*`, `badge-gender-*`) needs to actually
+exist somewhere, exactly once. Before this file existed, each of the six tier pages defined its
+own inline `<style>` block with its own subset of these classes — `index.html`/`foundation.html`
+had 6 `.badge-status-*` classes, `organization.html` had 13, `person.html` had 3, `family.html`
+had 2, `membership.html` had the full status set plus type/affiliation classes — meaning the same
+`.badge-status-active` rule (green background, white text) was hand-copied into five separate
+`<style>` blocks with no guarantee they'd stay byte-identical. This file is now the single
+definition of every one of those classes, loaded by all six pages, with an explicit
+header-comment rule: "Individual pages MUST NOT define badge-status-*, badge-type-*, or
+badge-aff-* classes in inline `<style>` blocks" anymore. It also introduces a new set of
+`.data-*` typographic classes for the three-tier identity display (Sangha Sevi ID / Sakha Sangha
+ID / Kendra Number) that did not exist as shared classes before.
+
+**Full file, 97 lines. Walkthrough:**
+
+```css
+.badge         { padding: 0.25rem 0.75rem !important; }
+.badge-xs      { padding: 0.125rem 0.4rem !important; height: auto !important; min-height: 1.125rem; font-size: 0.6rem; }
+```
+- The same DaisyUI-padding-override purpose every page's old inline block served (DaisyUI's CDN
+  stylesheet loads after this file and would otherwise win on the base `.badge`/`.badge-xs`
+  rules without `!important`), now defined once. The `badge-xs` values here (`0.125rem 0.4rem`,
+  `font-size: 0.6rem`) are a new, slightly more compact spec than several of the removed
+  per-page overrides (e.g. `index.html`'s old copy used `0.15rem 0.5rem` with no explicit
+  `font-size`) — a minor, intentional visual normalization that comes for free from
+  deduplication.
+
+```css
+.badge-status-active              { background-color: #16a34a !important; color: #fff !important; }  /* green-600  */
+/* ...18 total, through: */
+.badge-status-disciplinary-review { background-color: #be123c !important; color: #fff !important; }  /* rose-700   */
+```
+- 18 lifecycle-status classes — the full unified `STATUS` category superset (Bye-Law authority
+  noted in the section comment: §D(d), §12, §I, §C), covering every status value any page might
+  need to render, not just the subset that page's own status column ever takes. Each class pins
+  a Tailwind 600-level (or, for a few, 700/900-level) hex color with `!important` and white text,
+  matching the exact hex values previously duplicated per-page (e.g. `#16a34a` for `active`,
+  `#dc2626` for `suspended`/`cancelled`) — this file preserves those colors byte-for-byte rather
+  than re-choosing a new palette, so no page's badge color changes as a visible side effect of
+  the refactor.
+
+```css
+.badge-type-probationary  { background-color: #d97706 !important; color: #fff !important; }  /* amber-600   — Darshaka   */
+.badge-type-regular       { background-color: #2563eb !important; color: #fff !important; }  /* blue-600    — Regular    */
+.badge-type-associate     { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600  — Associate  */
+.badge-type-honorary      { background-color: #059669 !important; color: #fff !important; }  /* emerald-600 — Honorary   */
+```
+- The 4 membership-type classes, previously defined only in `membership.html`'s inline block —
+  now available to any page (e.g. `family.html`'s per-person membership snapshot in its detail
+  panel also renders a type badge via `NSS.typeBadgeClass()`).
+
+```css
+.badge-aff-active         { background-color: #16a34a !important; color: #fff !important; }  /* green-600 */
+.badge-aff-archived       { background-color: #6b7280 !important; color: #fff !important; }  /* gray-500  */
+.badge-aff-reactivated    { background-color: #2563eb !important; color: #fff !important; }  /* blue-600  */
+
+.badge-gender-male        { background-color: #2563eb !important; color: #fff !important; }  /* blue-600   */
+.badge-gender-female      { background-color: #ec4899 !important; color: #fff !important; }  /* pink-500   */
+.badge-gender-other       { background-color: #8b5cf6 !important; color: #fff !important; }  /* violet-500 */
+.badge-marital            { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600 */
+```
+- Affiliation-status classes (previously `membership.html`-only) and gender/marital classes
+  (previously not centralized at all — `person.html` rendered gender as plain text before this
+  extraction). `badge-gender-*` is a genuinely new capability this file adds, not just a
+  deduplication of pre-existing per-page rules.
+
+```css
+.badge-role-viewer        { background-color: #6366f1 !important; color: #fff !important; }  /* indigo-500 — YOU    */
+.badge-role-head          { background-color: #f59e0b !important; color: #fff !important; }  /* amber-500  — HEAD   */
+```
+- Two role-indicator classes used by `family.html`'s family-tree/detail panel to mark "the
+  person currently being viewed as" (`YOU`) and "the family head" (`HEAD`).
+
+```css
+.data-sevi-id             { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: oklch(var(--p)); }
+.data-erp-no              { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: oklch(var(--s)); }
+.data-kendra-no           { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: oklch(var(--a)); }
+```
+- The three-tier identity typographic classes (Sangha Sevi ID / Sakha Sangha ID / Kendra Number —
+  see `membership.html`'s Three-Tier Identity Legend, §2.10). Each uses a DaisyUI CSS theme
+  variable (`--p`/`--s`/`--a`, primary/secondary/accent) via `oklch(var(--x))` rather than a fixed
+  hex, so the three colors stay visually distinct from each other and theme-aware (they'd repaint
+  automatically if `data-theme` on `<html>` ever changed) — unlike every badge class above, which
+  hardcodes a fixed hex regardless of theme. These replace what used to be ad hoc
+  `font-mono text-primary`/`text-secondary`/`text-accent` utility-class combinations scattered
+  inline across `membership.html` and `family.html` (see those files' diffs: `<span
+  class="font-mono font-semibold text-primary">` became `<span class="data-sevi-id">`).
+
+```css
+.data-sakha-name          { font-weight: 500; color: #374151; }
+.data-family-id           { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: #374151; }
+.data-label               { font-size: 0.65rem; color: #9ca3af; letter-spacing: 0.02em; }
+```
+- Three more contextual identifier/label classes: `data-sakha-name` for organization names shown
+  alongside identity fields, `data-family-id` for the family's own business ID, and `data-label`
+  — a small, muted, letter-spaced caption style used above a value in detail-panel grids (e.g.
+  `family.html`'s "Sangha Sevi ID" / "Status" / "Name" field labels).
+
+---
+
+
 
 - `frontend/README.md` — primary human-facing reference for this folder: directory
   structure, per-file summary tables (state properties, methods, API endpoints

@@ -453,6 +453,16 @@ both HTML files as part of this same pass — see `UI_CODE_EXPLANATIONS.md` for 
 > **Tier 3 note:** `frontend/person.html` uses the identical CDN `<head>` block — same versions,
 > same SRI hashes. No new CDN dependencies were introduced in Tier 3.
 
+> **Tier 4 note:** `frontend/assets/css/badges.css` and `frontend/assets/js/nss-config.js`
+> (added in the Tier 4 shared-config extraction, loaded by all six pages' `<head>` — see
+> `UI_CODE_EXPLANATIONS.md` §2.14–§2.15 and `frontend/README.md`) are **not** CDN resources —
+> both are served same-origin from this app's own `/assets/*` static mount (`api/main.py`), the
+> same trust boundary as `style.css` and `app.js`/`foundation.js`/etc. Subresource Integrity
+> exists specifically to protect against a *third-party* origin serving different bytes than
+> expected; a same-origin file carries no such cross-origin trust gap (if an attacker could
+> alter it, they could already alter every other file this server serves, SRI or not), so
+> neither file needs — or has — an `integrity` attribute.
+
 ---
 
 ## 3. Cross-references

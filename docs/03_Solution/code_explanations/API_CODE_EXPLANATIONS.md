@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|------------------------------------------|
 | Document    | API_CODE_EXPLANATIONS                    |
-| Version     | 1.5                                      |
+| Version     | 1.7                                      |
 | Scope       | All source files under `api/` (except `api/middleware.py`) |
-| Status      | Complete (updated: Tier 4 Family + Membership) |
+| Status      | Complete (updated: Tier 4 Family graph/sakha-alignment/membership-summary, first `api/services/` file) |
 
 ---
 
@@ -15,8 +15,11 @@ This document is the authoritative, current, **per-file** reference for the NSS 
 every source file under `api/` (FastAPI, raw psycopg2, no ORM) *except* `api/middleware.py`,
 which lives in its own dedicated `SECURITY_CODE_EXPLANATIONS.md` alongside the security-relevant
 portions of `api/config.py` and `api/main.py`. Likewise, `tests/` has its own dedicated
-`TESTING_CODE_EXPLANATIONS.md` rather than being folded in here. For each file this document
-covers, it gives:
+`TESTING_CODE_EXPLANATIONS.md` rather than being folded in here. `api/services/` is a new
+subdirectory (first file: `family_graph.py`) alongside `api/routers/` and `api/schemas/` — it
+holds framework-agnostic business logic (graph construction/traversal) that a router calls into,
+rather than SQL-adjacent request handling or Pydantic response shapes. For each file this
+document covers, it gives:
 
 - **Requirement** — why the file exists: what problem or need it addresses, and what would
   break or be missing without it.
@@ -2052,17 +2055,29 @@ re-exports.
 > `organization_type_master_data_pk` / `status_master_data_pk`. `OrganizationStatusResponse` is
 > renamed to `StatusResponse` throughout.
 
+> **v2.1 (Tier 4, on top of Family + Membership):** New endpoint
+> `GET /organizations/{organization_pk}/children-stats` (`OrgChildStatsResponse`) — 6 endpoints
+> becomes 7. Computes per-direct-child family/member/person counts by recursively walking every
+> descendant Sakha and applying the same "family's effective Sakha is whichever Sakha holds a
+> majority of the family's active member affiliations" rule (FAM-036) that
+> `api/routers/family.py`'s `/families/{pk}/sakha-alignment` endpoint (see §2.13)
+> implements independently. **The module docstring below (lines 1–16) was not updated when this
+> endpoint was added** — it still says "6 GET endpoints" and still lists only
+> Reference/Core/Navigation as the endpoint groups, with no "Stats" group; this is a known
+> docstring/code drift, not a documentation error in this file.
+
 **Requirement**
 
-Tier 2 exposes 6 read-only GET endpoints across `organization` plus Foundation's shared
+Tier 2 exposes 7 read-only GET endpoints across `organization` plus Foundation's shared
 `master_data`/`master_category` tables (for type/status) so the Organization Verification UI
 and any consumer can browse type/status catalogues, list and detail organizations with full
 resolved context (type name, status name, parent name, geographic names), view an
-organization's direct children, and traverse the complete organizational hierarchy as a flat
-list with depth. The `organization` table FKs into 5 Foundation geographic tables (country,
-state, district, city_village, postal_code) — all nullable, so every geographic column is
-resolved via `LEFT JOIN` rather than `JOIN`. Without this file, the `organization` DDL table
-would have no HTTP surface at all.
+organization's direct children, fetch aggregate family/member/person counts per direct child
+(`/children-stats`), and traverse the complete organizational hierarchy as a flat list with
+depth. The `organization` table FKs into 5 Foundation geographic tables (country, state,
+district, city_village, postal_code) — all nullable, so every geographic column is resolved via
+`LEFT JOIN` rather than `JOIN`. Without this file, the `organization` DDL table would have no
+HTTP surface at all.
 
 **Line-by-line**
 
@@ -2314,13 +2329,12 @@ query's `WHERE` clause gained the `'ORGANIZATION' = ANY(...)  OR ... IS NULL` pr
 docstring was reworded from "(13 unified statuses from master_data)" to the module-scoped
 description above. Returns 7 lifecycle statuses for Organization (PROPOSED, APPROVED, ACTIVE, INACTIVE,
 SUSPENDED, DISSOLVED, ARCHIVED) — the other 9 values are filtered out: Membership-only
-(LAPSED, TRANSFERRED, RESIGNED, EXPELLED, plus the 3 new `RENEWAL_PENDING`/`ON_HOLD`/
-`DISCIPLINARY_REVIEW`), Person-only (DECEASED), and Credential-only (EXPIRED, tagged
-`{CREDENTIAL}` in `master_data` rather than `{MEMBERSHIP}` — though credential expiry from
-non-renewal of a Parichaya Patra/Anumati Patra is very much a real membership-lifecycle event
-in practice; the `{CREDENTIAL}` tag reflects that `parichaya_patra.status`/`anumati_patra.status`
-are their own inline `VARCHAR` + `CHECK` columns, not FKs into `master_data`, so this row is a
-parallel reference entry rather than what those tables actually store).
+(LAPSED, TRANSFERRED, RESIGNED, EXPELLED, EXPIRED, plus the 3 new `RENEWAL_PENDING`/`ON_HOLD`/
+`DISCIPLINARY_REVIEW`) and Person-only (DECEASED). `EXPIRED` is tagged `{MEMBERSHIP}` (not a
+separate "Credential" scope, despite `parichaya_patra.status`/`anumati_patra.status` each being
+their own inline `VARCHAR` + `CHECK` column rather than an FK into `master_data` — credential
+expiry from non-renewal of a Parichaya Patra/Anumati Patra is exactly how a membership actually
+lapses in practice, so `{MEMBERSHIP}` is the correct tag).
 **Known test gap:** `tests/test_organization.py::test_list_returns_13_statuses` still asserts
 the old unfiltered count of 13 and was not updated for this filter — it now fails.
 
@@ -2359,6 +2373,106 @@ organization_pk = %s AND is_active = TRUE`; 404 if missing. The second cursor fe
 direct children via `WHERE o.parent_organization_pk = %s AND o.is_active = TRUE`, ordered by
 `ot.display_order, o.organization_name`. In the current seed state (3 root organizations, no
 children), this always returns an empty list for valid parents.
+
+**Children Stats endpoint (`_CHILDREN_STATS_SQL`, `list_children_stats`):**
+
+New in Tier 4, on top of Family + Membership. `GET
+/organizations/{organization_pk}/children-stats` answers "for each direct child of this org,
+how many families/members/persons live under it" — the docstring says it is "used by the org
+admin sidebar to display inline counts on each drill-down card," though as of this diff neither
+`frontend/organization.html` nor `frontend/assets/js/organization.js` actually calls it yet (no
+UI wiring exists — see `UI_CODE_EXPLANATIONS.md`).
+
+Same two-cursor shape as `/children`: a first cursor 404s if the parent doesn't exist
+(`is_active = TRUE`), then a second cursor runs `_CHILDREN_STATS_SQL` and maps rows to
+`OrgChildStatsResponse` via the shared `rows_to_models` helper.
+
+`_CHILDREN_STATS_SQL` is a seven-CTE query, parameterized on the single `organization_pk` of
+the requested parent:
+
+```sql
+WITH RECURSIVE org_tree AS (
+    -- Anchor: direct children of the requested parent
+    SELECT o.organization_pk, o.organization_pk AS root_child_pk, ...
+    FROM   nss.organization o JOIN nss.master_data ot ON ...
+    WHERE  o.parent_organization_pk = %s AND o.is_active = TRUE
+    UNION ALL
+    -- Recursive: descendants
+    SELECT o.organization_pk, t.root_child_pk, ...
+    FROM   nss.organization o JOIN nss.master_data ot ON ...
+    JOIN   org_tree t ON t.organization_pk = o.parent_organization_pk
+    WHERE  o.is_active = TRUE
+),
+sakha_pks AS ( ... ),
+family_majority AS ( ... ),
+family_effective AS ( ... ),
+family_counts AS ( ... ),
+member_counts AS ( ... ),
+person_counts AS ( ... )
+SELECT ... FROM org_tree ot LEFT JOIN family_counts fc ... LEFT JOIN member_counts mc ...
+LEFT JOIN person_counts pc ... WHERE ot.organization_pk = ot.root_child_pk
+ORDER BY ot.organization_name
+```
+
+- **`org_tree`** — a `WITH RECURSIVE` CTE identical in shape to the `/hierarchy` CTE, but
+  anchored on the requested parent's direct children (not global roots) and carrying a second
+  column, `root_child_pk`, that every descendant row copies forward unchanged from its anchor
+  row. This is the mechanism that lets a Kendra-level call attribute a great-grandchild Sakha's
+  counts back up to the correct Anchalika-level direct child — every row in the CTE, no matter
+  how deep, still knows which of the parent's *direct* children it descends from. Unlike
+  `/hierarchy`'s CTE there is no explicit `depth` column or `depth < 10` guard written into this
+  particular CTE text — the code comment says "capped depth via the existing `WITH RECURSIVE`
+  pattern," but the depth cap itself is not present in this query (it relies on the
+  data actually terminating — Sakha/Patha Chakra are leaf types with no further children —
+  rather than an explicit numeric guard the way `/hierarchy` has one).
+- **`sakha_pks`** — filters `org_tree` down to rows where `organization_type_code =
+  'SAKHA_SANGHA'`, keeping only `(root_child_pk, sakha_pk)` pairs. Every count below is
+  ultimately computed per-Sakha and then rolled up to `root_child_pk` — non-Sakha organization
+  types (Anchalika, Zilla, Patha Chakra, Sakha Asana, etc.) contribute zero rows here and,
+  transitively, zero stats unless they have a Sakha descendant.
+- **`family_majority`** (FAM-036) — for every family (`family_relationship fr`, `is_current =
+  TRUE`) joined to its members' active Sakha affiliations (`sangha_sevi` `is_active = TRUE` →
+  `membership_sakha_affiliation` `effective_to IS NULL`), counts affiliations per
+  `(family_group_pk, sakha_pk)` pair and ranks them per family with `ROW_NUMBER() OVER
+  (PARTITION BY family_group_pk ORDER BY COUNT(*) DESC)`. This CTE's SQL text is **line-for-line
+  identical** to the `family_majority` CTE inside `_FAMILY_SELECT` in `api/routers/family.py`
+  (§2.13) — the same FAM-036 majority computation is implemented twice, independently, rather
+  than factored into one shared SQL fragment or helper. See the maintainability note at the end
+  of this endpoint's write-up.
+- **`family_effective`** — for every active `family_group`, resolves its *effective* Sakha as
+  `COALESCE(fm.sakha_pk, fg.sakha_organization_pk)`: the `rn = 1` majority Sakha from
+  `family_majority` if one exists, else the family's stored `sakha_organization_pk` (the
+  registration/fallback Sakha) — the same fallback logic as `family.py`'s `_FAMILY_SELECT`.
+- **`family_counts`** — joins `sakha_pks` to `family_effective` on `effective_sakha_pk =
+  sakha_pk` and counts `DISTINCT family_group_pk` per `root_child_pk`. A family counts toward
+  a direct child once, no matter how many of its members are affiliated with Sakhas under that
+  child (the `DISTINCT` absorbs that).
+- **`member_counts`** — joins `sakha_pks` directly to `membership_sakha_affiliation`
+  (`effective_to IS NULL`) and `sangha_sevi` (`is_active = TRUE`), counting `DISTINCT
+  sangha_sevi_pk` per `root_child_pk`. This is **not** derived from `family_effective` — it
+  counts every active member whose *own* current affiliation points at one of the descendant
+  Sakhas, independent of which Sakha the member's family was assigned to by the majority rule.
+  A member whose personal affiliation disagrees with their family's majority Sakha (the exact
+  "mismatch" scenario `family.py`'s `/sakha-alignment` endpoint flags) is still counted here
+  under their own affiliated Sakha's `root_child_pk`, not their family's.
+- **`person_counts`** — joins `sakha_pks` to `family_effective` (same as `family_counts`) and
+  then to `family_relationship` (`is_current = TRUE`) to count `DISTINCT person_pk` per
+  `root_child_pk` — every current member of every family whose *effective* Sakha falls under
+  that child, whether or not that person individually holds a Sangha Sevi membership. This is
+  why `member_count <= person_count` is a documented test invariant (`tests/test_organization.py
+  ::test_children_stats_members_lte_persons`, see `TESTING_CODE_EXPLANATIONS.md`) — not every
+  family member is a member.
+- **Final `SELECT`** — restricts `org_tree` back down to `ot.organization_pk =
+  ot.root_child_pk` (i.e. only the direct children themselves, not their descendants) and
+  `LEFT JOIN`s the three count CTEs, `COALESCE`-ing each to `0` so a direct child with no Sakha
+  descendants (or no families/members yet) still appears with zero counts rather than being
+  dropped. Ordered by `organization_name`.
+
+**Maintainability observation (not fixed here per scope):** the `family_majority` CTE text is
+duplicated verbatim between this file's `_CHILDREN_STATS_SQL` and `family.py`'s
+`_FAMILY_SELECT` — two independent copies of the same FAM-036 majority-rule SQL, not a shared
+constant or helper. A schema or business-rule change to FAM-036 (e.g. tie-breaking on equal
+counts, or excluding a new affiliation state) would need to be made in both places by hand.
 
 **Hierarchy endpoint (lines 252–309):**
 
@@ -2407,11 +2521,12 @@ everywhere else in this router.
 
 **Requirement**
 
-`api/routers/organization.py` needs 4 typed response models: one for each reference-data
+`api/routers/organization.py` needs 5 typed response models: one for each reference-data
 catalogue (types, statuses), one for the full organization detail (35 fields including 8
-JOINed context fields and 9 contact/online-presence fields), and one for the hierarchy tree's leaner node shape (10 fields).
-Without this file the Organization router would have no `response_model=` to validate
-against.
+JOINed context fields and 9 contact/online-presence fields), one for the `/children-stats`
+aggregate shape (`OrgChildStatsResponse`, new in Tier 4), and one for the hierarchy tree's
+leaner node shape (10 fields). Without this file the Organization router would have no
+`response_model=` to validate against.
 
 **Line-by-line**
 
@@ -2501,6 +2616,29 @@ Every nullable field uses `UUID | None`, `str | None`, or `float | None` — mat
 LEFT JOIN / nullable-FK reality. The docstring's closing paragraph spells out the rename
 explicitly: "Type fields are aliased from master_data columns for the ORGANIZATION_TYPE
 category. Status fields use the unified ERP-wide STATUS category."
+
+`OrgChildStatsResponse` (7 fields, new in Tier 4, inserted between `OrganizationResponse` and
+`OrganizationHierarchyNodeResponse` in the file):
+
+```python
+class OrgChildStatsResponse(BaseModel):
+    organization_pk: UUID
+    organization_name: str
+    organization_code: str | None
+    organization_type_code: str
+    family_count: int = 0
+    member_count: int = 0
+    person_count: int = 0
+```
+
+Backs the `/organizations/{organization_pk}/children-stats` endpoint (§2.9). The four identity
+fields (`organization_pk/name/code/type_code`) describe the direct child itself; the three
+`_count` fields all default to `0` — matching `_CHILDREN_STATS_SQL`'s `COALESCE(..., 0)` on
+each of the three `LEFT JOIN`ed aggregate CTEs, so a child with no descendant Sakhas (or no
+families/members under them) still validates rather than raising on a missing field. The
+docstring documents the FAM-036 majority-rule dependency directly: "Counts are computed
+dynamically — families use the majority-rule CTE (FAM-036), members use active affiliations.
+For non-Sakha orgs the stats aggregate across all descendant Sakhas."
 
 Lines 109–127 — `OrganizationHierarchyNodeResponse` (10 fields):
 
@@ -3184,12 +3322,18 @@ to `None` fields rather than a validation error.
 
 **Requirement**
 
-Tier 4's Family module exposes 4 read-only GET endpoints across 3 of the module's 4 DDL tables
-(`family_group`, `family_relationship`, `family_head_history` — `family_transition_history` has
-no endpoint yet, since it's purely an append-only log with nothing to verify against in Tier 4's
-seed data) so the Family Verification UI can list families, view a single family's resolved
-detail, list a family's current members, and view a family's head-of-household history. Without
-this file, `nss.family_group` and friends would have no HTTP surface at all, and the
+Tier 4's Family module exposes 7 read-only GET endpoints across all 4 of the module's DDL tables
+(`family_group`, `family_relationship`, `family_head_history`, `family_link` —
+`family_transition_history` has no endpoint yet, since it's purely an append-only log with
+nothing to verify against in Tier 4's seed data) so the Family Verification UI can list families,
+view a single family's resolved detail, list a family's current members, view a family's
+head-of-household history, render a dynamically-computed relationship graph relative to any
+viewer, compute a family's FAM-036 majority-rule Sakha alignment, and bridge a `person_pk` to its
+membership snapshot for the family tree's Selected Person panel. The last three endpoints (§4/§5/§6
+below) also read from Tier 4 Membership tables (`sangha_sevi`, `membership_sakha_affiliation`,
+`parichaya_patra`, `anumati_patra`) and from `api/services/family_graph.py` (§2.15) — the first
+cross-module and first cross-layer (`routers/` → `services/`) reads in this router. Without this
+file, `nss.family_group` and friends would have no HTTP surface at all, and the
 "Family First Model" principle — a family exists independently of membership — would have no way
 to be demonstrated end-to-end (DB → API → UI) the way Bootstrap/Foundation/Organization/Person
 each were for their own tiers.
@@ -3215,11 +3359,16 @@ Security:
 """
 ```
 
-Same shape as `person.py`'s docstring (§2.11): endpoint count, table count, the three logical
-endpoint groups, and a "Security:" note — here just the standard audit-actor-FK exclusion, since
-Family carries no Aadhaar-grade sensitive column of its own.
+Same shape as `person.py`'s docstring (§2.11): endpoint count, table count, the logical endpoint
+groups, and a "Security:" note — here just the standard audit-actor-FK exclusion, since Family
+carries no Aadhaar-grade sensitive column of its own. This module docstring has not been revised
+alongside the code: it still says "4 GET endpoints across 3 Family tables" and lists only the
+three original endpoint groups (Core/Members/History), even though the file now implements 7
+endpoints across 4 tables plus the 3 new groups documented in §4/§5/§6 below (Graph/Sakha
+Alignment/Membership Summary). This is a stale header comment, not a functional issue — every
+endpoint below is live and reachable regardless of what the docstring claims.
 
-Lines 16–28:
+Lines 16–32:
 
 ```python
 from uuid import UUID
@@ -3229,32 +3378,64 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.database import get_connection
 from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
 from api.schemas.family import (
+    FamilyGraphMemberResponse,
     FamilyGroupResponse,
     FamilyHeadHistoryResponse,
     FamilyMemberResponse,
+    FamilySakhaAlignmentResponse,
+    MemberSakhaInfo,
+    PersonMembershipSummaryResponse,
+    SakhaAffiliationCount,
 )
+from api.services.family_graph import Step, build_family_graph
 
 router = APIRouter(prefix="/api/v1/family", tags=["family"])
 ```
 
 Imports `row_to_model`/`rows_to_models`/`DEFAULT_LIMIT`/`MAX_LIMIT` from the shared
 `api/helpers.py` module — same pattern `person.py` and `organization.py` already follow, not a
-locally-redefined pair. `router = APIRouter(prefix="/api/v1/family", tags=["family"])` gives
+locally-redefined pair. The `api.schemas.family` import now pulls in the 4 new response models
+(`FamilyGraphMemberResponse`, `FamilySakhaAlignmentResponse`, `MemberSakhaInfo`,
+`SakhaAffiliationCount`, `PersonMembershipSummaryResponse`) alongside the 3 original ones — see
+§2.14. `from api.services.family_graph import Step, build_family_graph` is this router's only
+import from the new `api/services/` layer (§2.15): `build_family_graph` turns raw DB rows into an
+in-memory graph, and the `Step` enum is re-used directly in `get_family_graph` (§4 below) to walk
+each member's adjacency list. `router = APIRouter(prefix="/api/v1/family", tags=["family"])` gives
 Family its own prefix and Swagger tag, parallel to every other tier's router.
 
-**Shared SQL fragments (lines 33–89):**
+**Shared SQL fragments (lines 39–126):**
 
 ```python
 _FAMILY_SELECT = """
+    WITH family_majority AS (
+        SELECT fr.family_group_pk,
+               aff.organization_pk        AS sakha_pk,
+               COUNT(*)                    AS cnt,
+               ROW_NUMBER() OVER (
+                   PARTITION BY fr.family_group_pk
+                   ORDER BY COUNT(*) DESC
+               ) AS rn
+        FROM   nss.family_relationship fr
+        JOIN   nss.sangha_sevi ss
+               ON ss.person_pk = fr.person_pk AND ss.is_active = TRUE
+        JOIN   nss.membership_sakha_affiliation aff
+               ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
+              AND aff.effective_to IS NULL
+        WHERE  fr.is_current = TRUE
+        GROUP BY fr.family_group_pk, aff.organization_pk
+    )
     SELECT fg.family_group_pk,
            fg.family_id,
            fg.family_name,
            fg.family_status_master_data_pk,
            st.value_code  AS status_code,
            st.value_name  AS status_name,
-           fg.sakha_organization_pk,
-           o.organization_name  AS sakha_name,
-           o.organization_code  AS sakha_code,
+           COALESCE(fmj.sakha_pk, fg.sakha_organization_pk)
+               AS sakha_organization_pk,
+           COALESCE(eo.organization_name, o.organization_name)
+               AS sakha_name,
+           COALESCE(eo.organization_code, o.organization_code)
+               AS sakha_code,
            fg.formed_date,
            fg.remarks,
            fg.is_active
@@ -3263,15 +3444,28 @@ _FAMILY_SELECT = """
            ON st.master_data_pk = fg.family_status_master_data_pk
     JOIN   nss.organization o
            ON o.organization_pk = fg.sakha_organization_pk
+    LEFT JOIN family_majority fmj
+           ON fmj.family_group_pk = fg.family_group_pk AND fmj.rn = 1
+    LEFT JOIN nss.organization eo
+           ON eo.organization_pk = fmj.sakha_pk
 """
 ```
 
-`_FAMILY_SELECT` resolves the family's status (via `master_data`, unified `STATUS` category — the
-same table/pattern `organization.py` uses for its own status resolution) and its Sakha (via
-`organization`) using plain `JOIN`s, not `LEFT JOIN`s, because both
-`family_status_master_data_pk` and `sakha_organization_pk` are `NOT NULL` FKs on `family_group` —
-a family row can never exist without a status or a Sakha, so an inner join can't silently drop a
-valid row.
+`_FAMILY_SELECT` now leads with a `family_majority` CTE that computes, per family, the Sakha with
+the most current-member affiliations (`COUNT(*)` per `(family_group_pk, sakha organization_pk)`,
+ranked via `ROW_NUMBER() OVER (PARTITION BY fr.family_group_pk ORDER BY COUNT(*) DESC)` so `rn = 1`
+is the majority Sakha) — this is FAM-036's "effective Sakha" rule (see §5 below) computed once
+here so **every** endpoint built on `_FAMILY_SELECT` (`list_families`, `get_family`, and the Sakha
+Alignment endpoint's own family lookup) reports the *effective*, not merely the *registered*,
+Sakha. The final `SELECT`'s `sakha_organization_pk`/`sakha_name`/`sakha_code` columns use
+`COALESCE(fmj.sakha_pk, fg.sakha_organization_pk)` (and the matching `eo`/`o` aliases for
+name/code) so a family with at least one affiliated member reports the majority Sakha, falling
+back to the stored `family_group.sakha_organization_pk` registration when no member has an active
+affiliation (`fmj` is `NULL` via the `LEFT JOIN`). `st`'s status resolution is unchanged — a plain
+`JOIN` against `master_data`, since `family_status_master_data_pk` is `NOT NULL`. This
+`family_majority` CTE is **structurally identical** to the one inside `organization.py`'s
+`_CHILDREN_STATS_SQL` (§2.9) — the same FAM-036 majority computation is implemented twice,
+independently, as already noted from the other side in §2.9/§2.10.
 
 ```python
 _MEMBER_SELECT = """
@@ -3288,21 +3482,35 @@ _MEMBER_SELECT = """
            fr.effective_from,
            fr.effective_to,
            fr.is_current,
+           CASE WHEN fhh.family_head_history_pk IS NOT NULL
+                THEN TRUE ELSE FALSE
+           END AS is_head,
            fr.remarks
     FROM   nss.family_relationship fr
     JOIN   nss.person p
            ON p.person_pk = fr.person_pk
     JOIN   nss.master_data rt
            ON rt.master_data_pk = fr.relationship_type_master_data_pk
+    LEFT JOIN nss.family_head_history fhh
+           ON fhh.family_group_pk = fr.family_group_pk
+          AND fhh.person_pk = fr.person_pk
+          AND fhh.effective_to IS NULL
 """
 ```
 
 `_MEMBER_SELECT` joins `person` (for display name and `person_id`) and `master_data` (for
-relationship type, category `RELATIONSHIP_TYPE`) — again both plain `JOIN`s, since
-`family_relationship.person_pk` and `.relationship_type_master_data_pk` are both `NOT NULL`.
-Notably it does **not** join anything from Person's sensitive block (`aadhaar_last4`, emergency
-contact, etc.) — only `person_id`/`first_name`/`middle_name`/`last_name` are pulled across, the
-minimum needed to display a member's name in the Family UI.
+relationship type, category `RELATIONSHIP_TYPE`) — both plain `JOIN`s, since
+`family_relationship.person_pk` and `.relationship_type_master_data_pk` are both `NOT NULL`. It
+now also `LEFT JOIN`s `family_head_history fhh` on the same `(family_group_pk, person_pk)` pair
+plus `fhh.effective_to IS NULL` (the DDL's own "current head" marker), and derives
+`is_head` with a `CASE WHEN fhh.family_head_history_pk IS NOT NULL THEN TRUE ELSE FALSE END` —
+so a member row can report whether that person is the family's *current* head without a second
+round-trip or client-side cross-referencing against `/head-history`. It's a `LEFT JOIN` (not a
+plain `JOIN`) because most members are **not** the head — an inner join would drop every
+non-head member row. Notably `_MEMBER_SELECT` still does **not** join anything from Person's
+sensitive block (`aadhaar_last4`, emergency contact, etc.) — only `person_id`/`first_name`/
+`middle_name`/`last_name` are pulled across, the minimum needed to display a member's name in the
+Family UI.
 
 ```python
 _HEAD_SELECT = """
@@ -3326,11 +3534,13 @@ _HEAD_SELECT = """
 `family_head_history` instead of `family_relationship`. All three fragments share the identical
 "resolve the person's name, resolve the classification via master_data" pattern already
 established by Foundation/Organization/Person's routers — Family introduces no new SQL idiom,
-just applies the existing one to three new tables.
+just applies the existing one to three of the module's tables (the fourth, `family_link`, is
+queried separately in §4 below via its own two dedicated fragments, since the graph endpoint
+needs raw person/edge rows rather than a resolved display row).
 
-**1. FAMILIES — core read (lines 97–150, 2 endpoints):**
+**1. FAMILIES — core read (lines 129–187, 2 endpoints):**
 
-Lines 97–131 — `GET /families`:
+Lines 134–168 — `GET /families`:
 
 ```python
 @router.get("/families", response_model=list[FamilyGroupResponse])
@@ -3372,7 +3582,7 @@ le=MAX_LIMIT, ...)`/`Query(0, ge=0, ...)` pagination contract as `person.py`'s `
 out-of-range values 422 before the handler body runs. `ORDER BY fg.family_name` sorts
 alphabetically before pagination is applied, giving a stable paginated sequence.
 
-Lines 134–150 — `GET /families/{family_group_pk}`:
+Lines 171–187 — `GET /families/{family_group_pk}`:
 
 ```python
 @router.get(
@@ -3399,7 +3609,7 @@ codebase (`get_person`, `get_organization`, `get_category`, etc.): filter by PK 
 `is_active = TRUE`, parameterize with `(str(family_group_pk),)`, and raise
 `HTTPException(status_code=404, detail="Family not found")` if `row_to_model` returns `None`.
 
-**2. FAMILY MEMBERS — relationships (lines 158–186, 1 endpoint):**
+**2. FAMILY MEMBERS — relationships (lines 190–223, 1 endpoint):**
 
 ```python
 @router.get(
@@ -3440,7 +3650,7 @@ full historical relationship log — and orders by `rt.display_order` (the relat
 sort order from `master_data`, e.g. HEAD/FATHER before SON/DAUGHTER) then alphabetically by first
 name, so the head/parents surface before children in the UI's members table.
 
-**3. FAMILY HEAD HISTORY (lines 194–222, 1 endpoint):**
+**3. FAMILY HEAD HISTORY (lines 226–259, 1 endpoint):**
 
 ```python
 @router.get(
@@ -3471,14 +3681,258 @@ row with `effective_to IS NULL` (enforced unique per family by the DDL's
 so a caller can distinguish "current" from "past" purely by checking `effective_to === null` on
 the first row, without any special-casing in the SQL itself.
 
+**4. FAMILY GRAPH — dynamic relationship computation (lines 262–374, 1 endpoint):**
+
+Lines 266–289 — the graph's own two SQL fragments:
+
+```python
+_GRAPH_PERSONS_SQL = """
+    SELECT DISTINCT p.person_pk,
+           p.person_id,
+           p.first_name,
+           p.middle_name,
+           p.last_name,
+           g.value_code AS gender_code
+    FROM   nss.family_link fl
+    JOIN   nss.person p
+           ON p.person_pk IN (fl.person_a_pk, fl.person_b_pk)
+    LEFT JOIN nss.master_data g
+           ON g.master_data_pk = p.gender_master_data_pk
+    WHERE  fl.family_group_pk = %s
+      AND  fl.is_current = TRUE
+"""
+
+_GRAPH_LINKS_SQL = """
+    SELECT fl.person_a_pk,
+           fl.person_b_pk,
+           fl.link_type
+    FROM   nss.family_link fl
+    WHERE  fl.family_group_pk = %s
+      AND  fl.is_current = TRUE
+"""
+```
+
+Unlike `_FAMILY_SELECT`/`_MEMBER_SELECT`/`_HEAD_SELECT`, these two fragments deliberately return
+**raw** rows, not a UI-ready resolved shape — they're the input contract for
+`api/services/family_graph.py`'s `build_family_graph()` (§2.15), which expects plain dicts with
+exactly the keys these `SELECT`s produce (`person_pk`/`person_id`/`first_name`/`middle_name`/
+`last_name`/`gender_code` for persons; `person_a_pk`/`person_b_pk`/`link_type` for links).
+`_GRAPH_PERSONS_SQL` uses `p.person_pk IN (fl.person_a_pk, fl.person_b_pk)` — a person qualifies
+if they appear on *either* side of any current `family_link` row in the family — and `DISTINCT`
+because the same person can appear across multiple link rows (e.g. as both someone's child and
+someone else's spouse). `gender_code` is resolved via a `LEFT JOIN` (not plain `JOIN`) against
+`master_data` because `person.gender_master_data_pk` is nullable at the DDL level; a `NULL`
+`gender_code` is handled later by `FamilyGraph._path_to_label` (§2.15) defaulting to the male
+label form. Both fragments filter `fl.family_group_pk = %s AND fl.is_current = TRUE` — only the
+family's present-day edges participate in the graph, mirroring `_MEMBER_SELECT`'s
+`fr.is_current = TRUE` filter one section up.
+
+Lines 292–374 — `GET /families/{family_group_pk}/graph`:
+
+```python
+@router.get(
+    "/families/{family_group_pk}/graph",
+    response_model=list[FamilyGraphMemberResponse],
+)
+def get_family_graph(
+    family_group_pk: UUID,
+    viewer_person_pk: UUID = Query(
+        ..., description="Person PK of the logged-in viewer"
+    ),
+    conn=Depends(get_connection),
+) -> list[FamilyGraphMemberResponse]:
+    ...
+    # Verify family exists
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT 1 FROM nss.family_group
+            WHERE  family_group_pk = %s AND is_active = TRUE
+        """, (str(family_group_pk),))
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Family not found")
+
+    # Fetch graph data
+    with conn.cursor() as cur:
+        cur.execute(_GRAPH_PERSONS_SQL, (str(family_group_pk),))
+        cols = [desc[0] for desc in cur.description]
+        person_rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    with conn.cursor() as cur:
+        cur.execute(_GRAPH_LINKS_SQL, (str(family_group_pk),))
+        cols = [desc[0] for desc in cur.description]
+        link_rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    if not person_rows or not link_rows:
+        return []
+
+    # Build graph and compute
+    graph = build_family_graph(person_rows, link_rows)
+    computed = graph.compute_relationships(viewer_person_pk)
+
+    # Look up current head
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT person_pk FROM nss.family_head_history
+            WHERE  family_group_pk = %s AND effective_to IS NULL
+        """, (str(family_group_pk),))
+        head_row = cur.fetchone()
+        head_pk = str(head_row[0]) if head_row else None
+
+    # Build response — include spouse_person_pk and parent_person_pks from graph adjacency
+    results = []
+    for member in computed:
+        member_pk = UUID(member["person_pk"])
+        spouse_pk = None
+        parent_pks = []
+        for neighbor_pk, step in graph.adjacency.get(member_pk, []):
+            if step == Step.SPOUSE:
+                spouse_pk = neighbor_pk
+            elif step == Step.UP:
+                parent_pks.append(str(neighbor_pk))
+
+        results.append(FamilyGraphMemberResponse(
+            person_pk=member["person_pk"],
+            ...
+            is_head=(member["person_pk"] == head_pk),
+            spouse_person_pk=str(spouse_pk) if spouse_pk else None,
+            parent_person_pks=parent_pks,
+        ))
+
+    return results
+```
+
+`viewer_person_pk: UUID = Query(..., description=...)` — the `...` (Ellipsis) default makes this
+a **required** query parameter, unlike every optional `str | None = Query(None, ...)` filter
+elsewhere in this router; without a viewer there is nothing to compute relationship labels
+relative to. The handler runs in five steps. (1) The same existence-check cursor as §2/§3 above —
+404 if the family doesn't exist or is soft-deleted. (2) and (3) Two more cursors run
+`_GRAPH_PERSONS_SQL`/`_GRAPH_LINKS_SQL` and hand-roll the "zip column names with row values into a
+dict per row" step (`cols = [desc[0] for desc in cur.description]` then
+`dict(zip(cols, row))`) — this is the one place in the file that does **not** go through
+`row_to_model`/`rows_to_models`, because the output here is raw graph input, not a Pydantic
+response row; `if not person_rows or not link_rows: return []` short-circuits to an empty list
+(200, not 404) for a family that exists but has no `family_link` rows yet — an existing family
+that predates the graph feature or simply has no recorded edges is a valid, empty state, not an
+error. (4) `build_family_graph(person_rows, link_rows)` (§2.15) constructs the in-memory graph,
+and `graph.compute_relationships(viewer_person_pk)` (§2.15) runs the BFS and returns one dict per
+reachable member with a computed `relationship_label`/`generation`. A separate cursor then looks
+up the family's current head the same way `list_family_head_history`'s underlying data does
+(`family_head_history` row with `effective_to IS NULL`), so the response can flag `is_head`
+without re-deriving it from `family_link` edges. (5) The final loop re-derives each member's
+`spouse_person_pk`/`parent_person_pks` directly from `graph.adjacency` (not from
+`compute_relationships`'s output, which only carries the viewer-relative label/generation/path) —
+scanning that member's own adjacency list for a `Step.SPOUSE` neighbor and collecting every
+`Step.UP` neighbor (a person can have up to two parents, hence a list not a single field) — and
+assembles the `FamilyGraphMemberResponse` (§2.14). Note this endpoint is built directly with
+`FamilyGraphMemberResponse(...)` constructor calls, not `rows_to_models`, since its input is a
+Python list of dicts assembled in-process rather than a fresh DB cursor.
+
+**5. SAKHA ALIGNMENT — FAM-036 majority rule (lines 377–541, 1 endpoint):**
+
+Lines 382–541 — `GET /families/{family_group_pk}/sakha-alignment`:
+
+```python
+@router.get(
+    "/families/{family_group_pk}/sakha-alignment",
+    response_model=FamilySakhaAlignmentResponse,
+)
+def get_family_sakha_alignment(
+    family_group_pk: UUID,
+    conn=Depends(get_connection),
+) -> FamilySakhaAlignmentResponse:
+    ...
+```
+
+This endpoint independently re-derives the same FAM-036 majority-Sakha computation that
+`_FAMILY_SELECT`'s `family_majority` CTE already performs in SQL (see the Shared SQL fragments
+section above), but in Python, over a wider result set: it needs per-member affiliation detail
+(name, code, "is this member's Sakha the family's home Sakha") that a single aggregated CTE
+row can't carry. Five steps: (1) Re-run `_FAMILY_SELECT` filtered by PK to get the family's own
+`assigned_sakha_*` fields (already the *effective*, majority-or-fallback Sakha, per the CTE) — 404
+via `row_to_model` returning `None` if the family doesn't exist. (2) Query every current
+`family_relationship` member (`fr.is_current = TRUE`) joined to `person` — a plain hand-rolled
+`cols`/`dict(zip(...))` pass again, not `rows_to_models`, because the raw rows feed further
+Python-side computation rather than becoming the response directly. If there are zero members
+(`if not member_rows`), the endpoint returns a `FamilySakhaAlignmentResponse` early with only the
+`assigned_sakha_*` fields populated and every majority/member field left at its Pydantic default
+(§2.14) — a family with no current members has nothing to compute a majority over. (3) For every
+member found, a single `IN (...)` query against `sangha_sevi`/`membership_sakha_affiliation`/
+`organization` (built with a `placeholders = ",".join(["%s"] * len(person_pks))` string, one
+round trip instead of N) fetches each member's *current* Sakha affiliation
+(`aff.effective_to IS NULL`), keyed into a dict by `str(person_pk)` for O(1) lookup in the next
+step. (4) The per-member loop builds a `MemberSakhaInfo` (§2.14) for every member — `has_membership`
+is `aff is not None`, `is_home_sakha` compares the member's affiliated Sakha to the *family's*
+already-effective `sakha_organization_pk` — and simultaneously accumulates `sakha_counts`, a
+`dict[str, dict]` keyed by organization PK that tallies `member_count` per Sakha as it iterates
+(the in-Python equivalent of the SQL CTE's `GROUP BY`/`COUNT(*)`). (5) `affiliations = sorted(
+sakha_counts.values(), key=lambda x: x["member_count"], reverse=True)` reproduces the CTE's
+`ORDER BY COUNT(*) DESC`/`rn = 1` ranking as a plain list sort; `affiliations[0]` (if any) is the
+computed majority, assigned to `majority_sakha_*`. `is_aligned = True` is set unconditionally
+before this block and **only reassigned inside `if affiliations:`** — meaning `is_aligned` always
+ends up comparing the majority Sakha against `family.sakha_organization_pk`, which — because that
+field is itself already the CTE's majority-or-fallback value — is definitionally always equal to
+`majority_sakha_pk` whenever both exist. This is exactly the "`is_aligned` is hardcoded `True` by
+design" behaviour `FamilySakhaAlignmentResponse`'s own docstring (§2.14) calls out: the family's
+stored/reported Sakha *is* the majority by construction, so a mismatch at the family level cannot
+occur — only `MemberSakhaInfo.is_home_sakha` can ever flag `False` for an individual member.
+
+**6. PERSON MEMBERSHIP SUMMARY — person-to-membership bridge (lines 544–653, 1 endpoint):**
+
+Lines 549–653 — `GET /person/{person_pk}/membership-summary`:
+
+```python
+@router.get(
+    "/person/{person_pk}/membership-summary",
+    response_model=PersonMembershipSummaryResponse,
+)
+def get_person_membership_summary(
+    person_pk: UUID,
+    conn=Depends(get_connection),
+) -> PersonMembershipSummaryResponse:
+    ...
+    if not row:
+        return PersonMembershipSummaryResponse()
+    ...
+```
+
+This is the router's only endpoint under the `/api/v1/family/person/...` path (every other
+endpoint is `/api/v1/family/families/...`) — it belongs to Family because it's consumed by the
+Family tree UI's Selected Person panel, even though its data lives entirely in Tier 4 Membership
+tables (`sangha_sevi`, `membership_sakha_affiliation`, `parichaya_patra`, `anumati_patra`), none of
+which are Family-module tables. It bridges the two identity spaces the docstring for
+`api/schemas/family.py`'s `PersonMembershipSummaryResponse` (§2.14) describes: `person_pk` (the
+Family/Person identity) to `sangha_sevi_pk` (the Membership identity) — a person can exist in a
+family with no membership at all, consistent with the "Person ≠ Member" project-wide principle.
+Four steps: (1) Look up `sangha_sevi` by `ss.person_pk = %s AND ss.is_active = TRUE`, joined to
+`master_data` twice (membership type, membership status) and `organization`, with a `LEFT JOIN`
+to `membership_sakha_affiliation` (`aff.effective_to IS NULL`) for the current Sakha — `LIMIT 1`
+since a person has at most one active `sangha_sevi` row (one-person-one-membership). If `row` is
+falsy — no matching `sangha_sevi` at all — the function returns `PersonMembershipSummaryResponse()`
+with every field at its `None`/default, and **explicitly not a 404**: the docstring and the
+"Returns empty fields (not 404) if the person has no membership record" note make this a
+deliberate contract choice, since "this person has a family record but no membership" is an
+expected, valid state, not an error condition. (2) If a `sangha_sevi` row was found, a second
+query fetches the most recent `parichaya_patra` (`ORDER BY pp.valid_from DESC LIMIT 1`) — the
+latest Parichaya Patra regardless of its `status`, i.e. even an expired/superseded one is
+returned if it's the most recent by `valid_from`. (3) A third query does the same for
+`anumati_patra`, but **only if** `member["membership_type_code"] != "ASSOCIATE"` — a direct
+reflection of MBR-019A/B (per this function's own docstring): Associate members are not eligible
+for an Anumati Patra, so the query is skipped entirely for them rather than running and finding no
+rows. (4) The final `PersonMembershipSummaryResponse(...)` construction assembles all three
+lookups' results into one flat response — again a direct constructor call rather than
+`row_to_model`, since the values are drawn from three separate cursors merged in Python, not from
+a single result row.
+
 ---
 
 ### 2.14 `api/schemas/family.py`
 
 **Requirement**
 
-`api/routers/family.py` needs three typed response models — one per resolved query shape
-(`_FAMILY_SELECT`, `_MEMBER_SELECT`, `_HEAD_SELECT`) — so FastAPI can validate, serialize, and
+`api/routers/family.py` needs eight typed response models — one per resolved query/computation
+shape across its 7 endpoints (`_FAMILY_SELECT`, `_MEMBER_SELECT`, `_HEAD_SELECT`, the graph
+endpoint's per-member result, the Sakha Alignment endpoint's family/per-member/per-Sakha-count
+shapes, and the Person Membership Summary bridge) — so FastAPI can validate, serialize, and
 document (via `/docs`) exactly what each endpoint returns, and so audit columns
 (`created_at`/`updated_at`/`deleted_at`/`*_by_sangha_sevi_pk`) are structurally excluded from every
 response the same way they are for every other tier.
@@ -3550,6 +4004,7 @@ class FamilyMemberResponse(BaseModel):
     effective_from: date
     effective_to: date | None
     is_current: bool
+    is_head: bool
     remarks: str | None
 ```
 
@@ -3559,7 +4014,10 @@ router's plain `JOIN` against `master_data` for relationship type guarantees a m
 `family_relationship.relationship_type_master_data_pk` is `NOT NULL`. `effective_to` is
 `date | None`: `None` for a current relationship (`is_current = True`), populated once the
 relationship ends — mirroring the DDL's `chk_family_rel_current_consistency` CHECK constraint one
-layer up in the schema.
+layer up in the schema. `is_head: bool` (not `| None`) is the model-side counterpart of
+`_MEMBER_SELECT`'s `CASE WHEN fhh.family_head_history_pk IS NOT NULL THEN TRUE ELSE FALSE END` —
+the SQL's `CASE`/`ELSE FALSE` already guarantees a non-null boolean for every row, so the field
+carries no `| None`.
 
 ```python
 class FamilyHeadHistoryResponse(BaseModel):
@@ -3583,9 +4041,435 @@ how "current head" is derived from `effective_to IS NULL` rather than a boolean 
 absence of an `is_current` field here, present on `FamilyMemberResponse`, is a direct
 one-to-one reflection of the two underlying tables' different DDL shapes, not an inconsistency.
 
+```python
+class FamilyGraphMemberResponse(BaseModel):
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+    gender_code: str | None
+    relationship_label: str
+    generation: int
+    is_head: bool
+    spouse_person_pk: UUID | None = None
+    parent_person_pks: list[str] = []
+```
+
+Backs `GET /families/{family_group_pk}/graph` (§2.13 §4). `relationship_label` and `generation`
+are the two fields `FamilyGraph.compute_relationships` (§2.15) computes via BFS — everything else
+is either passed through from the person row (`person_id`/name fields/`gender_code`, the latter
+`str | None` since `person.gender_master_data_pk` is nullable) or re-derived from graph adjacency
+in the router (`is_head`, `spouse_person_pk`, `parent_person_pks`). `spouse_person_pk: UUID | None
+= None` and `parent_person_pks: list[str] = []` both carry defaults because a member without a
+recorded spouse/parent edge in `family_link` simply omits them, rather than the router needing to
+special-case the response construction. `parent_person_pks` is `list[str]`, not `list[UUID]` —
+the router builds it by appending `str(neighbor_pk)` for each `Step.UP` neighbor (§2.13), so the
+model's field type matches what's actually assembled rather than requiring an extra per-item
+`UUID` coercion at construction time.
+
+```python
+class PersonMembershipSummaryResponse(BaseModel):
+    sangha_sevi_id: str | None = None
+    sangha_sevi_pk: UUID | None = None
+    membership_type_code: str | None = None
+    membership_type_name: str | None = None
+    status_code: str | None = None
+    status_name: str | None = None
+    organization_name: str | None = None
+    local_sakha_erp_id: str | None = None
+    parichaya_patra_number: str | None = None
+    parichaya_patra_status: str | None = None
+    parichaya_patra_valid_to: date | None = None
+    anumati_patra_number: str | None = None
+    anumati_patra_status: str | None = None
+    anumati_patra_valid_to: date | None = None
+```
+
+Backs `GET /person/{person_pk}/membership-summary` (§2.13 §6). **Every** field is `| None` with a
+default — an unusually all-optional shape compared to every other response model in this file —
+because the model has to represent three genuinely different "nothing found" states with the same
+type: (1) the person has no `sangha_sevi` row at all (the router returns
+`PersonMembershipSummaryResponse()` with every field at its default), (2) they have a
+`sangha_sevi` but no Parichaya Patra yet (`parichaya_patra_*` fields stay `None`), and (3) they're
+an `ASSOCIATE` member, for whom the router skips the Anumati Patra query entirely per MBR-019A/B
+(`anumati_patra_*` fields stay `None`). Modeling this as one flat, all-optional shape — rather
+than three response models or a nested optional sub-object — matches the router's own "bridge,
+don't 404" contract: the caller always gets a `200` with a `PersonMembershipSummaryResponse`
+shape, and reads presence/absence off individual fields.
+
+```python
+class SakhaAffiliationCount(BaseModel):
+    organization_pk: UUID
+    organization_name: str
+    organization_code: str
+    member_count: int
+
+
+class MemberSakhaInfo(BaseModel):
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+    affiliated_sakha_pk: UUID | None = None
+    affiliated_sakha_name: str | None = None
+    affiliated_sakha_code: str | None = None
+    is_home_sakha: bool | None = None      # matches family's effective (majority) Sakha?
+    has_membership: bool = False
+
+
+class FamilySakhaAlignmentResponse(BaseModel):
+    family_group_pk: UUID
+    family_name: str
+
+    assigned_sakha_pk: UUID
+    assigned_sakha_name: str
+    assigned_sakha_code: str
+
+    majority_sakha_pk: UUID | None = None
+    majority_sakha_name: str | None = None
+    majority_sakha_code: str | None = None
+
+    is_aligned: bool = True   # always True — family follows majority
+    total_members: int = 0
+    members_with_affiliation: int = 0
+
+    affiliations: list[SakhaAffiliationCount] = []
+    members: list[MemberSakhaInfo] = []
+```
+
+These three models together back `GET /families/{family_group_pk}/sakha-alignment` (§2.13 §5).
+`SakhaAffiliationCount` is the per-Sakha tally (one row per distinct Sakha found among the
+family's members, `member_count` matching the router's `sakha_counts` dict). `MemberSakhaInfo` is
+the per-member detail row — `affiliated_sakha_*` and `is_home_sakha` are all `| None` because a
+member with no active `sangha_sevi`/affiliation contributes nothing to compare (`has_membership`
+distinguishes "no membership" from "membership but no affiliation record" at a glance).
+`FamilySakhaAlignmentResponse` is the envelope: `assigned_sakha_*` fields are non-nullable
+`UUID`/`str` (the family always has *some* effective Sakha, per `_FAMILY_SELECT`'s CTE fallback),
+while `majority_sakha_*` stay `| None` for the zero-members early-return case. Its own docstring
+(reproduced in the source) states plainly that **`is_aligned` is hardcoded to `True` by design**
+— "the family follows the majority automatically" — with `MemberSakhaInfo.is_home_sakha` left as
+the only field that can actually flag an individual mismatch; see §2.13 §5 for why the router-side
+computation can never actually set `is_aligned = False`.
+
 ---
 
-### 2.15 `api/routers/membership.py`
+### 2.15 `api/services/family_graph.py`
+
+**Requirement**
+
+`api/routers/family.py`'s graph endpoint (§2.13 §4) needs to turn a flat table of direct
+`family_link` edges (`PARENT_OF`/`SPOUSE_OF`) into every *extended* kinship label a viewer would
+recognize (Grandfather, Sister-in-Law, Cousin, ...) without storing a single one of those labels
+in the database. Per the "History Never Deleted"/"Master Data Driven" principles this project
+already applies elsewhere, storing a denormalized `relationship_type` for every possible pair of
+family members would mean re-deriving and rewriting O(n²) rows every time a marriage, birth, or
+change of Family Head occurs. This file is the first source file under a brand-new `api/services/`
+directory (see this document's Purpose section) — a layer for framework-agnostic business logic
+(pure Python graph construction and BFS traversal, no FastAPI/psycopg2 imports at all) that a
+router calls into, sitting between `api/routers/` (HTTP + SQL) and `api/schemas/` (response
+shape). Without this file, `family.py`'s graph endpoint would have no way to compute a
+relationship label at all — the DDL comment atop `05_family_link.sql` itself states the design
+intent this module implements: "All extended relationships ... are computed dynamically via
+graph traversal relative to the viewer."
+
+**Line-by-line**
+
+Lines 1–24 — module docstring:
+
+```python
+"""
+Family Graph — dynamic relationship computation.
+
+Builds an in-memory graph from ``nss.family_link`` rows and computes
+relationship labels relative to any viewer via BFS traversal.
+
+Edge types stored in the DB:
+    PARENT_OF  — person_a is parent of person_b (directed)
+    SPOUSE_OF  — person_a and person_b are spouses (bidirectional)
+
+Traversal step types (internal):
+    UP      — move to a parent   (reverse of PARENT_OF)
+    DOWN    — move to a child    (forward  PARENT_OF)
+    SPOUSE  — move to a spouse   (either direction of SPOUSE_OF)
+
+The path from viewer → target is a tuple of step types.  A lookup table
+maps each path pattern to a gendered relationship label pair
+(male_label, female_label).  The target person's gender_code selects
+which label to use.
+
+Design decision:  Only direct edges are stored.  Every other kinship
+term is derived.  When the Family Head changes, zero data re-entry
+is required — the graph is the same, only the viewer changes.
+"""
+```
+
+States the module's whole design up front: two DB-level edge types (`PARENT_OF`/`SPOUSE_OF`)
+expand into three traversal-level step types (`UP`/`DOWN`/`SPOUSE`), a path is a tuple of those
+steps, and a lookup table maps path-shape → gendered label pair. The closing "Design decision"
+paragraph is the module's own restatement of why `family_link` (§2.13/DDL) stores only direct
+edges: changing who the Family Head is (i.e. who the viewer is) requires zero data migration,
+since the same stored graph simply gets walked from a different starting node.
+
+Lines 37–40 — the `Step` enum:
+
+```python
+class Step(Enum):
+    UP = "UP"          # to parent
+    DOWN = "DOWN"      # to child
+    SPOUSE = "SPOUSE"  # to spouse
+```
+
+The three traversal primitives named in the docstring, as a proper `Enum` (not bare strings) so
+`FamilyGraph.adjacency`'s step values are type-checked and so `family.py`'s router (§2.13 §4) can
+import `Step` and compare `step == Step.SPOUSE`/`step == Step.UP` directly rather than matching
+on string literals.
+
+Lines 47–149 — `PATH_LABELS`, the path → label lookup table:
+
+```python
+PATH_LABELS: dict[tuple[Step, ...], tuple[str, str]] = {
+    (Step.SPOUSE,): ("Husband", "Wife"),
+    (Step.UP, Step.DOWN): ("Brother", "Sister"),
+    (Step.UP,): ("Father", "Mother"),
+    (Step.UP, Step.UP): ("Grandfather", "Grandmother"),
+    (Step.DOWN,): ("Son", "Daughter"),
+    (Step.DOWN, Step.DOWN): ("Grandson", "Granddaughter"),
+    (Step.UP, Step.UP, Step.DOWN): ("Uncle", "Aunt"),
+    (Step.UP, Step.DOWN, Step.DOWN): ("Nephew", "Niece"),
+    (Step.UP, Step.UP, Step.DOWN, Step.DOWN): ("Cousin", "Cousin"),
+    (Step.UP, Step.UP, Step.UP): ("Great-Grandfather", "Great-Grandmother"),
+    (Step.DOWN, Step.DOWN, Step.DOWN): ("Great-Grandson", "Great-Granddaughter"),
+    # ... 27 entries total, grouped by generation with a comment header per group
+}
+```
+
+A `dict` keyed by an exact tuple of `Step` values (the shortest BFS path from viewer to target),
+valued as `(male_label, female_label)`. 27 entries total, organized by the module's own comment
+headers into Generation 0 (spouse, siblings, siblings'-spouses), Generation −1/−2 (parents,
+parents-in-law, step-parents, grandparents), Generation +1/+2 (children, step-children,
+children-in-law, grandchildren), and "Extended family" (uncle/aunt, nephew/niece, cousin,
+great-grandparent/child, grandchild-in-law, grand-nephew/niece). In-law and step-relation entries
+are their own explicit dict keys (e.g. `(Step.SPOUSE, Step.UP): ("Father-in-Law",
+"Mother-in-Law")` vs. `(Step.UP, Step.SPOUSE): ("Step-Father", "Step-Mother")`) rather than being
+derived by a rule — the exact sequence of `UP`/`DOWN`/`SPOUSE` steps, not just which steps appear,
+determines the label. Any path shape not present as a key (an exact-match `dict.get`, not a
+pattern match) falls through to `"Relative"` in `_path_to_label` below — the table is intentionally
+finite; very distant or unusual paths (e.g. great-great-grandparent) are not modeled and degrade
+to a generic label rather than raising.
+
+Lines 154–176 — `PersonNode` and the `FamilyGraph` dataclass shell:
+
+```python
+@dataclass
+class PersonNode:
+    """Minimal person info needed for graph traversal."""
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: Optional[str]
+    last_name: Optional[str]
+    gender_code: Optional[str]  # MALE / FEMALE
+
+
+@dataclass
+class FamilyGraph:
+    persons: dict[UUID, PersonNode] = field(default_factory=dict)
+    adjacency: dict[UUID, list[tuple[UUID, Step]]] = field(default_factory=dict)
+```
+
+`PersonNode` is a plain display-data carrier (no graph logic) — a typed counterpart to the raw
+dicts `_GRAPH_PERSONS_SQL` (§2.13 §4) returns. `FamilyGraph.adjacency` is the graph itself: a
+`dict` from a person's PK to a list of `(neighbor_pk, Step)` pairs — an adjacency-list
+representation, not a matrix, appropriate since a family graph is sparse (each person has at most
+a handful of parents/children/spouses, never a connection to every other member).
+
+Lines 175–194 — `add_person`/`add_link`:
+
+```python
+def add_person(self, node: PersonNode) -> None:
+    self.persons[node.person_pk] = node
+    if node.person_pk not in self.adjacency:
+        self.adjacency[node.person_pk] = []
+
+def add_link(self, person_a_pk: UUID, person_b_pk: UUID, link_type: str) -> None:
+    """Add a directed link and its reverse."""
+    if person_a_pk not in self.adjacency:
+        self.adjacency[person_a_pk] = []
+    if person_b_pk not in self.adjacency:
+        self.adjacency[person_b_pk] = []
+
+    if link_type == "PARENT_OF":
+        self.adjacency[person_a_pk].append((person_b_pk, Step.DOWN))
+        self.adjacency[person_b_pk].append((person_a_pk, Step.UP))
+    elif link_type == "SPOUSE_OF":
+        self.adjacency[person_a_pk].append((person_b_pk, Step.SPOUSE))
+        self.adjacency[person_b_pk].append((person_a_pk, Step.SPOUSE))
+```
+
+This is where the DB's two directed/bidirectional edge semantics become a symmetric adjacency
+list: a single `PARENT_OF` row from A to B is stored as **two** adjacency entries — `DOWN` from
+A's list (A → B, A is the parent) and `UP` from B's list (B → A, B is the child) — so BFS can walk
+the graph in either direction from any starting viewer. `SPOUSE_OF` similarly becomes two
+`SPOUSE`-tagged entries, one on each side, since a spouse relationship has no direction. Both
+methods guard `if pk not in self.adjacency: self.adjacency[pk] = []` before appending, defending
+against a link row referencing a person not yet added via `add_person` (defensive, though
+`build_family_graph`'s row shapes make this unlikely in practice since `_GRAPH_PERSONS_SQL`
+already selects every person appearing in any `family_link` row for the family).
+
+Lines 196–258 — `compute_relationships`, the BFS:
+
+```python
+def compute_relationships(
+    self,
+    viewer_pk: UUID,
+    max_depth: int = 6,
+) -> list[dict]:
+    if viewer_pk not in self.adjacency:
+        return []
+
+    visited: dict[UUID, tuple[Step, ...]] = {viewer_pk: ()}
+    queue: deque[UUID] = deque([viewer_pk])
+
+    while queue:
+        current = queue.popleft()
+        current_path = visited[current]
+
+        if len(current_path) >= max_depth:
+            continue
+
+        for neighbor_pk, step in self.adjacency[current]:
+            if neighbor_pk in visited:
+                continue
+            new_path = current_path + (step,)
+            visited[neighbor_pk] = new_path
+            queue.append(neighbor_pk)
+
+    results: list[dict] = []
+    for person_pk, path in visited.items():
+        if person_pk == viewer_pk:
+            continue
+
+        person = self.persons.get(person_pk)
+        if person is None:
+            continue
+
+        label = self._path_to_label(path, person.gender_code)
+        generation = self._path_to_generation(path)
+
+        results.append({
+            "person_pk": str(person.person_pk),
+            ...
+            "relationship_label": label,
+            "generation": generation,
+            "path": [s.value for s in path],
+        })
+
+    results.sort(key=lambda r: (r["generation"], r["first_name"] or ""))
+    return results
+```
+
+Standard BFS with a `deque`, tracking the **shortest path** (as a tuple of `Step`s, not a
+distance count) to each newly-discovered node in `visited`. `if viewer_pk not in self.adjacency:
+return []` — a viewer with zero recorded links (an isolated family member, or a bad PK) has no
+computable relationships; this is a graceful empty result, not an error, matching the router's
+own `if not person_rows or not link_rows: return []` short-circuit one layer up (§2.13 §4).
+`max_depth: int = 6` caps how many steps BFS will extend a path (`if len(current_path) >=
+max_depth: continue` skips expanding further from that node, though already-visited neighbors
+within depth are still recorded) — a safety net against runaway traversal in a malformed or
+unusually large/cyclic graph, not expected to bind in a real family. BFS naturally finds the
+*shortest* path first because it explores level-by-level and `if neighbor_pk in visited: continue`
+never overwrites a path once set — so if a person is reachable both as a "sibling" (2 steps) and,
+via a longer route, as something else, the 2-step path wins, matching real-world kinship
+convention (the closest relationship label is the correct one). The results loop skips the viewer
+themself (`if person_pk == viewer_pk: continue`) and any `person_pk` in `visited` that has no
+matching `PersonNode` (a defensive `person is None` guard — shouldn't occur given
+`build_family_graph`'s inputs, but avoids a `KeyError`-shaped crash if it ever did), then computes
+`relationship_label`/`generation` per node and sorts the final list by `(generation, first_name)`
+— older generations (negative `generation`, e.g. parents/grandparents) sort before the viewer's
+own generation, which sorts before descendants, and ties within a generation sort alphabetically.
+
+Lines 260–290 — `_path_to_label`/`_path_to_generation`:
+
+```python
+@staticmethod
+def _path_to_label(path: tuple[Step, ...], gender_code: Optional[str]) -> str:
+    labels = PATH_LABELS.get(path)
+    if labels is None:
+        return "Relative"
+
+    male_label, female_label = labels
+    if gender_code == "MALE":
+        return male_label
+    elif gender_code == "FEMALE":
+        return female_label
+    else:
+        return male_label  # Unknown gender — return male form (conventional default)
+
+@staticmethod
+def _path_to_generation(path: tuple[Step, ...]) -> int:
+    gen = 0
+    for step in path:
+        if step == Step.UP:
+            gen -= 1
+        elif step == Step.DOWN:
+            gen += 1
+        # SPOUSE: no generation change
+    return gen
+```
+
+`_path_to_label` is a direct `PATH_LABELS.get(path)` lookup (exact tuple match, per the note
+above) with a `"Relative"` fallback for any unmodeled path shape, then picks the gendered label
+form; an unknown/`None` `gender_code` (nullable at the DDL level, per §2.13 §4's note on
+`_GRAPH_PERSONS_SQL`'s `LEFT JOIN`) falls back to the male label form as a documented, explicit
+convention rather than an accidental default. `_path_to_generation` reduces a path to a single
+signed integer purely from `UP`/`DOWN` counts (`SPOUSE` steps contribute 0) — this is what the
+router's/UI's "sort/group by generation" behaviour is built on (§2.13 §4's BFS results sort by
+this exact value).
+
+Lines 295–327 — `build_family_graph`, the DB-rows-to-graph constructor:
+
+```python
+def build_family_graph(
+    person_rows: list[dict],
+    link_rows: list[dict],
+) -> FamilyGraph:
+    graph = FamilyGraph()
+
+    for row in person_rows:
+        node = PersonNode(
+            person_pk=UUID(str(row["person_pk"])),
+            person_id=row["person_id"],
+            first_name=row["first_name"],
+            middle_name=row.get("middle_name"),
+            last_name=row.get("last_name"),
+            gender_code=row.get("gender_code"),
+        )
+        graph.add_person(node)
+
+    for row in link_rows:
+        graph.add_link(
+            person_a_pk=UUID(str(row["person_a_pk"])),
+            person_b_pk=UUID(str(row["person_b_pk"])),
+            link_type=row["link_type"],
+        )
+
+    return graph
+```
+
+The module-level entry point `family.py`'s router (§2.13 §4) actually calls. Takes exactly the two
+raw-dict row lists `_GRAPH_PERSONS_SQL`/`_GRAPH_LINKS_SQL` produce, wraps every PK with
+`UUID(str(row[...]))` (defensive against psycopg2 returning either a `str` or an already-typed
+`UUID` depending on column/driver configuration — `str()` first makes the `UUID(...)` call
+uniform either way), and calls `add_person`/`add_link` in a fixed order — every person is added
+before any link is processed, so `add_link`'s "person not yet in adjacency" guard (see above) is
+belt-and-suspenders rather than the common path. Returns the fully-built `FamilyGraph`, ready for
+`compute_relationships`.
+
+---
+
+### 2.16 `api/routers/membership.py`
 
 **Requirement**
 
@@ -3997,7 +4881,7 @@ component renders it.
 
 ---
 
-### 2.16 `api/schemas/membership.py`
+### 2.17 `api/schemas/membership.py`
 
 **Requirement**
 
@@ -4164,7 +5048,7 @@ explicitly calls out that its inline comments label `affiliated_organization_*` 
 router's SQL comments) that these are point-in-time copies, not live references.
 `AnumatiPatraResponse` is `ParichayaPatraResponse` minus the three Sakha-snapshot fields — a
 direct, field-for-field reflection of `anumati_patra`'s DDL lacking those columns entirely (see
-§2.15's note on why). `JourneyEventResponse` is the narrowest model in the file, mirroring
+§2.16's note on why). `JourneyEventResponse` is the narrowest model in the file, mirroring
 `membership_journey_event`'s six columns exactly, with `event_type: str` left as a plain string
 (not an enum) — consistent with the DDL's deliberate choice not to constrain the event catalogue
 to `master_data`.

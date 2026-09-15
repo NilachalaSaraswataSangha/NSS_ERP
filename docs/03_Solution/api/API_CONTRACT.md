@@ -10,7 +10,7 @@
 | Document ID | SOL-API-001 |
 | Domain | Cross-Module |
 | Repository Path | docs/03_Solution/api/API_CONTRACT.md |
-| Version | 1.0.0 |
+| Version | 1.0.2 |
 | Status | Draft |
 | Authority | NSS ERP Architecture |
 | Effective Date | TBD |
@@ -127,6 +127,11 @@ All `{pk}` parameters expect a valid UUID v4. Malformed UUIDs return `422`.
 | 25 | GET | `/organizations/{pk}` | — | Organization detail | `OrganizationResponse` |
 | 26 | GET | `/organizations/{pk}/children` | — | Direct children of org | `list[OrganizationResponse]` |
 | 27 | GET | `/hierarchy` | `limit`, `offset` | Recursive org tree | `list[OrganizationHierarchyNodeResponse]` |
+| 43 | GET | `/organizations/{pk}/children-stats` | — | Per-direct-child family/member/person counts (dynamic Sakha majority rule, FAM-036) | `list[OrgChildStatsResponse]` |
+
+**Note:** `/children-stats` (Tier 4, added on top of Family + Membership) is numbered out of
+the original 22–27 sequence to avoid renumbering every endpoint added after Tier 2 in this
+table; see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` §3.2.4 for the full contract.
 
 ---
 
@@ -159,12 +164,32 @@ All `{pk}` parameters expect a valid UUID v4. Malformed UUIDs return `422`.
 | 33 | GET | `/families/{pk}` | — | Family detail | `FamilyGroupResponse` |
 | 34 | GET | `/families/{pk}/members` | — | Current family members | `list[FamilyMemberResponse]` |
 | 35 | GET | `/families/{pk}/head-history` | — | Family head history | `list[FamilyHeadHistoryResponse]` |
+| 44 | GET | `/families/{pk}/graph` | `viewer_person_pk` (required) | Dynamic per-viewer relationship labels via BFS graph traversal over `family_link` (PARENT_OF/SPOUSE_OF edges) | `list[FamilyGraphMemberResponse]` |
+| 45 | GET | `/families/{pk}/sakha-alignment` | — | FAM-036 majority-rule "effective Sakha" for the family, per-Sakha member counts, per-member mismatch flags | `FamilySakhaAlignmentResponse` |
+| 46 | GET | `/person/{person_pk}/membership-summary` | — | Lightweight membership snapshot for a person (sangha_sevi_id, type/status, current Sakha, latest Parichaya/Anumati Patra); bridges family context to membership context | `PersonMembershipSummaryResponse` |
+
+**Note:** `/graph`, `/sakha-alignment`, and `/person/{pk}/membership-summary` are numbered
+out of the original 32–35 sequence, following the same out-of-sequence numbering convention
+used for Organization's `/children-stats` (§5) — added after Tier 4 Membership without
+renumbering earlier endpoints.
 
 **Notes:**
 
 - Members endpoint returns only `is_current=TRUE` relationships
 - Head history ordered by `effective_from DESC` (most recent first)
 - Sub-resource endpoints return `404` if the parent family does not exist
+- `/graph` returns `404` if the family does not exist; returns `[]` if the family has no
+  `family_link` rows (no graph data) even though it has members
+- `/graph`'s BFS traversal caps at `max_depth=6` (see `api/services/family_graph.py`); path
+  patterns not in the `PATH_LABELS` lookup table degrade to a generic `"Relative"` label
+  rather than erroring
+- `/sakha-alignment`'s `is_aligned` is always `true` by construction — the family's
+  "effective" Sakha is *defined* as the majority, so it cannot disagree with itself; per-member
+  `is_home_sakha` is the field that actually flags a mismatch
+- `/person/{pk}/membership-summary` returns an all-empty-fields `200` (not `404`) when the
+  person has no `sangha_sevi` record — the person PK itself is not validated against `person`
+- Anumati Patra is omitted from the membership summary when `membership_type_code == "ASSOCIATE"`
+  (MBR-019A/B)
 
 ---
 
@@ -253,11 +278,11 @@ Frontend routes are excluded from OpenAPI schema (`include_in_schema=False`).
 |---|---|---|
 | 0 | Bootstrap | 4 |
 | 1 | Foundation | 17 |
-| 2 | Organization | 6 |
+| 2 | Organization | 7 |
 | 3 | Person | 4 |
-| 4 | Family | 4 |
+| 4 | Family | 7 |
 | 4 | Membership | 7 |
-| **Total** | | **42** |
+| **Total** | | **46** |
 
 ---
 

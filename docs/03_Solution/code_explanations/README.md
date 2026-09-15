@@ -19,20 +19,23 @@ home, and the same pattern extends cleanly as new layers are added in the future
 
 ## Files
 
-- **`API_CODE_EXPLANATIONS.md`** (v1.5, Complete — updated: Tier 4 Family + Membership) — every
-  file under `api/` except `api/middleware.py` (which lives in the Security doc, since it's exclusively
-  security code): `config.py`, `database.py`, `main.py`, `helpers.py`, `routers/bootstrap.py`,
+- **`API_CODE_EXPLANATIONS.md`** (v1.7, Complete — updated: Tier 4 Family graph/sakha-alignment/
+  membership-summary, first `api/services/` file) — every file under `api/` except
+  `api/middleware.py` (which lives in the Security doc, since it's exclusively security code):
+  `config.py`, `database.py`, `main.py`, `helpers.py`, `routers/bootstrap.py`,
   `routers/foundation.py`, `routers/organization.py`, `routers/person.py`, `routers/family.py`,
   `routers/membership.py`, `schemas/bootstrap.py`, `schemas/foundation.py`,
   `schemas/organization.py`, `schemas/person.py`, `schemas/family.py`, `schemas/membership.py`,
-  and the three package `__init__.py` markers.
-- **`DATABASE_CODE_EXPLANATIONS.md`** (v1.2, Complete — updated: Tier 4 Family + Membership) —
+  `services/family_graph.py` (the first file in a new `api/services/` layer), and the three
+  package `__init__.py` markers.
+- **`DATABASE_CODE_EXPLANATIONS.md`** (v1.3, Complete — updated: Tier 4 Family — `family_link`
+  graph-edge table) —
   every hand-written SQL DDL/seed file and build/validate/grant script under `database/`
   (Bootstrap/Foundation/Organization/Person/Family/Membership — Person's
   `01_person_master_tables.sql` DDL/seed pair is the only remaining superseded file;
-  `02_person.sql`/`03_person_address.sql` and all of `04_family/` and `05_membership/` are real,
-  implemented DDL), full column-by-column detail for DDL, representative sampling (not verbatim
-  row transcription) for large seed files.
+  `02_person.sql`/`03_person_address.sql` and all of `04_family/` (now 5 tables) and
+  `05_membership/` are real, implemented DDL), full column-by-column detail for DDL,
+  representative sampling (not verbatim row transcription) for large seed files.
 - **`UI_CODE_EXPLANATIONS.md`** (v1.4, Complete — updated: Tier 4 Family, Membership) — every
   file under `frontend/` except binary assets: `index.html`, `foundation.html`,
   `organization.html`, `person.html`, `family.html`, `membership.html`, `assets/js/app.js`,
