@@ -83,9 +83,13 @@ CORRESPONDENCE, PROPERTY_DOCUMENT, MEETING_MINUTES
 **STATUS** (16 values, unified ERP-wide lifecycle status — replaces the earlier per-module
 `MEMBERSHIP_STATUS`). Each value tagged with `applicable_modules` array:
 - Organization: PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, DISSOLVED, ARCHIVED (7)
-- Membership: ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, ARCHIVED, RENEWAL_PENDING, ON_HOLD, DISCIPLINARY_REVIEW (11)
+- Membership: ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, ARCHIVED, EXPIRED, RENEWAL_PENDING, ON_HOLD, DISCIPLINARY_REVIEW (12)
 - Person: ACTIVE, INACTIVE, DECEASED, ARCHIVED (4)
-- Credential: EXPIRED (1) — used by Anumati Patra / Parichaya Patra document status
+
+EXPIRED is tagged `{MEMBERSHIP}` (a Parichaya Patra/Anumati Patra lapsing from non-renewal is a
+membership-lifecycle event) — note `parichaya_patra.status`/`anumati_patra.status` are each
+their own inline `VARCHAR` + `CHECK` column, not FKs into `master_data`, so this row is a
+reference/lookup value rather than what those two tables actually store.
 
 **RELATIONSHIP_TYPE** (29 values, comprehensive for Indian family structure):
 - Immediate family: SPOUSE, FATHER, MOTHER, SON, DAUGHTER, BROTHER, SISTER

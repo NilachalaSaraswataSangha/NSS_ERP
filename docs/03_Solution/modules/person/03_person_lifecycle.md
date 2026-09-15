@@ -68,8 +68,8 @@ statuses for UI display and API filtering:
 | ARCHIVED | is_active=FALSE, deleted_at=SET | Permanently closed, retained for history |
 
 DECEASED is a Person-only status — a membership cannot be deceased, a
-member (person) can. EXPIRED is a Credential-only status (Anumati Patra /
-Parichaya Patra documents), not applicable to Person.
+member (person) can. EXPIRED is tagged Membership (it fires when a Parichaya Patra/Anumati
+Patra lapses from non-renewal), not applicable to Person.
 
 ---
 

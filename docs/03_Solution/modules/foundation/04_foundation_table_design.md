@@ -280,7 +280,6 @@ modules it applies to:
     '{ORGANIZATION}'                   — Organization only
     '{ORGANIZATION,MEMBERSHIP}'        — Organization and Membership
     '{ORGANIZATION,MEMBERSHIP,PERSON}' — all three core modules
-    '{CREDENTIAL}'                     — Credential documents only
 
 API filters use: `WHERE '<MODULE>' = ANY(md.applicable_modules)`.
 
@@ -289,9 +288,15 @@ Current unified STATUS distribution (16 values total):
 | Module       | Count | Statuses |
 |-------------|------:|----------|
 | Organization | 7 | PROPOSED, APPROVED, ACTIVE, INACTIVE, SUSPENDED, DISSOLVED, ARCHIVED |
-| Membership   | 11 | ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, ARCHIVED, RENEWAL_PENDING, ON_HOLD, DISCIPLINARY_REVIEW |
+| Membership   | 12 | ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED, ARCHIVED, EXPIRED, RENEWAL_PENDING, ON_HOLD, DISCIPLINARY_REVIEW |
 | Person       | 4 | ACTIVE, INACTIVE, DECEASED, ARCHIVED |
-| Credential   | 1 | EXPIRED |
+
+EXPIRED is tagged `{MEMBERSHIP}` — it fires when a Parichaya Patra/Anumati Patra lapses from
+non-renewal, which is a membership-lifecycle event, not a document-only concern. (An earlier
+revision tagged it `{CREDENTIAL}`; that undersold the relationship and has been corrected.)
+Note `parichaya_patra.status`/`anumati_patra.status` are each their own inline `VARCHAR` +
+`CHECK` column, not an FK into `master_data` — so this STATUS row is a reference/lookup value,
+not literally what those two tables store.
 
 ---
 
