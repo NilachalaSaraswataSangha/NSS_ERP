@@ -491,6 +491,7 @@ v0.6.0.md
 v0.7.0.md
 v0.8.0.md
 v0.9.0.md
+v0.10.0.md
 ```
 
 ---
@@ -772,11 +773,11 @@ Current Focus:
   Organization master-data migration retiring `organization_type_master`/
   `organization_status_master` in favor of Foundation's `master_category`/`master_data`.
   Family and Membership now also have a full Tier 4 API + Web UI (7 + 7 endpoints, 67 + 99
-  tests — 46 endpoints total across all tiers) — implemented on `feature/tier4-family-membership`, not yet committed, merged, or
-  released (target `v0.10.0`). **410 tests total** across the whole suite (1 known failing
-  test — `test_kumari_transition_has_event`, see `docs/PROJECT_DOCUMENTATION.md` →
-  Conventions & gotchas). No release doc has been created yet for the module-documentation
-  backlog beyond these five.
+  tests — 46 endpoints total across all tiers), merged to `develop` from
+  `feature/tier4-family-membership` — not yet tagged or merged to `main`
+  (target `v0.10.0`, release notes drafted at `docs/05_Releases/v0.10.0.md`). **410 tests
+  total** across the whole suite (1 known failing test — `test_kumari_transition_has_event`,
+  see `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas).
 
 ---
 
@@ -788,9 +789,9 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 |------|---------|-------|----|-----|--------|--------|
 | **0** | Bootstrap RBAC | Infrastructure bootstrap — `role_master`, `permission_master`, `role_permission` (3 tables) | Done | Done (4 endpoints) | Done (Bootstrap Verification) | -- |
 | **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Done (17 endpoints) | Done (Foundation Verification) | -- |
-| **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (6 endpoints) | Done (Organization Verification) | -- |
+| **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (7 endpoints) | Done (Organization Verification) | -- |
 | **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints) | Done (Person Verification) | -- |
-| **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Implemented* | Implemented* (14 endpoints) | Implemented* | -- |
+| **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Done | Done (14 endpoints) | Done (Family + Membership Verification) | -- |
 | **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | Not started | Not started | Not started | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
 | **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
@@ -802,7 +803,6 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 
 **Legend:**
 - **Done** — implemented and merged to `develop`
-- **Implemented\*** — code complete and tested on a feature branch (`feature/tier4-family-membership`), but not yet committed, merged to `develop`, or released — see Current Development Status above
 - **Not started** — design docs complete, no implementation yet
 - **--** — Mobile (Flutter) starts after Web UI stabilizes per tier; no mobile work planned until core tiers (0-5) have working web UIs
 
@@ -817,7 +817,7 @@ release document under `docs/05_Releases/` before the next tier begins.
 | v0.7.0 | Tier 1 | Foundation — API + Web UI + security hardening (DB already done) (**released**) |
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) (**released**) |
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI, plus the Organization master-data migration (**released**) |
-| v0.10.0 | Tier 4 | Family + Membership — full vertical slice (implemented on a feature branch; release tagging pending) |
+| v0.10.0 | Tier 4 | Family + Membership — full vertical slice, family graph, Organization children-stats (merged to `develop`; release notes drafted, tag/main-merge pending) |
 | v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
 | ... | Tier 6-12 | One tag per tier through Tier 12 |
 
@@ -828,9 +828,9 @@ v0.10.0 — Tier 4 Family + Membership: family DDL (5 tables, incl. a graph-edge
 (7 endpoints, incl. dynamic relationship-graph and Sakha-alignment computation) + Web UI,
 membership DDL (sangha_sevi, three-tier identity model) + API (7 endpoints) + Web UI, plus a
 new Organization `/children-stats` endpoint (Tier 2's count grows 6→7) and a shared
-frontend badge/config layer. Implementation is
-complete on `feature/tier4-family-membership` (67 + 99 tests, 46 endpoints total) — not yet committed, merged to
-`develop`, or tagged.
+frontend badge/config layer. Merged to `develop` from `feature/tier4-family-membership`
+(67 + 99 tests, 410 tests total, 46 endpoints total) — release notes drafted at
+`docs/05_Releases/v0.10.0.md`; not yet tagged or merged to `main`.
 ```
 
 ---
