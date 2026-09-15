@@ -34,7 +34,7 @@
 #   Phase 3  — Organization DDL (1 table)
 #   Phase 4  — Organization seed data
 #   Phase 5  — Person DDL (2 tables)
-#   Phase 6  — Family DDL (4 tables)
+#   Phase 6  — Family DDL (5 tables)
 #   Phase 7  — Membership DDL (12 tables)
 #   Phase 8  — Tier 4 Verification Seed Data
 #   Phase 9  — Grant nss_db_backend read-only access
@@ -204,13 +204,18 @@ run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
 echo ""
 
 # -------------------------------------------------
-# Phase 6: Family DDL (4 tables, Depths 2–3)
+# Phase 6: Family DDL (5 tables, Depths 2–3)
+# Note: family_link stores only direct PARENT_OF/
+#       SPOUSE_OF edges; every other relationship
+#       label is computed dynamically (BFS traversal
+#       in api/services/family_graph.py), not stored.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 6] Family — DDL (4 tables)${NC}"
+echo -e "${CYAN}[Phase 6] Family — DDL (5 tables)${NC}"
 run_sql "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
 run_sql "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
 run_sql "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
 run_sql "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
+run_sql "family_link"               "${DDL_BASE}/04_family/05_family_link.sql"
 echo ""
 
 # -------------------------------------------------
@@ -242,6 +247,7 @@ echo -e "${CYAN}[Phase 8] Tier 4 Verification — Seed Data${NC}"
 run_sql "tier4 organizations (seed)"    "${SEED_BASE}/02_organization/04_tier4_verification_orgs.sql"
 run_sql "tier4 persons (seed)"          "${SEED_BASE}/03_person/02_tier4_verification_persons.sql"
 run_sql "tier4 family (seed)"           "${SEED_BASE}/04_family/01_tier4_verification_family.sql"
+run_sql "tier4 family_link (seed)"      "${SEED_BASE}/04_family/02_tier4_verification_family_links.sql"
 run_sql "tier4 membership (seed)"       "${SEED_BASE}/05_membership/01_tier4_verification_membership.sql"
 echo ""
 
