@@ -20,7 +20,7 @@
 --       initial bootstrap (first member creation).
 -- =====================================================
 
-CREATE TABLE nss.sangha_sevi
+CREATE TABLE IF NOT EXISTS nss.sangha_sevi
 (
     -- ── Identity ────────────────────────────────────────
 
@@ -124,27 +124,27 @@ CREATE TABLE nss.sangha_sevi
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_sangha_sevi_id
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_id
     ON nss.sangha_sevi (sangha_sevi_id);
 
-CREATE INDEX idx_sangha_sevi_person
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_person
     ON nss.sangha_sevi (person_pk);
 
-CREATE INDEX idx_sangha_sevi_type
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_type
     ON nss.sangha_sevi (membership_type_master_data_pk);
 
-CREATE INDEX idx_sangha_sevi_status
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_status
     ON nss.sangha_sevi (membership_status_master_data_pk);
 
-CREATE INDEX idx_sangha_sevi_organization
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_organization
     ON nss.sangha_sevi (organization_pk);
 
-CREATE INDEX idx_sangha_sevi_is_active
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_is_active
     ON nss.sangha_sevi (is_active);
 
-CREATE INDEX idx_sangha_sevi_joining_date
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_joining_date
     ON nss.sangha_sevi (joining_date);
 
-CREATE INDEX idx_sangha_sevi_renewal_due
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_renewal_due
     ON nss.sangha_sevi (renewal_due_date)
     WHERE renewal_due_date IS NOT NULL;

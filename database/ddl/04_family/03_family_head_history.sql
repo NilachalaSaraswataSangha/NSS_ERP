@@ -13,7 +13,7 @@
 --       at any time, enforced by partial unique index.
 -- =====================================================
 
-CREATE TABLE nss.family_head_history
+CREATE TABLE IF NOT EXISTS nss.family_head_history
 (
     -- ── Identity ────────────────────────────────────────
 
@@ -65,13 +65,13 @@ CREATE TABLE nss.family_head_history
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_family_head_family_group
+CREATE INDEX IF NOT EXISTS idx_family_head_family_group
     ON nss.family_head_history (family_group_pk);
 
-CREATE INDEX idx_family_head_person
+CREATE INDEX IF NOT EXISTS idx_family_head_person
     ON nss.family_head_history (person_pk);
 
 -- Only one current (active) head per family group.
-CREATE UNIQUE INDEX uq_family_head_current
+CREATE UNIQUE INDEX IF NOT EXISTS uq_family_head_current
     ON nss.family_head_history (family_group_pk)
     WHERE effective_to IS NULL;

@@ -10,7 +10,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.city_village
+CREATE TABLE IF NOT EXISTS nss.city_village
 (
     city_village_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -66,11 +66,11 @@ CREATE TABLE nss.city_village
         )
 );
 
-CREATE INDEX idx_city_village_district
+CREATE INDEX IF NOT EXISTS idx_city_village_district
     ON nss.city_village (district_pk);
 
-CREATE INDEX idx_city_village_active
+CREATE INDEX IF NOT EXISTS idx_city_village_active
     ON nss.city_village (is_active);
 
-CREATE INDEX idx_city_village_name
+CREATE INDEX IF NOT EXISTS idx_city_village_name
     ON nss.city_village USING gin (city_village_name gin_trgm_ops);

@@ -12,7 +12,7 @@
 --       year (1 April – 31 March).
 -- =====================================================
 
-CREATE TABLE nss.membership_renewal_history
+CREATE TABLE IF NOT EXISTS nss.membership_renewal_history
 (
     membership_renewal_history_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -46,8 +46,8 @@ CREATE TABLE nss.membership_renewal_history
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_mem_renewal_hist_sevi
+CREATE INDEX IF NOT EXISTS idx_mem_renewal_hist_sevi
     ON nss.membership_renewal_history (sangha_sevi_pk);
 
-CREATE INDEX idx_mem_renewal_hist_valid_range
+CREATE INDEX IF NOT EXISTS idx_mem_renewal_hist_valid_range
     ON nss.membership_renewal_history (valid_from, valid_to);

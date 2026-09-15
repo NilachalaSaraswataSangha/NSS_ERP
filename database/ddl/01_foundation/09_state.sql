@@ -10,7 +10,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.state
+CREATE TABLE IF NOT EXISTS nss.state
 (
     state_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -53,11 +53,11 @@ CREATE TABLE nss.state
         )
 );
 
-CREATE INDEX idx_state_country
+CREATE INDEX IF NOT EXISTS idx_state_country
     ON nss.state (country_pk);
 
-CREATE INDEX idx_state_active
+CREATE INDEX IF NOT EXISTS idx_state_active
     ON nss.state (is_active);
 
-CREATE INDEX idx_state_name
+CREATE INDEX IF NOT EXISTS idx_state_name
     ON nss.state USING gin (state_name gin_trgm_ops);

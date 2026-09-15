@@ -10,7 +10,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.id_sequence_master
+CREATE TABLE IF NOT EXISTS nss.id_sequence_master
 (
     id_sequence_master_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -60,8 +60,8 @@ CREATE TABLE nss.id_sequence_master
         )
 );
 
-CREATE INDEX idx_id_sequence_active
+CREATE INDEX IF NOT EXISTS idx_id_sequence_active
     ON nss.id_sequence_master (is_active);
 
-CREATE INDEX idx_id_sequence_code
+CREATE INDEX IF NOT EXISTS idx_id_sequence_code
     ON nss.id_sequence_master (sequence_code);

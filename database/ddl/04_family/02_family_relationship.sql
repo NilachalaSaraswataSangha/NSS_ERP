@@ -15,7 +15,7 @@
 --       by Person (emergency contact relationship).
 -- =====================================================
 
-CREATE TABLE nss.family_relationship
+CREATE TABLE IF NOT EXISTS nss.family_relationship
 (
     -- ── Identity ────────────────────────────────────────
 
@@ -89,20 +89,20 @@ CREATE TABLE nss.family_relationship
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_family_rel_family_group
+CREATE INDEX IF NOT EXISTS idx_family_rel_family_group
     ON nss.family_relationship (family_group_pk);
 
-CREATE INDEX idx_family_rel_person
+CREATE INDEX IF NOT EXISTS idx_family_rel_person
     ON nss.family_relationship (person_pk);
 
-CREATE INDEX idx_family_rel_type
+CREATE INDEX IF NOT EXISTS idx_family_rel_type
     ON nss.family_relationship (relationship_type_master_data_pk);
 
-CREATE INDEX idx_family_rel_is_current
+CREATE INDEX IF NOT EXISTS idx_family_rel_is_current
     ON nss.family_relationship (is_current);
 
 -- A person can have only one current relationship within
 -- a given family group at any point in time.
-CREATE UNIQUE INDEX uq_family_rel_person_current
+CREATE UNIQUE INDEX IF NOT EXISTS uq_family_rel_person_current
     ON nss.family_relationship (family_group_pk, person_pk)
     WHERE is_current = TRUE;

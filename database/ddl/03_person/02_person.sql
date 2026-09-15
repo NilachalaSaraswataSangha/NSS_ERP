@@ -14,7 +14,7 @@
 --       sangha_sevi table exists).
 -- =====================================================
 
-CREATE TABLE nss.person
+CREATE TABLE IF NOT EXISTS nss.person
 (
     -- ── Identity ────────────────────────────────────────
 
@@ -219,49 +219,49 @@ CREATE TABLE nss.person
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_person_id
+CREATE INDEX IF NOT EXISTS idx_person_id
     ON nss.person (person_id);
 
-CREATE INDEX idx_person_first_name
+CREATE INDEX IF NOT EXISTS idx_person_first_name
     ON nss.person (first_name);
 
-CREATE INDEX idx_person_last_name
+CREATE INDEX IF NOT EXISTS idx_person_last_name
     ON nss.person (last_name)
     WHERE last_name IS NOT NULL;
 
-CREATE INDEX idx_person_gender
+CREATE INDEX IF NOT EXISTS idx_person_gender
     ON nss.person (gender_master_data_pk)
     WHERE gender_master_data_pk IS NOT NULL;
 
-CREATE INDEX idx_person_marital_status
+CREATE INDEX IF NOT EXISTS idx_person_marital_status
     ON nss.person (marital_status_master_data_pk)
     WHERE marital_status_master_data_pk IS NOT NULL;
 
-CREATE INDEX idx_person_blood_group
+CREATE INDEX IF NOT EXISTS idx_person_blood_group
     ON nss.person (blood_group_master_data_pk)
     WHERE blood_group_master_data_pk IS NOT NULL;
 
-CREATE INDEX idx_person_email
+CREATE INDEX IF NOT EXISTS idx_person_email
     ON nss.person (email)
     WHERE email IS NOT NULL;
 
-CREATE INDEX idx_person_is_active
+CREATE INDEX IF NOT EXISTS idx_person_is_active
     ON nss.person (is_active);
 
 -- NULL-aware mobile uniqueness (PER-BR-030)
-CREATE UNIQUE INDEX uq_person_mobile_when_present
+CREATE UNIQUE INDEX IF NOT EXISTS uq_person_mobile_when_present
     ON nss.person (country_phone_code, mobile_number)
     WHERE mobile_number IS NOT NULL;
 
 -- Aadhaar hash uniqueness — one Aadhaar per person
-CREATE UNIQUE INDEX uq_person_aadhaar_hash
+CREATE UNIQUE INDEX IF NOT EXISTS uq_person_aadhaar_hash
     ON nss.person (aadhaar_hash)
     WHERE aadhaar_hash IS NOT NULL;
 
 -- trigram indexes for name search (PER-BR-039)
-CREATE INDEX idx_person_first_name_trgm
+CREATE INDEX IF NOT EXISTS idx_person_first_name_trgm
     ON nss.person USING gin (first_name gin_trgm_ops);
 
-CREATE INDEX idx_person_last_name_trgm
+CREATE INDEX IF NOT EXISTS idx_person_last_name_trgm
     ON nss.person USING gin (last_name gin_trgm_ops)
     WHERE last_name IS NOT NULL;

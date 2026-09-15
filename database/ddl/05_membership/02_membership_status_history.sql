@@ -12,7 +12,7 @@
 --       preserves the full status change timeline.
 -- =====================================================
 
-CREATE TABLE nss.membership_status_history
+CREATE TABLE IF NOT EXISTS nss.membership_status_history
 (
     membership_status_history_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -57,11 +57,11 @@ CREATE TABLE nss.membership_status_history
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_mem_status_hist_sevi
+CREATE INDEX IF NOT EXISTS idx_mem_status_hist_sevi
     ON nss.membership_status_history (sangha_sevi_pk);
 
-CREATE INDEX idx_mem_status_hist_status
+CREATE INDEX IF NOT EXISTS idx_mem_status_hist_status
     ON nss.membership_status_history (membership_status_master_data_pk);
 
-CREATE INDEX idx_mem_status_hist_effective
+CREATE INDEX IF NOT EXISTS idx_mem_status_hist_effective
     ON nss.membership_status_history (effective_from);

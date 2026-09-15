@@ -17,7 +17,7 @@
 --       and sangha_sevi tables exist).
 -- =====================================================
 
-CREATE TABLE nss.document_master
+CREATE TABLE IF NOT EXISTS nss.document_master
 (
     document_master_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -70,12 +70,12 @@ CREATE TABLE nss.document_master
         )
 );
 
-CREATE INDEX idx_document_master_type_code
+CREATE INDEX IF NOT EXISTS idx_document_master_type_code
     ON nss.document_master (document_type_code);
 
-CREATE INDEX idx_document_master_active
+CREATE INDEX IF NOT EXISTS idx_document_master_active
     ON nss.document_master (is_active);
 
-CREATE INDEX idx_document_master_number
+CREATE INDEX IF NOT EXISTS idx_document_master_number
     ON nss.document_master (document_number)
     WHERE document_number IS NOT NULL;

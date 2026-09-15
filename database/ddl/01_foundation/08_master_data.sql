@@ -5,12 +5,12 @@
 -- Table: master_data
 -- Depth: 1 (depends on master_category)
 -- Sequence: #18 of 87
--- Version: 1.0
+-- Version: 1.1 — idempotent CREATE TABLE/INDEX + ALTER-based column backfill
 -- Authority: SOL-ARCH-010, SOL-FND-004 §7
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.master_data
+CREATE TABLE IF NOT EXISTS nss.master_data
 (
     master_data_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -59,14 +59,22 @@ CREATE TABLE nss.master_data
         )
 );
 
-CREATE INDEX idx_master_data_category
+-- Idempotent safety net: tables created before applicable_modules was
+-- added to the CREATE TABLE above (e.g. a database bootstrapped before
+-- this DDL change) never get it via CREATE TABLE IF NOT EXISTS alone,
+-- since that clause makes the whole statement a no-op when the table
+-- already exists. This ALTER guarantees the column exists either way.
+ALTER TABLE nss.master_data
+    ADD COLUMN IF NOT EXISTS applicable_modules TEXT[] NULL;
+
+CREATE INDEX IF NOT EXISTS idx_master_data_category
     ON nss.master_data (master_category_pk);
 
-CREATE INDEX idx_master_data_active
+CREATE INDEX IF NOT EXISTS idx_master_data_active
     ON nss.master_data (is_active);
 
-CREATE INDEX idx_master_data_value_code
+CREATE INDEX IF NOT EXISTS idx_master_data_value_code
     ON nss.master_data (value_code);
 
-CREATE INDEX idx_master_data_value_name
+CREATE INDEX IF NOT EXISTS idx_master_data_value_name
     ON nss.master_data USING gin (value_name gin_trgm_ops);

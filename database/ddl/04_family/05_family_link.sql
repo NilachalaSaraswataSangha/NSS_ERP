@@ -20,7 +20,7 @@
 --                     (bidirectional; store one row)
 -- =====================================================
 
-CREATE TABLE nss.family_link
+CREATE TABLE IF NOT EXISTS nss.family_link
 (
     -- ── Identity ────────────────────────────────────────
 
@@ -98,20 +98,20 @@ CREATE TABLE nss.family_link
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_family_link_family_group
+CREATE INDEX IF NOT EXISTS idx_family_link_family_group
     ON nss.family_link (family_group_pk);
 
-CREATE INDEX idx_family_link_person_a
+CREATE INDEX IF NOT EXISTS idx_family_link_person_a
     ON nss.family_link (person_a_pk);
 
-CREATE INDEX idx_family_link_person_b
+CREATE INDEX IF NOT EXISTS idx_family_link_person_b
     ON nss.family_link (person_b_pk);
 
-CREATE INDEX idx_family_link_is_current
+CREATE INDEX IF NOT EXISTS idx_family_link_is_current
     ON nss.family_link (is_current);
 
 -- A given directed edge should not be duplicated
 -- while current.
-CREATE UNIQUE INDEX uq_family_link_current
+CREATE UNIQUE INDEX IF NOT EXISTS uq_family_link_current
     ON nss.family_link (family_group_pk, person_a_pk, person_b_pk, link_type)
     WHERE is_current = TRUE;

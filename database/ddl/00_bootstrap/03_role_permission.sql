@@ -11,7 +11,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.role_permission
+CREATE TABLE IF NOT EXISTS nss.role_permission
 (
     role_permission_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -57,11 +57,11 @@ CREATE TABLE nss.role_permission
 );
 
 -- Indexes
-CREATE INDEX idx_role_permission_role
+CREATE INDEX IF NOT EXISTS idx_role_permission_role
     ON nss.role_permission (role_master_pk);
 
-CREATE INDEX idx_role_permission_permission
+CREATE INDEX IF NOT EXISTS idx_role_permission_permission
     ON nss.role_permission (permission_master_pk);
 
-CREATE INDEX idx_role_permission_active
+CREATE INDEX IF NOT EXISTS idx_role_permission_active
     ON nss.role_permission (is_active);

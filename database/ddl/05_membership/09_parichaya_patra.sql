@@ -18,7 +18,7 @@
 --       membership_sakha_affiliation.
 -- =====================================================
 
-CREATE TABLE nss.parichaya_patra
+CREATE TABLE IF NOT EXISTS nss.parichaya_patra
 (
     parichaya_patra_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -91,20 +91,20 @@ CREATE TABLE nss.parichaya_patra
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_pp_sevi
+CREATE INDEX IF NOT EXISTS idx_pp_sevi
     ON nss.parichaya_patra (sangha_sevi_pk);
 
-CREATE INDEX idx_pp_status
+CREATE INDEX IF NOT EXISTS idx_pp_status
     ON nss.parichaya_patra (status);
 
-CREATE INDEX idx_pp_valid_range
+CREATE INDEX IF NOT EXISTS idx_pp_valid_range
     ON nss.parichaya_patra (valid_from, valid_to);
 
-CREATE INDEX idx_pp_affiliated_org
+CREATE INDEX IF NOT EXISTS idx_pp_affiliated_org
     ON nss.parichaya_patra (affiliated_organization_pk)
     WHERE affiliated_organization_pk IS NOT NULL;
 
 -- Only one active Parichaya Patra per member at any time.
-CREATE UNIQUE INDEX uq_pp_active_per_member
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pp_active_per_member
     ON nss.parichaya_patra (sangha_sevi_pk)
     WHERE status = 'ACTIVE';

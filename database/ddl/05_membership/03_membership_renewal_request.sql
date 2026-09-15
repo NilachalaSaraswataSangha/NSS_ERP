@@ -12,7 +12,7 @@
 --       membership_renewal_history.
 -- =====================================================
 
-CREATE TABLE nss.membership_renewal_request
+CREATE TABLE IF NOT EXISTS nss.membership_renewal_request
 (
     membership_renewal_request_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -63,11 +63,11 @@ CREATE TABLE nss.membership_renewal_request
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_mem_renewal_req_sevi
+CREATE INDEX IF NOT EXISTS idx_mem_renewal_req_sevi
     ON nss.membership_renewal_request (sangha_sevi_pk);
 
-CREATE INDEX idx_mem_renewal_req_status
+CREATE INDEX IF NOT EXISTS idx_mem_renewal_req_status
     ON nss.membership_renewal_request (status);
 
-CREATE INDEX idx_mem_renewal_req_date
+CREATE INDEX IF NOT EXISTS idx_mem_renewal_req_date
     ON nss.membership_renewal_request (requested_date);

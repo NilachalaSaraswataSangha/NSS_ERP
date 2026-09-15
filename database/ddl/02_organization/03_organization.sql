@@ -30,7 +30,7 @@
 --       separate organization_address table).
 -- =====================================================
 
-CREATE TABLE nss.organization
+CREATE TABLE IF NOT EXISTS nss.organization
 (
     organization_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -166,32 +166,32 @@ CREATE TABLE nss.organization
 );
 
 -- Indexes
-CREATE INDEX idx_organization_type
+CREATE INDEX IF NOT EXISTS idx_organization_type
     ON nss.organization (organization_type_master_data_pk);
 
-CREATE INDEX idx_organization_status
+CREATE INDEX IF NOT EXISTS idx_organization_status
     ON nss.organization (status_master_data_pk);
 
-CREATE INDEX idx_organization_parent
+CREATE INDEX IF NOT EXISTS idx_organization_parent
     ON nss.organization (parent_organization_pk);
 
-CREATE INDEX idx_organization_country
+CREATE INDEX IF NOT EXISTS idx_organization_country
     ON nss.organization (country_pk);
 
-CREATE INDEX idx_organization_state
+CREATE INDEX IF NOT EXISTS idx_organization_state
     ON nss.organization (state_pk);
 
-CREATE INDEX idx_organization_district
+CREATE INDEX IF NOT EXISTS idx_organization_district
     ON nss.organization (district_pk);
 
-CREATE INDEX idx_organization_city_village
+CREATE INDEX IF NOT EXISTS idx_organization_city_village
     ON nss.organization (city_village_pk);
 
-CREATE INDEX idx_organization_postal_code
+CREATE INDEX IF NOT EXISTS idx_organization_postal_code
     ON nss.organization (postal_code_pk);
 
-CREATE INDEX idx_organization_active
+CREATE INDEX IF NOT EXISTS idx_organization_active
     ON nss.organization (is_active);
 
-CREATE INDEX idx_organization_name
+CREATE INDEX IF NOT EXISTS idx_organization_name
     ON nss.organization USING gin (organization_name gin_trgm_ops);

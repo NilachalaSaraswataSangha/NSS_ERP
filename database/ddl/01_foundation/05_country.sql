@@ -10,7 +10,7 @@
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
 
-CREATE TABLE nss.country
+CREATE TABLE IF NOT EXISTS nss.country
 (
     country_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -47,8 +47,8 @@ CREATE TABLE nss.country
         )
 );
 
-CREATE INDEX idx_country_active
+CREATE INDEX IF NOT EXISTS idx_country_active
     ON nss.country (is_active);
 
-CREATE INDEX idx_country_code
+CREATE INDEX IF NOT EXISTS idx_country_code
     ON nss.country (country_code);

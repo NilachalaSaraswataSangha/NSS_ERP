@@ -12,7 +12,7 @@
 --       Historical records are never deleted.
 -- =====================================================
 
-CREATE TABLE nss.parichaya_patra_history
+CREATE TABLE IF NOT EXISTS nss.parichaya_patra_history
 (
     parichaya_patra_history_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
@@ -58,8 +58,8 @@ CREATE TABLE nss.parichaya_patra_history
 
 -- ── Indexes ─────────────────────────────────────────────
 
-CREATE INDEX idx_pp_hist_pp
+CREATE INDEX IF NOT EXISTS idx_pp_hist_pp
     ON nss.parichaya_patra_history (parichaya_patra_pk);
 
-CREATE INDEX idx_pp_hist_change_date
+CREATE INDEX IF NOT EXISTS idx_pp_hist_change_date
     ON nss.parichaya_patra_history (change_date);
