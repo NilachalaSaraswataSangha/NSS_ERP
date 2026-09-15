@@ -49,7 +49,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                          = EXCLUDED.email;
 
 -- P15: Arjun Patel (Suresh & Meera's son — no membership)
 INSERT INTO nss.person
@@ -65,7 +74,15 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number;
 
 -- P16: Laxmi Rath (Debasis's wife)
 INSERT INTO nss.person
@@ -81,7 +98,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                          = EXCLUDED.email;
 
 -- P17: Pallavi Rath (Debasis & Laxmi's daughter)
 INSERT INTO nss.person
@@ -97,7 +123,16 @@ JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
 CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
-  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED'
+ON CONFLICT (person_id) DO UPDATE SET
+    first_name                    = EXCLUDED.first_name,
+    last_name                     = EXCLUDED.last_name,
+    date_of_birth                 = EXCLUDED.date_of_birth,
+    gender_master_data_pk         = EXCLUDED.gender_master_data_pk,
+    marital_status_master_data_pk = EXCLUDED.marital_status_master_data_pk,
+    country_phone_code            = EXCLUDED.country_phone_code,
+    mobile_number                 = EXCLUDED.mobile_number,
+    email                          = EXCLUDED.email;
 
 
 -- ─────────────────────────────────────────────────────
@@ -117,7 +152,12 @@ FROM nss.master_data st
 JOIN nss.master_category mc ON mc.master_category_pk = st.master_category_pk
 CROSS JOIN nss.organization sakha
 WHERE mc.category_code = 'STATUS' AND st.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH1';
+  AND sakha.organization_code = 'SKH1'
+ON CONFLICT (family_id) DO UPDATE SET
+    family_name                  = EXCLUDED.family_name,
+    family_status_master_data_pk = EXCLUDED.family_status_master_data_pk,
+    sakha_organization_pk        = EXCLUDED.sakha_organization_pk,
+    formed_date                  = EXCLUDED.formed_date;
 
 -- F3: Rath Paribara at SKH2 (Cuttack Sakha)
 -- Note: Assigned to SKH2, majority at SKH2 (aligned),
@@ -132,7 +172,12 @@ FROM nss.master_data st
 JOIN nss.master_category mc ON mc.master_category_pk = st.master_category_pk
 CROSS JOIN nss.organization sakha
 WHERE mc.category_code = 'STATUS' AND st.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (family_id) DO UPDATE SET
+    family_name                  = EXCLUDED.family_name,
+    family_status_master_data_pk = EXCLUDED.family_status_master_data_pk,
+    sakha_organization_pk        = EXCLUDED.sakha_organization_pk,
+    formed_date                  = EXCLUDED.formed_date;
 
 
 -- ─────────────────────────────────────────────────────
@@ -150,7 +195,11 @@ CROSS JOIN nss.person p
 CROSS JOIN nss.master_data rt
 JOIN nss.master_category mc ON mc.master_category_pk = rt.master_category_pk
 WHERE fg.family_id = 'F2' AND p.person_id = 'P4'
-  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'FATHER';
+  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'FATHER'
+ON CONFLICT (family_group_pk, person_pk) WHERE is_current = TRUE DO UPDATE SET
+    relationship_type_master_data_pk = EXCLUDED.relationship_type_master_data_pk,
+    effective_from                   = EXCLUDED.effective_from,
+    is_current                       = EXCLUDED.is_current;
 
 -- F2: Meera Patel — SPOUSE
 INSERT INTO nss.family_relationship
@@ -163,7 +212,11 @@ CROSS JOIN nss.person p
 CROSS JOIN nss.master_data rt
 JOIN nss.master_category mc ON mc.master_category_pk = rt.master_category_pk
 WHERE fg.family_id = 'F2' AND p.person_id = 'P14'
-  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'SPOUSE';
+  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'SPOUSE'
+ON CONFLICT (family_group_pk, person_pk) WHERE is_current = TRUE DO UPDATE SET
+    relationship_type_master_data_pk = EXCLUDED.relationship_type_master_data_pk,
+    effective_from                   = EXCLUDED.effective_from,
+    is_current                       = EXCLUDED.is_current;
 
 -- F2: Arjun Patel — SON
 INSERT INTO nss.family_relationship
@@ -176,7 +229,11 @@ CROSS JOIN nss.person p
 CROSS JOIN nss.master_data rt
 JOIN nss.master_category mc ON mc.master_category_pk = rt.master_category_pk
 WHERE fg.family_id = 'F2' AND p.person_id = 'P15'
-  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'SON';
+  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'SON'
+ON CONFLICT (family_group_pk, person_pk) WHERE is_current = TRUE DO UPDATE SET
+    relationship_type_master_data_pk = EXCLUDED.relationship_type_master_data_pk,
+    effective_from                   = EXCLUDED.effective_from,
+    is_current                       = EXCLUDED.is_current;
 
 -- F3: Debasis Rath — FATHER (head)
 INSERT INTO nss.family_relationship
@@ -189,7 +246,11 @@ CROSS JOIN nss.person p
 CROSS JOIN nss.master_data rt
 JOIN nss.master_category mc ON mc.master_category_pk = rt.master_category_pk
 WHERE fg.family_id = 'F3' AND p.person_id = 'P5'
-  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'FATHER';
+  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'FATHER'
+ON CONFLICT (family_group_pk, person_pk) WHERE is_current = TRUE DO UPDATE SET
+    relationship_type_master_data_pk = EXCLUDED.relationship_type_master_data_pk,
+    effective_from                   = EXCLUDED.effective_from,
+    is_current                       = EXCLUDED.is_current;
 
 -- F3: Laxmi Rath — SPOUSE
 INSERT INTO nss.family_relationship
@@ -202,7 +263,11 @@ CROSS JOIN nss.person p
 CROSS JOIN nss.master_data rt
 JOIN nss.master_category mc ON mc.master_category_pk = rt.master_category_pk
 WHERE fg.family_id = 'F3' AND p.person_id = 'P16'
-  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'SPOUSE';
+  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'SPOUSE'
+ON CONFLICT (family_group_pk, person_pk) WHERE is_current = TRUE DO UPDATE SET
+    relationship_type_master_data_pk = EXCLUDED.relationship_type_master_data_pk,
+    effective_from                   = EXCLUDED.effective_from,
+    is_current                       = EXCLUDED.is_current;
 
 -- F3: Pallavi Rath — DAUGHTER
 INSERT INTO nss.family_relationship
@@ -215,7 +280,11 @@ CROSS JOIN nss.person p
 CROSS JOIN nss.master_data rt
 JOIN nss.master_category mc ON mc.master_category_pk = rt.master_category_pk
 WHERE fg.family_id = 'F3' AND p.person_id = 'P17'
-  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'DAUGHTER';
+  AND mc.category_code = 'RELATIONSHIP_TYPE' AND rt.value_code = 'DAUGHTER'
+ON CONFLICT (family_group_pk, person_pk) WHERE is_current = TRUE DO UPDATE SET
+    relationship_type_master_data_pk = EXCLUDED.relationship_type_master_data_pk,
+    effective_from                   = EXCLUDED.effective_from,
+    is_current                       = EXCLUDED.is_current;
 
 
 -- ─────────────────────────────────────────────────────
@@ -228,7 +297,10 @@ INSERT INTO nss.family_head_history
 SELECT fg.family_group_pk, p.person_pk, '2015-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person p
-WHERE fg.family_id = 'F2' AND p.person_id = 'P4';
+WHERE fg.family_id = 'F2' AND p.person_id = 'P4'
+ON CONFLICT (family_group_pk) WHERE effective_to IS NULL DO UPDATE SET
+    person_pk      = EXCLUDED.person_pk,
+    effective_from = EXCLUDED.effective_from;
 
 -- F3: Debasis Rath is current head
 INSERT INTO nss.family_head_history
@@ -236,7 +308,10 @@ INSERT INTO nss.family_head_history
 SELECT fg.family_group_pk, p.person_pk, '2012-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person p
-WHERE fg.family_id = 'F3' AND p.person_id = 'P5';
+WHERE fg.family_id = 'F3' AND p.person_id = 'P5'
+ON CONFLICT (family_group_pk) WHERE effective_to IS NULL DO UPDATE SET
+    person_pk      = EXCLUDED.person_pk,
+    effective_from = EXCLUDED.effective_from;
 
 
 -- ─────────────────────────────────────────────────────
@@ -250,7 +325,9 @@ SELECT fg.family_group_pk, pa.person_pk, pb.person_pk,
        'SPOUSE_OF', '2015-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person pa CROSS JOIN nss.person pb
-WHERE fg.family_id = 'F2' AND pa.person_id = 'P4' AND pb.person_id = 'P14';
+WHERE fg.family_id = 'F2' AND pa.person_id = 'P4' AND pb.person_id = 'P14'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE DO UPDATE SET
+    effective_from = EXCLUDED.effective_from;
 
 -- F2: Suresh (P4) PARENT_OF Arjun (P15)
 INSERT INTO nss.family_link
@@ -259,7 +336,9 @@ SELECT fg.family_group_pk, pa.person_pk, pb.person_pk,
        'PARENT_OF', '2015-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person pa CROSS JOIN nss.person pb
-WHERE fg.family_id = 'F2' AND pa.person_id = 'P4' AND pb.person_id = 'P15';
+WHERE fg.family_id = 'F2' AND pa.person_id = 'P4' AND pb.person_id = 'P15'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE DO UPDATE SET
+    effective_from = EXCLUDED.effective_from;
 
 -- F2: Meera (P14) PARENT_OF Arjun (P15)
 INSERT INTO nss.family_link
@@ -268,7 +347,9 @@ SELECT fg.family_group_pk, pa.person_pk, pb.person_pk,
        'PARENT_OF', '2015-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person pa CROSS JOIN nss.person pb
-WHERE fg.family_id = 'F2' AND pa.person_id = 'P14' AND pb.person_id = 'P15';
+WHERE fg.family_id = 'F2' AND pa.person_id = 'P14' AND pb.person_id = 'P15'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE DO UPDATE SET
+    effective_from = EXCLUDED.effective_from;
 
 -- F3: Debasis (P5) SPOUSE_OF Laxmi (P16)
 INSERT INTO nss.family_link
@@ -277,7 +358,9 @@ SELECT fg.family_group_pk, pa.person_pk, pb.person_pk,
        'SPOUSE_OF', '2012-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person pa CROSS JOIN nss.person pb
-WHERE fg.family_id = 'F3' AND pa.person_id = 'P5' AND pb.person_id = 'P16';
+WHERE fg.family_id = 'F3' AND pa.person_id = 'P5' AND pb.person_id = 'P16'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE DO UPDATE SET
+    effective_from = EXCLUDED.effective_from;
 
 -- F3: Debasis (P5) PARENT_OF Pallavi (P17)
 INSERT INTO nss.family_link
@@ -286,7 +369,9 @@ SELECT fg.family_group_pk, pa.person_pk, pb.person_pk,
        'PARENT_OF', '2012-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person pa CROSS JOIN nss.person pb
-WHERE fg.family_id = 'F3' AND pa.person_id = 'P5' AND pb.person_id = 'P17';
+WHERE fg.family_id = 'F3' AND pa.person_id = 'P5' AND pb.person_id = 'P17'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE DO UPDATE SET
+    effective_from = EXCLUDED.effective_from;
 
 -- F3: Laxmi (P16) PARENT_OF Pallavi (P17)
 INSERT INTO nss.family_link
@@ -295,7 +380,9 @@ SELECT fg.family_group_pk, pa.person_pk, pb.person_pk,
        'PARENT_OF', '2012-04-01'
 FROM nss.family_group fg
 CROSS JOIN nss.person pa CROSS JOIN nss.person pb
-WHERE fg.family_id = 'F3' AND pa.person_id = 'P16' AND pb.person_id = 'P17';
+WHERE fg.family_id = 'F3' AND pa.person_id = 'P16' AND pb.person_id = 'P17'
+ON CONFLICT (family_group_pk, person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE DO UPDATE SET
+    effective_from = EXCLUDED.effective_from;
 
 
 -- ─────────────────────────────────────────────────────
@@ -323,7 +410,14 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P14'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'REGULAR'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date,
+    renewal_due_date                 = EXCLUDED.renewal_due_date;
 
 -- SS7: Laxmi Rath — Regular member at SKH2 (Cuttack)
 INSERT INTO nss.sangha_sevi
@@ -344,7 +438,14 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P16'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'REGULAR'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date,
+    renewal_due_date                 = EXCLUDED.renewal_due_date;
 
 -- SS8: Pallavi Rath — Darshaka (Probationary) at SKH2
 INSERT INTO nss.sangha_sevi
@@ -365,7 +466,13 @@ CROSS JOIN nss.organization sakha
 WHERE p.person_id = 'P17'
   AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'PROBATIONARY'
   AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (sangha_sevi_id) DO UPDATE SET
+    person_pk                        = EXCLUDED.person_pk,
+    membership_type_master_data_pk   = EXCLUDED.membership_type_master_data_pk,
+    membership_status_master_data_pk = EXCLUDED.membership_status_master_data_pk,
+    organization_pk                  = EXCLUDED.organization_pk,
+    joining_date                     = EXCLUDED.joining_date;
 
 
 -- ─────────────────────────────────────────────────────
@@ -382,7 +489,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization o
 WHERE ss.sangha_sevi_id = 'SS6'
-  AND o.organization_code = 'SKH2';
+  AND o.organization_code = 'SKH2'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- SS7: Laxmi Rath — active at SKH2 (Cuttack), ERP# CTC3
 INSERT INTO nss.membership_sakha_affiliation
@@ -394,7 +506,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization o
 WHERE ss.sangha_sevi_id = 'SS7'
-  AND o.organization_code = 'SKH2';
+  AND o.organization_code = 'SKH2'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 -- SS8: Pallavi Rath — active at SKH2 (Cuttack), ERP# CTC4
 INSERT INTO nss.membership_sakha_affiliation
@@ -406,7 +523,12 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization o
 WHERE ss.sangha_sevi_id = 'SS8'
-  AND o.organization_code = 'SKH2';
+  AND o.organization_code = 'SKH2'
+ON CONFLICT (organization_pk, local_sakha_erp_id) DO UPDATE SET
+    sangha_sevi_pk    = EXCLUDED.sangha_sevi_pk,
+    effective_from    = EXCLUDED.effective_from,
+    affiliation_status = EXCLUDED.affiliation_status,
+    source_event_type = EXCLUDED.source_event_type;
 
 
 -- ─────────────────────────────────────────────────────
@@ -426,7 +548,15 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS6'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk             = EXCLUDED.sangha_sevi_pk,
+    issue_date                 = EXCLUDED.issue_date,
+    valid_from                 = EXCLUDED.valid_from,
+    valid_to                   = EXCLUDED.valid_to,
+    status                     = EXCLUDED.status,
+    affiliated_organization_pk = EXCLUDED.affiliated_organization_pk,
+    local_sakha_erp_id         = EXCLUDED.local_sakha_erp_id;
 
 -- Laxmi Rath — Parichaya Patra
 INSERT INTO nss.parichaya_patra
@@ -441,7 +571,15 @@ SELECT
 FROM nss.sangha_sevi ss
 CROSS JOIN nss.organization sakha
 WHERE ss.sangha_sevi_id = 'SS7'
-  AND sakha.organization_code = 'SKH2';
+  AND sakha.organization_code = 'SKH2'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk             = EXCLUDED.sangha_sevi_pk,
+    issue_date                 = EXCLUDED.issue_date,
+    valid_from                 = EXCLUDED.valid_from,
+    valid_to                   = EXCLUDED.valid_to,
+    status                     = EXCLUDED.status,
+    affiliated_organization_pk = EXCLUDED.affiliated_organization_pk,
+    local_sakha_erp_id         = EXCLUDED.local_sakha_erp_id;
 
 -- Pallavi Rath — Anumati Patra (Darshaka gets Anumati Patra)
 INSERT INTO nss.anumati_patra
@@ -452,7 +590,13 @@ SELECT
     'AP/2026/03', '2026-04-20',
     '2026-04-01', '2027-03-31', 'ACTIVE'
 FROM nss.sangha_sevi ss
-WHERE ss.sangha_sevi_id = 'SS8';
+WHERE ss.sangha_sevi_id = 'SS8'
+ON CONFLICT (document_number) DO UPDATE SET
+    sangha_sevi_pk = EXCLUDED.sangha_sevi_pk,
+    issue_date     = EXCLUDED.issue_date,
+    valid_from     = EXCLUDED.valid_from,
+    valid_to       = EXCLUDED.valid_to,
+    status         = EXCLUDED.status;
 
 
 -- =====================================================

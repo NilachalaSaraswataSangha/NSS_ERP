@@ -69,7 +69,18 @@ WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '751022'
-  AND pc.country_pk = c.country_pk;
+  AND pc.country_pk = c.country_pk
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk,
+    address_line_1                   = EXCLUDED.address_line_1,
+    address_line_2                   = EXCLUDED.address_line_2,
+    postal_code_pk                   = EXCLUDED.postal_code_pk,
+    country_pk                       = EXCLUDED.country_pk,
+    phone_number                     = EXCLUDED.phone_number,
+    mobile_number                    = EXCLUDED.mobile_number;
 
 -- -------------------------------------------------
 -- Nilachala Kutira (Eternal Abode, Puri)
@@ -104,7 +115,16 @@ WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '752001'
-  AND pc.country_pk = c.country_pk;
+  AND pc.country_pk = c.country_pk
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk,
+    address_line_1                   = EXCLUDED.address_line_1,
+    address_line_2                   = EXCLUDED.address_line_2,
+    postal_code_pk                   = EXCLUDED.postal_code_pk,
+    country_pk                       = EXCLUDED.country_pk;
 
 -- -------------------------------------------------
 -- Smruti Mandira (Nigamananda Smruti Mandir — memorial temple)
@@ -141,4 +161,14 @@ WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '752001'
-  AND pc.country_pk = c.country_pk;
+  AND pc.country_pk = c.country_pk
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk,
+    address_line_1                   = EXCLUDED.address_line_1,
+    address_line_2                   = EXCLUDED.address_line_2,
+    postal_code_pk                   = EXCLUDED.postal_code_pk,
+    country_pk                       = EXCLUDED.country_pk,
+    phone_number                     = EXCLUDED.phone_number;

@@ -2,7 +2,9 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 03_id_sequence_master.sql
--- Version: 2.1
+-- Version: 2.2 — INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
+--          so a partial re-run no longer silently skips rows after
+--          the first pre-existing row it hits
 -- Authority: SOL-FND-004 §11
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
@@ -113,4 +115,11 @@ VALUES
     'MS',
     0,
     5
-);
+)
+ON CONFLICT (sequence_code) DO UPDATE SET
+    sequence_name  = EXCLUDED.sequence_name,
+    prefix         = EXCLUDED.prefix,
+    padding_length = EXCLUDED.padding_length;
+    -- current_value is deliberately excluded: once ID generation writes
+    -- to it at runtime, a re-run of this seed must never reset an
+    -- advanced counter back to its seed default.
