@@ -284,6 +284,15 @@ Administration
 
 Those modules do not own the organization lifecycle.
 
+As of Tier 4 (Family + Membership), the ERP's read-only reporting layer (the
+`/children-stats` aggregate endpoint) computes family/member/person counts for an
+organization's Sakha-level descendants dynamically rather than from each family's stored
+Sakha assignment alone — a family's members' current affiliations can outvote its stored
+Sakha (business rule FAM-036, owned by the Family module; see
+`docs/03_Solution/modules/family/04_family_business_rules.md`). This is a reporting/query
+concern only: it does not change an organization's own lifecycle, identity, or hierarchy, and
+Organization does not own FAM-036.
+
 ---
 
 # 20. ACTIVE → INACTIVE
