@@ -767,8 +767,6 @@ These tests run against the FastAPI TestClient (no network).
 import pytest
 from fastapi.testclient import TestClient
 
-from api.main import limiter
-
 
 pytestmark = pytest.mark.integration
 ```
@@ -779,25 +777,65 @@ CORS behaves correctly for preflight and same-origin requests; the `DISABLE_DOCS
 (mentioned in the docstring, though not directly asserted by a dedicated test in this file —
 it's exercised implicitly by every other test still passing with docs enabled in the test
 environment). `TestClient` is imported separately from the shared `client` fixture, because
-`TestRateLimiting` needs its own isolated client instance. `from api.main import limiter`
-imports the exact same `Limiter` object `api/main.py` registered on the app, so this test file
-can manipulate its internal state directly.
+`TestRateLimiting` needs its own isolated client instance.
 
-The autouse fixture every test in this file runs under, lines 23–27:
+**The rate-limiter reset fixture used to live here, autoused for this file only — it now lives
+in `tests/conftest.py` instead, applying to every test in the suite:**
 
 ```python
 @pytest.fixture(autouse=True)
 def _reset_rate_limiter():
-    """Reset the rate limiter's in-memory storage before each test."""
+    """
+    Reset the rate limiter's in-memory storage before every test.
+
+    slowapi's Limiter is a module-level singleton (imported from
+    api.main), shared across the entire pytest process — not scoped
+    per test file. Without this reset, request counts accumulate
+    across every test file in the run, and a test file that makes many
+    requests (e.g. a dynamic-discovery-heavy suite looping over
+    /members) can push the 60/minute budget over the edge and start
+    getting 429s in later, unrelated tests. This used to live only in
+    test_security.py, which reset the limiter for its own tests but
+    left every other file's requests accumulating against the same
+    global counter.
+    """
     limiter.reset()
     yield
 ```
 
-`autouse=True` means this fixture runs before **every** test in the file automatically, with no
-test needing to declare it as a parameter. `limiter.reset()` clears the rate limiter's in-memory
-request counters before each test; without this, `TestRateLimiting`'s 61-request test would
-exhaust the shared limiter's allowance and cause spurious 429s in whichever test happens to run
-afterward.
+**Why this moved (a real bug this fixed):** as originally written, `_reset_rate_limiter` was
+`autouse=True` only within `test_security.py`, so it reset the limiter before *that file's* own
+tests but did nothing for any other file. Because `limiter` is a process-wide singleton (the
+exact object `api/main.py` registers on the app), every request any test file made — across the
+*entire* pytest run — counted against the same 60/minute budget. This was latent until
+`tests/test_membership.py`'s test suite shifted to fully-dynamic seed discovery (looping
+`GET /members` repeatedly inside helpers like `_get_all_members()`), which pushed the cumulative
+request count over the limit within a single run. The symptom wasn't a clean 429 failure on an
+obviously-related test — it cascaded into confusing, unrelated-looking failures: `KeyError: 0`
+in `TestJourneyEvents::test_journey_has_required_fields` (a 429 JSON body is a dict, and
+`_get_first_member_pk()` does `data[0]` on it), `TypeError: string indices must be integers, not
+'str'` in several other `TestJourneyEvents` tests (iterating a 429 dict's string *keys* as if
+they were member records, then indexing a string with a string key), and a flat `429 == 200` in
+`test_membership_api_has_security_headers` at the very end of the file, once the budget was
+fully exhausted. Moving the fixture to `tests/conftest.py` gives every test — regardless of
+which file it's in — a clean rate-limit slate; `test_security.py`'s own `TestRateLimiting` test
+(which deliberately floods 61 requests to *trigger* a 429 on purpose) still works exactly as
+before, since it now inherits the same reset from `conftest.py` rather than defining its own
+copy. `test_security.py` no longer imports `limiter` at module level — its one remaining usage
+(inside the 61-request test) does its own local `from api.main import app, limiter` import.
+
+**A second, unrelated bug this same investigation surfaced:**
+`test_membership.py::TestAnumatiPatra::test_regular_member_has_historical_expired_ap` used to
+grab the *first* `REGULAR`-type member via `_get_member_by_type(client, "REGULAR")` and assert
+it had a historical `EXPIRED` Anumati Patra — an assumption that held for the original seed's
+`SS1` (promoted from Probationary), but not for every `REGULAR` member added since (e.g. `SS7`,
+admitted straight to Regular without ever holding an Anumati Patra). Per business rule
+**MBR-019C**, the Probationary/Darshaka stage — and its associated Anumati Patra — is mandatory
+only for non-youth applicants; an applicant with a Kishor Puja or Kumari Sangha background may
+be admitted directly to Regular at the sanctioning Sangha President's discretion, with no
+Anumati Patra history at all. Fixed the test to search across *all* `REGULAR` members for one
+that actually has a historical `EXPIRED` AP, skip-guarded if none exist — matching the pattern
+the neighboring `test_any_member_has_expired_ap` already used.
 
 #### `TestSecurityHeaders` (lines 30–68, 5 tests)
 

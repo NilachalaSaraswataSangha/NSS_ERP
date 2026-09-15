@@ -154,7 +154,10 @@ security headers
   skip-guarded tests now run for real; `test_security.py` (8 tests,
   3 classes) covers the security middleware — 5 header/Cache-Control assertions, 1 rate-limit
   429 test (loops requests against `/api/v1/bootstrap/health` until the default `60/minute`
-  limit trips, resetting `limiter.reset()` via an autouse fixture between tests), and 2 CORS
+  limit trips; the shared `limiter` singleton is reset via an autouse fixture in
+  `tests/conftest.py` before *every* test in the suite, not just this file — it's a
+  process-wide object, so a reset scoped to one file left other files' requests accumulating
+  against the same budget), and 2 CORS
   tests (both asserting *absence* of `Access-Control-Allow-Origin` under the default empty
   `CORS_ORIGINS`); `test_family.py` (67 tests, 8 classes — including newer
   `TestOrgAdminFamilyFilter` and `TestSakhaAlignment` classes) covers every original Family

@@ -333,7 +333,11 @@ limiter = Limiter(
 
 A module-level `Limiter` instance keyed by client IP, with the default rate (e.g. `"60/minute"`)
 taken from configuration. This same `limiter` object is imported directly by
-`tests/test_security.py` to call `limiter.reset()` between tests.
+`tests/conftest.py`, which resets it via an autouse fixture before **every** test in the whole
+suite — it used to be reset only inside `tests/test_security.py`, which left every other test
+file's requests accumulating against the same process-wide singleton and risked spurious 429s in
+unrelated tests once a request-heavy file ran (see `docs/PROJECT_DOCUMENTATION.md` → Conventions
+& gotchas).
 
 ```python
 # 1. Rate limiting

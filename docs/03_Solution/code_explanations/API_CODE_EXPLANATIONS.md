@@ -560,7 +560,10 @@ limiter = Limiter(
 
 A module-level `Limiter` instance keyed by client IP, with the default rate (e.g.
 `"60/minute"`) taken from configuration. This same `limiter` object is imported directly by
-`tests/test_security.py` to call `limiter.reset()` between tests.
+`tests/conftest.py`, which resets it via an autouse fixture before **every** test in the whole
+suite (not just `tests/test_security.py`) — it's a shared, process-wide singleton, so without a
+global reset, request-heavy test files accumulate against the same budget and can trip spurious
+429s in unrelated, later-running tests.
 
 Lines 55–59:
 
