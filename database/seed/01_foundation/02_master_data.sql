@@ -80,7 +80,7 @@ INSERT INTO nss.master_data (master_category_pk, value_code, value_name, display
 SELECT mc.master_category_pk, v.value_code, v.value_name, v.display_order
 FROM nss.master_category mc
 CROSS JOIN (VALUES
-    ('PROBATIONARY', 'Probationary Member', 1),
+    ('PROBATIONARY', 'Darshaka',            1),
     ('REGULAR',      'Regular Member',      2),
     ('ASSOCIATE',    'Associate Member',    3),
     ('HONORARY',     'Honorary Member',     4)
@@ -111,7 +111,7 @@ CROSS JOIN (VALUES
     ('DECEASED',    'Deceased',    'Person is deceased (Bye-Law §D(d)(i))',                              10, '{PERSON}'::TEXT[]),
     ('DISSOLVED',   'Dissolved',   'Organization permanently dissolved (Bye-Law §I)',                    11, '{ORGANIZATION}'::TEXT[]),
     ('ARCHIVED',    'Archived',    'Permanently closed, retained for history',                           12, '{ORGANIZATION,MEMBERSHIP,PERSON}'::TEXT[]),
-    ('EXPIRED',          'Expired',          'Credential or document term has expired (Bye-Law §C(1)(c))',            13, '{CREDENTIAL}'::TEXT[]),
+    ('EXPIRED',          'Expired',          'Credential or document term has expired (Bye-Law §C(1)(c))',            13, '{MEMBERSHIP}'::TEXT[]),
     ('RENEWAL_PENDING',  'Renewal Pending',  'Membership renewal requested, awaiting approval',                    14, '{MEMBERSHIP}'::TEXT[]),
     ('ON_HOLD',          'On Hold',          'Membership temporarily on hold (administrative)',                     15, '{MEMBERSHIP}'::TEXT[]),
     ('DISCIPLINARY_REVIEW', 'Disciplinary Review', 'Under disciplinary review by governance (Bye-Law §D(d)(iii))', 16, '{MEMBERSHIP}'::TEXT[])

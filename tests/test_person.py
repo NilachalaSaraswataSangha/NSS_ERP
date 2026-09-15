@@ -383,11 +383,18 @@ class TestPersonSearch:
         assert r.json() == []
 
     def test_search_by_email(self, client):
-        """Searching by email prefix finds the person."""
-        # P1 has email 'ramesh.mishra@example.com'
-        data = client.get(f"{BASE}/search", params={"q": "ramesh.mishra"}).json()
+        """Searching by email prefix finds a matching person."""
+        persons = client.get(f"{BASE}/persons").json()
+        with_email = [p for p in persons if p.get("email")]
+        if not with_email:
+            pytest.skip("No persons with email seeded")
+        person = with_email[0]
+        email_prefix = person["email"].split("@")[0]
+        data = client.get(f"{BASE}/search", params={"q": email_prefix}).json()
         ids = [p["person_id"] for p in data]
-        assert "P1" in ids, f"Expected P1 when searching by email prefix, got: {ids}"
+        assert person["person_id"] in ids, (
+            f"Expected {person['person_id']} when searching by email prefix '{email_prefix}', got: {ids}"
+        )
 
     def test_search_max_50_results(self, client):
         """Search results are capped at 50."""

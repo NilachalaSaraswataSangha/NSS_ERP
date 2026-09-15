@@ -24,6 +24,12 @@
 --                             now Probationary member (SS5).
 --                             Kumari Transition
 --                             (01_membership_module_overview.md §6)
+--       P9: Harekrushna Mishra — Ramesh's father (grandfather
+--                                 in Mishra family tree)
+--       P10: Saraswati Mishra  — Ramesh's mother (grandmother)
+--       P11: Anita Mishra      — Ramesh's daughter
+--       P12: Rajesh Mishra     — Ramesh's brother
+--       P13: Kabita Mishra     — Rajesh's wife (sister-in-law)
 -- =====================================================
 
 -- Person 1: Ramesh Mishra (father / family head)
@@ -206,3 +212,112 @@ CROSS JOIN nss.master_data ms
 JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
 WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
   AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+
+-- -------------------------------------------------
+-- Persons 9–13: Extended Mishra family for tree
+-- -------------------------------------------------
+
+-- Person 9: Harekrushna Mishra (Ramesh's father — grandfather in family tree)
+INSERT INTO nss.person
+    (person_id, first_name, last_name, date_of_birth,
+     gender_master_data_pk, marital_status_master_data_pk,
+     country_phone_code, mobile_number)
+SELECT
+    'P9',
+    'Harekrushna',
+    'Mishra',
+    '1945-01-10',
+    g.master_data_pk,
+    ms.master_data_pk,
+    '+91',
+    '9437100009'
+FROM nss.master_data g
+JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
+CROSS JOIN nss.master_data ms
+JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
+WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+
+-- Person 10: Saraswati Mishra (Ramesh's mother — grandmother in family tree)
+INSERT INTO nss.person
+    (person_id, first_name, last_name, date_of_birth,
+     gender_master_data_pk, marital_status_master_data_pk,
+     country_phone_code, mobile_number)
+SELECT
+    'P10',
+    'Saraswati',
+    'Mishra',
+    '1948-08-25',
+    g.master_data_pk,
+    ms.master_data_pk,
+    '+91',
+    '9437100010'
+FROM nss.master_data g
+JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
+CROSS JOIN nss.master_data ms
+JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
+WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+
+-- Person 11: Anita Mishra (Ramesh & Sushma's daughter)
+INSERT INTO nss.person
+    (person_id, first_name, last_name, date_of_birth,
+     gender_master_data_pk, marital_status_master_data_pk,
+     country_phone_code, mobile_number)
+SELECT
+    'P11',
+    'Anita',
+    'Mishra',
+    '2003-04-18',
+    g.master_data_pk,
+    ms.master_data_pk,
+    '+91',
+    '9437100011'
+FROM nss.master_data g
+JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
+CROSS JOIN nss.master_data ms
+JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
+WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'UNMARRIED';
+
+-- Person 12: Rajesh Mishra (Ramesh's younger brother)
+INSERT INTO nss.person
+    (person_id, first_name, last_name, date_of_birth,
+     gender_master_data_pk, marital_status_master_data_pk,
+     country_phone_code, mobile_number)
+SELECT
+    'P12',
+    'Rajesh',
+    'Mishra',
+    '1978-12-05',
+    g.master_data_pk,
+    ms.master_data_pk,
+    '+91',
+    '9437100012'
+FROM nss.master_data g
+JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
+CROSS JOIN nss.master_data ms
+JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
+WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'MALE'
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
+
+-- Person 13: Kabita Mishra (Rajesh's wife — sister-in-law to Ramesh)
+INSERT INTO nss.person
+    (person_id, first_name, last_name, date_of_birth,
+     gender_master_data_pk, marital_status_master_data_pk,
+     country_phone_code, mobile_number)
+SELECT
+    'P13',
+    'Kabita',
+    'Mishra',
+    '1980-06-20',
+    g.master_data_pk,
+    ms.master_data_pk,
+    '+91',
+    '9437100013'
+FROM nss.master_data g
+JOIN nss.master_category mc_g ON mc_g.master_category_pk = g.master_category_pk
+CROSS JOIN nss.master_data ms
+JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
+WHERE mc_g.category_code = 'GENDER' AND g.value_code = 'FEMALE'
+  AND mc_ms.category_code = 'MARITAL_STATUS' AND ms.value_code = 'MARRIED';
