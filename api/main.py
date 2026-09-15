@@ -2,9 +2,10 @@
 NSS ERP — FastAPI application entry point.
 
 Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person
++ Tier 4 Family + Membership
 API + Frontend:
-  - Read-only endpoints for RBAC, Foundation, Organization, and Person data
-    verification
+  - Read-only endpoints for RBAC, Foundation, Organization, Person,
+    Family, and Membership data verification
   - Serves frontend/ static files (Verification UIs)
   - No authentication (Tier 5)
   - No ORM — raw psycopg2 against nss.* schema
@@ -26,6 +27,8 @@ URLs:
     http://localhost:8001/foundation    -> Foundation Verification UI
     http://localhost:8001/organization  -> Organization Verification UI
     http://localhost:8001/person        -> Person Verification UI
+    http://localhost:8001/family        -> Family Verification UI
+    http://localhost:8001/membership    -> Membership Verification UI
     http://localhost:8001/docs          -> Swagger UI (OpenAPI)
     http://localhost:8001/api/v1/       -> API endpoints
 """
@@ -45,7 +48,7 @@ from slowapi.util import get_remote_address
 from api.config import settings
 from api.database import close_pool
 from api.middleware import add_security_headers
-from api.routers import bootstrap, foundation, organization, person
+from api.routers import bootstrap, foundation, organization, person, family, membership
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -70,7 +73,8 @@ app = FastAPI(
     description=(
         "Nilachala Saraswata Sangha ERP — "
         "Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization "
-        "+ Tier 3 Person API. Read-only verification endpoints."
+        "+ Tier 3 Person + Tier 4 Family + Membership API. "
+        "Read-only verification endpoints."
     ),
     lifespan=lifespan,
     docs_url=None if settings.DISABLE_DOCS else "/docs",
@@ -104,6 +108,8 @@ app.include_router(bootstrap.router)
 app.include_router(foundation.router)
 app.include_router(organization.router)
 app.include_router(person.router)
+app.include_router(family.router)
+app.include_router(membership.router)
 
 # ── Frontend ─────────────────────────────────────────────────────────────
 # Serve static assets at /assets/*, index.html at /
@@ -145,3 +151,19 @@ if _FRONTEND_DIR.is_dir():
         async def serve_person():
             """Serve the Person Verification UI."""
             return FileResponse(str(_person_path))
+
+    _family_path = _FRONTEND_DIR / "family.html"
+    if _family_path.is_file():
+
+        @app.get("/family", include_in_schema=False)
+        async def serve_family():
+            """Serve the Family Verification UI."""
+            return FileResponse(str(_family_path))
+
+    _membership_path = _FRONTEND_DIR / "membership.html"
+    if _membership_path.is_file():
+
+        @app.get("/membership", include_in_schema=False)
+        async def serve_membership():
+            """Serve the Membership Verification UI."""
+            return FileResponse(str(_membership_path))

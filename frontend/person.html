@@ -14,17 +14,8 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="/assets/css/style.css">
-
-    <!-- Badge breathing room — must be last to override DaisyUI CDN -->
-    <style>
-        .badge { padding: 0.25rem 0.75rem !important; }
-        .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
-        .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
-        /* Lifecycle status colors */
-        .badge-status-active   { background-color: #16a34a !important; color: #fff !important; }
-        .badge-status-inactive { background-color: #6b7280 !important; color: #fff !important; }
-        .badge-status-deceased { background-color: #374151 !important; color: #fff !important; }
-    </style>
+    <link rel="stylesheet" href="/assets/css/badges.css">
+    <script src="/assets/js/nss-config.js"></script>
 </head>
 <body class="bg-base-200 min-h-screen">
 
@@ -39,11 +30,13 @@
                     <p class="text-xs sm:text-sm text-base-content/60">Tier 3 — Person Verification</p>
                 </div>
             </div>
-            <nav class="flex gap-2">
+            <nav class="flex gap-2 flex-wrap">
                 <a href="/" class="btn btn-sm btn-ghost">Bootstrap</a>
                 <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
                 <a href="/organization" class="btn btn-sm btn-ghost">Organization</a>
                 <a href="/person" class="btn btn-sm btn-active">Person</a>
+                <a href="/family" class="btn btn-sm btn-ghost">Family</a>
+                <a href="/membership" class="btn btn-sm btn-ghost">Membership</a>
             </nav>
         </header>
 
@@ -346,6 +339,34 @@
                     </div>
                 </section>
 
+            <!-- ── Reference: Person Lifecycle Statuses ── -->
+            <section class="card bg-base-100 shadow-sm mt-4">
+                <div class="card-body p-3 sm:p-4 xl:p-6">
+                    <div class="flex items-center justify-between">
+                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Person Lifecycle Statuses</h2>
+                        <span class="badge badge-ghost badge-sm">4 statuses</span>
+                    </div>
+                    <div class="overflow-x-auto mt-2">
+                        <table class="table table-sm max-w-2xl">
+                            <thead>
+                                <tr>
+                                    <th class="w-8">#</th>
+                                    <th>Badge</th>
+                                    <th>Code</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td class="text-center text-xs text-base-content/40">1</td><td><span class="badge badge-xs badge-status-active">Active</span></td><td class="font-mono text-xs whitespace-nowrap">ACTIVE</td><td class="text-xs text-base-content/60">Currently active person record</td></tr>
+                                <tr><td class="text-center text-xs text-base-content/40">2</td><td><span class="badge badge-xs badge-status-inactive">Inactive</span></td><td class="font-mono text-xs whitespace-nowrap">INACTIVE</td><td class="text-xs text-base-content/60">Temporarily non-operational</td></tr>
+                                <tr><td class="text-center text-xs text-base-content/40">3</td><td><span class="badge badge-xs badge-status-deceased">Deceased</span></td><td class="font-mono text-xs whitespace-nowrap">DECEASED</td><td class="text-xs text-base-content/60">Person is deceased (Bye-Law §D(d)(i))</td></tr>
+                                <tr><td class="text-center text-xs text-base-content/40">4</td><td><span class="badge badge-xs badge-status-archived">Archived</span></td><td class="font-mono text-xs whitespace-nowrap">ARCHIVED</td><td class="text-xs text-base-content/60">Permanently closed, retained for history</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
             </div>
         </div>
 
@@ -353,14 +374,17 @@
         <!-- TAB 2: Search (trigram fuzzy search)                      -->
         <!-- ═══════════════════════════════════════════════════════════ -->
         <div x-show="activeTab === 'search'" x-cloak>
-            <section class="card bg-base-100 shadow-sm">
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
+
+            <!-- Search Results (left / full) -->
+            <section class="card bg-base-100 shadow-sm xl:col-span-2">
                 <div class="card-body p-3 sm:p-4 xl:p-6">
                     <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Person Search</h2>
 
                     <!-- Search input -->
                     <div class="form-control mt-2 max-w-md">
                         <div class="input-group">
-                            <input type="text" placeholder="Name, Person ID, or mobile number (min 2 chars)"
+                            <input type="text" placeholder="Name, Person ID, Mobile, or Email (min 2 chars)"
                                    class="input input-bordered input-sm w-full"
                                    x-model="searchQuery"
                                    @keydown.enter="executeSearch()"
@@ -409,7 +433,8 @@
                                 <tbody>
                                     <template x-for="p in searchResults" :key="p.person_pk">
                                         <tr class="cursor-pointer hover"
-                                            @click="switchTab('persons'); selectPersonByPk(p.person_pk)">
+                                            :class="{ 'bg-base-200': selectedPerson?.person_pk === p.person_pk }"
+                                            @click="selectPerson(p)">
                                             <td class="font-mono text-xs whitespace-nowrap" x-text="p.person_id"></td>
                                             <td class="text-xs font-medium whitespace-nowrap" x-text="formatName(p)"></td>
                                             <td class="text-xs" x-text="p.gender_name || '—'"></td>
@@ -429,6 +454,172 @@
                     </template>
                 </div>
             </section>
+
+            <!-- Person Detail + Addresses (right — same as Persons tab) -->
+            <section class="card bg-base-100 shadow-sm">
+                <div class="card-body p-3 sm:p-4 xl:p-6">
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Person Detail</h2>
+
+                    <template x-if="!selectedPerson && !detailLoading">
+                        <p class="text-sm text-base-content/60 py-2">
+                            Click a search result to view details.
+                        </p>
+                    </template>
+
+                    <template x-if="detailLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="detailError">
+                        <div class="alert alert-error mt-2">
+                            <span class="text-sm">Failed to load person detail.</span>
+                        </div>
+                    </template>
+
+                    <template x-if="selectedPerson && !detailLoading && !detailError">
+                        <div class="mt-2 space-y-3">
+                            <!-- Identity -->
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div>
+                                    <span class="text-base-content/50">Person ID:</span>
+                                    <span class="font-mono font-semibold" x-text="selectedPerson.person_id"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Status:</span>
+                                    <span class="badge badge-xs" :class="statusBadgeClass(selectedPerson)" x-text="statusLabel(selectedPerson)"></span>
+                                </div>
+                            </div>
+
+                            <!-- Demographics -->
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div>
+                                    <span class="text-base-content/50">Name:</span>
+                                    <span class="font-semibold" x-text="formatName(selectedPerson)"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Gender:</span>
+                                    <span x-text="selectedPerson.gender_name || '—'"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Date of Birth:</span>
+                                    <span x-text="selectedPerson.date_of_birth || '—'"></span>
+                                </div>
+                                <div x-show="selectedPerson.date_of_death">
+                                    <span class="text-base-content/50">Date of Death:</span>
+                                    <span x-text="selectedPerson.date_of_death"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Marital Status:</span>
+                                    <span x-text="selectedPerson.marital_status_name || '—'"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Blood Group:</span>
+                                    <span x-text="selectedPerson.blood_group_name || '—'"></span>
+                                </div>
+                            </div>
+
+                            <!-- Contact -->
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div x-show="selectedPerson.mobile_number">
+                                    <span class="text-base-content/50">Mobile:</span>
+                                    <span x-text="formatPhone(selectedPerson)"></span>
+                                </div>
+                                <div x-show="selectedPerson.email">
+                                    <span class="text-base-content/50">Email:</span>
+                                    <a :href="'mailto:' + selectedPerson.email" class="link link-primary" x-text="selectedPerson.email"></a>
+                                </div>
+                            </div>
+
+                            <!-- Aadhaar (masked) -->
+                            <div class="text-xs" x-show="selectedPerson.aadhaar_last4">
+                                <span class="text-base-content/50">Aadhaar:</span>
+                                <span class="font-mono" x-text="'XXXX XXXX ' + selectedPerson.aadhaar_last4"></span>
+                            </div>
+
+                            <!-- Emergency Contact -->
+                            <div x-show="selectedPerson.emergency_contact_name || selectedPerson.emergency_contact_phone">
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50 mb-1">Emergency Contact</h3>
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                    <div x-show="selectedPerson.emergency_contact_name">
+                                        <span class="text-base-content/50">Name:</span>
+                                        <span x-text="selectedPerson.emergency_contact_name"></span>
+                                    </div>
+                                    <div x-show="selectedPerson.emergency_contact_phone">
+                                        <span class="text-base-content/50">Phone:</span>
+                                        <span x-text="selectedPerson.emergency_contact_phone"></span>
+                                    </div>
+                                    <div x-show="selectedPerson.emergency_relationship_name">
+                                        <span class="text-base-content/50">Relationship:</span>
+                                        <span x-text="selectedPerson.emergency_relationship_name"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Remarks -->
+                            <div class="text-xs" x-show="selectedPerson.remarks">
+                                <span class="text-base-content/50">Remarks:</span>
+                                <span x-text="selectedPerson.remarks"></span>
+                            </div>
+
+                            <!-- Addresses -->
+                            <div>
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Addresses
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="personAddresses.length"></span>
+                                </h3>
+
+                                <template x-if="addressesLoading">
+                                    <div class="flex items-center gap-2 py-2">
+                                        <span class="loading loading-spinner loading-xs"></span>
+                                        <span class="text-sm text-base-content/60">Loading addresses...</span>
+                                    </div>
+                                </template>
+
+                                <template x-if="!addressesLoading && addressesError">
+                                    <div class="alert alert-error">
+                                        <span class="text-sm">Failed to load addresses.</span>
+                                    </div>
+                                </template>
+
+                                <template x-if="!addressesLoading && !addressesError && personAddresses.length === 0">
+                                    <p class="text-xs text-base-content/60 mt-1">No addresses on record.</p>
+                                </template>
+
+                                <template x-if="!addressesLoading && !addressesError && personAddresses.length > 0">
+                                    <div class="space-y-2 mt-2">
+                                        <template x-for="addr in personAddresses" :key="addr.person_address_pk">
+                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="badge badge-xs badge-primary" x-text="addr.address_type_name"></span>
+                                                    <template x-if="addr.is_primary">
+                                                        <span class="badge badge-xs badge-accent">Primary</span>
+                                                    </template>
+                                                    <template x-if="!addr.is_active">
+                                                        <span class="badge badge-xs badge-status-inactive">Inactive</span>
+                                                    </template>
+                                                </div>
+                                                <p x-text="addr.address_line_1"></p>
+                                                <p x-show="addr.address_line_2" x-text="addr.address_line_2"></p>
+                                                <p x-show="addr.landmark" class="text-base-content/60" x-text="'Landmark: ' + addr.landmark"></p>
+                                                <p class="text-base-content/60"
+                                                   x-text="[addr.city_village_name, addr.postal_code, addr.district_name, addr.state_name, addr.country_name].filter(Boolean).join(', ')">
+                                                </p>
+                                                <p x-show="addr.remarks" class="text-base-content/40 italic" x-text="addr.remarks"></p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            </div>
         </div>
 
         <!-- Footer -->
@@ -438,6 +629,6 @@
 
     </div>
 
-    <script src="/assets/js/person.js"></script>
+    <script src="/assets/js/person.js?v=2.2"></script>
 </body>
 </html>

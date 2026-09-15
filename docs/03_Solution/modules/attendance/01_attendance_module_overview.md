@@ -49,9 +49,9 @@ Sangha Sevi ID
 Example:
 
 ```text
-SS00000001
-SS00000002
-SS00000003
+SS1
+SS2
+SS3
 ```
 
 The Attendance Module shall not create a second Membership identity.

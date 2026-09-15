@@ -333,7 +333,11 @@ limiter = Limiter(
 
 A module-level `Limiter` instance keyed by client IP, with the default rate (e.g. `"60/minute"`)
 taken from configuration. This same `limiter` object is imported directly by
-`tests/test_security.py` to call `limiter.reset()` between tests.
+`tests/conftest.py`, which resets it via an autouse fixture before **every** test in the whole
+suite — it used to be reset only inside `tests/test_security.py`, which left every other test
+file's requests accumulating against the same process-wide singleton and risked spurious 429s in
+unrelated tests once a request-heavy file ran (see `docs/PROJECT_DOCUMENTATION.md` → Conventions
+& gotchas).
 
 ```python
 # 1. Rate limiting
@@ -452,6 +456,16 @@ both HTML files as part of this same pass — see `UI_CODE_EXPLANATIONS.md` for 
 
 > **Tier 3 note:** `frontend/person.html` uses the identical CDN `<head>` block — same versions,
 > same SRI hashes. No new CDN dependencies were introduced in Tier 3.
+
+> **Tier 4 note:** `frontend/assets/css/badges.css` and `frontend/assets/js/nss-config.js`
+> (added in the Tier 4 shared-config extraction, loaded by all six pages' `<head>` — see
+> `UI_CODE_EXPLANATIONS.md` §2.14–§2.15 and `frontend/README.md`) are **not** CDN resources —
+> both are served same-origin from this app's own `/assets/*` static mount (`api/main.py`), the
+> same trust boundary as `style.css` and `app.js`/`foundation.js`/etc. Subresource Integrity
+> exists specifically to protect against a *third-party* origin serving different bytes than
+> expected; a same-origin file carries no such cross-origin trust gap (if an attacker could
+> alter it, they could already alter every other file this server serves, SRI or not), so
+> neither file needs — or has — an `integrity` attribute.
 
 ---
 

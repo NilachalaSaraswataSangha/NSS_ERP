@@ -401,7 +401,159 @@ Family History Never Physically Deleted
 
 ---
 
-# 16. Authority Hierarchy
+# 16. Sakha Alignment Rules (Operational Convention)
+
+## FAM-036 — Family-Sakha Majority Rule (Dynamic)
+
+A family belongs to the Sakha where the majority of its members hold
+active affiliation (via ``membership_sakha_affiliation``).
+
+```text
+Family Effective Sakha = Sakha with most active member affiliations
+```
+
+This is computed dynamically on every read — there is no manual
+assignment or hardcoded Sakha on the family record.  The
+``family_group.sakha_organization_pk`` column stores the registration
+Sakha at creation time and serves as a fallback when no members have
+affiliations.  The API overrides it with the computed majority via a
+CTE in every family query.
+
+When the majority shifts (e.g. a member transfers), the family
+automatically appears under the new Sakha in org navigation — no
+manual update is required.
+
+**Rule maturity:** ERP-OPERATIONAL
+
+---
+
+## FAM-037 — Cross-Sakha Family Members
+
+A family may contain members affiliated with different Sakhas.
+
+Example: A family assigned to Sakha A may include members whose
+Parichaya Patra was issued by Sakha B or Sakha C.  Those members
+appear in the family tree and are full family members; only their
+individual Sakha affiliation differs.
+
+The ERP shall display a visual mismatch indicator (warning badge)
+when a member's active Sakha affiliation differs from the family's
+assigned home Sakha.
+
+---
+
+## FAM-038 — Family Split Principle
+
+Members from a minority Sakha within a family may create their own
+family.  The new family's Sakha is determined by the same majority
+principle (FAM-036).
+
+```text
+Original Family (Sakha A: 3 members, Sakha B: 2 members)
+    |
+Split
+    |
+Family 1 (Sakha A: 3 members)
+Family 2 (Sakha B: 2 members)
+```
+
+---
+
+# 17. Relationship Model Rules
+
+## FAM-039 — Graph-Based Dynamic Relationships
+
+Family relationships are computed dynamically via BFS graph
+traversal, not stored as static labels.
+
+The ``family_link`` table stores only two edge types:
+
+```text
+PARENT_OF
+SPOUSE_OF
+```
+
+All other kinship labels (Father, Mother, Uncle, Aunt, Grandson,
+Cousin, etc.) are derived at query time relative to a viewer.
+Changing the viewer recomputes all labels without any data changes.
+
+**Rationale:** Static HEAD-relative labels (e.g. ``SON_OF_HEAD``)
+break when the head changes or when viewing from a non-head
+perspective.  The graph model is viewer-independent.
+
+---
+
+## FAM-040 — Dual-View Family Navigation
+
+The family UI provides two views:
+
+1. **Member View ("My Family"):** A family member sees their own
+   family tree, detail panel, and "View As" selector.
+
+2. **Org Admin View ("Org View"):** An administrator navigates the
+   organizational hierarchy (Kendra -> Anchalika -> Sakha) to browse
+   families under a selected Sakha.
+
+Both views share the same family detail panel, tree rendering, and
+person selection.  The difference is only in how families are
+discovered (direct access vs. org drill-down).
+
+---
+
+# 18. Document Visibility Rules
+
+## FAM-041 — Parichaya Patra Visibility
+
+Parichaya Patra (identity card) is displayed for all membership
+types.
+
+```text
+NSS.showParichayaPatra(typeCode) -> true  (all types)
+```
+
+---
+
+## FAM-042 — Anumati Patra Visibility
+
+Anumati Patra (permission letter) is displayed for Darshaka
+(PROBATIONARY) members only.  It is hidden for Associate (ASSOCIATE)
+members.
+
+```text
+NSS.showAnumatiPatra(typeCode) -> typeCode !== "ASSOCIATE"
+```
+
+**Authority:** MBR-019A/B (membership document rules)
+
+---
+
+# 19. Identity Display Rules
+
+## FAM-043 — Three-Tier Identity Display
+
+The ERP uses a three-tier identity hierarchy displayed with
+consistent styling across all pages:
+
+```text
+Tier 1: Sangha Sevi ID    (primary / blue)      .data-sevi-id
+Tier 2: Sakha Sangha ID   (secondary / purple)   .data-erp-no
+Tier 3: Kendra Number     (accent)                .data-kendra-no
+```
+
+The label "Sangha Sevi ID" is authoritative.  Shortened forms
+("Sevi ID") are prohibited.
+
+---
+
+## FAM-044 — Membership Type Terminology
+
+The membership type "Darshaka" is the authoritative NSS term for
+probationary members.  The label "Probationary Member" shall not
+appear in user-facing UI.
+
+---
+
+# 20. Authority Hierarchy
 
 Family implementation shall follow:
 

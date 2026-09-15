@@ -83,7 +83,7 @@ Example:
 ```text
 Person
    |
-SS00000001
+SS1
 ```
 
 The Sangha Sevi ID is permanent.
@@ -188,6 +188,11 @@ The Bye-Law permits the Parichalak, suo motu or on recommendation of a Sakha San
 
 Associate Members may attend functions of Sakha Sanghas and the Kendra Sangha but do not have the specified elected-post voting/election rights described by the Bye-Law.
 
+Credentials:
+
+* Parichaya Patra — issued upon enrollment (annual renewal required)
+* Anumati Patra — NOT applicable (Probationary-only)
+
 ---
 
 # 9. Darshak Operational Concept
@@ -209,6 +214,9 @@ DARSHAK
 ```
 
 Operationally, "Darshak" may be used in Attendance and UI contexts.
+
+In the portal UI, a Probationary Member is displayed as **"Darshaka"**
+(operational label — the database stores `PROBATIONARY`).
 
 A Darshak may include:
 
@@ -236,6 +244,24 @@ docs/03_Solution/modules/attendance/DARSHAK_BUSINESS_RULE.md
 
 Membership Type is separate from Membership Status.
 
+**Member Status vs Membership Status** — the ERP distinguishes:
+
+- **Member Status** — Person-level lifecycle (a member is a person):
+  ACTIVE, INACTIVE, DECEASED, ARCHIVED (4 statuses from the PERSON scope
+  of the unified STATUS category).
+
+- **Membership Status** — Membership-record lifecycle:
+  ACTIVE, INACTIVE, SUSPENDED, LAPSED, TRANSFERRED, RESIGNED, EXPELLED,
+  ARCHIVED, RENEWAL_PENDING, ON_HOLD, DISCIPLINARY_REVIEW
+  (11 statuses from the MEMBERSHIP scope of the unified STATUS category).
+
+A membership cannot be deceased — a *member* (person) can be deceased.
+DECEASED is a Person-only status (Bye-Law §D(d)(i)).
+
+EXPIRED is a Credential status (Anumati Patra / Parichaya Patra document
+lifecycle), not a Membership status. The correct membership term for
+non-renewal is LAPSED (Bye-Law §D(d)).
+
 A Membership may move through controlled status states such as:
 
 ```text
@@ -246,18 +272,24 @@ RENEWAL_PENDING
 ACTIVE
 ```
 
-Other status states may include:
+Other membership status states include:
 
 ```text
-EXPIRED
 SUSPENDED
 ON_HOLD
 DISCIPLINARY_REVIEW
 TRANSFERRED
-DECEASED
+LAPSED
+RESIGNED
+EXPELLED
+ARCHIVED
 ```
 
-The authoritative status master shall control the permitted values.
+The authoritative status master (`nss.master_data` with
+`applicable_modules = '{MEMBERSHIP}'`) controls the permitted values.
+
+Status filtering uses the `applicable_modules` column on `master_data`:
+each module's API/UI shows only statuses tagged for that module.
 
 ---
 
@@ -303,9 +335,12 @@ Effective Date
 New Sakha
 ```
 
-The Sangha Sevi ID remains unchanged.
+The Sangha Sevi ID (Tier 1) remains unchanged.
 
-The local Sakha number may change.
+The Local Sakha ERP Number (Tier 2, also called ERP Number) may change —
+old number archived at source Sakha, new number issued at destination Sakha.
+
+The Kendra Number (Tier 3, via Parichaya Patra) remains unchanged.
 
 Historical transfer information remains preserved.
 
@@ -351,13 +386,27 @@ Anumati Patra
 
 History is retained.
 
+When a Probationary Member progresses to Regular Membership, the
+Anumati Patra status transitions to `EXPIRED`. The historical record
+remains visible in the member's credential history alongside any
+subsequent Parichaya Patra.
+
 ## Parichaya Patra
 
 ```text
-Regular Enrollment
-        |
-Parichaya Patra
+Regular Enrollment          Associate Enrollment
+        |                           |
+Parichaya Patra             Parichaya Patra
 ```
+
+Applicable to: **Regular** and **Associate** Members.
+
+Associate Members receive a Parichaya Patra upon enrollment (they
+bypass the Probationary stage entirely). The Bye-Law's cessation
+clause applies the annual renewal requirement to both Regular and
+Associate Members.
+
+Associate Members do NOT receive an Anumati Patra (Probationary-only).
 
 History is retained.
 

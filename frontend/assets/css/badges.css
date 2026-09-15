@@ -1,0 +1,96 @@
+/*
+ * NSS ERP — Shared Badge Styles (Single Source of Truth)
+ *
+ * All badge color definitions live here. Individual pages
+ * MUST NOT define badge-status-*, badge-type-*, or badge-aff-*
+ * classes in inline <style> blocks.
+ *
+ * Naming convention:
+ *   badge-status-{lowercase-code}   — lifecycle status
+ *   badge-type-{lowercase-code}     — membership type
+ *   badge-aff-{lowercase-status}    — affiliation status
+ *
+ * Colors: Tailwind 600-level palette for consistency.
+ * Authority: NSS Bye-Law + ERP-FROZEN design decisions.
+ */
+
+/* ── Badge base overrides (DaisyUI CDN override) ─────────── */
+.badge         { padding: 0.25rem 0.75rem !important; }
+.badge-xs      { padding: 0.125rem 0.4rem !important; height: auto !important; min-height: 1.125rem; font-size: 0.6rem; }
+
+/* ══════════════════════════════════════════════════════════════
+   LIFECYCLE STATUS BADGES (unified ERP-wide)
+   Authority: NSS Bye-Law §D(d), §12, §I, §C
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-status-active              { background-color: #16a34a !important; color: #fff !important; }  /* green-600  */
+.badge-status-inactive            { background-color: #6b7280 !important; color: #fff !important; }  /* gray-500   */
+.badge-status-proposed            { background-color: #2563eb !important; color: #fff !important; }  /* blue-600   */
+.badge-status-approved            { background-color: #0d9488 !important; color: #fff !important; }  /* teal-600   */
+.badge-status-suspended           { background-color: #dc2626 !important; color: #fff !important; }  /* red-600    */
+.badge-status-lapsed              { background-color: #d97706 !important; color: #fff !important; }  /* amber-600  */
+.badge-status-transferred         { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600 */
+.badge-status-resigned            { background-color: #9ca3af !important; color: #fff !important; }  /* gray-400   */
+.badge-status-expelled            { background-color: #991b1b !important; color: #fff !important; }  /* red-900    */
+.badge-status-deceased            { background-color: #374151 !important; color: #fff !important; }  /* gray-700   */
+.badge-status-dissolved           { background-color: #78350f !important; color: #fff !important; }  /* amber-900  */
+.badge-status-archived            { background-color: #374151 !important; color: #fff !important; }  /* gray-700   */
+.badge-status-expired             { background-color: #4b5563 !important; color: #fff !important; }  /* gray-600   */
+.badge-status-cancelled           { background-color: #dc2626 !important; color: #fff !important; }  /* red-600    */
+.badge-status-replaced            { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600 */
+.badge-status-renewal-pending     { background-color: #ea580c !important; color: #fff !important; }  /* orange-600 */
+.badge-status-on-hold             { background-color: #2563eb !important; color: #fff !important; }  /* blue-600   */
+.badge-status-disciplinary-review { background-color: #be123c !important; color: #fff !important; }  /* rose-700   */
+
+/* ══════════════════════════════════════════════════════════════
+   MEMBERSHIP TYPE BADGES
+   Authority: NSS Bye-Law §B
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-type-probationary  { background-color: #d97706 !important; color: #fff !important; }  /* amber-600   — Darshaka   */
+.badge-type-regular       { background-color: #2563eb !important; color: #fff !important; }  /* blue-600    — Regular    */
+.badge-type-associate     { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600  — Associate  */
+.badge-type-honorary      { background-color: #059669 !important; color: #fff !important; }  /* emerald-600 — Honorary   */
+
+/* ══════════════════════════════════════════════════════════════
+   AFFILIATION STATUS BADGES
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-aff-active         { background-color: #16a34a !important; color: #fff !important; }  /* green-600 */
+.badge-aff-archived       { background-color: #6b7280 !important; color: #fff !important; }  /* gray-500  */
+.badge-aff-reactivated    { background-color: #2563eb !important; color: #fff !important; }  /* blue-600  */
+
+/* ══════════════════════════════════════════════════════════════
+   GENDER / MARITAL / INFO BADGES (detail panels)
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-gender-male        { background-color: #2563eb !important; color: #fff !important; }  /* blue-600   */
+.badge-gender-female      { background-color: #ec4899 !important; color: #fff !important; }  /* pink-500   */
+.badge-gender-other       { background-color: #8b5cf6 !important; color: #fff !important; }  /* violet-500 */
+.badge-marital            { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600 */
+
+/* ══════════════════════════════════════════════════════════════
+   ROLE BADGES (tree & detail panels)
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-role-viewer        { background-color: #6366f1 !important; color: #fff !important; }  /* indigo-500 — YOU    */
+.badge-role-head          { background-color: #f59e0b !important; color: #fff !important; }  /* amber-500  — HEAD   */
+
+/* ══════════════════════════════════════════════════════════════
+   DATA DISPLAY CLASSES — identity & membership fields
+   Consistent styling for key identifiers across all pages.
+   Uses DaisyUI theme variables so colors stay theme-aware.
+   Authority: ERP-FROZEN UI decisions.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Three-tier identity: Sangha Sevi ID → ERP Number → Kendra Number */
+.data-sevi-id             { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: oklch(var(--p)); }     /* DaisyUI primary — matches text-primary  */
+.data-erp-no              { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: oklch(var(--s)); }     /* DaisyUI secondary — matches text-secondary */
+.data-kendra-no           { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: oklch(var(--a)); }     /* DaisyUI accent — distinct from sevi/erp */
+
+/* Contextual identifiers */
+.data-sakha-name          { font-weight: 500; color: #374151; }                                                                    /* gray-700 — organization     */
+.data-family-id           { font-family: ui-monospace, SFMono-Regular, monospace; font-weight: 600; color: #374151; }              /* gray-700 — family identity  */
+
+/* Section label used in detail panels */
+.data-label               { font-size: 0.65rem; color: #9ca3af; letter-spacing: 0.02em; }

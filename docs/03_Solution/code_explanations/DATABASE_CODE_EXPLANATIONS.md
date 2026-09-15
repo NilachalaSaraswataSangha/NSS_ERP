@@ -3,9 +3,9 @@
 | Field       | Value                                                                     |
 |-------------|----------------------------------------------------------------------------|
 | Document    | DATABASE_CODE_EXPLANATIONS                                               |
-| Version     | 1.0                                                                       |
+| Version     | 1.3                                                                       |
 | Scope       | All SQL DDL, seed, and build/validate scripts under `database/`          |
-| Status      | Complete                                                                  |
+| Status      | Complete (updated: Tier 4 Family — `family_link` graph-edge table)      |
 
 ---
 
@@ -66,6 +66,14 @@ prototype** — not executed by `database/scripts/02_build.sh`/`02_build.ps1`, k
 reference (see `database/ddl/03_person/README.md` and `database/README.md` → "Superseded
 Artifacts"). They are still explained fully below because they are still code in the
 repository, but every section for them opens with an explicit supersession notice.
+
+Addendum (Tier 4 Family): `database/ddl/04_family/` (5 tables — `family_group`,
+`family_relationship`, `family_head_history`, `family_transition_history`, `family_link`) and
+`database/seed/04_family/` are **real, implemented DDL** — unlike the `03_person/` prototype
+directly above, Family's tables are built against the current, real `nss.*` schema (schema-
+qualified table names, `master_category`/`master_data`-driven classification, the real
+`nss.person`/`nss.organization` FK targets) and are documented in that section, following all of
+Foundation/Organization's real-DDL conventions rather than the superseded prototype's.
 
 ---
 
@@ -3564,6 +3572,1804 @@ has run.
 
 ---
 
+### database/ddl/04_family/01_family_group.sql
+
+> **Real, implemented DDL** — executed by `database/scripts/02_build.sh`/`02_build.ps1`, unlike
+> the `03_person/` prototype documented immediately above. Family (Tier 4) is built against the
+> same frozen `master_category`/`master_data` pattern Organization and the real Person DDL use,
+> not the superseded per-domain-master-table style.
+
+**Requirement**
+
+Defines `nss.family_group` — the root table of the Family module: one row per family unit, tying
+it to the Sakha it's registered under and a lifecycle status resolved through Foundation's
+unified `STATUS` category. Depth 2 (depends on `organization`, `master_data`).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.family_group
+(
+    family_group_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    family_id VARCHAR(20) NOT NULL,
+
+    family_name VARCHAR(200) NOT NULL,
+
+    family_status_master_data_pk UUID NOT NULL,
+
+    sakha_organization_pk UUID NOT NULL,
+
+    formed_date DATE NULL,
+
+    remarks TEXT NULL,
+
+    is_active BOOLEAN NOT NULL
+        DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    updated_by_sangha_sevi_pk UUID NULL,
+
+    deleted_at TIMESTAMPTZ NULL,
+
+    deleted_by_sangha_sevi_pk UUID NULL,
+```
+
+Columns: `family_group_pk UUID PRIMARY KEY DEFAULT gen_random_uuid()` — schema-qualified
+(`nss.family_group`), consistent with every real (non-superseded) table in this document;
+`family_id VARCHAR(20) NOT NULL` — the business identifier (e.g. `F1`), following the
+project-wide **unpadded** ID convention adopted across this branch (see
+`docs/00_Project_Governance/STD/01_project_standards.md`) rather than the earlier zero-padded
+style (`F00000001`); `family_name VARCHAR(200) NOT NULL`; `family_status_master_data_pk UUID NOT
+NULL` — FK into `nss.master_data`, unified `STATUS` category, not a dedicated
+`family_status_master` table; `sakha_organization_pk UUID NOT NULL` — FK into
+`nss.organization`, the Sakha this family is registered under; `formed_date DATE NULL`; `remarks
+TEXT NULL`; then the standard soft-delete/audit block: `is_active BOOLEAN NOT NULL DEFAULT TRUE`,
+`created_at`/`updated_at`/`deleted_at TIMESTAMPTZ`, and three nullable
+`*_by_sangha_sevi_pk UUID` audit-actor columns whose FK constraints are deferred to Pass 2 (after
+`sangha_sevi` exists) — same two-pass strategy Organization and Person's real DDL both use.
+
+```sql
+    CONSTRAINT uq_family_id
+        UNIQUE (family_id),
+
+    CONSTRAINT fk_family_group_status
+        FOREIGN KEY (family_status_master_data_pk)
+        REFERENCES nss.master_data (master_data_pk),
+
+    CONSTRAINT fk_family_group_sakha
+        FOREIGN KEY (sakha_organization_pk)
+        REFERENCES nss.organization (organization_pk),
+
+    CONSTRAINT chk_family_group_soft_delete
+        CHECK
+        (
+            (is_active = TRUE AND deleted_at IS NULL)
+            OR
+            (is_active = FALSE AND deleted_at IS NOT NULL)
+        )
+);
+
+CREATE INDEX idx_family_group_family_id
+    ON nss.family_group (family_id);
+
+CREATE INDEX idx_family_group_sakha
+    ON nss.family_group (sakha_organization_pk);
+
+CREATE INDEX idx_family_group_status
+    ON nss.family_group (family_status_master_data_pk);
+
+CREATE INDEX idx_family_group_is_active
+    ON nss.family_group (is_active);
+
+CREATE INDEX idx_family_group_family_name
+    ON nss.family_group (family_name);
+```
+
+Constraints: `uq_family_id UNIQUE (family_id)` — every family's business ID is globally unique;
+`fk_family_group_status` and `fk_family_group_sakha` — both plain (non-`LEFT`) FKs, matching that
+both source columns are `NOT NULL`; `chk_family_group_soft_delete` — the same
+`is_active`/`deleted_at` consistency CHECK used by `organization` and every other real
+(non-prototype) table in this schema.
+
+Indexes: `idx_family_group_family_id`, `idx_family_group_sakha`, `idx_family_group_status`,
+`idx_family_group_is_active`, `idx_family_group_family_name` — one per FK/filter column, the same
+"index every FK and every commonly-filtered column" convention used throughout `nss.*`.
+
+---
+
+### database/ddl/04_family/02_family_relationship.sql
+
+**Requirement**
+
+Defines `nss.family_relationship` — one row per (family, person, relationship type), the table
+that actually places a person *inside* a family unit with a typed, effective-dated relationship.
+Depth 3 (depends on `family_group`, `person`, `master_data`).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.family_relationship
+(
+    family_relationship_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    family_group_pk UUID NOT NULL,
+
+    person_pk UUID NOT NULL,
+
+    relationship_type_master_data_pk UUID NOT NULL,
+
+    effective_from DATE NOT NULL,
+
+    effective_to DATE NULL,
+
+    is_current BOOLEAN NOT NULL
+        DEFAULT TRUE,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    updated_by_sangha_sevi_pk UUID NULL,
+```
+
+Columns: `family_relationship_pk UUID PRIMARY KEY DEFAULT gen_random_uuid()`;
+`family_group_pk UUID NOT NULL` — FK to `family_group`; `person_pk UUID NOT NULL` — FK to
+`nss.person`; `relationship_type_master_data_pk UUID NOT NULL` — FK into `nss.master_data`,
+category `RELATIONSHIP_TYPE` (FATHER, MOTHER, SPOUSE, SON, DAUGHTER, etc. — the same category
+Person's own `emergency_relationship_master_data_pk` column draws from); `effective_from DATE NOT
+NULL`, `effective_to DATE NULL` — the effective-dated period this relationship is/was in force;
+`is_current BOOLEAN NOT NULL DEFAULT TRUE`; `remarks TEXT NULL`. Note this table has only a
+two-column audit-actor pair (`created_by_sangha_sevi_pk`, `updated_by_sangha_sevi_pk`) and no
+`deleted_at`/`deleted_by_sangha_sevi_pk` — relationship rows are effective-dated and superseded
+(a new row with a later `effective_from` and the old row's `effective_to`/`is_current` updated),
+not soft-deleted the way `family_group` is.
+
+```sql
+    CONSTRAINT fk_family_rel_family_group
+        FOREIGN KEY (family_group_pk)
+        REFERENCES nss.family_group (family_group_pk),
+
+    CONSTRAINT fk_family_rel_person
+        FOREIGN KEY (person_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT fk_family_rel_type
+        FOREIGN KEY (relationship_type_master_data_pk)
+        REFERENCES nss.master_data (master_data_pk),
+
+    CONSTRAINT chk_family_rel_effective_range
+        CHECK
+        (
+            effective_to IS NULL
+            OR effective_to >= effective_from
+        ),
+
+    CONSTRAINT chk_family_rel_current_consistency
+        CHECK
+        (
+            (is_current = TRUE AND effective_to IS NULL)
+            OR
+            (is_current = FALSE AND effective_to IS NOT NULL)
+        )
+);
+
+CREATE INDEX idx_family_rel_family_group
+    ON nss.family_relationship (family_group_pk);
+
+CREATE INDEX idx_family_rel_person
+    ON nss.family_relationship (person_pk);
+
+CREATE INDEX idx_family_rel_type
+    ON nss.family_relationship (relationship_type_master_data_pk);
+
+CREATE INDEX idx_family_rel_is_current
+    ON nss.family_relationship (is_current);
+
+CREATE UNIQUE INDEX uq_family_rel_person_current
+    ON nss.family_relationship (family_group_pk, person_pk)
+    WHERE is_current = TRUE;
+```
+
+Constraints: three plain FKs (`fk_family_rel_family_group`, `fk_family_rel_person`,
+`fk_family_rel_type`); `chk_family_rel_effective_range CHECK (effective_to IS NULL OR
+effective_to >= effective_from)` — an ended relationship can't end before it started;
+`chk_family_rel_current_consistency CHECK ((is_current = TRUE AND effective_to IS NULL) OR
+(is_current = FALSE AND effective_to IS NOT NULL))` — ties the boolean flag to the date column so
+they can never drift out of sync.
+
+Indexes: the standard per-FK set (`idx_family_rel_family_group`, `idx_family_rel_person`,
+`idx_family_rel_type`) plus `idx_family_rel_is_current`. The final index is the interesting one:
+
+```sql
+CREATE UNIQUE INDEX uq_family_rel_person_current
+    ON nss.family_relationship (family_group_pk, person_pk)
+    WHERE is_current = TRUE;
+```
+
+A **partial unique index** — enforces "at most one current relationship per (family, person)
+pair" without constraining historical rows at all, since a person may accumulate multiple past
+relationship rows in the same family (e.g. a corrected or superseded relationship type) as long
+as only one of them is ever flagged `is_current = TRUE`. Same technique as Person's
+`uq_person_primary_address`.
+
+---
+
+### database/ddl/04_family/03_family_head_history.sql
+
+**Requirement**
+
+Defines `nss.family_head_history` — an append-only log of who has headed each family and when,
+never mutated in place once a head's tenure ends (per the frozen "History Never Deleted"
+principle, FAM-028). Depth 3 (depends on `family_group`, `person`).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.family_head_history
+(
+    family_head_history_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    family_group_pk UUID NOT NULL,
+
+    person_pk UUID NOT NULL,
+
+    effective_from DATE NOT NULL,
+
+    effective_to DATE NULL,
+
+    reason VARCHAR(500) NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    CONSTRAINT fk_family_head_family_group
+        FOREIGN KEY (family_group_pk)
+        REFERENCES nss.family_group (family_group_pk),
+
+    CONSTRAINT fk_family_head_person
+        FOREIGN KEY (person_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT chk_family_head_effective_range
+        CHECK
+        (
+            effective_to IS NULL
+            OR effective_to >= effective_from
+        )
+);
+
+CREATE INDEX idx_family_head_family_group
+    ON nss.family_head_history (family_group_pk);
+
+CREATE INDEX idx_family_head_person
+    ON nss.family_head_history (person_pk);
+
+CREATE UNIQUE INDEX uq_family_head_current
+    ON nss.family_head_history (family_group_pk)
+    WHERE effective_to IS NULL;
+```
+
+Columns: `family_head_history_pk`, `family_group_pk`/`person_pk` (both `NOT NULL` FKs),
+`effective_from DATE NOT NULL`/`effective_to DATE NULL`, `reason VARCHAR(500) NULL` (why the
+headship changed), `remarks TEXT NULL`. Audit is deliberately minimal here — only `created_at`
+and `created_by_sangha_sevi_pk`, no `updated_at`/`updated_by`/`deleted_at`/`deleted_by` at all —
+because a history row, once written, is never updated or deleted; the only "change" a headship
+record undergoes is a later row setting this one's `effective_to` (via an `UPDATE` on
+`effective_to` alone) when a new head takes over, and even that touches exactly one column, not
+the row's substantive facts.
+
+Constraints: the two plain FKs, plus `chk_family_head_effective_range` — the same
+"can't end before it started" CHECK as `family_relationship`.
+
+Indexes: `idx_family_head_family_group`, `idx_family_head_person`, and the table's defining
+invariant:
+
+```sql
+CREATE UNIQUE INDEX uq_family_head_current
+    ON nss.family_head_history (family_group_pk)
+    WHERE effective_to IS NULL;
+```
+
+A partial unique index guaranteeing **at most one row per family group with `effective_to IS
+NULL`** — i.e. exactly one current head at any given time, while every past head's row (with
+`effective_to` set) is left untouched and unconstrained by this index.
+
+---
+
+### database/ddl/04_family/04_family_transition_history.sql
+
+**Requirement**
+
+Defines `nss.family_transition_history` — an append-only log of a person moving from one family
+group to another (marriage, new-family formation, change of family unit), preserving both the
+origin and destination family groups rather than overwriting `family_relationship` rows in place
+(FAM-013, FAM-028). Depth 3 (depends on `family_group` twice, `person`).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.family_transition_history
+(
+    family_transition_history_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    person_pk UUID NOT NULL,
+
+    old_family_group_pk UUID NOT NULL,
+
+    new_family_group_pk UUID NOT NULL,
+
+    transition_type VARCHAR(50) NOT NULL,
+
+    transition_reason VARCHAR(500) NULL,
+
+    effective_date DATE NOT NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    CONSTRAINT fk_family_trans_person
+        FOREIGN KEY (person_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT fk_family_trans_old_family
+        FOREIGN KEY (old_family_group_pk)
+        REFERENCES nss.family_group (family_group_pk),
+
+    CONSTRAINT fk_family_trans_new_family
+        FOREIGN KEY (new_family_group_pk)
+        REFERENCES nss.family_group (family_group_pk),
+
+    CONSTRAINT chk_family_trans_different_families
+        CHECK (old_family_group_pk <> new_family_group_pk),
+
+    CONSTRAINT chk_family_trans_type
+        CHECK
+        (
+            transition_type IN
+            (
+                'MARRIAGE',
+                'NEW_FAMILY_FORMATION',
+                'CHANGE_OF_FAMILY_UNIT',
+                'OTHER'
+            )
+        )
+);
+
+CREATE INDEX idx_family_trans_person
+    ON nss.family_transition_history (person_pk);
+
+CREATE INDEX idx_family_trans_old_family
+    ON nss.family_transition_history (old_family_group_pk);
+
+CREATE INDEX idx_family_trans_new_family
+    ON nss.family_transition_history (new_family_group_pk);
+
+CREATE INDEX idx_family_trans_effective_date
+    ON nss.family_transition_history (effective_date);
+
+CREATE INDEX idx_family_trans_type
+    ON nss.family_transition_history (transition_type);
+```
+
+Columns: `person_pk UUID NOT NULL` — the person who transitioned; `old_family_group_pk`/
+`new_family_group_pk UUID NOT NULL` — **two separate FKs to the same table**
+(`nss.family_group`), both required, so both the origin and destination family are always
+recorded; `transition_type VARCHAR(50) NOT NULL` — a plain, CHECK-constrained code column, not a
+`master_data` FK (see below); `transition_reason VARCHAR(500) NULL`; `effective_date DATE NOT
+NULL`; `remarks TEXT NULL`; the same minimal `created_at`/`created_by_sangha_sevi_pk`-only audit
+pair as `family_head_history` — another append-only, never-updated history table.
+
+Constraints: `fk_family_trans_person`, `fk_family_trans_old_family`, `fk_family_trans_new_family`
+— three plain FKs; `chk_family_trans_different_families CHECK (old_family_group_pk <>
+new_family_group_pk)` — a transition must actually move the person between two *distinct*
+families, rejecting a no-op "transition" to the same family at the database level;
+`chk_family_trans_type CHECK (transition_type IN ('MARRIAGE', 'NEW_FAMILY_FORMATION',
+'CHANGE_OF_FAMILY_UNIT', 'OTHER'))` — a closed four-value enumeration enforced directly by CHECK
+rather than routed through Foundation's `master_data` pattern, since the value set is small,
+fixed, and carries no display-name/sort-order metadata worth modeling as reference data (unlike,
+say, `RELATIONSHIP_TYPE` or `STATUS`).
+
+Indexes: one per FK (`idx_family_trans_person`, `idx_family_trans_old_family`,
+`idx_family_trans_new_family`) plus `idx_family_trans_effective_date` and
+`idx_family_trans_type` — the latter two support querying a person's transition timeline in date
+order and filtering/reporting by transition type.
+
+---
+
+### database/ddl/04_family/05_family_link.sql
+
+**Requirement**
+
+Defines `nss.family_link` — the fifth table added to the Family module, and a **different**
+kind of table from the other four: instead of resolving a family member's kinship *label*
+against a lookup category, it stores only the raw, directed biological/legal edges
+(`PARENT_OF`, `SPOUSE_OF`) between two persons in a family, leaving every other kinship term
+(Grandfather, Cousin, Sister-in-Law, ...) to be computed at query time by graph traversal
+relative to whoever is viewing the family (`api/services/family_graph.py` — see
+`docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md` §2.15). Depth 3 (depends on
+`family_group`, `person`, same depth as `family_relationship`/`family_head_history`). Without
+this table, the graph endpoint (`GET /families/{family_group_pk}/graph`) would have nothing to
+traverse — `family_relationship` alone records *family-unit membership* (who belongs to the
+family and their static relationship-type code), not the *direct edges* a graph algorithm needs
+to derive extended kinship dynamically.
+
+**Line-by-line explanation**
+
+Lines 1–21 — header comment (Authority + design rationale):
+
+```sql
+-- =====================================================
+-- NSS ERP
+-- Module: Family
+-- File: 05_family_link.sql
+-- Table: nss.family_link
+-- Depth: 3 (depends on family_group, person)
+-- Version: 1.0
+-- Authority: ERP-DECISION — Graph-based dynamic
+--            relationship model
+-- Owner: NSS_ERP_ADMIN
+-- Note: Stores only direct biological/legal edges
+--       between family members. All extended
+--       relationships (grandfather, uncle, cousin,
+--       etc.) are computed dynamically via graph
+--       traversal relative to the viewer.
+--
+--       link_type semantics:
+--         PARENT_OF — person_a is parent of person_b
+--         SPOUSE_OF — person_a and person_b are spouses
+--                     (bidirectional; store one row)
+-- =====================================================
+```
+
+Authority is `ERP-DECISION — Graph-based dynamic relationship model` — a distinct authority tag
+from `SOL-FAM-005`/`SOL-FAM-003`/`SOL-ARCH-010`, which govern the other four Family tables (per
+`database/ddl/04_family/README.md`) — signalling this table implements a specific, separately
+decided design choice rather than the original Family module design doc. The comment states the
+rationale this whole file exists to encode: only *direct* edges are persisted; every derived
+kinship label is computed, never stored, which is why the module needs no `KINSHIP_TYPE` master
+data category no matter how many labels `PATH_LABELS` (in `family_graph.py`) eventually grows to
+cover. It also documents `link_type`'s two-value semantics inline: `PARENT_OF` is a *directed*
+edge (`person_a_pk` is the parent, `person_b_pk` the child), while `SPOUSE_OF` is conceptually
+*bidirectional* but the convention is to store exactly one row per couple, not two — the
+traversal code (`FamilyGraph.add_link`) is what expands that single stored row into two adjacency
+entries at read time, not the DDL.
+
+```sql
+CREATE TABLE nss.family_link
+(
+    family_link_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    family_group_pk UUID NOT NULL,
+
+    -- The "from" person in the directed edge
+    person_a_pk UUID NOT NULL,
+
+    -- The "to" person in the directed edge
+    person_b_pk UUID NOT NULL,
+
+    -- Only two link types allowed
+    link_type VARCHAR(20) NOT NULL,
+
+    effective_from DATE NOT NULL,
+
+    effective_to DATE NULL,
+
+    is_current BOOLEAN NOT NULL
+        DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    updated_by_sangha_sevi_pk UUID NULL,
+
+    CONSTRAINT fk_family_link_family_group
+        FOREIGN KEY (family_group_pk)
+        REFERENCES nss.family_group (family_group_pk),
+
+    CONSTRAINT fk_family_link_person_a
+        FOREIGN KEY (person_a_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT fk_family_link_person_b
+        FOREIGN KEY (person_b_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT chk_family_link_type
+        CHECK (link_type IN ('PARENT_OF', 'SPOUSE_OF')),
+
+    CONSTRAINT chk_family_link_no_self
+        CHECK (person_a_pk <> person_b_pk),
+
+    CONSTRAINT chk_family_link_effective_range
+        CHECK
+        (
+            effective_to IS NULL
+            OR effective_to >= effective_from
+        ),
+
+    CONSTRAINT chk_family_link_current_consistency
+        CHECK
+        (
+            (is_current = TRUE AND effective_to IS NULL)
+            OR
+            (is_current = FALSE AND effective_to IS NOT NULL)
+        )
+);
+```
+
+Columns: `family_link_pk UUID PRIMARY KEY DEFAULT gen_random_uuid()` — the standard PK shape
+shared by every table in this document; `family_group_pk UUID NOT NULL` — which family this edge
+belongs to (an edge is always scoped to one family, never cross-family); `person_a_pk`/
+`person_b_pk UUID NOT NULL` — the two endpoints of the directed edge, named generically ("from"/
+"to" per the inline comments) rather than e.g. `parent_pk`/`child_pk`, because the same pair of
+columns serves both `PARENT_OF` (directional) and `SPOUSE_OF` (nominally symmetric but stored
+once) edge types; `link_type VARCHAR(20) NOT NULL` — the two-value edge type discussed above;
+`effective_from DATE NOT NULL` / `effective_to DATE NULL` / `is_current BOOLEAN NOT NULL DEFAULT
+TRUE` — the same effective-dated triple `family_relationship` uses, so an edge (e.g. a marriage
+that later ends, or a corrected parentage record) can be superseded without being deleted, per
+the "History Never Deleted" principle; audit columns are `created_at`/`created_by_sangha_sevi_pk`/
+`updated_at`/`updated_by_sangha_sevi_pk` only — no `deleted_at`/`deleted_by_sangha_sevi_pk` and no
+`is_active`, unlike `family_group`/`family_relationship` — because a link's lifecycle is already
+fully expressed by `is_current`/`effective_to` (a link is either current, or historical-but-kept,
+never "soft-deleted" as a separate state); like every other Family/Person/Organization table, the
+`*_by_sangha_sevi_pk` audit-actor FKs are nullable, unconstrained columns in this pass (Pass 2 FK
+constraints deferred until `sangha_sevi` exists, per `database/ddl/04_family/README.md`).
+
+Constraints: `fk_family_link_family_group`, `fk_family_link_person_a`, `fk_family_link_person_b`
+— three plain FKs (`family_group`, and `person` referenced *twice* under two different FK names,
+the same "two FKs to the same table" idiom `family_transition_history` uses for its
+`old_family_group_pk`/`new_family_group_pk`); `chk_family_link_type CHECK (link_type IN
+('PARENT_OF', 'SPOUSE_OF'))` — the closed two-value enumeration, enforced the same
+CHECK-not-master_data way `family_transition_history.transition_type` is, for the same reason (a
+small, fixed, metadata-free code set); `chk_family_link_no_self CHECK (person_a_pk <>
+person_b_pk)` — a person cannot be their own parent or spouse, the same
+"self-referencing-pair must differ" idiom used elsewhere in the schema (e.g.
+`chk_family_trans_different_families`); `chk_family_link_effective_range` — the standard
+"can't end before it started" CHECK, identical in shape to `family_relationship`'s own effective-
+range constraint; `chk_family_link_current_consistency` — ties `is_current` to `effective_to`,
+the same pattern as `chk_family_rel_current_consistency` on `family_relationship`: a current edge
+must have `effective_to IS NULL`, a historical one must have it set, so which is true is always
+derivable from either column without them drifting out of sync.
+
+```sql
+CREATE INDEX idx_family_link_family_group
+    ON nss.family_link (family_group_pk);
+
+CREATE INDEX idx_family_link_person_a
+    ON nss.family_link (person_a_pk);
+
+CREATE INDEX idx_family_link_person_b
+    ON nss.family_link (person_b_pk);
+
+CREATE INDEX idx_family_link_is_current
+    ON nss.family_link (is_current);
+
+-- A given directed edge should not be duplicated
+-- while current.
+CREATE UNIQUE INDEX uq_family_link_current
+    ON nss.family_link (family_group_pk, person_a_pk, person_b_pk, link_type)
+    WHERE is_current = TRUE;
+```
+
+Indexes: one per FK (`idx_family_link_family_group`, `idx_family_link_person_a`,
+`idx_family_link_person_b`) — the standard per-FK set, and specifically what makes
+`api/routers/family.py`'s `_GRAPH_PERSONS_SQL`/`_GRAPH_LINKS_SQL` (filtered by
+`family_group_pk`) efficient; plus `idx_family_link_is_current`, supporting the
+`WHERE is_current = TRUE` filter both of those queries also apply. `uq_family_link_current` is a
+**partial unique index** (not a table-level `UNIQUE` constraint) on `(family_group_pk,
+person_a_pk, person_b_pk, link_type) WHERE is_current = TRUE` — the same partial-unique-index
+technique `uq_family_rel_person_current`/`uq_family_head_current` already use elsewhere in this
+module: it prevents the *same directed edge* (e.g. "A is parent of B") from being recorded twice
+while current, without blocking a historical (`is_current = FALSE`) duplicate of a
+superseded/corrected edge from coexisting alongside its replacement.
+
+---
+
+### database/seed/04_family/01_tier4_verification_family.sql
+
+**Requirement**
+
+Seeds one realistic family (`F1`, "Mishra Paribara") with three current members and one head
+assignment, so the Family Verification UI (`/family`) and `tests/test_family.py` have concrete
+data to render and assert against — the same verification-data role Organization's/Bootstrap's
+seed files play for their own tiers, and a sharp contrast with Person's own seed file (zero
+rows) referenced above.
+
+**Line-by-line explanation**
+
+```sql
+INSERT INTO nss.family_group
+    (family_id, family_name, family_status_master_data_pk,
+     sakha_organization_pk, formed_date)
+SELECT
+    'F1',
+    'Mishra Paribara',
+    st.master_data_pk,
+    sakha.organization_pk,
+    '2010-04-01'
+FROM nss.master_data st
+JOIN nss.master_category mc ON mc.master_category_pk = st.master_category_pk
+CROSS JOIN nss.organization sakha
+WHERE mc.category_code = 'STATUS' AND st.value_code = 'ACTIVE'
+  AND sakha.organization_code = 'SKH1';
+```
+
+An `INSERT ... SELECT` rather than a literal `INSERT ... VALUES` with a hardcoded UUID, because
+`family_status_master_data_pk` and `sakha_organization_pk` are both `gen_random_uuid()`-generated
+values assigned when Foundation's/Organization's own seed data was inserted, not known in
+advance. The `SELECT` resolves `st.master_data_pk` by filtering `nss.master_data` joined to
+`nss.master_category` on `category_code = 'STATUS'` and `value_code = 'ACTIVE'`, and
+`sakha.organization_pk` by filtering `nss.organization` on `organization_code = 'SKH1'` (Ekamra
+Sakha) via a `CROSS JOIN` — safe here because the two filtered sources are each expected to
+resolve to exactly one row, making the cross product a single row overall. Inserts `family_id =
+'F1'` (unpadded, per the project's ID convention), `family_name = 'Mishra Paribara'`, and
+`formed_date = '2010-04-01'`.
+
+```sql
+INSERT INTO nss.family_relationship
+    (family_group_pk, person_pk, relationship_type_master_data_pk,
+     effective_from, is_current)
+SELECT
+    fg.family_group_pk,
+    p.person_pk,
+    rt.master_data_pk,
+    '2010-04-01',
+    TRUE
+FROM nss.family_group fg
+CROSS JOIN nss.person p
+CROSS JOIN nss.master_data rt
+JOIN nss.master_category mc ON mc.master_category_pk = rt.master_category_pk
+WHERE fg.family_id = 'F1'
+  AND p.person_id = 'P1'
+  AND mc.category_code = 'RELATIONSHIP_TYPE'
+  AND rt.value_code = 'FATHER';
+```
+
+Three near-identical `INSERT ... SELECT` statements (only shown once above; the other two swap
+`p.person_id = 'P1'`/`rt.value_code = 'FATHER'` for `'P2'`/`'SPOUSE'` and `'P3'`/`'SON'`) each
+resolve `family_group_pk` by `family_id = 'F1'`, `person_pk` by `person_id` (`P1`/`P2`/`P3` —
+unpadded person IDs, matching Person's own convention), and `relationship_type_master_data_pk` by
+`category_code = 'RELATIONSHIP_TYPE'` and the appropriate `value_code`. All three set
+`effective_from = '2010-04-01'` (matching the family's own `formed_date`) and
+`is_current = TRUE` — Ramesh Mishra (`P1`) as FATHER, Sushma Mishra (`P2`) as SPOUSE, Aniket
+Mishra (`P3`) as SON.
+
+```sql
+INSERT INTO nss.family_head_history
+    (family_group_pk, person_pk, effective_from)
+SELECT
+    fg.family_group_pk,
+    p.person_pk,
+    '2010-04-01'
+FROM nss.family_group fg
+CROSS JOIN nss.person p
+WHERE fg.family_id = 'F1'
+  AND p.person_id = 'P1';
+```
+
+The final `INSERT` seeds `family_head_history` with Ramesh Mishra (`P1`) as head since
+`2010-04-01`, leaving `effective_to` unset (`NULL` by omission) — per
+`uq_family_head_current`'s partial-unique-index invariant, this makes him the family's **current**
+head.
+
+Total row count: **1** `family_group` row, **3** `family_relationship` rows, **1**
+`family_head_history` row, **0** `family_transition_history` rows (a fresh family has no
+transition events yet — that table is populated only once a member later moves between family
+groups). See `database/seed/04_family/README.md` for the full row-count table and the ordering
+dependency this seed file has on Foundation, Organization, and Person seed data already being
+present.
+
+---
+
+### database/ddl/05_membership/01_sangha_sevi.sql
+
+> **Real, implemented DDL** — executed by `database/scripts/02_build.sh`/`02_build.ps1`. Depth 2
+> (depends on `person`, `master_data` ×2, `organization`).
+
+**Requirement**
+
+Defines `nss.sangha_sevi` — the Membership module's root table and the record every other table
+in this folder hangs off. One row per membership; `UNIQUE (person_pk)` is the DB-level
+enforcement of the frozen "One Person = One Membership" principle. Carries the permanent,
+NSS-wide **Sangha Sevi ID** (Tier 1 of the three-tier identity model — see
+`database/ddl/05_membership/README.md`).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.sangha_sevi
+(
+    sangha_sevi_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_id VARCHAR(20) NOT NULL,
+
+    person_pk UUID NOT NULL,
+
+    membership_type_master_data_pk UUID NOT NULL,
+
+    membership_status_master_data_pk UUID NOT NULL,
+
+    organization_pk UUID NOT NULL,
+
+    joining_date DATE NOT NULL,
+
+    renewal_due_date DATE NULL,
+
+    remarks TEXT NULL,
+
+    is_active BOOLEAN NOT NULL
+        DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    updated_by_sangha_sevi_pk UUID NULL,
+
+    deleted_at TIMESTAMPTZ NULL,
+
+    deleted_by_sangha_sevi_pk UUID NULL,
+```
+
+Columns: `sangha_sevi_pk UUID PRIMARY KEY DEFAULT gen_random_uuid()`; `sangha_sevi_id VARCHAR(20)
+NOT NULL` — the business identifier, format `SS1`, `SS2`, … up to an 8-digit sequence, **no
+zero-padding** (the project-wide loosened-padding decision, same as `family_id`/`person_id`);
+`person_pk UUID NOT NULL` — FK to `nss.person`; `membership_type_master_data_pk UUID NOT NULL` —
+FK into `nss.master_data`, category `MEMBERSHIP_TYPE` (PROBATIONARY/REGULAR/ASSOCIATE/HONORARY);
+`membership_status_master_data_pk UUID NOT NULL` — FK into `nss.master_data`, the unified
+`STATUS` category (not a dedicated `membership_status_master`); `organization_pk UUID NOT NULL` —
+FK to `nss.organization`, the member's *current* Sakha (the authoritative affiliation history
+lives on `membership_sakha_affiliation`, not here); `joining_date DATE NOT NULL`;
+`renewal_due_date DATE NULL`; `remarks TEXT NULL`; then the standard soft-delete/audit block
+(`is_active`, `created_at`/`updated_at`/`deleted_at`, three nullable `*_by_sangha_sevi_pk`
+audit-actor columns deferred to Pass 2).
+
+```sql
+    CONSTRAINT uq_sangha_sevi_id
+        UNIQUE (sangha_sevi_id),
+
+    CONSTRAINT uq_sangha_sevi_person
+        UNIQUE (person_pk),
+
+    CONSTRAINT fk_sangha_sevi_person
+        FOREIGN KEY (person_pk)
+        REFERENCES nss.person (person_pk),
+
+    CONSTRAINT fk_sangha_sevi_membership_type
+        FOREIGN KEY (membership_type_master_data_pk)
+        REFERENCES nss.master_data (master_data_pk),
+
+    CONSTRAINT fk_sangha_sevi_status
+        FOREIGN KEY (membership_status_master_data_pk)
+        REFERENCES nss.master_data (master_data_pk),
+
+    CONSTRAINT fk_sangha_sevi_organization
+        FOREIGN KEY (organization_pk)
+        REFERENCES nss.organization (organization_pk),
+
+    CONSTRAINT chk_sangha_sevi_soft_delete
+        CHECK
+        (
+            (is_active = TRUE AND deleted_at IS NULL)
+            OR
+            (is_active = FALSE AND deleted_at IS NOT NULL)
+        ),
+
+    CONSTRAINT chk_sangha_sevi_renewal_after_joining
+        CHECK
+        (
+            renewal_due_date IS NULL
+            OR renewal_due_date >= joining_date
+        )
+);
+
+CREATE INDEX idx_sangha_sevi_id ON nss.sangha_sevi (sangha_sevi_id);
+CREATE INDEX idx_sangha_sevi_person ON nss.sangha_sevi (person_pk);
+CREATE INDEX idx_sangha_sevi_type ON nss.sangha_sevi (membership_type_master_data_pk);
+CREATE INDEX idx_sangha_sevi_status ON nss.sangha_sevi (membership_status_master_data_pk);
+CREATE INDEX idx_sangha_sevi_organization ON nss.sangha_sevi (organization_pk);
+CREATE INDEX idx_sangha_sevi_is_active ON nss.sangha_sevi (is_active);
+CREATE INDEX idx_sangha_sevi_joining_date ON nss.sangha_sevi (joining_date);
+
+CREATE INDEX idx_sangha_sevi_renewal_due
+    ON nss.sangha_sevi (renewal_due_date)
+    WHERE renewal_due_date IS NOT NULL;
+```
+
+Constraints: `uq_sangha_sevi_id UNIQUE (sangha_sevi_id)` — the Sangha Sevi ID is globally unique
+(and, per the header comment, never reused even after a member leaves); `uq_sangha_sevi_person
+UNIQUE (person_pk)` — the actual DB-level enforcement of "One Person = One Membership"; three
+plain FKs (`fk_sangha_sevi_person`, `_membership_type`, `_status`, `_organization` — all `NOT
+NULL` source columns); `chk_sangha_sevi_soft_delete` — the standard `is_active`/`deleted_at`
+consistency CHECK; `chk_sangha_sevi_renewal_after_joining CHECK (renewal_due_date IS NULL OR
+renewal_due_date >= joining_date)` — a temporal sanity constraint with no equivalent on
+`organization`/`family_group` (neither has a comparable date pair).
+
+Indexes: one per FK/filter column (`sangha_sevi_id`, `person_pk`, type, status, organization,
+`is_active`, `joining_date`), plus `idx_sangha_sevi_renewal_due` — a **partial index**
+(`WHERE renewal_due_date IS NOT NULL`) rather than a full index, since a renewal-due-date lookup
+(e.g. "which members need to renew soon") only ever cares about the non-null subset — the same
+partial-index-for-a-nullable-filter-column idiom used elsewhere in this schema (e.g.
+`idx_pp_affiliated_org` further below).
+
+---
+
+### database/ddl/05_membership/02_membership_status_history.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`, `master_data`).
+
+**Requirement**
+
+Defines `nss.membership_status_history` — the append-only timeline of every status change a
+member goes through (ACTIVE/SUSPENDED/LAPSED/…). The *current* status still lives on
+`sangha_sevi.membership_status_master_data_pk`; this table exists purely so status history is
+never lost, the first instance of the "current state + history" pairing pattern this module uses
+repeatedly (see `database/ddl/05_membership/README.md`).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.membership_status_history
+(
+    membership_status_history_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    membership_status_master_data_pk UUID NOT NULL,
+
+    effective_from TIMESTAMPTZ NOT NULL,
+
+    effective_to TIMESTAMPTZ NULL,
+
+    reason VARCHAR(500) NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    CONSTRAINT fk_mem_status_hist_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT fk_mem_status_hist_status
+        FOREIGN KEY (membership_status_master_data_pk)
+        REFERENCES nss.master_data (master_data_pk),
+
+    CONSTRAINT chk_mem_status_hist_range
+        CHECK
+        (
+            effective_to IS NULL
+            OR effective_to >= effective_from
+        )
+);
+
+CREATE INDEX idx_mem_status_hist_sevi ON nss.membership_status_history (sangha_sevi_pk);
+CREATE INDEX idx_mem_status_hist_status ON nss.membership_status_history (membership_status_master_data_pk);
+CREATE INDEX idx_mem_status_hist_effective ON nss.membership_status_history (effective_from);
+```
+
+Columns: `membership_status_history_pk UUID PRIMARY KEY`; `sangha_sevi_pk UUID NOT NULL` — FK,
+the member this status period belongs to; `membership_status_master_data_pk UUID NOT NULL` — FK,
+the status value active during this period; `effective_from`/`effective_to TIMESTAMPTZ` — note
+**`TIMESTAMPTZ`**, not `DATE`, unlike almost every other effective-dated column in this module
+(`membership_sakha_affiliation.effective_from` is `DATE`) — a status change is timestamped to
+the moment it happened, not just the calendar day; `reason VARCHAR(500) NULL`; `remarks TEXT
+NULL`; a lighter two-column audit block (`created_at`/`created_by_sangha_sevi_pk` only — no
+`updated_at`/`deleted_at`, since a history row, once written, is never edited or soft-deleted).
+
+Constraints: two plain FKs; `chk_mem_status_hist_range CHECK (effective_to IS NULL OR
+effective_to >= effective_from)` — the same open-ended-until-closed temporal-range pattern used
+by `membership_sakha_affiliation.effective_from`/`effective_to` and
+`family_relationship`/`family_head_history`.
+
+Indexes: one per FK column plus `idx_mem_status_hist_effective (effective_from)` for
+chronological queries.
+
+---
+
+### database/ddl/05_membership/03_membership_renewal_request.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`).
+
+**Requirement**
+
+Defines `nss.membership_renewal_request` — a request/approval **workflow** row created before a
+renewal is granted (`PENDING` → `APPROVED`/`REJECTED`). Distinct from
+`membership_renewal_history` (below): a request can be rejected and is itself mutable until
+reviewed; a history row is a permanent record that a renewal actually happened.
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.membership_renewal_request
+(
+    membership_renewal_request_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    requested_date DATE NOT NULL,
+
+    requested_by_sangha_sevi_pk UUID NULL,
+
+    status VARCHAR(20) NOT NULL
+        DEFAULT 'PENDING',
+
+    reviewed_by_sangha_sevi_pk UUID NULL,
+
+    reviewed_date DATE NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    CONSTRAINT fk_mem_renewal_req_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT chk_mem_renewal_req_status
+        CHECK
+        (
+            status IN ('PENDING', 'APPROVED', 'REJECTED')
+        ),
+
+    CONSTRAINT chk_mem_renewal_req_review_consistency
+        CHECK
+        (
+            (status = 'PENDING' AND reviewed_by_sangha_sevi_pk IS NULL AND reviewed_date IS NULL)
+            OR
+            (status IN ('APPROVED', 'REJECTED') AND reviewed_date IS NOT NULL)
+        )
+);
+
+CREATE INDEX idx_mem_renewal_req_sevi ON nss.membership_renewal_request (sangha_sevi_pk);
+CREATE INDEX idx_mem_renewal_req_status ON nss.membership_renewal_request (status);
+CREATE INDEX idx_mem_renewal_req_date ON nss.membership_renewal_request (requested_date);
+```
+
+Columns: `membership_renewal_request_pk`; `sangha_sevi_pk UUID NOT NULL` — FK; `requested_date
+DATE NOT NULL`; `requested_by_sangha_sevi_pk UUID NULL` — no FK constraint (Pass 2, same as every
+other audit-actor column); `status VARCHAR(20) NOT NULL DEFAULT 'PENDING'` — a plain `VARCHAR`
+with a CHECK, not an FK to `master_data` (this is a small, fixed, module-internal workflow
+enum, not shared reference data); `reviewed_by_sangha_sevi_pk UUID NULL`; `reviewed_date DATE
+NULL`; `remarks TEXT NULL`; a two-column audit block (`created_at`/`updated_at` — this table *is*
+mutable, unlike the history tables, since a `PENDING` request transitions in place to
+`APPROVED`/`REJECTED`).
+
+Constraints: `chk_mem_renewal_req_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))`;
+`chk_mem_renewal_req_review_consistency` — a cross-column CHECK enforcing that `PENDING` requests
+have **no** reviewer/date yet, while `APPROVED`/`REJECTED` requests **must** have a
+`reviewed_date` — the DB-level guarantee that the workflow can't be left in an inconsistent
+half-reviewed state.
+
+Indexes: `sangha_sevi_pk`, `status` (for "list all pending requests" queries), `requested_date`.
+
+---
+
+### database/ddl/05_membership/04_membership_renewal_history.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`).
+
+**Requirement**
+
+Defines `nss.membership_renewal_history` — one row per **completed** renewal, permanently
+traceable, following the NSS financial year (1 April – 31 March). This is the ledger that a
+renewal request table alone can't provide: even if `membership_renewal_request` rows were later
+purged or reused, this table's rows are never deleted.
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.membership_renewal_history
+(
+    membership_renewal_history_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    renewal_date DATE NOT NULL,
+
+    valid_from DATE NOT NULL,
+
+    valid_to DATE NOT NULL,
+
+    approved_by_sangha_sevi_pk UUID NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_mem_renewal_hist_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT chk_mem_renewal_hist_validity
+        CHECK (valid_to > valid_from)
+);
+
+CREATE INDEX idx_mem_renewal_hist_sevi ON nss.membership_renewal_history (sangha_sevi_pk);
+CREATE INDEX idx_mem_renewal_hist_valid_range ON nss.membership_renewal_history (valid_from, valid_to);
+```
+
+Columns: `membership_renewal_history_pk`; `sangha_sevi_pk UUID NOT NULL` — FK;
+`renewal_date`/`valid_from`/`valid_to DATE NOT NULL` — all three required, unlike the request
+table's nullable reviewed fields, since a history row by definition only exists once a renewal is
+actually complete; `approved_by_sangha_sevi_pk UUID NULL`; `remarks TEXT NULL`; a single-column
+audit block (`created_at` only — no `updated_at`, this table is append-only).
+
+Constraints: one FK; `chk_mem_renewal_hist_validity CHECK (valid_to > valid_from)` — note the
+strict `>` (not `>=`), unlike `chk_mem_status_hist_range`'s `>=` — a renewal period can never be
+zero-length.
+
+Indexes: `sangha_sevi_pk`; a composite `idx_mem_renewal_hist_valid_range (valid_from, valid_to)`
+for "which renewals cover this date" range queries.
+
+---
+
+### database/ddl/05_membership/05_membership_transfer_history.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`, `organization` ×2).
+
+**Requirement**
+
+Defines `nss.membership_transfer_history` — one permanent row per Sakha-to-Sakha transfer. The
+member's Sangha Sevi ID is unchanged by a transfer (Tier 1 identity is stable); the
+`old_local_sakha_erp_id`/`new_local_sakha_erp_id` columns here are historical **snapshots** for
+audit purposes only — the live, authoritative Local Sakha ERP ID history lives on
+`membership_sakha_affiliation`.
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.membership_transfer_history
+(
+    membership_transfer_history_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    old_organization_pk UUID NOT NULL,
+
+    new_organization_pk UUID NOT NULL,
+
+    transfer_type VARCHAR(50) NOT NULL,
+
+    transfer_reason VARCHAR(500) NULL,
+
+    requested_date DATE NULL,
+
+    approved_date DATE NULL,
+
+    effective_date DATE NOT NULL,
+
+    old_local_sakha_erp_id VARCHAR(30) NULL,
+
+    new_local_sakha_erp_id VARCHAR(30) NULL,
+
+    approved_by_sangha_sevi_pk UUID NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_mem_transfer_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT fk_mem_transfer_old_org
+        FOREIGN KEY (old_organization_pk)
+        REFERENCES nss.organization (organization_pk),
+
+    CONSTRAINT fk_mem_transfer_new_org
+        FOREIGN KEY (new_organization_pk)
+        REFERENCES nss.organization (organization_pk),
+
+    CONSTRAINT chk_mem_transfer_different_orgs
+        CHECK (old_organization_pk <> new_organization_pk)
+);
+
+CREATE INDEX idx_mem_transfer_sevi ON nss.membership_transfer_history (sangha_sevi_pk);
+CREATE INDEX idx_mem_transfer_old_org ON nss.membership_transfer_history (old_organization_pk);
+CREATE INDEX idx_mem_transfer_new_org ON nss.membership_transfer_history (new_organization_pk);
+CREATE INDEX idx_mem_transfer_effective ON nss.membership_transfer_history (effective_date);
+```
+
+Columns: `membership_transfer_history_pk`; `sangha_sevi_pk UUID NOT NULL` — FK; **two** FKs into
+`nss.organization` from the same table (`old_organization_pk`/`new_organization_pk`) — the same
+"two FKs to the same target table, disambiguated by role" shape used elsewhere for
+"before/after" relationships; `transfer_type VARCHAR(50) NOT NULL` — free-text-constrained
+category (`INTRA_ANCHALIKA`, `INTER_ANCHALIKA`, `INTER_ZILLA`, etc., per the column comment — no
+CHECK constraint enumerating them, unlike `affiliation_status`/`source_event_type` on the next
+table); `transfer_reason VARCHAR(500) NULL`; `requested_date`/`approved_date DATE NULL`;
+`effective_date DATE NOT NULL` — the one required date, since a transfer history row only exists
+once it has actually taken effect; `old_local_sakha_erp_id`/`new_local_sakha_erp_id VARCHAR(30)
+NULL` — snapshots, explicitly called out in the file's own header comment as "historical
+transition snapshots — the authoritative current ID resides on `membership_sakha_affiliation`";
+`approved_by_sangha_sevi_pk UUID NULL`; `remarks TEXT NULL`; single-column audit block
+(`created_at` only).
+
+Constraints: three FKs; `chk_mem_transfer_different_orgs CHECK (old_organization_pk <>
+new_organization_pk)` — a transfer must actually go somewhere different, the same
+"self-referencing-pair must differ" idiom `chk_family_relationship_no_self_reference`-style
+constraints use elsewhere in this schema.
+
+Indexes: one per FK column (`sangha_sevi_pk`, both organization FKs), plus `effective_date` for
+chronological transfer queries.
+
+---
+
+### database/ddl/05_membership/06_membership_sakha_affiliation.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`, `organization`). Frozen per
+> `MEM-PENDING-001`.
+
+**Requirement**
+
+Defines `nss.membership_sakha_affiliation` — the **authoritative source of the Local Sakha ERP
+ID** (Tier 2 of the three-tier identity model), and the table this module's central frozen
+design decision hangs on: the Local Sakha ERP ID lives here, not on `sangha_sevi`, precisely
+because it changes on transfer while the Sangha Sevi ID does not.
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.membership_sakha_affiliation
+(
+    membership_sakha_affiliation_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    organization_pk UUID NOT NULL,
+
+    local_sakha_erp_id VARCHAR(30) NOT NULL,
+
+    effective_from DATE NOT NULL,
+
+    effective_to DATE NULL,
+
+    affiliation_status VARCHAR(20) NOT NULL,
+
+    source_event_type VARCHAR(20) NOT NULL,
+
+    source_event_pk UUID NULL,
+
+    legacy_sakha_number VARCHAR(30) NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    updated_by_sangha_sevi_pk UUID NULL,
+
+    CONSTRAINT fk_mem_sakha_aff_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT fk_mem_sakha_aff_org
+        FOREIGN KEY (organization_pk)
+        REFERENCES nss.organization (organization_pk),
+
+    CONSTRAINT uq_mem_sakha_aff_local_id
+        UNIQUE (organization_pk, local_sakha_erp_id),
+
+    CONSTRAINT chk_mem_sakha_aff_effective_range
+        CHECK
+        (
+            effective_to IS NULL
+            OR effective_to >= effective_from
+        ),
+
+    CONSTRAINT chk_mem_sakha_aff_status_consistency
+        CHECK
+        (
+            (effective_to IS NULL AND affiliation_status IN ('ACTIVE', 'REACTIVATED'))
+            OR
+            (effective_to IS NOT NULL AND affiliation_status = 'ARCHIVED')
+        ),
+
+    CONSTRAINT chk_mem_sakha_aff_status
+        CHECK
+        (
+            affiliation_status IN ('ACTIVE', 'ARCHIVED', 'REACTIVATED')
+        ),
+
+    CONSTRAINT chk_mem_sakha_aff_event_type
+        CHECK
+        (
+            source_event_type IN ('ENROLLMENT', 'TRANSFER', 'REACTIVATION')
+        )
+);
+
+CREATE INDEX idx_mem_sakha_aff_sevi ON nss.membership_sakha_affiliation (sangha_sevi_pk);
+CREATE INDEX idx_mem_sakha_aff_org ON nss.membership_sakha_affiliation (organization_pk);
+CREATE INDEX idx_mem_sakha_aff_status ON nss.membership_sakha_affiliation (affiliation_status);
+
+CREATE UNIQUE INDEX uq_mem_sakha_aff_active
+    ON nss.membership_sakha_affiliation (sangha_sevi_pk)
+    WHERE effective_to IS NULL;
+```
+
+Columns: `membership_sakha_affiliation_pk`; `sangha_sevi_pk UUID NOT NULL` — FK; `organization_pk
+UUID NOT NULL` — FK, the Sakha this affiliation row is for; `local_sakha_erp_id VARCHAR(30) NOT
+NULL` — **the** Tier 2 identity column, format `<3-5 char Sakha short code><numeric sequence>`
+(e.g. `ESS1192`), persistent per person per Sakha, never reassigned; `effective_from DATE NOT
+NULL` / `effective_to DATE NULL` — `NULL` means this is the *current* active row;
+`affiliation_status VARCHAR(20) NOT NULL` — `ACTIVE`/`ARCHIVED`/`REACTIVATED`; `source_event_type
+VARCHAR(20) NOT NULL` — `ENROLLMENT`/`TRANSFER`/`REACTIVATION`, what caused this row to be
+created; `source_event_pk UUID NULL` — an optional, untyped (no FK constraint) reference to the
+originating event row (e.g. a `membership_transfer_history_pk`) — untyped because the source
+could be any one of several different tables depending on `source_event_type`, and Postgres has
+no native polymorphic-FK mechanism; `legacy_sakha_number VARCHAR(30) NULL` — the pre-ERP register
+number, populated only on migrated records; four-column audit block (`created_at`/`updated_at`
+plus their `*_by_sangha_sevi_pk` actors — this table *is* mutable, since closing an affiliation
+means updating `effective_to` on the existing row rather than inserting a new one).
+
+Constraints: two plain FKs; `uq_mem_sakha_aff_local_id UNIQUE (organization_pk,
+local_sakha_erp_id)` — the Local Sakha ERP ID is unique **per Sakha**, not globally (the same
+numeric suffix can recur at a different Sakha — the seed data's `ESS1100`→`CTC1` transfer for
+Suresh Patel demonstrates this); `chk_mem_sakha_aff_effective_range` — the standard open-range
+CHECK; `chk_mem_sakha_aff_status_consistency` — the constraint tying `effective_to` nullability
+to `affiliation_status` (open rows must be `ACTIVE`/`REACTIVATED`; closed rows must be
+`ARCHIVED`) — enforced at the DB level, not just application logic; `chk_mem_sakha_aff_status`
+and `chk_mem_sakha_aff_event_type` — plain enumeration CHECKs.
+
+Indexes: one per FK column plus `affiliation_status`; and — the single most important index in
+this table — `uq_mem_sakha_aff_active`, a **partial unique index** (`WHERE effective_to IS
+NULL`) that is the actual DB-level enforcement of "one active affiliation per member at any
+time." Like `uq_pp_active_per_member`/`uq_ap_active_per_member` further below, this invariant
+can't be expressed as an ordinary table-level CHECK (which only sees one row at a time) — a
+partial unique index is the standard PostgreSQL idiom for a "one row per group matching some
+condition" rule.
+
+---
+
+### database/ddl/05_membership/07_membership_journey_event.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`).
+
+**Requirement**
+
+Defines `nss.membership_journey_event` — a free-form, chronological timeline of a member's
+lifecycle events (enrolment, promotion, transfer, status changes, Kumari transition, etc.),
+rendered by `membership.html` as a DaisyUI vertical-steps component.
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.membership_journey_event
+(
+    membership_journey_event_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    event_type VARCHAR(50) NOT NULL,
+
+    event_date DATE NOT NULL,
+
+    event_reference VARCHAR(255) NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    created_by_sangha_sevi_pk UUID NULL,
+
+    CONSTRAINT fk_mem_journey_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk)
+);
+
+CREATE INDEX idx_mem_journey_sevi ON nss.membership_journey_event (sangha_sevi_pk);
+CREATE INDEX idx_mem_journey_event_type ON nss.membership_journey_event (event_type);
+CREATE INDEX idx_mem_journey_event_date ON nss.membership_journey_event (event_date);
+```
+
+Columns: `membership_journey_event_pk`; `sangha_sevi_pk UUID NOT NULL` — FK; `event_type
+VARCHAR(50) NOT NULL` — **deliberately not an FK to `master_data`**, per the file's own header
+comment ("event catalogue controlled via application layer... event types are extensible and
+module-specific") — the one column in this entire module where a `master_data`-style frozen
+enumeration was consciously rejected in favour of an open, application-controlled vocabulary
+(`MEMBERSHIP_CREATED`, `PROBATIONARY_STARTED`, `TRAINING_STARTED`, `PROBATIONARY_REVIEW`,
+`REGULAR_ENROLMENT`, `ASSOCIATE_ENROLMENT`, `RENEWAL`, `TRANSFER`, `STATUS_CHANGE`,
+`KUMARI_TRANSITION`, etc., per the seed data); `event_date DATE NOT NULL`; `event_reference
+VARCHAR(255) NULL` — optional pointer to a related record (e.g. a transfer or renewal PK,
+untyped for the same polymorphic reason as `source_event_pk` above); `remarks TEXT NULL`;
+single-actor audit block (`created_at`/`created_by_sangha_sevi_pk` only — append-only, no
+`updated_at`).
+
+Constraints: exactly one FK — the simplest constraint set of any table in this module, a direct
+reflection of `event_type` carrying no CHECK enumeration.
+
+Indexes: `sangha_sevi_pk`, `event_type` (for cross-member queries like "everyone who transferred
+this year"), `event_date` (chronological).
+
+---
+
+### database/ddl/05_membership/08_probationary_member_review.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`).
+
+**Requirement**
+
+Defines `nss.probationary_member_review` — periodic/final/special review checkpoints
+(Bye-Law §B(b): at least one year Probationary + one year training before Regular enrolment),
+preserving a Probationary member's progression history without overwriting or replacing the
+membership record itself.
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.probationary_member_review
+(
+    probationary_member_review_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    review_date DATE NOT NULL,
+
+    reviewed_by_sangha_sevi_pk UUID NULL,
+
+    review_type VARCHAR(20) NOT NULL,
+
+    outcome VARCHAR(20) NOT NULL,
+
+    training_completed BOOLEAN NOT NULL
+        DEFAULT FALSE,
+
+    sakha_recommendation BOOLEAN NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    CONSTRAINT fk_prob_review_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT chk_prob_review_type
+        CHECK
+        (
+            review_type IN ('PERIODIC', 'FINAL', 'SPECIAL')
+        ),
+
+    CONSTRAINT chk_prob_review_outcome
+        CHECK
+        (
+            outcome IN ('PASS', 'FAIL', 'DEFERRED')
+        )
+);
+
+CREATE INDEX idx_prob_review_sevi ON nss.probationary_member_review (sangha_sevi_pk);
+CREATE INDEX idx_prob_review_date ON nss.probationary_member_review (review_date);
+CREATE INDEX idx_prob_review_outcome ON nss.probationary_member_review (outcome);
+```
+
+Columns: `probationary_member_review_pk`; `sangha_sevi_pk UUID NOT NULL` — FK; `review_date DATE
+NOT NULL`; `reviewed_by_sangha_sevi_pk UUID NULL`; `review_type VARCHAR(20) NOT NULL` —
+`PERIODIC`/`FINAL`/`SPECIAL`; `outcome VARCHAR(20) NOT NULL` — `PASS`/`FAIL`/`DEFERRED`;
+`training_completed BOOLEAN NOT NULL DEFAULT FALSE`; `sakha_recommendation BOOLEAN NULL` — the
+Sakha's recommendation for Regular enrolment, nullable because a periodic review may not yet be
+at the recommendation stage; `remarks TEXT NULL`; two-column audit block (`created_at`/
+`updated_at` — this table is mutable, unlike the pure-history tables, since a review record could
+plausibly be corrected).
+
+Constraints: one FK; two enumeration CHECKs (`review_type`, `outcome`) — this is the only table
+in the module with **two** independent small-enum CHECK constraints on separate columns rather
+than one.
+
+Indexes: `sangha_sevi_pk`, `review_date`, `outcome` (for "everyone who failed/deferred" queries).
+
+---
+
+### database/ddl/05_membership/09_parichaya_patra.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`, `organization`).
+
+**Requirement**
+
+Defines `nss.parichaya_patra` — the annual Identity Card issued by Kendra Sangha
+(Bye-Law §B(b)(iii), §B(d)(i)). `document_number` is the **Kendra Number** (Tier 3 of the
+three-tier identity model).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.parichaya_patra
+(
+    parichaya_patra_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    document_number VARCHAR(30) NOT NULL,
+
+    issue_date DATE NOT NULL,
+
+    valid_from DATE NOT NULL,
+
+    valid_to DATE NOT NULL,
+
+    status VARCHAR(20) NOT NULL
+        DEFAULT 'ACTIVE',
+
+    affiliated_organization_pk UUID NULL,
+
+    local_sakha_erp_id VARCHAR(30) NULL,
+
+    document_reference VARCHAR(255) NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    CONSTRAINT fk_pp_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT fk_pp_affiliated_org
+        FOREIGN KEY (affiliated_organization_pk)
+        REFERENCES nss.organization (organization_pk),
+
+    CONSTRAINT chk_pp_validity_range
+        CHECK (valid_to > valid_from),
+
+    CONSTRAINT chk_pp_status
+        CHECK
+        (
+            status IN ('ACTIVE', 'EXPIRED', 'CANCELLED', 'REPLACED')
+        ),
+
+    CONSTRAINT uq_pp_document_number
+        UNIQUE (document_number)
+);
+
+CREATE INDEX idx_pp_sevi ON nss.parichaya_patra (sangha_sevi_pk);
+CREATE INDEX idx_pp_status ON nss.parichaya_patra (status);
+CREATE INDEX idx_pp_valid_range ON nss.parichaya_patra (valid_from, valid_to);
+
+CREATE INDEX idx_pp_affiliated_org
+    ON nss.parichaya_patra (affiliated_organization_pk)
+    WHERE affiliated_organization_pk IS NOT NULL;
+
+CREATE UNIQUE INDEX uq_pp_active_per_member
+    ON nss.parichaya_patra (sangha_sevi_pk)
+    WHERE status = 'ACTIVE';
+```
+
+Columns: `parichaya_patra_pk`; `sangha_sevi_pk UUID NOT NULL` — FK; `document_number VARCHAR(30)
+NOT NULL` — **the** Tier 3 identity column, format `<seq>/<FY start>/<FY end>` (e.g.
+`345/2026/2027`); `issue_date DATE NOT NULL`; `valid_from`/`valid_to DATE NOT NULL` — financial
+year validity (1 April–31 March), both required (unlike `sangha_sevi.renewal_due_date`, a card's
+validity window is known at issuance); `status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'` —
+`ACTIVE`/`EXPIRED`/`CANCELLED`/`REPLACED`; then the two **card-snapshot** columns, called out with
+their own comment block in the DDL: `affiliated_organization_pk UUID NULL` and
+`local_sakha_erp_id VARCHAR(30) NULL` — point-in-time copies of what was printed on that year's
+card, both nullable because a snapshot could in principle be recorded without a resolved
+Sakha/ID; `document_reference VARCHAR(255) NULL`; `remarks TEXT NULL`; two-column audit block
+(mutable — a card's `status` transitions in place, e.g. `ACTIVE` → `EXPIRED`).
+
+Constraints: `fk_pp_sevi` (plain); `fk_pp_affiliated_org` — a FK on a nullable column (no explicit
+`LEFT`-anything at the DDL level, but this is what makes the corresponding API JOIN a `LEFT
+JOIN`); `chk_pp_validity_range CHECK (valid_to > valid_from)` — strict `>`, same as the renewal
+history table; `chk_pp_status` — the shared four-value document-status enum
+(`ACTIVE`/`EXPIRED`/`CANCELLED`/`REPLACED`) reused verbatim by `anumati_patra` below;
+`uq_pp_document_number UNIQUE (document_number)` — Kendra Numbers are globally unique.
+
+Indexes: `sangha_sevi_pk`, `status`, composite `(valid_from, valid_to)`; `idx_pp_affiliated_org` —
+a **partial** index (`WHERE affiliated_organization_pk IS NOT NULL`), skipping the nullable
+snapshot column's null entries; and `uq_pp_active_per_member` — a **partial unique index**
+(`WHERE status = 'ACTIVE'`) enforcing "at most one `ACTIVE` Parichaya Patra per member," the same
+partial-unique-index idiom as `uq_mem_sakha_aff_active`.
+
+---
+
+### database/ddl/05_membership/10_parichaya_patra_history.sql
+
+> **Real, implemented DDL.** Depth 4 (depends on `parichaya_patra`).
+
+**Requirement**
+
+Defines `nss.parichaya_patra_history` — the change log for a `parichaya_patra` row
+(issued/renewed/expired/cancelled/replaced). Historical records are never deleted — the second
+instance of the "current state + history" pairing pattern in this module, this time recording
+the *events* that changed a document's status rather than the status itself.
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.parichaya_patra_history
+(
+    parichaya_patra_history_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    parichaya_patra_pk UUID NOT NULL,
+
+    change_type VARCHAR(20) NOT NULL,
+
+    change_date DATE NOT NULL,
+
+    previous_status VARCHAR(20) NULL,
+
+    new_status VARCHAR(20) NOT NULL,
+
+    document_reference VARCHAR(255) NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_pp_hist_pp
+        FOREIGN KEY (parichaya_patra_pk)
+        REFERENCES nss.parichaya_patra (parichaya_patra_pk),
+
+    CONSTRAINT chk_pp_hist_change_type
+        CHECK
+        (
+            change_type IN ('ISSUED', 'RENEWED', 'EXPIRED', 'CANCELLED', 'REPLACED')
+        ),
+
+    CONSTRAINT chk_pp_hist_new_status
+        CHECK
+        (
+            new_status IN ('ACTIVE', 'EXPIRED', 'CANCELLED', 'REPLACED')
+        )
+);
+
+CREATE INDEX idx_pp_hist_pp ON nss.parichaya_patra_history (parichaya_patra_pk);
+CREATE INDEX idx_pp_hist_change_date ON nss.parichaya_patra_history (change_date);
+```
+
+Columns: `parichaya_patra_history_pk`; `parichaya_patra_pk UUID NOT NULL` — FK to the parent card
+(Depth 4 — one level deeper than `parichaya_patra` itself, since it depends on a table that
+itself depends on `sangha_sevi`); `change_type VARCHAR(20) NOT NULL` —
+`ISSUED`/`RENEWED`/`EXPIRED`/`CANCELLED`/`REPLACED`, a five-value enum one step more granular
+than the parent table's four-value `status`; `change_date DATE NOT NULL`; `previous_status
+VARCHAR(20) NULL` — nullable because the very first `ISSUED` event has no prior status;
+`new_status VARCHAR(20) NOT NULL` — reuses the parent's four-value status enum; `document_reference
+VARCHAR(255) NULL`; `remarks TEXT NULL`; single-column audit block (`created_at` only —
+append-only).
+
+Constraints: one FK; `chk_pp_hist_change_type` (5-value enum) and `chk_pp_hist_new_status`
+(4-value enum, matching the parent table's `chk_pp_status`) — two separate CHECKs distinguishing
+"what kind of event happened" from "what status resulted."
+
+Indexes: `parichaya_patra_pk`, `change_date`.
+
+---
+
+### database/ddl/05_membership/11_anumati_patra.sql
+
+> **Real, implemented DDL.** Depth 3 (depends on `sangha_sevi`).
+
+**Requirement**
+
+Defines `nss.anumati_patra` — the Probationary member's credential ("Admit Card," Bye-Law
+§B(a)), structurally near-identical to `parichaya_patra` but with **no Sakha-snapshot columns**
+— it isn't tied to a specific Sakha the way the Identity Card is. Must be valid at least one
+year before Regular enrolment (Bye-Law §B(b)(i)).
+
+**Line-by-line explanation**
+
+```sql
+CREATE TABLE nss.anumati_patra
+(
+    anumati_patra_pk UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    sangha_sevi_pk UUID NOT NULL,
+
+    document_number VARCHAR(30) NOT NULL,
+
+    issue_date DATE NOT NULL,
+
+    valid_from DATE NOT NULL,
+
+    valid_to DATE NOT NULL,
+
+    status VARCHAR(20) NOT NULL
+        DEFAULT 'ACTIVE',
+
+    document_reference VARCHAR(255) NULL,
+
+    remarks TEXT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMPTZ NULL,
+
+    CONSTRAINT fk_ap_sevi
+        FOREIGN KEY (sangha_sevi_pk)
+        REFERENCES nss.sangha_sevi (sangha_sevi_pk),
+
+    CONSTRAINT chk_ap_validity_range
+        CHECK (valid_to > valid_from),
+
+    CONSTRAINT chk_ap_status
+        CHECK
+        (
+            status IN ('ACTIVE', 'EXPIRED', 'CANCELLED', 'REPLACED')
+        ),
+
+    CONSTRAINT uq_ap_document_number
+        UNIQUE (document_number)
+);
+
+CREATE INDEX idx_ap_sevi ON nss.anumati_patra (sangha_sevi_pk);
+CREATE INDEX idx_ap_status ON nss.anumati_patra (status);
+CREATE INDEX idx_ap_valid_range ON nss.anumati_patra (valid_from, valid_to);
+
+CREATE UNIQUE INDEX uq_ap_active_per_member
+    ON nss.anumati_patra (sangha_sevi_pk)
+    WHERE status = 'ACTIVE';
+```
+
+Column-for-column identical to `parichaya_patra` (§ above) minus the two card-snapshot columns
+(`affiliated_organization_pk`, `local_sakha_erp_id`) and their corresponding FK/partial index —
+same PK/FK/`document_number`/date-triple/`status`/`document_reference`/`remarks`/audit shape,
+same `chk_ap_validity_range CHECK (valid_to > valid_from)`, same four-value `chk_ap_status` enum
+reused verbatim from `parichaya_patra`'s `chk_pp_status`, same `uq_ap_document_number UNIQUE
+(document_number)`, and the same partial-unique-index idiom for "one active document per member"
+(`uq_ap_active_per_member`, mirroring `uq_pp_active_per_member`). The DDL comment on
+`document_number` doesn't repeat the Kendra-Number format note `parichaya_patra` carries — Anumati
+Patra document numbers follow their own `AP/<year>/<seq>` convention (see the seed data, e.g.
+`AP/2025/42`), a module-internal numbering scheme rather than the Kendra-wide Parichaya Patra
+sequence.
+
+---
+
+### database/ddl/05_membership/12_anumati_patra_history.sql
+
+> **Real, implemented DDL.** Depth 4 (depends on `anumati_patra`).
+
+**Requirement**
+
+Defines `nss.anumati_patra_history` — the change log for an `anumati_patra` row, structurally
+identical to `parichaya_patra_history`.
+
+**Line-by-line explanation**
+
+Column-for-column and constraint-for-constraint identical to `parichaya_patra_history` (§
+above), with `anumati_patra_pk UUID NOT NULL` (FK `fk_ap_hist_ap → nss.anumati_patra`) in place
+of `parichaya_patra_pk`: same `change_type`/`change_date`/`previous_status`/`new_status`/
+`document_reference`/`remarks`/single-column-audit shape, same five-value `chk_ap_hist_change_type`
+enum, same four-value `chk_ap_hist_new_status` enum, same two indexes
+(`idx_ap_hist_ap`, `idx_ap_hist_change_date`). The Parichaya Patra / Anumati Patra pair and their
+respective history tables are, by design, four tables built from two structural templates
+(document + document-history), applied once to the Kendra-wide annual card and once to the
+Probationary credential.
+
+---
+
+### database/seed/05_membership/01_tier4_verification_membership.sql
+
+> **Real verification seed data** — unlike `database/seed/03_person/` (zero rows), this file
+> populates 5 of the 12 Membership tables. Version 2.1.
+
+**Requirement**
+
+Seeds 5 `sangha_sevi` records (`SS1`–`SS5`) against 5 of the 8 test persons already seeded by
+`database/seed/03_person/02_tier4_verification_persons.sql`, chosen specifically to exercise
+every membership type, the full transfer workflow, and the Kumari-transition enrolment path —
+not just to prove the schema accepts inserts. See `database/seed/05_membership/README.md` for
+the full per-member breakdown; this section covers the SQL patterns the file uses.
+
+**Line-by-line explanation**
+
+```sql
+INSERT INTO nss.sangha_sevi
+    (sangha_sevi_id, person_pk, membership_type_master_data_pk,
+     membership_status_master_data_pk, organization_pk,
+     joining_date, renewal_due_date)
+SELECT
+    'SS1',
+    p.person_pk,
+    mt.master_data_pk,
+    ms.master_data_pk,
+    sakha.organization_pk,
+    '2012-04-01',
+    '2027-03-31'
+FROM nss.person p
+CROSS JOIN nss.master_data mt
+JOIN nss.master_category mc_mt ON mc_mt.master_category_pk = mt.master_category_pk
+CROSS JOIN nss.master_data ms
+JOIN nss.master_category mc_ms ON mc_ms.master_category_pk = ms.master_category_pk
+CROSS JOIN nss.organization sakha
+WHERE p.person_id = 'P1'
+  AND mc_mt.category_code = 'MEMBERSHIP_TYPE' AND mt.value_code = 'REGULAR'
+  AND mc_ms.category_code = 'STATUS' AND ms.value_code = 'ACTIVE'
+  AND sakha.organization_code = 'SKH1';
+```
+
+Every `INSERT` in this file (and every prior real-DDL seed file in this document) uses the same
+`INSERT ... SELECT ... FROM <target> CROSS JOIN <lookup> WHERE <business-key filter>` idiom
+rather than hardcoded UUIDs — a `CROSS JOIN` against `nss.master_data`/`nss.organization`/
+`nss.person`/`nss.sangha_sevi`, narrowed to exactly one row by a `WHERE` clause matching business
+identifiers (`person_id = 'P1'`, `organization_code = 'SKH1'`, `value_code = 'REGULAR'`), so the
+seed file never needs to know or hardcode any actual UUID PK value. This particular statement
+creates SS1 (Ramesh Mishra) as a REGULAR, ACTIVE member at SKH1, joined `2012-04-01`. The four
+other `sangha_sevi` INSERTs (SS2–SS5) are structurally identical, varying only the literal ID,
+target `person_id`, `value_code`s, `organization_code`, and dates.
+
+**Section-by-section summary** (see `database/seed/05_membership/README.md` for the full member
+breakdown):
+
+| Section | Table(s) | Rows | Notable pattern |
+|---|---|---|---|
+| 1 | `sangha_sevi` | 5 (`SS1`–`SS5`) | One `INSERT...SELECT` per member, business-key-driven |
+| 2 | `membership_sakha_affiliation` | 6 | SS3 gets **two** rows (`ESS1100` `ARCHIVED` at SKH1 with `effective_to` set, `CTC1` `ACTIVE` at SKH2 with `effective_to` omitted) — the transfer scenario in miniature |
+| 3 | `parichaya_patra`, `anumati_patra` | 3 PP + 4 AP | PP only for SS1/SS3/SS4 (Regular/Associate); AP for SS1/SS2/SS3/SS5 (current or historical), none for SS4 (Associate) |
+| 4 | `membership_transfer_history` | 1 | SS3's SKH1→SKH2 transfer, effective `2025-03-14` ("Dola Purnima 2025" per remarks) |
+| 5 | `membership_journey_event` | 9 | Per-member lifecycle narrative, including SS3's `TRANSFER` event and SS5's Kumari-Transition-flavoured `MEMBERSHIP_CREATED` event |
+| 6 | `membership_status_history` | 4 | One `ACTIVE`-since-joining row per member with a non-transfer origin story (SS1, SS3, SS4, SS5) |
+| 7 | `membership_renewal_history` | 2 | SS1 and SS3, both FY 2026–2027 |
+
+Total row count across the file: **5** `sangha_sevi` + **6** `membership_sakha_affiliation` +
+**3** `parichaya_patra` + **4** `anumati_patra` + **1** `membership_transfer_history` + **9**
+`membership_journey_event` + **4** `membership_status_history` + **2**
+`membership_renewal_history` = **34 rows**, against **0 rows** in the remaining 5 Membership
+tables (`membership_renewal_request`, `probationary_member_review`, `parichaya_patra_history`,
+`anumati_patra_history`) — deliberate, not an oversight (see
+`database/seed/05_membership/README.md`).
+
+---
+
 ## 3. Cross-references
 
 - `database/README.md` — canonical execution order, phase table, module implementation status,
@@ -3577,3 +5383,8 @@ has run.
   sequence rationale, the `nss_db_owner`/`NSS_ERP_ADMIN` identity distinction, and the Two-Pass
   DDL Strategy's origin (the circular dependency between audited operations and the actor
   identity they require).
+- `database/ddl/05_membership/README.md` and `database/seed/05_membership/README.md` — the
+  Membership module's own table-design and seed-data references, including the "current state +
+  history" pairing pattern and the three-tier identity split across `sangha_sevi`/
+  `membership_sakha_affiliation`/`parichaya_patra` this document's per-table sections above
+  describe at the DDL level.

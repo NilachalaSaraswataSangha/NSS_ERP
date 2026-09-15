@@ -94,11 +94,11 @@ User-visible identifiers shall be separate from primary keys.
 
 Examples:
 
-P00000001
+P1
 
-FG00000001
+F1
 
-SS00000001
+SS1
 
 ---
 

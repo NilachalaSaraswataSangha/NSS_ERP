@@ -92,7 +92,7 @@ relationships and transitions remain preserved.
 
 **Effects:**
 - `family_group_pk` assigned (UUID)
-- `family_id` assigned (FG000001 format)
+- `family_id` assigned (F1, F2, ... format)
 - `is_active` = TRUE
 - `created_at` = current timestamp
 

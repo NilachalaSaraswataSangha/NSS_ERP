@@ -767,11 +767,11 @@ sequence-generated identifiers.
 Multiple-instance organizations use per-type ID sequences:
 
 ```text
-ANCHALIKA    → prefix ANC (e.g. ANC00000001)
-ZILLA        → prefix ZL  (e.g. ZL00000001)
-SAKHA        → prefix SKH (e.g. SKH00000001)
-SAKHA_ASANA  → prefix SA  (e.g. SA00000001)
-PATHA_CHAKRA → prefix PC  (e.g. PC00000001)
+ANCHALIKA    → prefix ANC (e.g. ANC1)
+ZILLA        → prefix ZL  (e.g. ZL1)
+SAKHA        → prefix SKH (e.g. SKH1)
+SAKHA_ASANA  → prefix SA  (e.g. SA1)
+PATHA_CHAKRA → prefix PC  (e.g. PC1)
 ```
 
 Physical address requirements shall not automatically be inferred

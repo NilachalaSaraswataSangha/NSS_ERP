@@ -76,7 +76,41 @@ for f in database/seed/02_organization/0*.sql; do
 done
 
 # ─────────────────────────────────────────────────
-# Step 6: Grant nss_db_backend read-only access
+# Phase 5: Person DDL (2 tables)
+# ─────────────────────────────────────────────────
+for f in database/ddl/03_person/0[2-3]*.sql; do
+    psql -U nss_db_owner -d nss_erp -f "$f"
+done
+
+# ─────────────────────────────────────────────────
+# Phase 6: Family DDL (4 tables)
+# ─────────────────────────────────────────────────
+for f in database/ddl/04_family/0*.sql; do
+    psql -U nss_db_owner -d nss_erp -f "$f"
+done
+
+# ─────────────────────────────────────────────────
+# Phase 7: Membership DDL (12 tables)
+# ─────────────────────────────────────────────────
+for f in database/ddl/05_membership/0*.sql database/ddl/05_membership/1*.sql; do
+    psql -U nss_db_owner -d nss_erp -f "$f"
+done
+
+# ─────────────────────────────────────────────────
+# Phase 8: Tier 4 Verification Seed Data
+#          (Organization → Person → Family → Membership)
+# ─────────────────────────────────────────────────
+psql -U nss_db_owner -d nss_erp -f database/seed/02_organization/04_tier4_verification_orgs.sql
+psql -U nss_db_owner -d nss_erp -f database/seed/03_person/02_tier4_verification_persons.sql
+for f in database/seed/04_family/0*.sql; do
+    psql -U nss_db_owner -d nss_erp -f "$f"
+done
+for f in database/seed/05_membership/0*.sql; do
+    psql -U nss_db_owner -d nss_erp -f "$f"
+done
+
+# ─────────────────────────────────────────────────
+# Phase 9: Grant nss_db_backend read-only access
 #         (as nss_db_owner, after build completes)
 # ─────────────────────────────────────────────────
 psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
@@ -129,8 +163,8 @@ DB_PORT=5432
 #   GET http://localhost:8001/api/v1/bootstrap/roles/{role_pk}/permissions
 
 # ─────────────────────────────────────────────────
-# Phase 6+: Person, Auth/Admin remaining, etc.
-#           (not yet implemented)
+# Remaining modules (Authentication, Administration
+# Phase 4+, Governance, etc.) — not yet implemented
 # ─────────────────────────────────────────────────
 ```
 
@@ -159,7 +193,16 @@ dependency and may be created in any order.
 | 1 | Foundation | `13_city_village_postal_code_map.sql` | `city_village_postal_code_map` | 4 | #89 |
 | 3 | Organization | `03_organization.sql` | `organization` | 1 | #33 |
 
-**Total implemented: 16 tables (3 Bootstrap RBAC + 12 Foundation + 1 Organization)**
+Person, Family, and Membership tables are now implemented too (18 tables
+across 3 modules) — see their own module READMEs for the per-file
+Depth/Seq# breakdown rather than duplicating it here:
+- `ddl/03_person/README.md` (2 tables: `person`, `person_address`)
+- `ddl/04_family/README.md` (4 tables: `family_group`, `family_relationship`,
+  `family_head_history`, `family_transition_history`)
+- `ddl/05_membership/README.md` (12 tables, `sangha_sevi` first)
+
+**Total implemented: 34 tables (3 Bootstrap RBAC + 12 Foundation + 1
+Organization + 2 Person + 4 Family + 12 Membership)**
 **Organization type/status moved to Foundation `master_data` — standalone tables retired.**
 **Phase 0 seed partial: `role_master` seeded (8 roles); `permission_master`/`role_permission` empty, pending the permission catalogue freeze**
 
@@ -167,6 +210,9 @@ See module READMEs for per-file details:
 - `ddl/00_bootstrap/README.md` / `seed/00_bootstrap/README.md`
 - `ddl/01_foundation/README.md` / `seed/01_foundation/README.md`
 - `ddl/02_organization/README.md` / `seed/02_organization/README.md`
+- `ddl/03_person/README.md` / `seed/03_person/README.md`
+- `ddl/04_family/README.md` / `seed/04_family/README.md`
+- `ddl/05_membership/README.md` / `seed/05_membership/README.md`
 
 ---
 
@@ -176,10 +222,11 @@ See module READMEs for per-file details:
 - **Pass 2:** ALTER TABLE ADD CONSTRAINT for `*_by_sangha_sevi_pk` columns —
   executed after `sangha_sevi` table exists and contains at least one record
 
-Pass 2 is not yet implemented. It will be created when the Membership
-module vertical slice produces the `sangha_sevi` table (Depth 4, #35).
-The bootstrap administrator's Sangha Sevi identity is the precondition
-for enforcing these constraints (SOL-ARCH-011 §7.3).
+Pass 2 is not yet implemented. `sangha_sevi` (Membership DDL, Phase 7) now
+exists as a table, but no bootstrap administrator Sangha Sevi record has
+been created/seeded yet and no `ALTER TABLE ADD CONSTRAINT` step for the
+`*_by_sangha_sevi_pk` columns has been added to the build scripts — both
+are still deferred to Tier 5 (Authentication), per SOL-ARCH-011 §7.3.
 
 ---
 
@@ -197,12 +244,18 @@ database/
 │   ├── 00_bootstrap/     3 RBAC tables (Depths 0–1) — IMPLEMENTED
 │   ├── 01_foundation/    12 tables (Depths 0–4) — IMPLEMENTED
 │   ├── 02_organization/  1 table (Depth 1) — IMPLEMENTED
-│   └── 03_person/        superseded prototype — WILL BE REPLACED
+│   ├── 03_person/        2 tables (`person`, `person_address`) — IMPLEMENTED
+│   │                     (01_person_master_tables.sql superseded — see below)
+│   ├── 04_family/        4 tables — IMPLEMENTED
+│   └── 05_membership/    12 tables (`sangha_sevi` first) — IMPLEMENTED
 ├── seed/
 │   ├── 00_bootstrap/     8 roles seeded; permission catalogue PENDING
 │   ├── 01_foundation/    reference data — IMPLEMENTED
-│   ├── 02_organization/  3 unique orgs (type/status via Foundation master_data) — IMPLEMENTED
-│   └── 03_person/        superseded prototype — WILL BE REPLACED
+│   ├── 02_organization/  3 unique orgs + Tier 4 verification orgs — IMPLEMENTED
+│   ├── 03_person/        Tier 4 verification persons — IMPLEMENTED
+│   │                     (01_person_master_tables.sql superseded — see below)
+│   ├── 04_family/        Tier 4 verification family data — IMPLEMENTED
+│   └── 05_membership/    Tier 4 verification membership data — IMPLEMENTED
 └── README.md             this file
 ```
 
@@ -215,16 +268,21 @@ database/
 | Bootstrap RBAC | 3 | ✅ IMPLEMENTED | `permission_master`/`role_permission` seed pending permission catalogue freeze |
 | Foundation | 12 | ✅ IMPLEMENTED | — |
 | Organization | 1 | ✅ IMPLEMENTED | — |
-| Person | 1 | ⬜ SUPERSEDED — will be rewritten | Freeze column list |
+| Person | 2 | ✅ IMPLEMENTED | — |
+| Family | 4 | ✅ IMPLEMENTED | — |
+| Membership | 12 | ✅ IMPLEMENTED | — |
 | Authentication | 2 | ⏳ DESIGN | Freeze user_account, password_history columns |
 | Administration | 5 | ⏳ DESIGN | 3 RBAC tables in Bootstrap; correspondence columns pending |
 | Heritage | 4 | ⬜ NOT YET | — |
-| Family | 3 | ⬜ NOT YET | — |
-| Membership | 9 | ⬜ NOT YET | — |
 
-Table counts are from the frozen SOL-ARCH-010 inventory. Modules not
-listed above have frozen table counts but are further down the
-implementation tier order (SOL-ARCH-008).
+Table counts for the implemented modules above are the actual counts of
+tables created by their DDL files. Family (4) and Membership (12) exceed
+the frozen SOL-ARCH-010 inventory figures used in earlier planning (3 and
+9 respectively) — the implemented slice grew during design; this is a
+known SOL-ARCH-010 inventory drift to reconcile in a future governance
+pass, not a build error. Modules not listed above have frozen table
+counts but are further down the implementation tier order
+(SOL-ARCH-008).
 
 ---
 
@@ -312,9 +370,17 @@ Phases executed:
 | 2 | Foundation | Seed data (categories, locations, settings, postal codes) |
 | 3 | Organization | 1 table (Depth 1) |
 | 4 | Organization | Seed data (named orgs; types/statuses come from Foundation seed) |
+| 5 | Person | 2 tables (`person`, `person_address`) |
+| 6 | Family | 4 tables |
+| 7 | Membership | 12 tables (`sangha_sevi` first) |
+| 8 | Tier 4 Verification | Seed data — Organization → Person → Family → Membership |
+| 9 | Grant Backend | `nss_db_backend` read-only access |
 
-**Not executed:** `03_person/` (superseded prototype), Pass 2
-audit-actor FK constraints (deferred until `sangha_sevi` exists).
+**Not executed:** `ddl/03_person/01_person_master_tables.sql` /
+`seed/03_person/01_person_master_tables.sql` (superseded — gender/marital
+status/address type data now lives in Foundation `master_data`), Pass 2
+audit-actor FK constraints (deferred to Tier 5 — see Two-Pass DDL
+Strategy above).
 
 The script uses `set -euo pipefail` and `ON_ERROR_STOP=1` — any
 failed SQL file halts the build immediately.
@@ -327,7 +393,8 @@ recreate the database first.
 
 Validates that all implemented modules were built correctly.
 **Does NOT execute any DDL or seed scripts** — run `02_build.sh`
-first. Covers all currently implemented modules.
+first. Covers Bootstrap RBAC, Foundation, Organization, and Person (table
+existence + FK integrity); has no Family or Membership checks at all.
 
 ```bash
 ./database/scripts/03_validate.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
@@ -338,8 +405,27 @@ Validation checks per module:
 | Module | Tables | Checks |
 |--------|-------:|--------|
 | Bootstrap RBAC | 3 | Existence, 8 roles seeded, unique `role_code`, FK integrity (`role_permission` → both parents) |
-| Foundation | 12 | Existence, row counts (13 categories, 82 master_data, locations, settings, postal codes), unique codes, FK integrity (location hierarchy, `master_data` → `master_category`), deferred columns on `document_master` |
+| Foundation | 12 | Existence, row counts (13 categories, 88 master_data, locations, settings, postal codes), unique codes, FK integrity (location hierarchy, `master_data` → `master_category`), deferred columns on `document_master` |
 | Organization | 1 | Existence, 10 types / 13 unified statuses / 3 orgs seeded, unique codes, FK integrity (org → type, status, country, city_village, postal_code) |
+| Person | 2 | Existence, FK integrity (`person` → master_data gender/marital_status/blood_group, `person_address` → person/master_data address_type). Row-count checks assert `person`/`person_address` = 0 rows. |
+
+> **Known bug (not fixed here — `.sh` is code, out of scope for this
+> documentation pass):** `02_build.sh` Phase 8 now seeds 4 additional
+> `organization` rows (`04_tier4_verification_orgs.sql`, total 7) and 8
+> `person` rows (`02_tier4_verification_persons.sql`), but `03_validate.sh`
+> still hardcodes `check_row_count "organization" 3` and
+> `check_row_count "person" 0`. Separately, `database/seed/01_foundation/02_master_data.sql`
+> gained 3 new `ORGANIZATION_TYPE` values and 3 new `STATUS` values (for
+> Membership), growing `master_data` from 82 to 88 rows, but `03_validate.sh`
+> still hardcodes `check_row_count "master_data" 82`. Running `03_validate.sh` after a full
+> `02_build.sh` build will now **fail** on all three of those assertions. Family
+> and Membership have no validation checks at all yet. This script needs a
+> code fix, not a doc fix.
+
+Person, Family, and Membership were added to `02_build.sh` (Phases 5–8);
+Family and Membership have **no `03_validate.sh` coverage at all** yet, and
+Person's existing coverage has the stale row-count assertion noted above —
+this is a known gap, not an intentional omission.
 
 **Extend this script when new modules are added to `02_build.sh`.**
 

@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
+    <title>Nilachala Saraswata Sangha — Membership Verification</title>
+
+    <!-- Tailwind CSS Play CDN (Tailwind 3.x JIT — generates utility classes in-browser) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- DaisyUI 4.12.14 (requires Tailwind 3.x) -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR" crossorigin="anonymous">
+    <!-- Alpine.js 3.14.8 -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/badges.css">
+    <script src="/assets/js/nss-config.js"></script>
+</head>
+<body class="bg-base-200 min-h-screen">
+
+    <div x-data="membershipApp()" x-init="init()" class="mx-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-10 2xl:px-16">
+
+        <!-- Header -->
+        <header class="mb-4 sm:mb-6 flex items-center justify-between flex-wrap gap-3 sm:gap-4">
+            <div class="flex items-center gap-3 sm:gap-4">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
+                <div>
+                    <h1 class="text-lg sm:text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
+                    <p class="text-xs sm:text-sm text-base-content/60">Tier 4 — Membership Verification</p>
+                </div>
+            </div>
+            <nav class="flex gap-2 flex-wrap">
+                <a href="/" class="btn btn-sm btn-ghost">Bootstrap</a>
+                <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
+                <a href="/organization" class="btn btn-sm btn-ghost">Organization</a>
+                <a href="/person" class="btn btn-sm btn-ghost">Person</a>
+                <a href="/family" class="btn btn-sm btn-ghost">Family</a>
+                <a href="/membership" class="btn btn-sm btn-active">Membership</a>
+            </nav>
+        </header>
+
+        <!-- System Status -->
+        <section class="card bg-base-100 shadow-sm mb-4 sm:mb-6 max-w-md mx-auto">
+            <div class="card-body py-3 text-center">
+                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50 justify-center">System Status</h2>
+                <div class="flex items-center justify-center gap-2 mt-1">
+                    <template x-if="health.loading">
+                        <span class="flex items-center gap-2 text-sm text-base-content/60">
+                            <span class="loading loading-spinner loading-xs"></span>
+                            Checking...
+                        </span>
+                    </template>
+                    <template x-if="!health.loading && health.connected">
+                        <span class="flex items-center gap-2">
+                            <span class="badge badge-success badge-xs"></span>
+                            <span class="text-sm">Database Connected</span>
+                        </span>
+                    </template>
+                    <template x-if="!health.loading && !health.connected">
+                        <span class="flex items-center gap-2">
+                            <span class="badge badge-error badge-xs"></span>
+                            <span class="text-sm">Database Unavailable</span>
+                        </span>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <!-- Three-tier Identity Legend -->
+        <section class="card bg-base-100 shadow-sm mb-4 sm:mb-6 max-w-2xl mx-auto">
+            <div class="card-body py-3 px-4">
+                <h2 class="card-title text-xs uppercase tracking-wide text-base-content/50 justify-center mb-1">Three-Tier Member Identity</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    <div class="text-center">
+                        <span class="font-semibold">Sangha Sevi ID</span>
+                        <p class="text-base-content/50">NSS-wide, permanent</p>
+                        <span class="data-sevi-id">SS1</span>
+                    </div>
+                    <div class="text-center">
+                        <span class="font-semibold">Sakha Sangha ID</span>
+                        <p class="text-base-content/50">Sakha-scoped, auto-generated</p>
+                        <span class="data-erp-no">ESS1192</span>
+                    </div>
+                    <div class="text-center">
+                        <span class="font-semibold">Kendra Number</span>
+                        <p class="text-base-content/50">Kendra-wide, annual</p>
+                        <span class="data-kendra-no">345/2026/2027</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Bar (scrollable on mobile) -->
+        <div class="overflow-x-auto mb-4 -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div class="tabs tabs-boxed bg-base-100 shadow-sm inline-flex min-w-max">
+                <button class="tab tab-sm sm:tab-md" :class="{ 'tab-active': activeTab === 'members' }" @click="switchTab('members')">Members</button>
+                <button class="tab tab-sm sm:tab-md" :class="{ 'tab-active': activeTab === 'search' }" @click="switchTab('search')">Search</button>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB 1: Members (list + filters + detail)                  -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div x-show="activeTab === 'members'" x-cloak>
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
+
+            <!-- Member List (left / full) -->
+            <section class="card bg-base-100 shadow-sm xl:col-span-2">
+                <div class="card-body p-3 sm:p-4 xl:p-6">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Members</h2>
+                        <span class="badge badge-ghost badge-sm" x-text="members.length + ' members'"></span>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <select class="select select-bordered select-xs sm:select-sm"
+                                x-model="selectedTypeFilter" @change="fetchMembers()">
+                            <option value="">All Types</option>
+                            <option value="REGULAR">Regular</option>
+                            <option value="PROBATIONARY">Darshaka</option>
+                            <option value="ASSOCIATE">Associate</option>
+                            <option value="HONORARY">Honorary</option>
+                        </select>
+                        <select class="select select-bordered select-xs sm:select-sm"
+                                x-model="selectedStatusFilter" @change="fetchMembers()">
+                            <option value="">All Statuses</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                            <option value="SUSPENDED">Suspended</option>
+                            <option value="LAPSED">Lapsed</option>
+                            <option value="TRANSFERRED">Transferred</option>
+                            <option value="RESIGNED">Resigned</option>
+                            <option value="EXPELLED">Expelled</option>
+                            <option value="ARCHIVED">Archived</option>
+                            <option value="RENEWAL_PENDING">Renewal Pending</option>
+                            <option value="ON_HOLD">On Hold</option>
+                            <option value="DISCIPLINARY_REVIEW">Disciplinary Review</option>
+                        </select>
+                    </div>
+
+                    <template x-if="membersLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="!membersLoading && membersError">
+                        <div class="alert alert-error mt-2">
+                            <span class="text-sm">Failed to load members.</span>
+                        </div>
+                    </template>
+
+                    <template x-if="!membersLoading && !membersError && members.length === 0">
+                        <div class="py-4">
+                            <p class="text-sm text-base-content/60">No members match the current filters.</p>
+                        </div>
+                    </template>
+
+                    <template x-if="!membersLoading && !membersError && members.length > 0">
+                        <div class="overflow-x-auto mt-2">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Sangha Sevi ID</th>
+                                        <th>Person ID</th>
+                                        <th>Person</th>
+                                        <th>Mobile</th>
+                                        <th>Email</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Sakha</th>
+                                        <th>Sakha Sangha ID</th>
+                                        <th>Joining Date</th>
+                                        <th>Renewal Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="m in members" :key="m.sangha_sevi_pk">
+                                        <tr class="cursor-pointer hover"
+                                            :class="{ 'bg-base-200': selectedMember?.sangha_sevi_pk === m.sangha_sevi_pk }"
+                                            @click="selectMember(m)">
+                                            <td class="data-sevi-id text-xs whitespace-nowrap" x-text="m.sangha_sevi_id"></td>
+                                            <td class="font-mono text-xs whitespace-nowrap" x-text="m.person_id"></td>
+                                            <td class="text-xs whitespace-nowrap">
+                                                <span class="font-medium" x-text="formatName(m)"></span>
+                                            </td>
+                                            <td class="text-xs whitespace-nowrap" x-text="m.mobile_number || '—'"></td>
+                                            <td class="text-xs" x-text="m.email || '—'"></td>
+                                            <td class="whitespace-nowrap">
+                                                <span class="badge badge-xs whitespace-nowrap"
+                                                      :class="typeBadgeClass(m)"
+                                                      x-text="typeDisplayName(m)"></span>
+                                            </td>
+                                            <td class="whitespace-nowrap">
+                                                <span class="badge badge-xs whitespace-nowrap"
+                                                      :class="statusBadgeClass(m)"
+                                                      x-text="m.status_name"></span>
+                                            </td>
+                                            <td class="text-xs whitespace-nowrap" x-text="m.organization_name"></td>
+                                            <td class="data-erp-no text-xs whitespace-nowrap" x-text="m.local_sakha_erp_id || '—'"></td>
+                                            <td class="text-xs whitespace-nowrap" x-text="m.joining_date"></td>
+                                            <td class="text-xs whitespace-nowrap" x-text="m.renewal_due_date || '—'"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Member Detail (right) -->
+            <section class="card bg-base-100 shadow-sm">
+                <div class="card-body p-3 sm:p-4 xl:p-6">
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Detail</h2>
+
+                    <template x-if="!selectedMember && !detailLoading">
+                        <p class="text-sm text-base-content/60 py-2">
+                            Select a member from the list to view details.
+                        </p>
+                    </template>
+
+                    <template x-if="detailLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="selectedMember && !detailLoading">
+                        <div class="mt-2 space-y-3">
+                            <!-- Identity -->
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div>
+                                    <span class="text-base-content/50">Sangha Sevi ID:</span>
+                                    <span class="data-sevi-id" x-text="selectedMember.sangha_sevi_id"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Sakha Sangha ID:</span>
+                                    <span class="data-erp-no" x-text="selectedMember.local_sakha_erp_id || '—'"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Person ID:</span>
+                                    <span class="font-mono" x-text="selectedMember.person_id"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Name:</span>
+                                    <span class="font-semibold" x-text="formatName(selectedMember)"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Mobile:</span>
+                                    <span x-text="selectedMember.mobile_number ? (selectedMember.country_phone_code || '') + ' ' + selectedMember.mobile_number : '—'"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Email:</span>
+                                    <template x-if="selectedMember.email">
+                                        <a :href="'mailto:' + selectedMember.email" class="link link-primary text-xs" x-text="selectedMember.email"></a>
+                                    </template>
+                                    <template x-if="!selectedMember.email">
+                                        <span>—</span>
+                                    </template>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Type:</span>
+                                    <span class="badge badge-xs" :class="typeBadgeClass(selectedMember)" x-text="typeDisplayName(selectedMember)"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Status:</span>
+                                    <span class="badge badge-xs" :class="statusBadgeClass(selectedMember)" x-text="selectedMember.status_name"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Sakha:</span>
+                                    <span x-text="selectedMember.organization_name"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Joining:</span>
+                                    <span x-text="selectedMember.joining_date"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Renewal Due:</span>
+                                    <span x-text="selectedMember.renewal_due_date || '—'"></span>
+                                </div>
+                            </div>
+
+                            <!-- Sakha Affiliations -->
+                            <div>
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Sakha Affiliations
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="affiliations.length"></span>
+                                </h3>
+
+                                <template x-if="!affiliations.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No affiliations.</p>
+                                </template>
+
+                                <template x-if="affiliations.length > 0">
+                                    <div class="space-y-1 mt-1">
+                                        <template x-for="a in affiliations" :key="a.membership_sakha_affiliation_pk">
+                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="data-erp-no" x-text="a.local_sakha_erp_id"></span>
+                                                    <span x-text="a.organization_name"></span>
+                                                    <span class="badge badge-xs"
+                                                          :class="affBadgeClass(a)"
+                                                          x-text="a.affiliation_status"></span>
+                                                    <span class="badge badge-xs badge-ghost" x-text="a.source_event_type"></span>
+                                                </div>
+                                                <div class="text-base-content/60 mt-0.5">
+                                                    <span x-text="a.effective_from"></span>
+                                                    <span x-text="a.effective_to ? ' — ' + a.effective_to : ' — present'"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Parichaya Patra -->
+                            <div>
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Parichaya Patra
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="parichayaPatras.length"></span>
+                                </h3>
+
+                                <template x-if="!parichayaPatras.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No Parichaya Patra records.</p>
+                                </template>
+
+                                <template x-if="parichayaPatras.length > 0">
+                                    <div class="space-y-1 mt-1">
+                                        <template x-for="pp in parichayaPatras" :key="pp.parichaya_patra_pk">
+                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="font-semibold">Kendra #</span>
+                                                    <span class="data-kendra-no" x-text="pp.document_number"></span>
+                                                    <span class="badge badge-xs" :class="docBadgeClass(pp)" x-text="pp.status"></span>
+                                                </div>
+                                                <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-base-content/60">
+                                                    <div>Issued: <span x-text="pp.issue_date"></span></div>
+                                                    <div>Valid: <span x-text="pp.valid_from + ' — ' + pp.valid_to"></span></div>
+                                                    <div x-show="pp.affiliated_organization_name">
+                                                        Sakha: <span x-text="pp.affiliated_organization_name"></span>
+                                                    </div>
+                                                    <div x-show="pp.local_sakha_erp_id">
+                                                        Sakha Sangha ID: <span class="data-erp-no" x-text="pp.local_sakha_erp_id"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Anumati Patra (Darshaka only — not applicable to Associate per MBR-019A/B) -->
+                            <div x-show="NSS.showAnumatiPatra(selectedMember.membership_type_code)">
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Anumati Patra
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="anumatiPatras.length"></span>
+                                </h3>
+
+                                <template x-if="!anumatiPatras.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No Anumati Patra records.</p>
+                                </template>
+
+                                <template x-if="anumatiPatras.length > 0">
+                                    <div class="space-y-1 mt-1">
+                                        <template x-for="ap in anumatiPatras" :key="ap.anumati_patra_pk">
+                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="font-mono font-semibold" x-text="ap.document_number"></span>
+                                                    <span class="badge badge-xs" :class="docBadgeClass(ap)" x-text="ap.status"></span>
+                                                </div>
+                                                <div class="text-base-content/60 mt-0.5">
+                                                    Issued: <span x-text="ap.issue_date"></span> |
+                                                    Valid: <span x-text="ap.valid_from + ' — ' + ap.valid_to"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Journey Events -->
+                            <div>
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Journey Timeline
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="journeyEvents.length"></span>
+                                </h3>
+
+                                <template x-if="!journeyEvents.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No journey events.</p>
+                                </template>
+
+                                <template x-if="journeyEvents.length > 0">
+                                    <div class="mt-1">
+                                        <ul class="steps steps-vertical text-xs">
+                                            <template x-for="(ev, idx) in journeyEvents" :key="ev.membership_journey_event_pk">
+                                                <li class="step step-primary" :data-content="idx + 1">
+                                                    <div class="text-left py-1">
+                                                        <span class="font-semibold" x-text="ev.event_type.replace(/_/g, ' ')"></span>
+                                                        <span class="text-base-content/50 ml-1" x-text="ev.event_date"></span>
+                                                        <p x-show="ev.remarks" class="text-base-content/60 italic" x-text="ev.remarks"></p>
+                                                    </div>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- ── Reference: Member Statuses + Membership Statuses + Membership Types ── -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6 mt-4 xl:col-span-3 items-start">
+
+                <!-- Section 1: Member Lifecycle Statuses (Person-level — 4 statuses) -->
+                <section class="card bg-base-100 shadow-sm">
+                    <div class="card-body p-3 sm:p-4 xl:p-6">
+                        <div class="flex items-center justify-between">
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Statuses</h2>
+                            <span class="badge badge-ghost badge-sm">4 statuses</span>
+                        </div>
+                        <p class="text-xs text-base-content/40 mt-1">Person-level — a member is a person</p>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="w-8">#</th>
+                                        <th>Badge</th>
+                                        <th>Code</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td class="text-center text-xs text-base-content/40">1</td><td><span class="badge badge-xs badge-status-active">Active</span></td><td class="font-mono text-xs whitespace-nowrap">ACTIVE</td><td class="text-xs text-base-content/60">Currently active person record</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">2</td><td><span class="badge badge-xs badge-status-inactive">Inactive</span></td><td class="font-mono text-xs whitespace-nowrap">INACTIVE</td><td class="text-xs text-base-content/60">Temporarily non-operational</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">3</td><td><span class="badge badge-xs badge-status-deceased">Deceased</span></td><td class="font-mono text-xs whitespace-nowrap">DECEASED</td><td class="text-xs text-base-content/60">Person is deceased (Bye-Law §D(d)(i))</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">4</td><td><span class="badge badge-xs badge-status-archived">Archived</span></td><td class="font-mono text-xs whitespace-nowrap">ARCHIVED</td><td class="text-xs text-base-content/60">Permanently closed, retained for history</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 2: Membership Lifecycle Statuses (Membership-record — 11 statuses) -->
+                <section class="card bg-base-100 shadow-sm">
+                    <div class="card-body p-3 sm:p-4 xl:p-6">
+                        <div class="flex items-center justify-between">
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Membership Statuses</h2>
+                            <span class="badge badge-ghost badge-sm">11 statuses</span>
+                        </div>
+                        <p class="text-xs text-base-content/40 mt-1">Membership-record lifecycle</p>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="w-8">#</th>
+                                        <th>Badge</th>
+                                        <th>Code</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td class="text-center text-xs text-base-content/40">1</td><td><span class="badge badge-xs badge-status-active">Active</span></td><td class="font-mono text-xs whitespace-nowrap">ACTIVE</td><td class="text-xs text-base-content/60">Currently active membership</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">2</td><td><span class="badge badge-xs badge-status-inactive">Inactive</span></td><td class="font-mono text-xs whitespace-nowrap">INACTIVE</td><td class="text-xs text-base-content/60">Temporarily non-operational</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">3</td><td><span class="badge badge-xs badge-status-suspended">Suspended</span></td><td class="font-mono text-xs whitespace-nowrap">SUSPENDED</td><td class="text-xs text-base-content/60">Suspended by governance decision</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">4</td><td><span class="badge badge-xs badge-status-lapsed">Lapsed</span></td><td class="font-mono text-xs whitespace-nowrap">LAPSED</td><td class="text-xs text-base-content/60">Non-renewal or non-attendance (Bye-Law §D(d))</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">5</td><td><span class="badge badge-xs badge-status-transferred">Transferred</span></td><td class="font-mono text-xs whitespace-nowrap">TRANSFERRED</td><td class="text-xs text-base-content/60">Transferred to another Sakha</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">6</td><td><span class="badge badge-xs badge-status-resigned">Resigned</span></td><td class="font-mono text-xs whitespace-nowrap">RESIGNED</td><td class="text-xs text-base-content/60">Voluntarily departed</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">7</td><td><span class="badge badge-xs badge-status-expelled">Expelled</span></td><td class="font-mono text-xs whitespace-nowrap">EXPELLED</td><td class="text-xs text-base-content/60">Expelled by governance (Bye-Law §D(d)(iii))</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">8</td><td><span class="badge badge-xs badge-status-archived">Archived</span></td><td class="font-mono text-xs whitespace-nowrap">ARCHIVED</td><td class="text-xs text-base-content/60">Permanently closed, retained for history</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">9</td><td><span class="badge badge-xs badge-status-renewal-pending">Renewal Pending</span></td><td class="font-mono text-xs whitespace-nowrap">RENEWAL_PENDING</td><td class="text-xs text-base-content/60">Renewal requested, awaiting approval</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">10</td><td><span class="badge badge-xs badge-status-on-hold">On Hold</span></td><td class="font-mono text-xs whitespace-nowrap">ON_HOLD</td><td class="text-xs text-base-content/60">Temporarily on hold (administrative)</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">11</td><td><span class="badge badge-xs badge-status-disciplinary-review">Disciplinary Review</span></td><td class="font-mono text-xs whitespace-nowrap">DISCIPLINARY_REVIEW</td><td class="text-xs text-base-content/60">Under disciplinary review (Bye-Law §D(d)(iii))</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 3: Membership Types (4 types) -->
+                <section class="card bg-base-100 shadow-sm">
+                    <div class="card-body p-3 sm:p-4 xl:p-6">
+                        <div class="flex items-center justify-between">
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Membership Types</h2>
+                            <span class="badge badge-ghost badge-sm">4 types</span>
+                        </div>
+                        <p class="text-xs text-base-content/40 mt-1">Classification per Bye-Law §B</p>
+                        <div class="overflow-x-auto mt-2">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="w-8">#</th>
+                                        <th>Badge</th>
+                                        <th>Code</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td class="text-center text-xs text-base-content/40">1</td><td><span class="badge badge-xs badge-type-probationary">Darshaka</span></td><td class="font-mono text-xs whitespace-nowrap">PROBATIONARY</td><td class="text-xs text-base-content/60">Initial membership stage (Bye-Law §B). Receives Anumati Patra.</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">2</td><td><span class="badge badge-xs badge-type-regular">Regular</span></td><td class="font-mono text-xs whitespace-nowrap">REGULAR</td><td class="text-xs text-base-content/60">Full membership (Bye-Law §B). Receives Parichaya Patra.</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">3</td><td><span class="badge badge-xs badge-type-associate">Associate</span></td><td class="font-mono text-xs whitespace-nowrap">ASSOCIATE</td><td class="text-xs text-base-content/60">Associate member (Bye-Law §B). Parichaya Patra only (MBR-019A/B).</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/40">4</td><td><span class="badge badge-xs badge-type-honorary">Honorary</span></td><td class="font-mono text-xs whitespace-nowrap">HONORARY</td><td class="text-xs text-base-content/60">Honorary member (ERP-FROZEN operational category).</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- TAB 2: Search (trigram + prefix search)                   -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div x-show="activeTab === 'search'" x-cloak>
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
+
+            <!-- Search Results (left / full) -->
+            <section class="card bg-base-100 shadow-sm xl:col-span-2">
+                <div class="card-body p-3 sm:p-4 xl:p-6">
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Search</h2>
+
+                    <!-- Search input -->
+                    <div class="form-control mt-2 max-w-md">
+                        <div class="input-group">
+                            <input type="text" placeholder="ID, Name, Mobile, Email, or Kendra # (min 2 chars)"
+                                   class="input input-bordered input-sm w-full"
+                                   x-model="searchQuery"
+                                   @keydown.enter="executeSearch()"
+                                   @input="searchQuery.length >= 2 ? executeSearch() : (searchResults = [])">
+                        </div>
+                        <label class="label">
+                            <span class="label-text-alt text-base-content/40">Uses trigram similarity for fuzzy name matching across all 3 identity tiers</span>
+                        </label>
+                    </div>
+
+                    <template x-if="searchLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="!searchLoading && searchError">
+                        <div class="alert alert-error mt-2">
+                            <span class="text-sm">Search failed.</span>
+                        </div>
+                    </template>
+
+                    <template x-if="!searchLoading && !searchError && searchExecuted && searchResults.length === 0">
+                        <div class="py-4">
+                            <p class="text-sm text-base-content/60">No results found.</p>
+                        </div>
+                    </template>
+
+                    <template x-if="!searchLoading && !searchError && searchResults.length > 0">
+                        <div class="overflow-x-auto mt-2">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="badge badge-ghost badge-sm" x-text="searchResults.length + ' results'"></span>
+                            </div>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Sangha Sevi ID</th>
+                                        <th>Person ID</th>
+                                        <th>Person</th>
+                                        <th>Mobile</th>
+                                        <th>Email</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Sakha</th>
+                                        <th>Sakha Sangha ID</th>
+                                        <th>Joining Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="m in searchResults" :key="m.sangha_sevi_pk">
+                                        <tr class="cursor-pointer hover"
+                                            :class="{ 'bg-base-200': selectedMember?.sangha_sevi_pk === m.sangha_sevi_pk }"
+                                            @click="selectMember(m)">
+                                            <td class="data-sevi-id text-xs whitespace-nowrap" x-text="m.sangha_sevi_id"></td>
+                                            <td class="font-mono text-xs whitespace-nowrap" x-text="m.person_id"></td>
+                                            <td class="text-xs whitespace-nowrap">
+                                                <span class="font-medium" x-text="formatName(m)"></span>
+                                            </td>
+                                            <td class="text-xs whitespace-nowrap" x-text="m.mobile_number || '—'"></td>
+                                            <td class="text-xs" x-text="m.email || '—'"></td>
+                                            <td class="whitespace-nowrap">
+                                                <span class="badge badge-xs whitespace-nowrap"
+                                                      :class="typeBadgeClass(m)"
+                                                      x-text="typeDisplayName(m)"></span>
+                                            </td>
+                                            <td class="whitespace-nowrap">
+                                                <span class="badge badge-xs whitespace-nowrap"
+                                                      :class="statusBadgeClass(m)"
+                                                      x-text="m.status_name"></span>
+                                            </td>
+                                            <td class="text-xs whitespace-nowrap" x-text="m.organization_name"></td>
+                                            <td class="data-erp-no text-xs whitespace-nowrap" x-text="m.local_sakha_erp_id || '—'"></td>
+                                            <td class="text-xs whitespace-nowrap" x-text="m.joining_date"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- Member Detail (right — same detail panel as Members tab) -->
+            <section class="card bg-base-100 shadow-sm">
+                <div class="card-body p-3 sm:p-4 xl:p-6">
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Detail</h2>
+
+                    <template x-if="!selectedMember && !detailLoading">
+                        <p class="text-sm text-base-content/60 py-2">
+                            Click a search result to view details.
+                        </p>
+                    </template>
+
+                    <template x-if="detailLoading">
+                        <div class="flex justify-center py-6">
+                            <span class="loading loading-spinner loading-md"></span>
+                        </div>
+                    </template>
+
+                    <template x-if="selectedMember && !detailLoading">
+                        <div class="mt-2 space-y-3">
+                            <!-- Identity -->
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div>
+                                    <span class="text-base-content/50">Sangha Sevi ID:</span>
+                                    <span class="data-sevi-id" x-text="selectedMember.sangha_sevi_id"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Sakha Sangha ID:</span>
+                                    <span class="data-erp-no" x-text="selectedMember.local_sakha_erp_id || '—'"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Person ID:</span>
+                                    <span class="font-mono" x-text="selectedMember.person_id"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Name:</span>
+                                    <span class="font-semibold" x-text="formatName(selectedMember)"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Mobile:</span>
+                                    <span x-text="selectedMember.mobile_number ? (selectedMember.country_phone_code || '') + ' ' + selectedMember.mobile_number : '—'"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Email:</span>
+                                    <template x-if="selectedMember.email">
+                                        <a :href="'mailto:' + selectedMember.email" class="link link-primary text-xs" x-text="selectedMember.email"></a>
+                                    </template>
+                                    <template x-if="!selectedMember.email">
+                                        <span>—</span>
+                                    </template>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Type:</span>
+                                    <span class="badge badge-xs" :class="typeBadgeClass(selectedMember)" x-text="typeDisplayName(selectedMember)"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Status:</span>
+                                    <span class="badge badge-xs" :class="statusBadgeClass(selectedMember)" x-text="selectedMember.status_name"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Sakha:</span>
+                                    <span x-text="selectedMember.organization_name"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Joining:</span>
+                                    <span x-text="selectedMember.joining_date"></span>
+                                </div>
+                                <div>
+                                    <span class="text-base-content/50">Renewal Due:</span>
+                                    <span x-text="selectedMember.renewal_due_date || '—'"></span>
+                                </div>
+                            </div>
+
+                            <!-- Sakha Affiliations -->
+                            <div>
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Sakha Affiliations
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="affiliations.length"></span>
+                                </h3>
+
+                                <template x-if="!affiliations.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No affiliations.</p>
+                                </template>
+
+                                <template x-if="affiliations.length > 0">
+                                    <div class="space-y-1 mt-1">
+                                        <template x-for="a in affiliations" :key="a.membership_sakha_affiliation_pk">
+                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="data-erp-no" x-text="a.local_sakha_erp_id"></span>
+                                                    <span x-text="a.organization_name"></span>
+                                                    <span class="badge badge-xs"
+                                                          :class="affBadgeClass(a)"
+                                                          x-text="a.affiliation_status"></span>
+                                                    <span class="badge badge-xs badge-ghost" x-text="a.source_event_type"></span>
+                                                </div>
+                                                <div class="text-base-content/60 mt-0.5">
+                                                    <span x-text="a.effective_from"></span>
+                                                    <span x-text="a.effective_to ? ' — ' + a.effective_to : ' — present'"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Parichaya Patra -->
+                            <div>
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Parichaya Patra
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="parichayaPatras.length"></span>
+                                </h3>
+
+                                <template x-if="!parichayaPatras.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No Parichaya Patra records.</p>
+                                </template>
+
+                                <template x-if="parichayaPatras.length > 0">
+                                    <div class="space-y-1 mt-1">
+                                        <template x-for="pp in parichayaPatras" :key="pp.parichaya_patra_pk">
+                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="font-semibold">Kendra #</span>
+                                                    <span class="data-kendra-no" x-text="pp.document_number"></span>
+                                                    <span class="badge badge-xs" :class="docBadgeClass(pp)" x-text="pp.status"></span>
+                                                </div>
+                                                <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-base-content/60">
+                                                    <div>Issued: <span x-text="pp.issue_date"></span></div>
+                                                    <div>Valid: <span x-text="pp.valid_from + ' — ' + pp.valid_to"></span></div>
+                                                    <div x-show="pp.affiliated_organization_name">
+                                                        Sakha: <span x-text="pp.affiliated_organization_name"></span>
+                                                    </div>
+                                                    <div x-show="pp.local_sakha_erp_id">
+                                                        Sakha Sangha ID: <span class="data-erp-no" x-text="pp.local_sakha_erp_id"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Anumati Patra (Darshaka only — not applicable to Associate per MBR-019A/B) -->
+                            <div x-show="NSS.showAnumatiPatra(selectedMember.membership_type_code)">
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Anumati Patra
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="anumatiPatras.length"></span>
+                                </h3>
+
+                                <template x-if="!anumatiPatras.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No Anumati Patra records.</p>
+                                </template>
+
+                                <template x-if="anumatiPatras.length > 0">
+                                    <div class="space-y-1 mt-1">
+                                        <template x-for="ap in anumatiPatras" :key="ap.anumati_patra_pk">
+                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="font-mono font-semibold" x-text="ap.document_number"></span>
+                                                    <span class="badge badge-xs" :class="docBadgeClass(ap)" x-text="ap.status"></span>
+                                                </div>
+                                                <div class="text-base-content/60 mt-0.5">
+                                                    Issued: <span x-text="ap.issue_date"></span> |
+                                                    Valid: <span x-text="ap.valid_from + ' — ' + ap.valid_to"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <!-- Journey Events -->
+                            <div>
+                                <div class="divider my-1"></div>
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                    Journey Timeline
+                                    <span class="badge badge-ghost badge-xs ml-1" x-text="journeyEvents.length"></span>
+                                </h3>
+
+                                <template x-if="!journeyEvents.length">
+                                    <p class="text-xs text-base-content/60 mt-1">No journey events.</p>
+                                </template>
+
+                                <template x-if="journeyEvents.length > 0">
+                                    <div class="mt-1">
+                                        <ul class="steps steps-vertical text-xs">
+                                            <template x-for="(ev, idx) in journeyEvents" :key="ev.membership_journey_event_pk">
+                                                <li class="step step-primary" :data-content="idx + 1">
+                                                    <div class="text-left py-1">
+                                                        <span class="font-semibold" x-text="ev.event_type.replace(/_/g, ' ')"></span>
+                                                        <span class="text-base-content/50 ml-1" x-text="ev.event_date"></span>
+                                                        <p x-show="ev.remarks" class="text-base-content/60 italic" x-text="ev.remarks"></p>
+                                                    </div>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-xs text-base-content/30 mt-6">
+            <p>&copy; 2026 Nilachala Saraswata Sangha. All rights reserved.</p>
+        </footer>
+
+    </div>
+
+    <script src="/assets/js/membership.js?v=3.9"></script>
+</body>
+</html>

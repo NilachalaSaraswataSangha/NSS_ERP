@@ -122,10 +122,10 @@ Examples:
 
 ```
 person_pk            — internal UUID (relational)
-person_id            — human-readable (P00000001)
+person_id            — human-readable (P1)
 
 organization_pk      — internal UUID
-organization_id      — human-readable (ANC0001)
+organization_id      — human-readable (ANC1)
 
 organization_type_pk   — internal UUID
 organization_type_code — stable machine-readable code (SAKHA)
@@ -308,9 +308,9 @@ sequence mechanism.
 
 | Module | Business ID | Format |
 |--------|-------------|--------|
-| Person | person_id | P00000001 |
-| Membership | sangha_sevi_id | SS00000001 |
-| Organization | organization_id | ANC0001, SAK0001, etc. |
+| Person | person_id | P1 |
+| Membership | sangha_sevi_id | SS1 |
+| Organization | organization_id | ANC1, SKH1, etc. |
 
 Concurrent generation safety is a mandatory DDL requirement.
 

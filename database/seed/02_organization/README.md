@@ -1,7 +1,8 @@
 # database/seed/02_organization/
 
 Organization Module seed data — the three unique organizations required
-before downstream modules.
+before downstream modules, plus Tier 4 verification organizations used by
+the Family + Membership vertical slice.
 
 Authority: SOL-ORG-005 §48, SOL-ARCH-010 §8
 
@@ -14,6 +15,7 @@ Execute AFTER:
 | # | File | Seeds Into | Depends On |
 |--:|------|-----------|-----------|
 | 03 | `03_organization.sql` | `organization` | Foundation `master_category`/`master_data` seed, Foundation `country`/`postal_code` seed, Organization DDL complete |
+| 04 | `04_tier4_verification_orgs.sql` | `organization` | `03_organization.sql` (needs `KEN` as parent); Foundation `master_data`/`postal_code` seed |
 
 > **Moved:** The former `01_organization_type_master.sql` and
 > `02_organization_status_master.sql` seed files are gone. Type and status
@@ -56,6 +58,24 @@ All three are seeded with status `ACTIVE` and country = IN (India).
 Kendra's representative office address is seeded inline: Satsikshya Mandir,
 A/4, Unit-9, Bhubaneswar - 751022, Odisha, India.
 
+### 04_tier4_verification_orgs.sql
+
+Seeds 4 additional organizations under `KEN` for Tier 4 (Family +
+Membership) verification: two Anchalika Sanghas (administrative groupings,
+no address fields) each with one child Sakha Sangha (physical location).
+
+| # | `organization_code` | Name | Type (`value_code`) | Parent |
+|--:|---------------------|------|------|--------|
+| 1 | `ANC1` | Puri Anchalika Sangha | `ANCHALIKA_SANGHA` | `KEN` |
+| 2 | `SKH1` | Ekamra Sakha Sangha | `SAKHA_SANGHA` | `ANC1` |
+| 3 | `ANC2` | Cuttack Anchalika Sangha | `ANCHALIKA_SANGHA` | `KEN` |
+| 4 | `SKH2` | Cuttack Sakha Sangha | `SAKHA_SANGHA` | `ANC2` |
+
+All four are seeded with status `ACTIVE`. `SKH1` and `SKH2` exist
+specifically to exercise the Membership module's Sakha-transfer flow
+(a verification person transfers from `SKH1` to `SKH2`) — see
+`database/seed/03_person/README.md` and `database/seed/05_membership/README.md`.
+
 ---
 
 ## Notes
@@ -72,7 +92,8 @@ A/4, Unit-9, Bhubaneswar - 751022, Odisha, India.
 - Unique organizations have no `organization_id` — identified by
   `organization_code` alone. `organization_id` (sequence-generated via
   `id_sequence_master`) is for multi-instance types only.
-- Additional organizations (Anchalika, Zilla, Sakha, etc.) are created
+- Beyond the Tier 4 verification set in `04_tier4_verification_orgs.sql`,
+  additional organizations (Anchalika, Zilla, Sakha, etc.) are created
   at runtime through governance workflows, not seeded.
 - Foundation seed data (`master_category`, `master_data`, `country`,
   `postal_code`) must be loaded before Organization seed.
