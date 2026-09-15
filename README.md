@@ -672,10 +672,14 @@ Completed:
 * Tier 3 Person Verification UI (`frontend/person.html` + `assets/js/person.js` — Persons/Search
   tab layout structurally parallel to the Organization Verification UI)
 * Implemented and released as v0.9.0 — merged to `main`
-* FastAPI Tier 4 Family API (`api/routers/family.py` — 4 read-only endpoints under
+* FastAPI Tier 4 Family API (`api/routers/family.py` — 7 read-only endpoints under
   `/api/v1/family`: family list with filters and pagination, family detail, family members
-  (relationships per family), and family head history; no auth, no ORM, backed by 51 pytest
-  integration tests)
+  (relationships per family), family head history, plus 3 newer endpoints — `/graph`
+  (dynamic relationship-label computation via BFS traversal over `nss.family_link` edges, in a
+  new `api/services/family_graph.py` — no test coverage yet), `/sakha-alignment` (FAM-036
+  majority-rule "effective Sakha" computation with per-member mismatch flags), and
+  `/person/{pk}/membership-summary` (bridges family context to membership context — also no
+  test coverage yet); no auth, no ORM, backed by 67 pytest integration tests)
 * FastAPI Tier 4 Membership API (`api/routers/membership.py` — 7 read-only endpoints under
   `/api/v1/membership`: member list with filters and pagination, member detail, a 7-field
   member search (Sangha Sevi ID, person ID, local Sakha ERP ID, name trigram, mobile, email,
@@ -684,15 +688,31 @@ Completed:
   Sangha Sevi ID (NSS-wide, permanent), Local Sakha Number (Sakha-scoped, auto-generated),
   Kendra Number (annual per FY, on `parichaya_patra.document_number`); no auth, no ORM, backed
   by 99 pytest integration tests — the largest test file in the repo)
-* Tier 4 Family Verification UI (`frontend/family.html` + `assets/js/family.js`) and Tier 4
+* FastAPI Tier 2 Organization API grew a 7th endpoint, `/organizations/{pk}/children-stats`
+  (aggregate family/member/person counts per direct child, recursing through descendant
+  Sakhas and reusing the same FAM-036 majority-rule computation — implemented independently
+  from Family's version, a real SQL duplication; its own docstring claims org-admin-sidebar UI
+  wiring that doesn't actually exist in `organization.html`/`organization.js` yet)
+* Tier 4 Family Verification UI (`frontend/family.html` + `assets/js/family.js` — now includes
+  a family-tree visualization, viewer selector, and Sakha-alignment mismatch badges) and Tier 4
   Membership Verification UI (`frontend/membership.html` + `assets/js/membership.js`)
-* Family DDL (4 tables: `family_group`, `family_relationship`, `family_head_history`,
-  `family_transition_history`) and Membership DDL (12 tables: `sangha_sevi` plus
+* New shared frontend config: `frontend/assets/js/nss-config.js` (display-name overrides —
+  `PROBATIONARY` → "Darshaka" — badge-class lookup maps, document-visibility rules) and
+  `frontend/assets/css/badges.css` (every badge CSS class, single source of truth) — all 6
+  verification pages now include both; no more per-page duplicate inline badge styles
+* Family DDL (5 tables: `family_group`, `family_relationship`, `family_head_history`,
+  `family_transition_history`, `family_link` — the last stores only direct
+  parent/spouse edges; every other kinship term is computed dynamically) and Membership DDL
+  (12 tables: `sangha_sevi` plus
   status/renewal/transfer/affiliation/journey/review history tables, `parichaya_patra`/
   `anumati_patra` and their history tables) under `database/ddl/04_family/`/`05_membership/`
+* New `database/migrations/` folder (narrow ad-hoc data-fix scripts, not a schema-migration
+  tool) and two standalone `database/seed/99_*.sql` verification-data scripts (manual-run only)
 * New consolidated `docs/03_Solution/api/API_CONTRACT.md` (cross-tier reference, Tiers 0-4,
-  42 endpoints total) and security-audit docs moved from `code_explanations/` to a dedicated
+  46 endpoints total) and security-audit docs moved from `code_explanations/` to a dedicated
   `docs/03_Solution/security/` folder (now including `TIER4_SECURITY_AUDIT.md`)
+* New `tests/test_data_integrity.py` (23 tests) — cross-module smoke tests verifying every
+  module has at least one active entity
 * Implemented on `feature/tier4-family-membership` — not yet committed/merged or released
   (target `v0.10.0`)
 * Global Location Model
@@ -743,18 +763,18 @@ Current Focus:
 * Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
   documented modules — every module now has a complete (or largely complete) design. Five
   modules have real SQL implementation (Foundation: 12 tables; Organization: 1 table; Person:
-  2 tables; Family: 4 tables; Membership: 12 tables) — 31 tables total, plus Bootstrap RBAC's
-  3 tables (34 total), plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full
+  2 tables; Family: 5 tables; Membership: 12 tables) — 32 tables total, plus Bootstrap RBAC's
+  3 tables (35 total), plus the Tier 0 FastAPI bootstrap-RBAC API. Foundation has a full
   Tier 1 API + Web UI (17 endpoints, 59 tests), released as v0.7.0. Organization has a full
-  Tier 2 API + Web UI (6 endpoints, 64 tests), released as v0.8.0. Person now also has a full
+  Tier 2 API + Web UI (7 endpoints, 72 tests), released as v0.8.0 (the 7th endpoint,
+  `/children-stats`, was added later on top of Tier 4). Person now also has a full
   Tier 3 API + Web UI (4 endpoints, 61 tests), released as v0.9.0. Also in v0.9.0: the
   Organization master-data migration retiring `organization_type_master`/
   `organization_status_master` in favor of Foundation's `master_category`/`master_data`.
-  Family and Membership now also have a full Tier 4 API + Web UI (4 + 7 endpoints, 51 + 99
-  tests) — implemented on `feature/tier4-family-membership`, not yet committed, merged, or
-  released (target `v0.10.0`). **363 tests total** across the whole suite (2 known failing
-  tests — `test_kumari_transition_has_event` and
-  `test_organization.py::test_list_returns_13_statuses`, see `docs/PROJECT_DOCUMENTATION.md` →
+  Family and Membership now also have a full Tier 4 API + Web UI (7 + 7 endpoints, 67 + 99
+  tests — 46 endpoints total across all tiers) — implemented on `feature/tier4-family-membership`, not yet committed, merged, or
+  released (target `v0.10.0`). **410 tests total** across the whole suite (1 known failing
+  test — `test_kumari_transition_has_event`, see `docs/PROJECT_DOCUMENTATION.md` →
   Conventions & gotchas). No release doc has been created yet for the module-documentation
   backlog beyond these five.
 
@@ -770,7 +790,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables) | Done | Done (17 endpoints) | Done (Foundation Verification) | -- |
 | **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (6 endpoints) | Done (Organization Verification) | -- |
 | **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints) | Done (Person Verification) | -- |
-| **4** | Family, Membership | Family groups/relationships (4 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Implemented* | Implemented* (11 endpoints) | Implemented* | -- |
+| **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Implemented* | Implemented* (14 endpoints) | Implemented* | -- |
 | **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | Not started | Not started | Not started | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
 | **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
@@ -804,9 +824,12 @@ release document under `docs/05_Releases/` before the next tier begins.
 Next Release Target:
 
 ```text
-v0.10.0 — Tier 4 Family + Membership: family DDL + API (4 endpoints) + Web UI, membership DDL
-(sangha_sevi, three-tier identity model) + API (7 endpoints) + Web UI. Implementation is
-complete on `feature/tier4-family-membership` (51 + 99 tests) — not yet committed, merged to
+v0.10.0 — Tier 4 Family + Membership: family DDL (5 tables, incl. a graph-edge table) + API
+(7 endpoints, incl. dynamic relationship-graph and Sakha-alignment computation) + Web UI,
+membership DDL (sangha_sevi, three-tier identity model) + API (7 endpoints) + Web UI, plus a
+new Organization `/children-stats` endpoint (Tier 2's count grows 6→7) and a shared
+frontend badge/config layer. Implementation is
+complete on `feature/tier4-family-membership` (67 + 99 tests, 46 endpoints total) — not yet committed, merged to
 `develop`, or tagged.
 ```
 
@@ -819,16 +842,18 @@ NSS_ERP
 │
 ├── api
 │   ├── routers              (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py)
-│   └── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py)
+│   ├── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py)
+│   └── services              (family_graph.py — BFS relationship computation)
 │
 ├── frontend                (Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person + Tier 4 Family + Tier 4 Membership Verification UIs, served by FastAPI)
-│   └── assets
+│   └── assets               (shared js/nss-config.js + css/badges.css, plus per-page files)
 │
 ├── backend                (empty — earlier Django prototype archived and removed)
 │
 ├── database
 │   ├── ddl
 │   ├── seed
+│   ├── migrations           (narrow ad-hoc data-fix scripts, not a schema-migration tool)
 │   └── scripts
 │
 ├── tests                  (pytest integration tests)

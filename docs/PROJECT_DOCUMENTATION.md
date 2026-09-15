@@ -31,17 +31,17 @@ of all four modules' own design decisions remain open (see Gotchas).
 
 The codebase today is an early-stage skeleton: a Tier 0 + Tier 1 + Tier 2 + Tier 3 + Tier 4
 FastAPI application (`api/`) exposing 4 read-only bootstrap-RBAC endpoints plus 17 read-only
-Foundation endpoints plus 6 read-only Organization endpoints plus 4 read-only Person endpoints
-plus 4 read-only Family endpoints plus 7 read-only Membership endpoints (42 endpoints total; no
+Foundation endpoints plus 7 read-only Organization endpoints plus 4 read-only Person endpoints
+plus 7 read-only Family endpoints plus 7 read-only Membership endpoints (46 endpoints total; no
 ORM, no
 auth, raw `psycopg2` against `nss.*`) behind
 a cross-tier security middleware stack (security headers, opt-in CORS, rate limiting — see
 Architecture below), a growing raw-SQL PostgreSQL schema (Bootstrap RBAC: 3
-tables; Foundation: 12 tables; Organization: 1 table; Person: 2 tables; Family: 4 tables;
-Membership: 12 tables — 34 tables implemented,
+tables; Foundation: 12 tables; Organization: 1 table; Person: 2 tables; Family: 5 tables;
+Membership: 12 tables — 35 tables implemented,
 plus one superseded Person prototype file (`01_person_master_tables.sql`); see the `database/`
 detail below), a `tests/` pytest
-suite (363 integration tests against a real local Postgres, 2 known failing tests — see
+suite (410 integration tests against a real local Postgres, 1 known failing test — see
 Conventions & Gotchas), and an extensive, mature
 governance/documentation corpus that is significantly ahead of the code. Solution-layer design
 documentation (`docs/03_Solution/modules/`) is complete or near-complete across 22 module
@@ -140,33 +140,42 @@ security headers
   mocked); all tests carry the custom `integration` marker. `test_bootstrap.py` (21 tests, 5
   classes) and `test_foundation.py` (59 tests, 13 classes) cover every implemented endpoint,
   plus two contract-guard regression tests (`sequences.current_value` never exposed;
-  `/api/v1/foundation/change-log` returns 404/405, not real data); `test_organization.py` (64
-  tests, 7 classes) covers every Organization endpoint (types, statuses, organizations
-  list/detail/children, hierarchy) plus contact/online-presence fields, `limit`/`offset`
+  `/api/v1/foundation/change-log` returns 404/405, not real data); `test_organization.py` (72
+  tests, 8 classes) covers every Organization endpoint (types, statuses, organizations
+  list/detail/children, hierarchy, and the newer `/children-stats` via `TestChildrenStats`)
+  plus contact/online-presence fields, `limit`/`offset`
   pagination on both `/organizations` and `/hierarchy`, and a UI/security suite;
   `test_person.py` (61 tests, 6 classes: `TestPersonList`, `TestPersonDetail`,
   `TestPersonAddresses`, `TestPersonSearch`, `TestPersonSecurity`, `TestPersonUI`) covers every
   Person endpoint including the pg_trgm `/search` fuzzy match and guarantees
   `aadhaar_encrypted`/`aadhaar_hash` are never returned — as of Tier 4's verification seed data
-  (`database/seed/03_person/02_tier4_verification_persons.sql`, 8 rows) some previously
+  (`database/seed/03_person/02_tier4_verification_persons.sql`, now 13 rows and growing via
+  `database/seed/99_extended_test_data.sql`) some previously
   skip-guarded tests now run for real; `test_security.py` (8 tests,
   3 classes) covers the security middleware — 5 header/Cache-Control assertions, 1 rate-limit
   429 test (loops requests against `/api/v1/bootstrap/health` until the default `60/minute`
   limit trips, resetting `limiter.reset()` via an autouse fixture between tests), and 2 CORS
   tests (both asserting *absence* of `Access-Control-Allow-Origin` under the default empty
-  `CORS_ORIGINS`); `test_family.py` (51 tests) covers every Family endpoint (list/filters,
-  detail, members, head history); `test_membership.py` (99 tests, the largest test file in the
+  `CORS_ORIGINS`); `test_family.py` (67 tests, 8 classes — including newer
+  `TestOrgAdminFamilyFilter` and `TestSakhaAlignment` classes) covers every original Family
+  endpoint (list/filters,
+  detail, members, head history) plus Sakha-alignment, but has **zero coverage** for the two
+  newest endpoints, `/graph` and `/person/{pk}/membership-summary`; `test_membership.py` (99 tests, the largest test file in the
   repo) covers every Membership endpoint including the three-tier identity model (Sangha Sevi
   ID / Local Sakha Number / Kendra Number), the 7-field member search and 4-field person
   search, and the `re.split(r'[.@]', q)[0]` email-split rule that keeps trigram search from
   producing false positives on email-shaped queries — Person's `/search` gained the identical
-  email-split rule and an `email` field after Family/Membership landed. **363 tests total, 2
-  known failing tests**: `test_kumari_transition_has_event` (the `SS5` Membership seed row
+  email-split rule and an `email` field after Family/Membership landed; `test_data_integrity.py`
+  (23 tests, 6 classes) is a new cross-module smoke-test suite asserting every module
+  (Bootstrap/Foundation/Organization/Person/Family/Membership) has at least one active entity,
+  with no hardcoded IDs/counts beyond "at least 1" — designed to catch empty-table scenarios
+  that per-module tests might silently pass through. **410 tests total, 1
+  known failing test**: `test_kumari_transition_has_event` (the `SS5` Membership seed row
   needs a
-  `KUMARI_TRANSITION` journey event it doesn't have) and
-  `test_organization.py::test_list_returns_13_statuses` (asserts the old unfiltered `STATUS`
-  count; `/statuses` now filters by `applicable_modules` and returns 7) — see Conventions &
-  Gotchas for both.
+  `KUMARI_TRANSITION` journey event it doesn't have — the earlier
+  `test_organization.py::test_list_returns_13_statuses` failure was fixed alongside the
+  `/children-stats` work) — see Conventions &
+  Gotchas.
 - **Auth:** none. Tier 0 is explicitly read-only, unauthenticated, by design — RBAC/JWT/OTP
   enforcement is deferred to a later tier, even though
   `docs/00_Project_Governance/STD/05_security_standards.md` specifies a full RBAC +
@@ -364,35 +373,41 @@ Foundation `master_data` pattern as Organization (gender/marital_status/blood_gr
 address_type resolve through `master_data`, not dedicated per-domain master tables). Only
 `01_person_master_tables.sql` (the original per-domain gender/marital_status/address_type
 master tables) remains superseded — its data now lives in Foundation's `master_data` seed.
-`database/ddl/04_family/` (4 tables: `family_group`, `family_relationship`,
-`family_head_history`, `family_transition_history`) and `database/ddl/05_membership/` (12
+`database/ddl/04_family/` (5 tables: `family_group`, `family_relationship`,
+`family_head_history`, `family_transition_history`, `family_link` — the last stores only
+direct `PARENT_OF`/`SPOUSE_OF` edges between two persons; every other kinship term is computed
+dynamically via BFS graph traversal, see Key Workflow #6) and `database/ddl/05_membership/` (12
 tables: `sangha_sevi` plus status/renewal/transfer/affiliation/journey/review history tables,
 `parichaya_patra`/`anumati_patra` and their history tables) are both real, implemented DDL too.
 Tier 0's API phase is **implemented** (4 read-only bootstrap-RBAC endpoints in
 `api/routers/bootstrap.py`). Tier 1's API phase (Foundation) is **implemented** — 17 read-only
 endpoints across 11 tables in `api/routers/foundation.py`, with a matching Foundation
 Verification UI (`frontend/foundation.html`) and 59 pytest integration tests — merged to `main`
-and tagged as v0.7.0. Tier 2's API phase (Organization) is **implemented** — 6 read-only
+and tagged as v0.7.0. Tier 2's API phase (Organization) is **implemented** — originally 6,
+now 7 read-only
 endpoints (reference data, organizations list/detail/children with `limit`/`offset` pagination,
+a new `/children-stats` aggregate-counts endpoint added on top of Tier 4 (see Key Workflow #6),
 a recursive-CTE `/hierarchy`, also paginated) in `api/routers/organization.py`, with a matching
 Organization Verification UI (`frontend/organization.html`) — merged to `main` and tagged as
-v0.8.0. Tier 3's API phase (Person) is **implemented and released** — 4 read-only
+v0.8.0 (the 7th endpoint is a later, still-uncommitted addition). Tier 3's API phase (Person) is **implemented and released** — 4 read-only
 endpoints (`/persons` list with gender/marital-status/blood-group filters + pagination,
 `/persons/{person_pk}` detail, `/persons/{person_pk}/addresses`, `/search?q=` pg_trgm fuzzy
 search) in `api/routers/person.py`, a matching Person Verification UI (`frontend/person.html`)
 — merged to `main` and tagged as v0.9.0, alongside the Organization master-data migration (see
 Key Workflow #4). Tier 4's API phase (Family + Membership) is **implemented but uncommitted**
-— 4 read-only Family endpoints (`api/routers/family.py`: `/families` list, detail, members,
-head history) and 7 read-only Membership endpoints (`api/routers/membership.py`: `/members`
+— 7 read-only Family endpoints (`api/routers/family.py`: `/families` list, detail, members,
+head history, plus `/graph`, `/sakha-alignment`, `/person/{pk}/membership-summary` — see Key
+Workflow #6) and 7 read-only Membership endpoints (`api/routers/membership.py`: `/members`
 list, detail, `/search` (7-field), Sakha affiliation history, Parichaya Patra, Anumati Patra,
 journey-event timeline — see Key Workflow #6), each with a matching Verification UI
 (`frontend/family.html`, `frontend/membership.html`). This work sits entirely uncommitted in
 the working tree on branch `feature/tier4-family-membership` — not yet staged, committed,
-merged to `develop`/`main`, or tagged (contrast with Tiers 1-3, all released). A combined 363
-pytest integration tests now exist across all five tiers (21 bootstrap + 59 foundation + 64
-organization + 61 person + 8 security + 51 family + 99 membership); two,
-`test_kumari_transition_has_event` and `test_organization.py::test_list_returns_13_statuses`,
-currently fail (see Conventions & Gotchas). All
+merged to `develop`/`main`, or tagged (contrast with Tiers 1-3, all released). A combined 410
+pytest integration tests now exist across all five tiers (21 bootstrap + 59 foundation + 72
+organization + 61 person + 8 security + 67 family + 99 membership + 23 cross-module integrity);
+one,
+`test_kumari_transition_has_event`,
+currently fails (see Conventions & Gotchas). All
 other API phases and all other UI phases remain **unimplemented** across the remaining tiers.
 
 ### Database schema
@@ -505,7 +520,7 @@ api/
 │   │                   `field_change_log` deliberately not exposed (deferred to Tier 5 — needs
 │   │                   auth); see Key workflows below and
 │   │                   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`
-│   ├── organization.py 6 endpoints under `/api/v1/organization` across `nss.organization` plus
+│   ├── organization.py 7 endpoints under `/api/v1/organization` across `nss.organization` plus
 │   │                   Foundation's `master_data` — reference (`/types`, `/statuses`, both
 │   │                   querying `master_data` filtered by `master_category.category_code`
 │   │                   `ORGANIZATION_TYPE`/`STATUS` — 10 types; `/statuses` additionally
@@ -513,9 +528,15 @@ api/
 │   │                   of the category's 16 total values, not all of them), core
 │   │                   (`/organizations` with optional `type_code`/`status_code` filters plus
 │   │                   `limit`/`offset` pagination, `/organizations/{organization_pk}`,
-│   │                   `/organizations/{organization_pk}/children`), navigation (`/hierarchy`,
+│   │                   `/organizations/{organization_pk}/children`), a newer aggregate-stats
+│   │                   endpoint (`/organizations/{organization_pk}/children-stats` — per-child
+│   │                   family/member/person counts via a recursive CTE that also applies the
+│   │                   FAM-036 majority-rule "effective Sakha" computation, **duplicated**
+│   │                   verbatim from Family's identical CTE rather than shared — see Gotchas;
+│   │                   this CTE also has no depth-cap guard, unlike `/hierarchy` below), and the
+│   │                   self-referencing tree (`/hierarchy`,
 │   │                   a `WITH RECURSIVE org_tree` CTE returning a flat depth-annotated list,
-│   │                   also paginated); all four organization-shaped endpoints share one SQL
+│   │                   also paginated, **with** a depth-cap guard); all four organization-shaped endpoints share one SQL
 │   │                   fragment (`_ORG_SELECT`) that LEFT JOINs the self-referencing parent plus
 │   │                   Foundation's district/state/country/city_village/postal_code tables; see
 │   │                   Key workflows below and
@@ -532,10 +553,19 @@ api/
 │   │                   by similarity, capped at 50 results); `aadhaar_encrypted`/`aadhaar_hash` are
 │   │                   never returned (PER-BR-081) — only `aadhaar_last4` is exposed for masked
 │   │                   display; see `docs/03_Solution/api/PERSON_API_CONTRACT.md`
-│   ├── family.py       4 endpoints under `/api/v1/family` across all 4 Family tables —
+│   ├── family.py       7 endpoints under `/api/v1/family` across all 5 Family tables —
 │   │                   `/families` list (filters + pagination), `/families/{family_pk}` detail,
 │   │                   family members (relationships per family), family head history per
-│   │                   family; no dedicated per-tier contract doc — documented in the
+│   │                   family, plus 3 newer endpoints: `/families/{family_pk}/graph?viewer_person_pk=`
+│   │                   (dynamic relationship-label computation via BFS traversal over
+│   │                   `nss.family_link` edges, delegated to `api/services/family_graph.py` —
+│   │                   **no test coverage**), `/families/{family_pk}/sakha-alignment` (FAM-036
+│   │                   majority-rule "effective Sakha", with `is_aligned` hardcoded `True` by
+│   │                   design since the returned Sakha is always the computed majority — see
+│   │                   Key Workflow #6), and `/person/{person_pk}/membership-summary` (bridges
+│   │                   family context to membership context — **no test coverage**); the
+│   │                   module's own docstring is stale (still says "4 endpoints across 3
+│   │                   Family tables"); no dedicated per-tier contract doc — documented in the
 │   │                   consolidated `docs/03_Solution/api/API_CONTRACT.md` instead (see Key
 │   │                   workflows below)
 │   └── membership.py   7 endpoints under `/api/v1/membership` across all 12 Membership tables
@@ -552,13 +582,21 @@ api/
 │                       similarity, to avoid false positives from long literal strings; no
 │                       dedicated per-tier contract doc — documented in the consolidated
 │                       `docs/03_Solution/api/API_CONTRACT.md` instead
+├── services/           New layer (Tier 4), distinct from `routers`/`schemas` — pure Python
+│   └── family_graph.py business logic with no direct DB access. Builds an in-memory graph from
+│                       `family_link` rows (`build_family_graph()`), then computes relationship
+│                       labels relative to any viewer via BFS over `UP`/`DOWN`/`SPOUSE` steps
+│                       (`compute_relationships()`), using a `PATH_LABELS` lookup table keyed by
+│                       step-tuples with gendered (male_label, female_label) pairs — e.g.
+│                       `(Step.UP, Step.UP)` → ("Grandfather", "Grandmother"). Called by
+│                       `api/routers/family.py`'s `/graph` endpoint.
 └── schemas/
     ├── bootstrap.py    Pydantic response models (RoleResponse, PermissionResponse,
     │                    HealthResponse); audit columns deliberately excluded from the contract
     ├── foundation.py   11 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
     │                    one per exposed table/view; excludes audit columns plus
     │                    `current_value` (sequences) and unimplemented FK columns (documents)
-    ├── organization.py 4 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
+    ├── organization.py 5 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
     │                    OrganizationTypeResponse, StatusResponse (renamed from
     │                    `OrganizationStatusResponse` now that it backs the unified,
     │                    cross-module `STATUS` master-data category rather than an
@@ -569,7 +607,8 @@ api/
     │                    `youtube_channel_url` with NSS-wide DB defaults — plus resolved
     │                    type/status/parent names and Foundation geography names),
     │                    OrganizationHierarchyNodeResponse (leaner, no contact/geography fields,
-    │                    matching `/hierarchy`'s narrower SQL); excludes audit columns
+    │                    matching `/hierarchy`'s narrower SQL), OrgChildStatsResponse (per-child
+    │                    family/member/person counts, backing `/children-stats`); excludes audit columns
     ├── person.py       3 plain Pydantic models (no `from_attributes`, raw psycopg2 dicts) —
     │                    PersonResponse (full detail: demographics + resolved gender/
     │                    marital_status/blood_group/emergency_relationship names, masked
@@ -578,8 +617,14 @@ api/
     │                    (resolved address_type plus city_village/postal_code/district/state/
     │                    country chain via the `city_village_postal_code_map` junction);
     │                    excludes audit columns
-    ├── family.py       3 plain Pydantic models — FamilyGroupResponse, FamilyMemberResponse,
-    │                    FamilyHeadHistoryResponse; excludes audit columns
+    ├── family.py       8 plain Pydantic models — FamilyGroupResponse, FamilyMemberResponse
+    │                    (gained an `is_head` field), FamilyHeadHistoryResponse, plus 5 newer
+    │                    models backing the graph/alignment endpoints:
+    │                    FamilyGraphMemberResponse (adds `relationship_label`/`generation`/
+    │                    `spouse_person_pk`/`parent_person_pks` on top of the base person
+    │                    fields), PersonMembershipSummaryResponse, SakhaAffiliationCount,
+    │                    MemberSakhaInfo, FamilySakhaAlignmentResponse (`is_aligned` hardcoded
+    │                    `True`); excludes audit columns
     └── membership.py   5 plain Pydantic models — MemberResponse, SakhaAffiliationResponse,
                          ParichayaPatraResponse, AnumatiPatraResponse, JourneyEventResponse;
                          excludes audit columns
@@ -617,7 +662,11 @@ frontend/
 │                        Reference Data (org types + statuses), Organizations (list filterable by
 │                        `type_code`/`status_code`, click-to-drill-down into a selected org's
 │                        `/children`), Hierarchy (the flat recursive-CTE result rendered as an
-│                        indented tree via `depthIndent(depth)`); nav bar links to `/`,
+│                        indented tree via `depthIndent(depth)`); note the newer
+│                        `/children-stats` endpoint's own docstring claims org-admin-sidebar UI
+│                        wiring for inline drill-down counts, but no such wiring actually exists
+│                        in this file or `organization.js` yet — a real implementation gap; nav bar
+│                        links to `/`,
 │                        `/foundation`, `/person`, `/family`, and `/membership`
 ├── person.html          Tier 3 Person Verification UI entry point — same System Status card,
 │                        then a 2-tab layout (`personApp()`, tabs `tabs-boxed`): Persons (list
@@ -628,11 +677,20 @@ frontend/
 │                        links to `/`, `/foundation`, `/organization`, `/family`, and
 │                        `/membership`
 ├── family.html          Tier 4 Family Verification UI entry point — same System Status card,
-│                        listing/filtering families (`familyApp()`) with a click-to-drill-down
-│                        detail panel showing members (relationships) and head history; nav bar
+│                        now a 3-panel layout (`familyApp()`): sidebar (family list, filterable),
+│                        a recursive family-tree renderer (`buildTree()`/`renderTree()`/
+│                        `_renderSubtree()`/`_renderCouple()`/`_renderPerson()`) consuming
+│                        `/families/{pk}/graph?viewer_person_pk=` — labels are computed
+│                        server-side by `api/services/family_graph.py`, not stored; a "View as"
+│                        viewer selector (`changeViewer()`) re-fetches `/graph` from a different
+│                        person's perspective; Sakha-alignment mismatch badges consuming
+│                        `/sakha-alignment` (`fetchSakhaAlignment()`, `isMemberSakhaMismatch()`);
+│                        and a Selected Person detail panel that also calls
+│                        `/person/{pk}/membership-summary` to bridge into membership context
+│                        (`selectPerson()`); nav bar
 │                        links to all other five pages
 ├── membership.html      Tier 4 Membership Verification UI entry point — the largest frontend
-│                        page (747 lines); `membershipApp()` drives a member list + detail panel
+│                        page (~840 lines); `membershipApp()` drives a member list + detail panel
 │                        (Sakha affiliation history, Parichaya Patra, Anumati Patra, journey
 │                        timeline) plus a search tab implementing the 7-field member search and
 │                        4-field person search (inline detail panel on selection, single-result
@@ -640,7 +698,24 @@ frontend/
 │                        all other five pages
 ├── assets/
 │   ├── css/style.css   One rule: hides `[x-cloak]` elements until Alpine.js initializes
+│   ├── css/badges.css  **New (Tier 4)** — single source of truth for every
+│   │                   `badge-status-*`/`badge-type-*`/`badge-aff-*`/`badge-gender-*`/
+│   │                   `badge-marital`/`badge-role-*` CSS class, plus `.data-sevi-id`/
+│   │                   `.data-erp-no`/`.data-kendra-no`/`.data-family-id`/`.data-label`
+│   │                   typographic classes for the three-tier identity display. All 6 pages
+│   │                   now `<link>` this in `<head>` and their old duplicate inline
+│   │                   `badge-status-*` `<style>` blocks were removed — verified zero leftover
+│   │                   duplication across all 6 HTML files. Convention: pages must NOT redefine
+│   │                   these classes locally.
 │   ├── img/nss-logo.png NSS logo, copied from `NSS LOGO/logooo.png`
+│   ├── js/nss-config.js **New (Tier 4)** — global `NSS` object, shared by all 6 pages:
+│   │                   `TYPE_DISPLAY_NAMES` (Bye-Law display overrides — `PROBATIONARY` →
+│   │                   "Darshaka" — overriding `master_data.value_name` for portal display),
+│   │                   badge-class lookup maps (`STATUS_BADGE_MAP`, `TYPE_BADGE_MAP`,
+│   │                   `AFF_BADGE_MAP`, `GENDER_BADGE_MAP`) with helper methods
+│   │                   (`typeDisplayName()`, `statusBadgeClass()`, etc.), and document-visibility
+│   │                   rules (`showParichayaPatra()` always `true`; `showAnumatiPatra()` false
+│   │                   for `ASSOCIATE` type, per MBR-019A/B)
 │   ├── js/app.js        Defines `bootstrapApp()` — Alpine data component with health/roles/
 │   │                    permissions/selectedRole state and fetch methods against
 │   │                    `/api/v1/bootstrap/*` (relative paths, `API_BASE = "/api/v1/bootstrap"`)
@@ -652,7 +727,8 @@ frontend/
 │   │                       "/api/v1/organization"`; lazily loads each tab's data on first visit
 │   │                       (`loadReferenceTab()`/`loadOrganizationsTab()`/`loadHierarchyTab()`);
 │   │                       `selectOrganization()` toggles a row and fetches its `/children`;
-│   │                       `filterOrganizations()` re-fetches on `type_code`/`status_code` change
+│   │                       `filterOrganizations()` re-fetches on `type_code`/`status_code` change;
+│   │                       has no reference to `/children-stats` (see `organization.html` note above)
 │   ├── js/person.js     Defines `personApp()` — Alpine data component, `PERSON_API =
 │   │                    "/api/v1/person"`; `fetchFilterOptions()` uses `Promise.allSettled` (the
 │   │                    only such usage in the codebase) since gender/marital-status/blood-group
@@ -662,12 +738,15 @@ frontend/
 │   │                    detail panel; `executeSearch()` is debounced (the only debounced fetch in
 │   │                    the codebase) against `/search?q=`
 │   ├── js/family.js     Defines `familyApp()` — Alpine data component, `FAMILY_API =
-│   │                    "/api/v1/family"`; list/filter + detail-panel pattern matching
-│   │                    `organizationApp()`/`personApp()`
+│   │                    "/api/v1/family"`; grew substantially in Tier 4 (from a simple
+│   │                    list/filter/detail component to ~850 lines) to add the recursive
+│   │                    tree-rendering functions, the viewer-selector, and Sakha-alignment
+│   │                    fetch/mismatch-detection logic described in `family.html` above
 │   └── js/membership.js Defines `membershipApp()` — Alpine data component, `MEMBERSHIP_API =
 │                        "/api/v1/membership"`; the 7-field member search and 4-field person
 │                        search share the same debounced-fetch/inline-detail-panel pattern
-│                        `personApp()` established
+│                        `personApp()` established; delegates badge-class/display-name lookups
+│                        to the new shared `NSS.*` helpers instead of local logic
 └── README.md            Full file/function/state-property reference for all six pages — see it
                           directly for detail rather than duplicating it here
 ```
@@ -849,11 +928,13 @@ database/
 │   │                                   lookups, no pagination in Tier 1), full endpoint
 │   │                                   catalogue with example responses, response-schema
 │   │                                   summary, error table, implementation file map
-│   └── ORGANIZATION_API_CONTRACT.md   v1.0, DRAFT — Tier 2 Organization read-only API
-│                                       contract: 6 endpoints (`types`, `statuses`,
-│                                       `organizations` list/detail/children, `hierarchy`) over 3
-│                                       tables, carrying forward Tier 0/1's conventions plus the
-│                                       recursive-CTE `/hierarchy` pattern
+│   └── ORGANIZATION_API_CONTRACT.md   v1.2, DRAFT — Tier 2 Organization read-only API
+│                                       contract: 7 endpoints (`types`, `statuses`,
+│                                       `organizations` list/detail/children, `children-stats`,
+│                                       `hierarchy`) over 1
+│                                       table plus Foundation `master_data`, carrying forward Tier 0/1's conventions plus the
+│                                       recursive-CTE `/hierarchy` pattern and (v1.2) the FAM-036
+│                                       majority-rule aggregate-stats endpoint
 ├── standards/
 │   └── lifecycle/         SOL-LIFE-001 (PARTICIPATION_LIFECYCLE_RULES.md), SOL-LIFE-002 (PERSON_LIFECYCLE_RULES.md), both FROZEN v1.0.0 — a SOLUTION-layer standards path distinct from the governance-layer docs/00_Project_Governance/STD/, not yet cross-referenced from either README or from the Sevak/Mahila/Kumari module docs that should cite SOL-LIFE-001 (see Gotchas)
 ├── architecture/
@@ -932,7 +1013,7 @@ and verification UI (`frontend/foundation.html`); Organization's Solution-layer 
 is **no longer** matched 1:1 in SQL — only 1 physical table (`organization`) remains, with type/
 status now sourced from Foundation's `master_data` (see Key Workflow #4 and Gotchas) — but it
 still has a full read-only API
-(`api/routers/organization.py`, 6 endpoints) and verification UI
+(`api/routers/organization.py`, 7 endpoints) and verification UI
 (`frontend/organization.html`) — both are complete DB→API→UI vertical slices, released as
 v0.7.0 (Foundation) and v0.8.0 (Organization). The only other implemented API surface in the codebase is the Tier 0
 bootstrap-RBAC router (`api/routers/bootstrap.py`), which isn't one of the 22 Solution-layer
@@ -969,8 +1050,8 @@ summarize the full sequence from a clean machine to a running API.
    6. `04_grant_backend.sql` (as `nss_db_owner`) — grants `nss_db_backend` read-only `SELECT` on
       all `nss.*` tables (plus future tables via `ALTER DEFAULT PRIVILEGES`), for the API layer.
 
-   The build covers 34 tables across 6 modules (3 Bootstrap RBAC + 12 Foundation + 1
-   Organization + 2 Person + 4 Family + 12 Membership); only `03_person/01_person_master_tables.sql`
+   The build covers 35 tables across 6 modules (3 Bootstrap RBAC + 12 Foundation + 1
+   Organization + 2 Person + 5 Family + 12 Membership); only `03_person/01_person_master_tables.sql`
    is superseded (its
    seed data now lives in Foundation's `master_data`) and is skipped — `02_person.sql`/
    `03_person_address.sql` and all of `04_family/`/`05_membership/` are real, built DDL.
@@ -978,8 +1059,9 @@ summarize the full sequence from a clean machine to a running API.
    Membership DDL plus Tier 4 verification seed and the grant step, but `02_build.ps1` was not
    updated to match — the two are no longer operationally identical, contradicting the rule
    below; fix `.ps1` before relying on it for a Windows Tier 3/4 bootstrap. Also,
-   `03_validate.sh`/`.ps1` now report false failures — they hardcode `organization` = 3 rows and
-   `person` = 0 rows, both of which grow once the Tier 4 verification seed step runs, and there
+   `03_validate.sh`/`.ps1` now report false failures — they hardcode `organization` = 3 rows,
+   `person` = 0 rows, and `master_data` = 82 rows (real count 88 and rising); the first two
+   grow once the Tier 4 verification seed step runs, and there
    are no Family/Membership checks yet at all.
    This raw-SQL schema **is** now consumed — read-only — by the
    FastAPI Tier 0 endpoints, so this step is required before starting the API.
@@ -1015,32 +1097,34 @@ summarize the full sequence from a clean machine to a running API.
    `GET /api/v1/bootstrap/permissions`, `GET /api/v1/bootstrap/roles/{role_pk}/permissions`.
    Tier 1 endpoints (read-only, no authentication) — 17 endpoints under `/api/v1/foundation/*`;
    see `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` for the full catalogue.
-   Tier 2 endpoints (read-only, no authentication) — 6 endpoints under `/api/v1/organization/*`
+   Tier 2 endpoints (read-only, no authentication) — 7 endpoints under `/api/v1/organization/*`
    (`/types`, `/statuses`, `/organizations`, `/organizations/{organization_pk}`,
-   `/organizations/{organization_pk}/children`, `/hierarchy`); see
+   `/organizations/{organization_pk}/children`, `/organizations/{organization_pk}/children-stats`,
+   `/hierarchy`); see
    `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` for the full catalogue.
    Tier 3 endpoints (read-only, no authentication) — 4 endpoints under `/api/v1/person/*`
    (`/persons`, `/persons/{person_pk}`, `/persons/{person_pk}/addresses`, `/search`); see
    `docs/03_Solution/api/PERSON_API_CONTRACT.md` for the full catalogue.
-   Tier 4 endpoints (read-only, no authentication, **uncommitted** — see Current position) — 4
+   Tier 4 endpoints (read-only, no authentication, **uncommitted** — see Current position) — 7
    Family endpoints under `/api/v1/family/*` (`/families`, `/families/{family_pk}`, members,
-   head history) and 7 Membership endpoints under `/api/v1/membership/*` (`/members`,
+   head history, `/graph`, `/sakha-alignment`, `/person/{person_pk}/membership-summary`) and 7 Membership endpoints under `/api/v1/membership/*` (`/members`,
    `/members/{member_pk}`, `/search`, Sakha affiliations, Parichaya Patra, Anumati Patra,
    journey events); see `docs/03_Solution/api/API_CONTRACT.md` (no dedicated per-tier contract
-   doc exists for Family/Membership).
+   doc exists for Family/Membership; 46 endpoints total across all tiers).
 
 5. **Run the tests** (from the repository root, once the database is built per step 2 and
    `api/.env` per step 3):
    ```
-   pytest                    # all tests (363, 2 known failing tests)
+   pytest                    # all tests (410, 1 known failing test)
    pytest -m integration     # integration-marked tests (currently all of them)
    pytest tests/test_bootstrap.py     # Tier 0 only (21 tests)
    pytest tests/test_foundation.py    # Tier 1 only (59 tests)
-   pytest tests/test_organization.py  # Tier 2 only (64 tests)
+   pytest tests/test_organization.py  # Tier 2 only (72 tests)
    pytest tests/test_person.py        # Tier 3 only (61 tests)
-   pytest tests/test_family.py        # Tier 4 only (51 tests)
+   pytest tests/test_family.py        # Tier 4 only (67 tests)
    pytest tests/test_membership.py    # Tier 4 only (99 tests)
    pytest tests/test_security.py      # cross-tier security middleware only (8 tests)
+   pytest tests/test_data_integrity.py # cross-module smoke tests (23 tests)
    ```
    Configured via `pytest.ini` (repo root: `testpaths = tests`, `integration` marker).
    `tests/conftest.py`'s `client` fixture wraps `fastapi.testclient.TestClient(app)` against the
@@ -1143,14 +1227,16 @@ physical schema — see Gotchas for the full reconciliation status (this diverge
 `FK_DEPENDENCY_GRAPH.md`, `DDL_CREATION_ORDER.md`, and the Governance Baseline's naming/master-
 data-catalogue docs too, none of which have been reconciled with this migration).
 
-**API now implemented.** `api/routers/organization.py` (prefix `/api/v1/organization`) exposes 6
-read-only GET endpoints — the same raw-`psycopg2`/`Depends(get_connection)` pattern as Tier 0/1.
+**API now implemented.** `api/routers/organization.py` (prefix `/api/v1/organization`) exposes 7
+read-only GET endpoints (its own module docstring is stale, still says "6") — the same raw-`psycopg2`/`Depends(get_connection)` pattern as Tier 0/1.
 Grouped by theme:
 - **Reference:** `/types`, `/statuses` — both now query Foundation's `nss.master_data` joined to
   `nss.master_category`, filtered by `category_code = 'ORGANIZATION_TYPE'` (10 active values) /
-  `'STATUS'` (13 active values, a unified cross-module category replacing the former
-  per-module `MEMBERSHIP_STATUS`/`ORGANIZATION_STATUS` split) respectively — no longer the
-  dedicated `organization_type_master`/`organization_status_master` tables. The response model
+  `'STATUS'` respectively — no longer the
+  dedicated `organization_type_master`/`organization_status_master` tables. `/statuses`
+  additionally filters by a newer `applicable_modules` column (added on top of Tier 4, see Key
+  Workflow #6) so it returns only the 7 Organization-applicable values out of the category's
+  16 total, not the full unified list. The response model
   for `/statuses` was renamed `StatusResponse` (from `OrganizationStatusResponse`) to reflect
   that it's no longer organization-specific.
 - **Core:** `/organizations` (optional `type_code`/`status_code` filters),
@@ -1161,9 +1247,19 @@ Grouped by theme:
   `status_master_data_pk`) for type/status and LEFT JOINs the self-referencing parent plus
   Foundation's `district`/`state`/`country`/`city_village`/`postal_code` tables (address fields
   are nullable, hence LEFT JOIN).
+- **Aggregate stats (added on top of Tier 4):** `/organizations/{organization_pk}/children-stats`
+  — for each direct child, recursively walks all descendant Sakhas and returns
+  `OrgChildStatsResponse` (family/member/person counts), reusing the same "effective Sakha"
+  majority-rule CTE Family's `/sakha-alignment` implements independently (see Key Workflow #6)
+  — the two CTEs are byte-for-byte duplicated, not shared via a helper. **This recursive CTE has
+  no depth-cap guard**, unlike `/hierarchy` below (`t.depth < 10`) — a circular parent reference
+  could recurse indefinitely. Its own docstring claims it's "used by the org admin sidebar to
+  display inline counts on each drill-down card," but no such consumer exists yet in
+  `frontend/organization.html`/`organization.js` — a real implementation gap between the
+  endpoint and its stated purpose.
 - **Navigation:** `/hierarchy` — a `WITH RECURSIVE org_tree` CTE (anchor:
   `parent_organization_pk IS NULL`; recursive leg joins `t.organization_pk =
-  o.parent_organization_pk`, tracking `depth`), returned as a flat list ordered by `depth,
+  o.parent_organization_pk`, tracking `depth`, capped at `depth < 10`), returned as a flat list ordered by `depth,
   organization_name` — the UI (`frontend/assets/js/organization.js`'s `depthIndent(depth)`)
   reconstructs the indented tree client-side rather than receiving nested JSON.
 
@@ -1177,11 +1273,13 @@ NSS-wide defaults are always populated, the org-specific overrides are always nu
 `OrganizationHierarchyNodeResponse` is deliberately leaner (no contact/geography fields) to match
 `/hierarchy`'s narrower SQL. Full contract in `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`;
 line-by-line walkthrough in `docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`.
-Verified via 64 pytest integration tests (`tests/test_organization.py`, 7 classes) plus a
+Verified via 72 pytest integration tests (`tests/test_organization.py`, 8 classes, incl. a newer
+`TestChildrenStats`) plus a
 dedicated security audit (`docs/03_Solution/security/TIER2_SECURITY_AUDIT.md` — moved from
 `code_explanations/` to a dedicated `security/` folder as part of the Tier 4 work).
 Consumed by `frontend/organization.html`'s 3-tab UI (see `frontend/` detail above). Merged to
-`main` and released as v0.8.0 (see "Current position" above).
+`main` and released as v0.8.0 (see "Current position" above) — the 7th endpoint,
+`/children-stats`, was added later, on top of Tier 4, and is still uncommitted.
 
 **Two freezes live outside this module's own doc set, not inside it:** (1) the business rules
 doc's freeze of exactly **8 organization types** — `KENDRA`, `NILACHALA_KUTIRA`,
@@ -1267,17 +1365,60 @@ design (both still `Version: 1.0, Status: DRAFT` — not yet reconciled to FROZE
 implemented DDL already matches their table/column shapes 1:1, unlike Person's docs which were
 reconciled to FROZEN v2.0.0 before its DDL landed). **As implemented:**
 
-**Family** (`database/ddl/04_family/`, 4 tables): `family_group` (the family unit itself),
+**Family** (`database/ddl/04_family/`, 5 tables): `family_group` (the family unit itself),
 `family_relationship` (per-member relationship to the family, e.g. `FATHER`/`MOTHER`/`SON`),
 `family_head_history` (who has headed the family and when — partial-unique-indexed so only one
-row per family can be current), and `family_transition_history` (family-level lifecycle
-transitions). `api/routers/family.py` (222 lines, prefix `/api/v1/family`) exposes 4 read-only
-GET endpoints: `/families` (list, filters, pagination), `/families/{family_pk}` (detail),
-family members (relationships per family), and family head history (per family). 3 Pydantic
-models in `api/schemas/family.py` (89 lines): `FamilyGroupResponse`, `FamilyMemberResponse`,
-`FamilyHeadHistoryResponse`. A matching Family Verification UI (`frontend/family.html` +
-`frontend/assets/js/family.js`, `familyApp()`) and 51 pytest integration tests
-(`tests/test_family.py`, 6 classes) exist.
+row per family can be current), `family_transition_history` (family-level lifecycle
+transitions), and `family_link` (added after the initial Tier 4 landing — see "Family Graph"
+below). `api/routers/family.py` (prefix `/api/v1/family`) exposes 7 read-only
+GET endpoints: the original 4 — `/families` (list, filters, pagination), `/families/{family_pk}` (detail),
+family members (relationships per family), and family head history (per family) — plus 3 newer
+ones described below. Its own module docstring is stale, still claiming "4 endpoints across 3
+Family tables." 8 Pydantic
+models in `api/schemas/family.py`: the original 3 (`FamilyGroupResponse`, `FamilyMemberResponse`
+— gained an `is_head` field —,
+`FamilyHeadHistoryResponse`) plus 5 newer ones (below). A matching Family Verification UI
+(`frontend/family.html` +
+`frontend/assets/js/family.js`, `familyApp()`) and 67 pytest integration tests
+(`tests/test_family.py`, 8 classes) exist.
+
+**Family Graph — dynamic relationship computation (added after the initial Tier 4 landing).**
+`database/ddl/04_family/05_family_link.sql` defines `nss.family_link`: a deliberately minimal
+edge table storing only direct `PARENT_OF` (directed) and `SPOUSE_OF` (bidirectional, stored
+once) relationships between two persons. Per its own header comment
+(`Authority: ERP-DECISION — Graph-based dynamic relationship model`), every other kinship term
+(grandfather, aunt, sister-in-law, ...) is computed on demand rather than stored — "when the
+Family Head changes, zero data re-entry is required — the graph is the same, only the viewer
+changes." The computation itself lives in a brand-new architectural layer, `api/services/`
+(previously the codebase had only `routers`/`schemas`): `api/services/family_graph.py` builds an
+in-memory graph from `family_link` rows (`build_family_graph()`) and computes relationship
+labels relative to any viewer via BFS over `UP`/`DOWN`/`SPOUSE` steps
+(`compute_relationships()`), using a `PATH_LABELS` table keyed by step-tuples with gendered
+(male_label, female_label) pairs — e.g. `(UP, UP)` → ("Grandfather", "Grandmother"). Exposed via
+`GET /families/{family_pk}/graph?viewer_person_pk=`, returning `list[FamilyGraphMemberResponse]`
+(person fields plus `relationship_label`, `generation`, `is_head`, `spouse_person_pk`,
+`parent_person_pks`). **`family_link` does not supersede `family_relationship`** — both tables
+coexist for different purposes: `family_relationship` still backs `/members`, `/sakha-alignment`,
+and head-history joins; `family_link` is read only by `/graph`. **No test coverage exists yet**
+for this endpoint. The frontend (`frontend/family.html`/`family.js`) grew substantially (from a
+simple list/filter/detail page to a 3-panel layout) to add a recursive tree renderer
+(`buildTree()`/`renderTree()`/`_renderSubtree()`/`_renderCouple()`/`_renderPerson()`) and a
+"View as" viewer selector (`changeViewer()`) that re-fetches `/graph` from a different person's
+perspective.
+
+**Sakha Alignment — FAM-036 majority rule (also added after the initial landing).**
+`GET /families/{family_pk}/sakha-alignment` computes a family's *effective* Sakha as whichever
+Sakha the majority of its members are actively affiliated with (falling back to the family's
+stored `sakha_organization_pk` if no member has an affiliation), returning
+`FamilySakhaAlignmentResponse` with per-member `is_home_sakha` mismatch flags. `is_aligned` is
+hardcoded `True` by design — the `assigned_sakha_*` fields returned *are* the computed majority,
+so alignment is tautological at the family level; individual mismatches still show up via
+`is_home_sakha`. The same underlying SQL (a `family_majority` CTE ranking each family's Sakha
+affiliations by `COUNT(*)` via `ROW_NUMBER() OVER (PARTITION BY family_group_pk ORDER BY
+COUNT(*) DESC)`) is **also used by `_FAMILY_SELECT`** (so even the plain `/families` list now
+reports the computed majority Sakha, not just the stored one) **and is duplicated verbatim** in
+`api/routers/organization.py`'s new `/organizations/{pk}/children-stats` endpoint (see Key
+Workflow #4 and Gotchas) — the two implementations share no helper.
 
 **Membership** (`database/ddl/05_membership/`, 12 tables — the largest module in the codebase):
 `sangha_sevi` (the core membership record, one per person, carrying the permanent NSS-wide
@@ -1301,54 +1442,53 @@ to Foundation's shared `STATUS` category (`RENEWAL_PENDING`, `ON_HOLD`, `DISCIPL
 bringing it to 16 values total (13→16), and gave `nss.master_data` a new
 `applicable_modules TEXT[]` column so each module's API can filter to its own relevant subset
 (`'<MODULE>' = ANY(applicable_modules)`, with `NULL` meaning "applies everywhere"). Every one of
-the 16 values is tagged with which module(s) it applies to — **four** module-scope values are
-in play, not three: `ORGANIZATION` (7: `PROPOSED`, `APPROVED`, `ACTIVE`, `INACTIVE`,
-`SUSPENDED`, `DISSOLVED`, `ARCHIVED`), `MEMBERSHIP` (11: `ACTIVE`, `INACTIVE`, `SUSPENDED`,
-`LAPSED`, `TRANSFERRED`, `RESIGNED`, `EXPELLED`, `ARCHIVED`, `RENEWAL_PENDING`, `ON_HOLD`,
-`DISCIPLINARY_REVIEW`), `PERSON` (4: `ACTIVE`, `INACTIVE`, `DECEASED`, `ARCHIVED`), and a
-`CREDENTIAL` scope (1: `EXPIRED`, for Parichaya Patra/Anumati Patra documents) that doesn't map
-to any of the three core Tier 0-4 modules at all. `DECEASED` is `{PERSON}`-only (a membership
-record itself can't be deceased — the person behind it can); `EXPIRED` is `{CREDENTIAL}`-only in
-`master_data`'s tagging, not `{MEMBERSHIP}` — but this is a *labelling* distinction, not a claim
-that credential expiry is unrelated to membership: a membership going stale because its holder
-never renewed their Parichaya Patra/Anumati Patra is exactly how expiry actually happens in
-practice (`parichaya_patra_history`/`anumati_patra_history` both record a `change_type`/
-`new_status` of `EXPIRED` alongside `ISSUED`/`RENEWED`/`CANCELLED`/`REPLACED`). The nuance is
-architectural: `parichaya_patra.status`/`anumati_patra.status` are each a plain `VARCHAR(20)`
-with their own inline `CHECK` constraint (`chk_pp_status`, values `ACTIVE`/`EXPIRED`/
-`CANCELLED`/`REPLACED`) — they are **not** FKs into `nss.master_data`, so the `master_data`
-`STATUS` row tagged `{CREDENTIAL}` isn't even the value these tables actually store; it exists
-as a reference/lookup entry (e.g. for a UI dropdown) parallel to, not backing, the credential
-tables' own hardcoded status enum. That's also why `EXPIRED` never appears as a
-`membership_status_history` value — a lapsed credential doesn't automatically flip
-`sangha_sevi`'s own status; that's presumably a business-rule/application-layer decision, not
-something enforced by a DB constraint today. `ACTIVE`/`INACTIVE`/`ARCHIVED` are the only 3
+the 16 values is tagged with which module(s) it applies to: `ORGANIZATION` (7: `PROPOSED`,
+`APPROVED`, `ACTIVE`, `INACTIVE`, `SUSPENDED`, `DISSOLVED`, `ARCHIVED`), `MEMBERSHIP` (12:
+`ACTIVE`, `INACTIVE`, `SUSPENDED`, `LAPSED`, `TRANSFERRED`, `RESIGNED`, `EXPELLED`, `ARCHIVED`,
+`EXPIRED`, `RENEWAL_PENDING`, `ON_HOLD`, `DISCIPLINARY_REVIEW`), and `PERSON` (4: `ACTIVE`,
+`INACTIVE`, `DECEASED`, `ARCHIVED`). `DECEASED` is `{PERSON}`-only (a membership record itself
+can't be deceased — the person behind it can); `EXPIRED` is tagged `{MEMBERSHIP}` (not a
+separate "Credential" scope — an earlier seed revision tagged it `{CREDENTIAL}` instead, which
+undersold the real relationship: a membership going stale because its holder never renewed
+their Parichaya Patra/Anumati Patra is exactly how expiry actually happens in practice, and
+`{MEMBERSHIP}` is the correct tag). `parichaya_patra_history`/`anumati_patra_history` both
+record a `change_type`/`new_status` of `EXPIRED` alongside `ISSUED`/`RENEWED`/`CANCELLED`/
+`REPLACED`. One architectural nuance remains: `parichaya_patra.status`/`anumati_patra.status`
+are each a plain `VARCHAR(20)` with their own inline `CHECK` constraint (`chk_pp_status`, values
+`ACTIVE`/`EXPIRED`/`CANCELLED`/`REPLACED`) — they are **not** FKs into `nss.master_data`, so the
+`master_data` `STATUS.EXPIRED` row isn't what these tables actually store; it's a parallel
+reference/lookup entry (e.g. for a UI dropdown) rather than the credential tables' backing
+value. That's also why `EXPIRED` never appears in `membership_status_history` — a lapsed
+credential doesn't automatically flip `sangha_sevi`'s own status; that's a business-rule/
+application-layer decision, not something enforced by a DB constraint today. `ACTIVE`/
+`INACTIVE`/`ARCHIVED` are the only 3
 `master_data` `STATUS` values shared across all of
 Organization/Membership/Person.
 
 **Unified `STATUS` category — full table, by applicable module** (`display_order` order,
-`✓` = tagged in `applicable_modules`; `EXPIRED` is stored separately as each credential table's
-own `CHECK`-constrained column, not read through this table — see note above):
+`✓` = tagged in `applicable_modules`; despite the name, `EXPIRED`'s actual storage for
+Parichaya/Anumati Patra documents is each table's own `CHECK`-constrained column, not read
+through this table — see note above):
 
-| # | `value_code` | Name | Org | Membership | Person | Credential | Description |
-|--:|---|---|:-:|:-:|:-:|:-:|---|
-| 1 | `PROPOSED` | Proposed | ✓ | | | | Entity proposed but not yet approved |
-| 2 | `APPROVED` | Approved | ✓ | | | | Approved by governance, pending activation |
-| 3 | `ACTIVE` | Active | ✓ | ✓ | ✓ | | Currently operational / active |
-| 4 | `INACTIVE` | Inactive | ✓ | ✓ | ✓ | | Temporarily non-operational |
-| 5 | `SUSPENDED` | Suspended | ✓ | ✓ | | | Suspended by governance decision |
-| 6 | `LAPSED` | Lapsed | | ✓ | | | Lapsed due to non-renewal or non-attendance (Bye-Law §D(d)) |
-| 7 | `TRANSFERRED` | Transferred | | ✓ | | | Transferred to another unit |
-| 8 | `RESIGNED` | Resigned | | ✓ | | | Voluntarily departed |
-| 9 | `EXPELLED` | Expelled | | ✓ | | | Expelled by governance decision (Bye-Law §D(d)(iii)) |
-| 10 | `DECEASED` | Deceased | | | ✓ | | Person is deceased (Bye-Law §D(d)(i)) |
-| 11 | `DISSOLVED` | Dissolved | ✓ | | | | Organization permanently dissolved (Bye-Law §I) |
-| 12 | `ARCHIVED` | Archived | ✓ | ✓ | ✓ | | Permanently closed, retained for history |
-| 13 | `EXPIRED` | Expired | | | | ✓ | Credential/document term has expired (Bye-Law §C(1)(c)) — Parichaya Patra/Anumati Patra |
-| 14 | `RENEWAL_PENDING` | Renewal Pending | | ✓ | | | Membership renewal requested, awaiting approval |
-| 15 | `ON_HOLD` | On Hold | | ✓ | | | Membership temporarily on hold (administrative) |
-| 16 | `DISCIPLINARY_REVIEW` | Disciplinary Review | | ✓ | | | Under disciplinary review by governance (Bye-Law §D(d)(iii)) |
-| | **Total per module** | | **7** | **11** | **4** | **1** | |
+| # | `value_code` | Name | Org | Membership | Person | Description |
+|--:|---|---|:-:|:-:|:-:|---|
+| 1 | `PROPOSED` | Proposed | ✓ | | | Entity proposed but not yet approved |
+| 2 | `APPROVED` | Approved | ✓ | | | Approved by governance, pending activation |
+| 3 | `ACTIVE` | Active | ✓ | ✓ | ✓ | Currently operational / active |
+| 4 | `INACTIVE` | Inactive | ✓ | ✓ | ✓ | Temporarily non-operational |
+| 5 | `SUSPENDED` | Suspended | ✓ | ✓ | | Suspended by governance decision |
+| 6 | `LAPSED` | Lapsed | | ✓ | | Lapsed due to non-renewal or non-attendance (Bye-Law §D(d)) |
+| 7 | `TRANSFERRED` | Transferred | | ✓ | | Transferred to another unit |
+| 8 | `RESIGNED` | Resigned | | ✓ | | Voluntarily departed |
+| 9 | `EXPELLED` | Expelled | | ✓ | | Expelled by governance decision (Bye-Law §D(d)(iii)) |
+| 10 | `DECEASED` | Deceased | | | ✓ | Person is deceased (Bye-Law §D(d)(i)) |
+| 11 | `DISSOLVED` | Dissolved | ✓ | | | Organization permanently dissolved (Bye-Law §I) |
+| 12 | `ARCHIVED` | Archived | ✓ | ✓ | ✓ | Permanently closed, retained for history |
+| 13 | `EXPIRED` | Expired | | ✓ | | Membership/document term has expired (Bye-Law §C(1)(c)) — set when a Parichaya Patra/Anumati Patra lapses from non-renewal |
+| 14 | `RENEWAL_PENDING` | Renewal Pending | | ✓ | | Membership renewal requested, awaiting approval |
+| 15 | `ON_HOLD` | On Hold | | ✓ | | Membership temporarily on hold (administrative) |
+| 16 | `DISCIPLINARY_REVIEW` | Disciplinary Review | | ✓ | | Under disciplinary review by governance (Bye-Law §D(d)(iii)) |
+| | **Total per module** | | **7** | **12** | **4** | |
 
 **This changed Organization's existing `/statuses` endpoint's
 behavior**:
@@ -1374,7 +1514,8 @@ frontend page in the repo — + `frontend/assets/js/membership.js`, `membershipA
 pytest integration tests (`tests/test_membership.py`, the largest test file in the repo) exist.
 
 **Documentation infrastructure changes landed alongside Tier 4:** a new consolidated
-`docs/03_Solution/api/API_CONTRACT.md` (Tiers 0-4, 42 endpoints total, common conventions) sits
+`docs/03_Solution/api/API_CONTRACT.md` (Tiers 0-4, 46 endpoints total as of the Family-graph and
+Organization-children-stats additions, common conventions) sits
 alongside the existing per-tier contract docs — Family and Membership have **no** dedicated
 `FAMILY_API_CONTRACT.md`/`MEMBERSHIP_API_CONTRACT.md`; `API_CONTRACT.md` is their only formal
 contract, a pattern shift from Tiers 0-3's one-file-per-tier convention. Security audit reports
@@ -1557,11 +1698,12 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
   class of bug in this repo.
 - **pytest is now configured — no longer "no tests."** `pytest.ini` (repo root) + `tests/`
   package: `test_bootstrap.py` (21 tests, 5 classes), `test_foundation.py` (59 tests, 13
-  classes), `test_organization.py` (64 tests, 7 classes), `test_person.py` (61 tests, 6
-  classes), `test_family.py` (51 tests), `test_membership.py` (99 tests, the largest test file
-  in the repo), and `test_security.py` (8 tests, 3 classes) — **363 total** (2 known
-  failing tests: `test_kumari_transition_has_event` and
-  `test_organization.py::test_list_returns_13_statuses`), all marked
+  classes), `test_organization.py` (72 tests, 8 classes), `test_person.py` (61 tests, 6
+  classes), `test_family.py` (67 tests, 8 classes), `test_membership.py` (99 tests, the largest test file
+  in the repo), `test_security.py` (8 tests, 3 classes), and `test_data_integrity.py` (23
+  tests, 6 classes — cross-module smoke tests asserting every module has at least one active
+  entity) — **410 total** (1 known
+  failing test: `test_kumari_transition_has_event`), all marked
   `integration`.
   `tests/conftest.py`'s `client` fixture wraps
   `fastapi.testclient.TestClient` against a **real** local Postgres DB — nothing is mocked, so
@@ -1754,6 +1896,21 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
 - **Filename collision in `docs/03_Solution/modules/administration/`.**
   `06_bootstrap_rbac_table_design.md` (`SOL-BOOT-001`) and `06_correspondence_register_erd.md`
   (`SOL-ADMIN-006`) share the same leading number — not renamed here, flagging only.
+- **`database/migrations/` exists now, but it is not a schema-migration tool** — it holds
+  exactly one file (`update_darshaka.sql`), a narrow ad-hoc data-fix script for databases
+  bootstrapped before `database/seed/01_foundation/02_master_data.sql` was itself corrected to
+  seed `PROBATIONARY`'s display name as `'Darshaka'` directly. Fresh `02_build.sh` runs never
+  need it. This does not change the "no migration tool for this track" convention in
+  `CLAUDE.md`/above — see `database/migrations/README.md`. Similarly,
+  `database/seed/99_extended_test_data.sql` and `database/seed/99_fix_memberships.sql` are
+  standalone, manually-run verification-data scripts living directly under `database/seed/`
+  (breaking the `NN_module/` folder convention on purpose, since they're cross-cutting
+  additions to already-seeded data, not a new module's own seed) — neither is run by
+  `02_build.sh`.
+- **`tests/test_bootstrap.py`'s exact-8-role assertions were loosened to "at least 8"/subset
+  checks** — verified this is purely defensive test-robustness hardening, not a reflection of
+  any actual seed-data change: `database/seed/00_bootstrap/02_role_master.sql` still seeds
+  exactly 8 roles (3 SYSTEM-class). If a later tier adds roles, these tests won't need touching.
 
 ## Open questions / TODOs
 
@@ -1776,18 +1933,29 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
   Membership DDL + Tier 4 verification seed + grant) but the `.ps1` counterpart was not updated
   to match, violating this project's own `.sh`/`.ps1` parity rule.
 - **Fix `database/scripts/03_validate.sh`/`.ps1`** — hardcodes `organization` = 3 rows,
-  `person` = 0 rows, and `master_data` = 82 rows; all three are now wrong (Tier 4 verification
-  seed adds rows to `organization`/`person`; the 3 new Membership `STATUS` values plus the 3
-  new `ORGANIZATION_TYPE` values grow `master_data` to 88), and there are no Family/Membership
+  `person` = 0 rows, and `master_data` = 82 rows (now stale — the real count is 88 and has
+  changed more than once, verify against the live seed file rather than trusting this
+  document); all three are now wrong (Tier 4 verification
+  seed adds rows to `organization`/`person`; new `STATUS` and `ORGANIZATION_TYPE` seed values
+  grow `master_data`), and there are no Family/Membership
   checks at all yet.
-- **Fix `tests/test_organization.py::test_list_returns_13_statuses`** — `organization.py`'s
-  `/statuses` endpoint now filters the unified `STATUS` category (16 values as of Tier 4, up
-  from 13) down to the 7 applicable to Organization via the new
-  `master_data.applicable_modules` column, but this test still asserts the old unfiltered count
-  of 13 — a second known-failing test alongside `test_kumari_transition_has_event` below.
+- **Factor out the duplicated FAM-036 "effective Sakha" CTE** — the majority-rule computation
+  is implemented twice, identically, in `api/routers/organization.py`'s `/children-stats` and
+  `api/routers/family.py`'s `_FAMILY_SELECT`/`/sakha-alignment` — no shared SQL helper.
+- **Add a depth-cap guard to `/children-stats`'s recursive CTE** — unlike `/hierarchy`
+  (`t.depth < 10`), `_CHILDREN_STATS_SQL` has no such guard against circular parent references.
+- **Add test coverage for `/families/{pk}/graph` and `/person/{pk}/membership-summary`** — both
+  Family endpoints currently have zero tests.
+- **Wire `/children-stats` into the UI its own docstring claims to serve** — "used by the org
+  admin sidebar to display inline counts" — but no such consumer exists yet in
+  `frontend/organization.html`/`organization.js`.
+- **Update stale module docstrings** — `api/routers/organization.py`'s says "6 GET endpoints"
+  (now 7); `api/routers/family.py`'s says "4 endpoints across 3 Family tables" (now 7
+  endpoints, 5 tables).
 - **Fix `test_kumari_transition_has_event`** — the `SS5` Membership seed row needs a
-  `KUMARI_TRANSITION` journey event it doesn't have; one of two known failing tests in the
-  363-test suite (see above).
+  `KUMARI_TRANSITION` journey event it doesn't have; the one known failing test in the
+  410-test suite (the earlier `test_organization.py::test_list_returns_13_statuses` failure
+  was fixed alongside the `/children-stats` work).
 - **Reconcile the "stop zero-padding IDs" decision with the actual `id_sequence_master` seed
   data** — Tier 4 introduced unpadded ID examples throughout the docs/governance baseline
   (`P1`, `SS1`, `SKH1`, `F1`) and loosened the `padding_length` CHECK constraint to allow `0`,
