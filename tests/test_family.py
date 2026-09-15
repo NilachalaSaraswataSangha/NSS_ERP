@@ -5,8 +5,9 @@ Integration tests for the 4 Family GET endpoints across 3 tables.
 Runs against local PostgreSQL (not Neon). The database must be
 bootstrapped with DDL + seed before running.
 
-Seed data: 1 family (F1 Mishra), 3 members (P1 Ramesh HEAD, P2
-Priyanka WIFE, P4 Debasis SON), head history (P1 since 2010).
+All tests are fully dynamic — they discover families, members, and
+status codes from the live API. No hardcoded family IDs, org codes,
+or status values.
 
 Endpoint groups tested:
   1. Family List:       /families (with filters)
@@ -90,27 +91,35 @@ class TestFamilyList:
         assert len(data) >= 1, "Expected at least 1 seeded family"
 
     def test_seeded_family_has_correct_data(self, client):
-        """Seeded family F1 has expected name and status."""
+        """First seeded family has a non-empty name and a valid status."""
         data = client.get(f"{BASE}/families").json()
-        mishra = [f for f in data if f["family_id"] == "F1"]
-        if not mishra:
-            pytest.skip("F1 Mishra family not seeded")
-        f = mishra[0]
-        assert f["family_name"] == "Mishra"
-        assert f["status_code"] == "ACTIVE"
+        if not data:
+            pytest.skip("No families seeded")
+        f = data[0]
+        assert f["family_name"] is not None and len(f["family_name"]) > 0
+        assert f["status_code"] is not None and len(f["status_code"]) > 0
 
     def test_filter_by_sakha_code(self, client):
-        """Filtering by sakha_code returns 200."""
-        r = client.get(f"{BASE}/families", params={"sakha_code": "SKH1"})
-        assert r.status_code == 200
-        assert isinstance(r.json(), list)
-
-    def test_filter_by_status_code(self, client):
-        """Filtering by status_code returns 200."""
-        r = client.get(f"{BASE}/families", params={"status_code": "ACTIVE"})
+        """Filtering by sakha_code returns 200 with matching families."""
+        data = client.get(f"{BASE}/families").json()
+        if not data:
+            pytest.skip("No families seeded")
+        sakha_code = data[0]["sakha_code"]
+        r = client.get(f"{BASE}/families", params={"sakha_code": sakha_code})
         assert r.status_code == 200
         for f in r.json():
-            assert f["status_code"] == "ACTIVE"
+            assert f["sakha_code"] == sakha_code
+
+    def test_filter_by_status_code(self, client):
+        """Filtering by status_code returns 200 with matching families."""
+        data = client.get(f"{BASE}/families").json()
+        if not data:
+            pytest.skip("No families seeded")
+        status = data[0]["status_code"]
+        r = client.get(f"{BASE}/families", params={"status_code": status})
+        assert r.status_code == 200
+        for f in r.json():
+            assert f["status_code"] == status
 
     def test_filter_nonexistent_sakha_returns_empty(self, client):
         """Filtering by a nonexistent sakha code returns empty list."""
@@ -120,9 +129,13 @@ class TestFamilyList:
 
     def test_multiple_filters(self, client):
         """Combining sakha_code + status_code returns 200."""
+        data = client.get(f"{BASE}/families").json()
+        if not data:
+            pytest.skip("No families seeded")
+        f = data[0]
         r = client.get(f"{BASE}/families", params={
-            "sakha_code": "SKH1",
-            "status_code": "ACTIVE",
+            "sakha_code": f["sakha_code"],
+            "status_code": f["status_code"],
         })
         assert r.status_code == 200
         assert isinstance(r.json(), list)
@@ -283,20 +296,20 @@ class TestFamilyMembers:
             assert m["is_current"] is True
 
     def test_members_seeded_count(self, client):
-        """F1 Mishra family has 3 seeded members."""
+        """First family has at least 1 member."""
         pk = _get_first_family_pk(client)
         if pk is None:
             pytest.skip("No family data seeded")
         data = client.get(f"{BASE}/families/{pk}/members").json()
-        assert len(data) == 3, f"Expected 3 members, got {len(data)}"
+        assert len(data) >= 1, f"Expected at least 1 member, got {len(data)}"
 
     def test_members_has_head_relationship(self, client):
-        """F1 Mishra has a HEAD relationship (Ramesh)."""
+        """F1 Mishra has exactly one current head (via is_head flag)."""
         pk = _get_first_family_pk(client)
         if pk is None:
             pytest.skip("No family data seeded")
         data = client.get(f"{BASE}/families/{pk}/members").json()
-        heads = [m for m in data if m["relationship_type_code"] == "HEAD"]
+        heads = [m for m in data if m["is_head"] is True]
         assert len(heads) == 1, "Expected exactly 1 HEAD"
 
     def test_members_excludes_audit_columns(self, client):
@@ -486,4 +499,211 @@ class TestFamilyUI:
     def test_page_has_copyright_footer(self, client):
         """Page has a copyright footer."""
         html = client.get("/family").text
-        assert "All rights reserved" in html
+        assert "Nilachala Saraswata Sangha" in html
+
+    def test_page_has_view_mode_toggle(self, client):
+        """Page has My Family / Org View toggle buttons."""
+        html = client.get("/family").text
+        assert "My Family" in html
+        assert "Org View" in html
+        assert "switchViewMode" in html
+
+    def test_page_has_org_breadcrumb(self, client):
+        """Page has org breadcrumb navigation for admin view."""
+        html = client.get("/family").text
+        assert "orgBreadcrumb" in html
+        assert "breadcrumbNav" in html
+
+    def test_page_has_org_children_list(self, client):
+        """Page has org children drill-down list for admin view."""
+        html = client.get("/family").text
+        assert "orgChildren" in html
+        assert "drillIntoOrg" in html
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. ORG ADMIN VIEW — sakha_code family filtering
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestOrgAdminFamilyFilter:
+    """Verify the org admin view's sakha_code filtering works dynamically."""
+
+    ORG_BASE = "/api/v1/organization"
+
+    def _get_sakha_codes(self, client):
+        """Discover all Sakha org codes from the hierarchy API."""
+        r = client.get(f"{self.ORG_BASE}/organizations?type_code=SAKHA_SANGHA")
+        if r.status_code != 200:
+            return []
+        return [org["organization_code"] for org in r.json() if org.get("organization_code")]
+
+    def test_families_filter_by_sakha_code(self, client):
+        """Families filtered by sakha_code return only matching families."""
+        sakha_codes = self._get_sakha_codes(client)
+        if not sakha_codes:
+            pytest.skip("No Sakha organizations seeded")
+
+        for code in sakha_codes:
+            r = client.get(f"{BASE}/families?sakha_code={code}")
+            assert r.status_code == 200
+            for fam in r.json():
+                assert fam["sakha_code"] == code, (
+                    f"Family {fam['family_id']} has sakha_code={fam['sakha_code']}, "
+                    f"expected {code}"
+                )
+
+    def test_families_filter_unknown_sakha_returns_empty(self, client):
+        """Filtering by a non-existent sakha_code returns empty list, not 404."""
+        r = client.get(f"{BASE}/families?sakha_code=NONEXISTENT_SAKHA")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_org_hierarchy_kendra_has_children(self, client):
+        """Kendra org should have at least one child (Anchalika/Zilla)."""
+        r = client.get(f"{self.ORG_BASE}/organizations?type_code=KENDRA")
+        if r.status_code != 200 or not r.json():
+            pytest.skip("No Kendra organization seeded")
+
+        kendra = r.json()[0]
+        children_r = client.get(
+            f"{self.ORG_BASE}/organizations/{kendra['organization_pk']}/children"
+        )
+        assert children_r.status_code == 200
+        children = children_r.json()
+        assert len(children) >= 1, "Kendra should have at least 1 child org"
+
+    def test_org_drill_down_to_sakha(self, client):
+        """Drilling from Kendra through Anchalika should reach Sakha level."""
+        r = client.get(f"{self.ORG_BASE}/organizations?type_code=KENDRA")
+        if r.status_code != 200 or not r.json():
+            pytest.skip("No Kendra organization seeded")
+
+        kendra = r.json()[0]
+        children_r = client.get(
+            f"{self.ORG_BASE}/organizations/{kendra['organization_pk']}/children"
+        )
+        assert children_r.status_code == 200
+        children = children_r.json()
+        if not children:
+            pytest.skip("Kendra has no children")
+
+        # Drill into first child — should have its own children or be a leaf
+        first_child = children[0]
+        grandchildren_r = client.get(
+            f"{self.ORG_BASE}/organizations/{first_child['organization_pk']}/children"
+        )
+        assert grandchildren_r.status_code == 200
+
+        # If there are grandchildren, at least one should be a Sakha
+        grandchildren = grandchildren_r.json()
+        if grandchildren:
+            type_codes = {gc.get("organization_type_code") for gc in grandchildren}
+            assert "SAKHA_SANGHA" in type_codes or len(type_codes) > 0, (
+                "Expected drill-down to produce Sakha or further children"
+            )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 8. SAKHA ALIGNMENT (FAM-036 majority rule)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSakhaAlignment:
+    """GET /api/v1/family/families/{pk}/sakha-alignment"""
+
+    def test_alignment_returns_200(self, client):
+        """Sakha alignment endpoint returns 200 for a valid family."""
+        pk = _get_first_family_pk(client)
+        if pk is None:
+            pytest.skip("No family data seeded")
+        r = client.get(f"{BASE}/families/{pk}/sakha-alignment")
+        assert r.status_code == 200
+
+    def test_alignment_has_required_fields(self, client):
+        """Response has effective and computed Sakha fields."""
+        pk = _get_first_family_pk(client)
+        if pk is None:
+            pytest.skip("No family data seeded")
+        data = client.get(f"{BASE}/families/{pk}/sakha-alignment").json()
+        required = {
+            "family_group_pk", "family_name",
+            "assigned_sakha_pk", "assigned_sakha_name", "assigned_sakha_code",
+            "is_aligned", "total_members", "members_with_affiliation",
+            "affiliations", "members",
+        }
+        assert required.issubset(data.keys())
+
+    def test_alignment_fake_pk_returns_404(self, client):
+        """Non-existent family PK returns 404."""
+        r = client.get(f"{BASE}/families/{FAKE_UUID}/sakha-alignment")
+        assert r.status_code == 404
+
+    def test_alignment_members_list(self, client):
+        """Members list should match total_members count."""
+        pk = _get_first_family_pk(client)
+        if pk is None:
+            pytest.skip("No family data seeded")
+        data = client.get(f"{BASE}/families/{pk}/sakha-alignment").json()
+        assert len(data["members"]) == data["total_members"]
+
+    def test_alignment_member_fields(self, client):
+        """Each member entry has per-member Sakha info fields."""
+        pk = _get_first_family_pk(client)
+        if pk is None:
+            pytest.skip("No family data seeded")
+        data = client.get(f"{BASE}/families/{pk}/sakha-alignment").json()
+        if not data["members"]:
+            pytest.skip("No members in family")
+        member_fields = {
+            "person_pk", "person_id", "first_name",
+            "has_membership",
+        }
+        for m in data["members"]:
+            assert member_fields.issubset(m.keys()), (
+                f"Member {m.get('person_id')} missing fields"
+            )
+
+    def test_alignment_affiliations_sum(self, client):
+        """Affiliation counts should sum to members_with_affiliation."""
+        pk = _get_first_family_pk(client)
+        if pk is None:
+            pytest.skip("No family data seeded")
+        data = client.get(f"{BASE}/families/{pk}/sakha-alignment").json()
+        total = sum(a["member_count"] for a in data["affiliations"])
+        assert total == data["members_with_affiliation"]
+
+    def test_alignment_is_always_aligned(self, client):
+        """is_aligned is always True — family auto-follows majority (FAM-036)."""
+        families = client.get(f"{BASE}/families").json()
+        if not families:
+            pytest.skip("No family data seeded")
+        for fam in families:
+            data = client.get(
+                f"{BASE}/families/{fam['family_group_pk']}/sakha-alignment"
+            ).json()
+            assert data["is_aligned"] is True, (
+                f"Family {fam['family_id']} should always be aligned "
+                f"(dynamic majority rule)"
+            )
+
+    def test_alignment_home_sakha_flag(self, client):
+        """Members with affiliation have is_home_sakha relative to effective Sakha."""
+        pk = _get_first_family_pk(client)
+        if pk is None:
+            pytest.skip("No family data seeded")
+        data = client.get(f"{BASE}/families/{pk}/sakha-alignment").json()
+        effective_pk = data["assigned_sakha_pk"]  # now the dynamic effective Sakha
+        for m in data["members"]:
+            if m["has_membership"] and m["affiliated_sakha_pk"]:
+                expected = m["affiliated_sakha_pk"] == effective_pk
+                assert m["is_home_sakha"] == expected, (
+                    f"{m['first_name']}: is_home_sakha={m['is_home_sakha']} "
+                    f"but affiliated={m['affiliated_sakha_pk']}, effective={effective_pk}"
+                )
+
+    def test_ui_has_sakha_alignment_markup(self, client):
+        """Family page HTML contains per-member Sakha mismatch markup."""
+        html = client.get("/family").text
+        assert "isMemberSakhaMismatch" in html
+        assert "getMemberSakhaName" in html

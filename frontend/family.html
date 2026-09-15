@@ -6,289 +6,806 @@
     <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
     <title>Nilachala Saraswata Sangha — Family Verification</title>
 
-    <!-- Tailwind CSS Play CDN (Tailwind 3.x JIT — generates utility classes in-browser) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- DaisyUI 4.12.14 (requires Tailwind 3.x) -->
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR" crossorigin="anonymous">
-    <!-- Alpine.js 3.14.8 -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/badges.css">
+    <script src="/assets/js/nss-config.js"></script>
 
     <style>
-        .badge { padding: 0.25rem 0.75rem !important; }
-        .badge-xs { padding: 0.15rem 0.5rem !important; height: auto !important; min-height: 1.25rem; }
-        .badge-sm { padding: 0.2rem 0.625rem !important; height: auto !important; min-height: 1.5rem; }
-        .badge-status-active   { background-color: #16a34a !important; color: #fff !important; }
-        .badge-status-inactive { background-color: #6b7280 !important; color: #fff !important; }
+        :root {
+            --conn-color: #0ea5e9;
+            --conn-width: 2px;
+            /* ── Shared text colors ──────────────────────────── */
+            --nss-text-primary: #1e293b;    /* slate-800 — headings, names    */
+            --nss-text-secondary: #64748b;  /* slate-500 — role labels, muted */
+            --nss-text-muted: #94a3b8;      /* slate-400 — dividers, captions */
+            --nss-text-accent: #6366f1;     /* indigo-500 — viewer highlight  */
+            --nss-indicator-viewer: #6366f1;
+            --nss-indicator-head: #f59e0b;
+        }
+
+        /* ── Sidebar ─────────────────────────────────────────── */
+        .family-sidebar { max-height: calc(100vh - 220px); overflow-y: auto; }
+        .family-item {
+            padding: 0.625rem 0.75rem; border-radius: 0.5rem;
+            cursor: pointer; transition: all 0.15s;
+            border: 1px solid transparent;
+        }
+        .family-item:hover { background: #f1f5f9; }
+        .family-item.active {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-color: #93c5fd;
+        }
+
+        /* ═════════════════════════════════════════════════════ */
+        /*   TREE — dynamic infographic style                   */
+        /* ═════════════════════════════════════════════════════ */
+
+        .tree-canvas {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 2rem 1.5rem 1.5rem;
+            min-height: 220px;
+            overflow-x: auto;
+        }
+
+        .tree-container {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 0;
+        }
+
+        /* ── Generation level wrapper ────────────────────────── */
+        .tree-level {
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* ── Connector lines ─────────────────────────────────── */
+        .conn-v {
+            width: 0; height: 32px;
+            border-left: var(--conn-width) solid var(--conn-color);
+            margin: 0 auto;
+        }
+        .conn-h {
+            height: 0;
+            border-top: var(--conn-width) solid var(--conn-color);
+            margin: 0 auto;
+        }
+
+        /* ── Gen row (single group — no bracket) ─────────────── */
+        .gen-row {
+            display: flex; justify-content: center; align-items: flex-start;
+            gap: 2rem;
+        }
+
+        /* ── Bracket wrap (multi-group — with T-junction) ────── */
+        .bracket-wrap {
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .bracket-row {
+            display: flex; justify-content: center; align-items: flex-start;
+            gap: 2rem;
+            position: relative;
+            padding-top: 20px;
+        }
+        .bracket-row > .bracket-item {
+            position: relative;
+        }
+        .bracket-row > .bracket-item::before {
+            content: '';
+            position: absolute; top: -20px; left: 50%;
+            transform: translateX(-50%);
+            width: var(--conn-width); height: 20px;
+            background: var(--conn-color);
+        }
+
+        /* ── Couple group ────────────────────────────────────── */
+        .couple-group {
+            display: flex; align-items: flex-start; gap: 0;
+            position: relative;
+            background: rgba(14, 165, 233, 0.04);
+            border: 1.5px dashed rgba(14, 165, 233, 0.3);
+            border-radius: 1rem;
+            padding: 0.75rem 0.5rem;
+        }
+        .couple-join-line {
+            width: 28px; height: 0;
+            border-top: var(--conn-width) solid var(--conn-color);
+            align-self: center;
+        }
+
+        /* ── Tree node (each person) ─────────────────────────── */
+        .tree-node {
+            display: flex; flex-direction: column; align-items: center;
+            cursor: pointer; transition: transform 0.15s;
+            min-width: 80px;
+        }
+        .tree-node:hover { transform: translateY(-3px); }
+
+        /* Avatar */
+        .node-avatar {
+            width: 56px; height: 56px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 1rem; color: #fff;
+            margin-bottom: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: box-shadow 0.2s, transform 0.2s;
+            position: relative;
+            border: 3px solid #fff;
+        }
+        .tree-node:hover .node-avatar {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            transform: scale(1.05);
+        }
+        .tree-node.is-selected .node-avatar {
+            box-shadow: 0 0 0 3px #4f46e5, 0 6px 20px rgba(79,70,229,0.25);
+        }
+
+        /* Avatar gradients */
+        .av-viewer      { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .av-spouse      { background: linear-gradient(135deg, #ec4899, #db2777); }
+        .av-parent      { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .av-grandparent { background: linear-gradient(135deg, #10b981, #059669); }
+        .av-child       { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+        .av-grandchild  { background: linear-gradient(135deg, #f97316, #ea580c); }
+        .av-sibling     { background: linear-gradient(135deg, #84cc16, #65a30d); }
+        .av-other       { background: linear-gradient(135deg, #94a3b8, #64748b); }
+
+        /* Corner indicator */
+        .node-indicator {
+            position: absolute; top: -4px; right: -4px;
+            width: 20px; height: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.55rem; border: 2px solid #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+        .indicator-viewer { background: var(--nss-indicator-viewer); color: #fff; }
+        .indicator-head   { background: var(--nss-indicator-head);   color: #fff; }
+
+        /* Name */
+        .node-name {
+            font-weight: 600; font-size: 0.75rem; color: var(--nss-text-primary);
+            line-height: 1.25; text-align: center;
+            max-width: 100px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        /* Role label */
+        .node-role {
+            font-size: 0.6rem; color: var(--nss-text-secondary); font-weight: 500;
+            text-align: center; margin-top: 2px;
+            max-width: 100px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .node-role.is-viewer { color: var(--nss-text-accent); font-weight: 600; }
+
+        /* ── Generation divider label ────────────────────────── */
+        .gen-divider {
+            display: flex; align-items: center; gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            width: 180px;
+        }
+        .gen-divider-line {
+            flex: 1; height: 1px;
+            background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+        }
+        .gen-divider-text {
+            font-size: 0.55rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--nss-text-muted); white-space: nowrap;
+        }
+
+        /* ═════════════════════════════════════════════════════ */
+        /*   RIGHT PANEL                                        */
+        /* ═════════════════════════════════════════════════════ */
+
+        .detail-card {
+            background: #fff;
+            border: 1px solid #e2e8f0; border-radius: 0.75rem;
+            padding: 0.875rem;
+        }
+        .detail-section {
+            border-top: 1px solid #f1f5f9;
+            padding-top: 0.625rem; margin-top: 0.625rem;
+        }
+        .detail-label {
+            font-size: 0.6rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.4px;
+            color: var(--nss-text-muted); margin-bottom: 0.375rem;
+        }
+
+        /* Spouse mini-card */
+        .spouse-card {
+            display: flex; align-items: center; gap: 0.625rem;
+            padding: 0.5rem 0.75rem;
+            background: linear-gradient(135deg, #fdf2f8, #fce7f3);
+            border: 1.5px solid #f9a8d4;
+            border-radius: 0.625rem;
+            cursor: pointer; transition: all 0.15s;
+        }
+        .spouse-card:hover {
+            border-color: #ec4899;
+            box-shadow: 0 2px 8px rgba(236,72,153,0.15);
+            transform: translateX(2px);
+        }
     </style>
 </head>
-<body class="bg-base-200 min-h-screen">
+<body class="bg-gray-100 min-h-screen">
 
-    <div x-data="familyApp()" x-init="init()" class="mx-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-10 2xl:px-16">
+    <div x-data="familyApp()" x-init="init()" class="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 lg:px-10">
 
         <!-- Header -->
-        <header class="mb-4 sm:mb-6 flex items-center justify-between flex-wrap gap-3 sm:gap-4">
-            <div class="flex items-center gap-3 sm:gap-4">
-                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
+        <header class="mb-5 flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-10 w-10 sm:h-12 sm:w-12 object-contain">
                 <div>
-                    <h1 class="text-lg sm:text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
-                    <p class="text-xs sm:text-sm text-base-content/60">Tier 4 — Family Verification</p>
+                    <h1 class="text-lg sm:text-xl font-bold text-gray-800">Nilachala Saraswata Sangha</h1>
+                    <p class="text-xs text-gray-400">Tier 4 — Family Verification</p>
                 </div>
             </div>
-            <nav class="flex gap-2 flex-wrap">
-                <a href="/" class="btn btn-sm btn-ghost">Bootstrap</a>
-                <a href="/foundation" class="btn btn-sm btn-ghost">Foundation</a>
-                <a href="/organization" class="btn btn-sm btn-ghost">Organization</a>
-                <a href="/person" class="btn btn-sm btn-ghost">Person</a>
-                <a href="/family" class="btn btn-sm btn-active">Family</a>
-                <a href="/membership" class="btn btn-sm btn-ghost">Membership</a>
+            <nav class="flex gap-1.5 flex-wrap">
+                <a href="/" class="btn btn-sm btn-ghost text-xs">Bootstrap</a>
+                <a href="/foundation" class="btn btn-sm btn-ghost text-xs">Foundation</a>
+                <a href="/organization" class="btn btn-sm btn-ghost text-xs">Organization</a>
+                <a href="/person" class="btn btn-sm btn-ghost text-xs">Person</a>
+                <a href="/family" class="btn btn-sm btn-active text-xs">Family</a>
+                <a href="/membership" class="btn btn-sm btn-ghost text-xs">Membership</a>
             </nav>
         </header>
 
-        <!-- System Status -->
-        <section class="card bg-base-100 shadow-sm mb-4 sm:mb-6 max-w-md mx-auto">
-            <div class="card-body py-3 text-center">
-                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50 justify-center">System Status</h2>
-                <div class="flex items-center justify-center gap-2 mt-1">
-                    <template x-if="health.loading">
-                        <span class="flex items-center gap-2 text-sm text-base-content/60">
-                            <span class="loading loading-spinner loading-xs"></span>
-                            Checking...
-                        </span>
-                    </template>
-                    <template x-if="!health.loading && health.connected">
-                        <span class="flex items-center gap-2">
-                            <span class="badge badge-success badge-xs"></span>
-                            <span class="text-sm">Database Connected</span>
-                        </span>
-                    </template>
-                    <template x-if="!health.loading && !health.connected">
-                        <span class="flex items-center gap-2">
-                            <span class="badge badge-error badge-xs"></span>
-                            <span class="text-sm">Database Unavailable</span>
-                        </span>
-                    </template>
-                </div>
+        <!-- Status -->
+        <div class="flex justify-center mb-4">
+            <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-white shadow-sm border border-gray-100">
+                <template x-if="health.loading">
+                    <span class="flex items-center gap-1.5 text-xs text-gray-400">
+                        <span class="loading loading-spinner loading-xs"></span> Checking...
+                    </span>
+                </template>
+                <template x-if="!health.loading && health.connected">
+                    <span class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <span class="w-2 h-2 rounded-full bg-green-500"></span> Connected
+                    </span>
+                </template>
+                <template x-if="!health.loading && !health.connected">
+                    <span class="flex items-center gap-1.5 text-xs text-gray-500">
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span> Unavailable
+                    </span>
+                </template>
             </div>
-        </section>
+        </div>
 
-        <!-- Main Content: Family List + Detail -->
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 xl:gap-6">
+        <!-- 3-Panel Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] xl:grid-cols-[220px_1fr_360px] gap-4">
 
-            <!-- Family List (left / full) -->
-            <section class="card bg-base-100 shadow-sm xl:col-span-2">
-                <div class="card-body p-3 sm:p-4 xl:p-6">
-                    <div class="flex items-center justify-between flex-wrap gap-2">
-                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Families</h2>
-                        <span class="badge badge-ghost badge-sm" x-text="families.length + ' families'"></span>
-                    </div>
+            <!-- LEFT: Navigation & Family List -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3">
 
-                    <template x-if="familiesLoading">
-                        <div class="flex justify-center py-6">
-                            <span class="loading loading-spinner loading-md"></span>
-                        </div>
-                    </template>
-
-                    <template x-if="!familiesLoading && familiesError">
-                        <div class="alert alert-error mt-2">
-                            <span class="text-sm">Failed to load families.</span>
-                        </div>
-                    </template>
-
-                    <template x-if="!familiesLoading && !familiesError && families.length === 0">
-                        <div class="py-4">
-                            <p class="text-sm text-base-content/60">No families found.</p>
-                        </div>
-                    </template>
-
-                    <template x-if="!familiesLoading && !familiesError && families.length > 0">
-                        <div class="overflow-x-auto mt-2">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Family ID</th>
-                                        <th>Family Name</th>
-                                        <th>Sakha</th>
-                                        <th>Formed Date</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="f in families" :key="f.family_group_pk">
-                                        <tr class="cursor-pointer hover"
-                                            :class="{ 'bg-base-200': selectedFamily?.family_group_pk === f.family_group_pk }"
-                                            @click="selectFamily(f)">
-                                            <td class="font-mono text-xs whitespace-nowrap" x-text="f.family_id"></td>
-                                            <td class="text-xs font-medium" x-text="f.family_name"></td>
-                                            <td class="text-xs whitespace-nowrap">
-                                                <span x-text="f.sakha_name"></span>
-                                                <span class="text-base-content/40 font-mono ml-1" x-text="f.sakha_code ? '(' + f.sakha_code + ')' : ''"></span>
-                                            </td>
-                                            <td class="text-xs whitespace-nowrap" x-text="f.formed_date || '—'"></td>
-                                            <td class="whitespace-nowrap">
-                                                <span class="badge badge-xs whitespace-nowrap"
-                                                      :class="f.is_active ? 'badge-status-active' : 'badge-status-inactive'"
-                                                      x-text="f.status_name"></span>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
-                    </template>
+                <!-- View mode toggle -->
+                <div class="flex items-center gap-1 mb-3 p-0.5 bg-gray-100 rounded-lg">
+                    <button class="flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors"
+                            :class="viewMode === 'member' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-400 hover:text-gray-600'"
+                            @click="switchViewMode('member')">My Family</button>
+                    <button class="flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors"
+                            :class="viewMode === 'admin' ? 'bg-white shadow-sm text-gray-700' : 'text-gray-400 hover:text-gray-600'"
+                            @click="switchViewMode('admin')">Org View</button>
                 </div>
-            </section>
 
-            <!-- Family Detail (right) -->
-            <section class="card bg-base-100 shadow-sm">
-                <div class="card-body p-3 sm:p-4 xl:p-6">
-                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Family Detail</h2>
-
-                    <template x-if="!selectedFamily && !detailLoading">
-                        <p class="text-sm text-base-content/60 py-2">
-                            Select a family from the list to view details.
-                        </p>
-                    </template>
-
-                    <template x-if="detailLoading">
-                        <div class="flex justify-center py-6">
-                            <span class="loading loading-spinner loading-md"></span>
+                <!-- Org breadcrumb (admin view only) -->
+                <template x-if="viewMode === 'admin' && orgBreadcrumb.length > 0">
+                    <div class="mb-2">
+                        <div class="flex items-center gap-1 flex-wrap text-xs">
+                            <template x-for="(crumb, i) in orgBreadcrumb" :key="crumb.organization_pk">
+                                <div class="flex items-center gap-1">
+                                    <template x-if="i > 0">
+                                        <span class="text-gray-300">›</span>
+                                    </template>
+                                    <button class="text-indigo-500 hover:text-indigo-700 font-medium truncate max-w-[140px]"
+                                            :class="{ 'text-gray-600 cursor-default': i === orgBreadcrumb.length - 1 && !selectedSakhaCode }"
+                                            @click="breadcrumbNav(i)"
+                                            x-text="crumb.organization_name"></button>
+                                </div>
+                            </template>
                         </div>
-                    </template>
+                    </div>
+                </template>
 
-                    <template x-if="selectedFamily && !detailLoading">
-                        <div class="mt-2 space-y-3">
-                            <!-- Identity -->
-                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                <div>
-                                    <span class="text-base-content/50">Family ID:</span>
-                                    <span class="font-mono font-semibold" x-text="selectedFamily.family_id"></span>
-                                </div>
-                                <div>
-                                    <span class="text-base-content/50">Status:</span>
-                                    <span class="badge badge-xs"
-                                          :class="selectedFamily.is_active ? 'badge-status-active' : 'badge-status-inactive'"
-                                          x-text="selectedFamily.status_name"></span>
-                                </div>
-                                <div>
-                                    <span class="text-base-content/50">Name:</span>
-                                    <span class="font-semibold" x-text="selectedFamily.family_name"></span>
-                                </div>
-                                <div>
-                                    <span class="text-base-content/50">Sakha:</span>
-                                    <span x-text="selectedFamily.sakha_name"></span>
-                                </div>
-                                <div>
-                                    <span class="text-base-content/50">Formed:</span>
-                                    <span x-text="selectedFamily.formed_date || '—'"></span>
-                                </div>
-                            </div>
-                            <div class="text-xs" x-show="selectedFamily.remarks">
-                                <span class="text-base-content/50">Remarks:</span>
-                                <span x-text="selectedFamily.remarks"></span>
-                            </div>
-
-                            <!-- Members -->
-                            <div>
-                                <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
-                                    Members
-                                    <span class="badge badge-ghost badge-xs ml-1" x-text="familyMembers.length"></span>
-                                </h3>
-
-                                <template x-if="membersLoading">
-                                    <div class="flex items-center gap-2 py-2">
-                                        <span class="loading loading-spinner loading-xs"></span>
-                                        <span class="text-sm text-base-content/60">Loading...</span>
-                                    </div>
-                                </template>
-
-                                <template x-if="!membersLoading && familyMembers.length === 0">
-                                    <p class="text-xs text-base-content/60 mt-1">No members.</p>
-                                </template>
-
-                                <template x-if="!membersLoading && familyMembers.length > 0">
-                                    <div class="overflow-x-auto mt-1">
-                                        <table class="table table-xs">
-                                            <thead>
-                                                <tr>
-                                                    <th>Person ID</th>
-                                                    <th>Name</th>
-                                                    <th>Relationship</th>
-                                                    <th>Since</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template x-for="m in familyMembers" :key="m.family_relationship_pk">
-                                                    <tr>
-                                                        <td class="font-mono text-xs" x-text="m.person_id"></td>
-                                                        <td class="text-xs" x-text="formatMemberName(m)"></td>
-                                                        <td class="text-xs">
-                                                            <span class="badge badge-xs badge-primary" x-text="m.relationship_type_name"></span>
-                                                        </td>
-                                                        <td class="text-xs" x-text="m.effective_from"></td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </template>
-                            </div>
-
-                            <!-- Head History -->
-                            <div>
-                                <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
-                                    Head History
-                                    <span class="badge badge-ghost badge-xs ml-1" x-text="headHistory.length"></span>
-                                </h3>
-
-                                <template x-if="headLoading">
-                                    <div class="flex items-center gap-2 py-2">
-                                        <span class="loading loading-spinner loading-xs"></span>
-                                        <span class="text-sm text-base-content/60">Loading...</span>
-                                    </div>
-                                </template>
-
-                                <template x-if="!headLoading && headHistory.length === 0">
-                                    <p class="text-xs text-base-content/60 mt-1">No head history.</p>
-                                </template>
-
-                                <template x-if="!headLoading && headHistory.length > 0">
-                                    <div class="space-y-1 mt-1">
-                                        <template x-for="h in headHistory" :key="h.family_head_history_pk">
-                                            <div class="border border-base-300 rounded-lg p-2 text-xs">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="font-semibold" x-text="formatMemberName(h)"></span>
-                                                    <span class="font-mono text-base-content/40" x-text="h.person_id"></span>
-                                                    <template x-if="!h.effective_to">
-                                                        <span class="badge badge-xs badge-status-active">Current</span>
-                                                    </template>
-                                                </div>
-                                                <div class="text-base-content/60 mt-0.5">
-                                                    <span x-text="h.effective_from"></span>
-                                                    <span x-text="h.effective_to ? ' — ' + h.effective_to : ' — present'"></span>
-                                                </div>
+                <!-- Org children list (admin view — drill-down) -->
+                <template x-if="viewMode === 'admin' && !selectedSakhaCode">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400"
+                                  x-text="orgChildren.length > 0 ? (orgChildren[0].organization_type_name || 'Organizations') : 'Organizations'"></span>
+                            <span class="text-xs text-gray-300 font-mono" x-text="orgChildren.length"></span>
+                        </div>
+                        <template x-if="orgChildrenLoading">
+                            <div class="flex justify-center py-6"><span class="loading loading-spinner loading-sm text-gray-300"></span></div>
+                        </template>
+                        <template x-if="!orgChildrenLoading && orgChildren.length === 0">
+                            <p class="text-xs text-gray-400 py-2">No sub-organizations.</p>
+                        </template>
+                        <template x-if="!orgChildrenLoading && orgChildren.length > 0">
+                            <div class="family-sidebar space-y-1">
+                                <template x-for="org in orgChildren" :key="org.organization_pk">
+                                    <div class="family-item cursor-pointer" @click="drillIntoOrg(org)">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-medium text-gray-700" x-text="org.organization_name"></span>
+                                            <svg class="w-3.5 h-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <span class="text-xs font-mono text-gray-300" x-text="org.organization_code"></span>
+                                            <span class="text-xs text-gray-400" x-text="org.organization_type_name"></span>
+                                        </div>
+                                        <!-- Inline stats -->
+                                        <template x-if="getOrgStats(org.organization_pk)">
+                                            <div class="flex items-center gap-3 mt-1">
+                                                <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                                    <svg class="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                                                    <span x-text="getOrgStats(org.organization_pk).family_count"></span>
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                                    <svg class="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                    <span x-text="getOrgStats(org.organization_pk).member_count"></span>
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                                    <svg class="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                    <span x-text="getOrgStats(org.organization_pk).person_count"></span>
+                                                </span>
                                             </div>
                                         </template>
                                     </div>
                                 </template>
                             </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Family list header -->
+                <template x-if="viewMode === 'member' || selectedSakhaCode">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Families</span>
+                            <span class="text-xs text-gray-300 font-mono" x-text="families.length"></span>
                         </div>
+                    </div>
+                </template>
+
+                <!-- Family list (both views — shows when families loaded) -->
+                <template x-if="(viewMode === 'member' || selectedSakhaCode) && familiesLoading">
+                    <div class="flex justify-center py-8"><span class="loading loading-spinner loading-sm text-gray-300"></span></div>
+                </template>
+                <template x-if="(viewMode === 'member' || selectedSakhaCode) && !familiesLoading && familiesError">
+                    <p class="text-xs text-red-400 py-2">Failed to load.</p>
+                </template>
+                <template x-if="(viewMode === 'member' || selectedSakhaCode) && !familiesLoading && !familiesError && families.length === 0">
+                    <p class="text-xs text-gray-400 py-2">No families found.</p>
+                </template>
+                <template x-if="(viewMode === 'member' || selectedSakhaCode) && !familiesLoading && !familiesError && families.length > 0">
+                    <div class="family-sidebar space-y-1">
+                        <template x-for="f in families" :key="f.family_group_pk">
+                            <div class="family-item"
+                                 :class="{ 'active': selectedFamily?.family_group_pk === f.family_group_pk }"
+                                 @click="selectFamily(f)">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-gray-700" x-text="f.family_name"></span>
+                                    <span class="badge badge-xs"
+                                          :class="f.is_active ? 'badge-status-active' : 'badge-status-inactive'"
+                                          x-text="f.status_name"></span>
+                                </div>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-xs font-mono text-gray-300" x-text="f.family_id"></span>
+                                    <span class="text-xs text-gray-400" x-text="f.sakha_name || ''"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
+            <!-- CENTER: Family Tree -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Family Tree</span>
+                    <template x-if="selectedFamily">
+                        <span class="text-xs text-gray-400" x-text="selectedFamily.family_name"></span>
                     </template>
                 </div>
-            </section>
 
+                <!-- View As -->
+                <template x-if="selectedFamily && familyMembers.length > 0 && !detailLoading">
+                    <div class="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                        <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span class="text-xs font-medium text-gray-500 whitespace-nowrap">View as</span>
+                        <select class="select select-xs select-bordered flex-1 bg-white"
+                                :value="viewerPersonPk"
+                                @change="changeViewer($event.target.value)">
+                            <template x-for="m in familyMembers" :key="m.person_pk">
+                                <option :value="m.person_pk"
+                                        :selected="m.person_pk === viewerPersonPk"
+                                        x-text="formatName(m) + (m.is_head ? ' ★ HEAD' : '')">
+                                </option>
+                            </template>
+                        </select>
+                        <template x-if="graphLoading">
+                            <span class="loading loading-spinner loading-xs text-sky-500"></span>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Empty -->
+                <template x-if="!selectedFamily && !detailLoading">
+                    <div class="flex flex-col items-center justify-center py-20 text-center">
+                        <svg class="w-20 h-20 text-gray-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <p class="text-sm text-gray-300">Select a family from the sidebar</p>
+                    </div>
+                </template>
+
+                <template x-if="detailLoading">
+                    <div class="flex justify-center py-20"><span class="loading loading-spinner loading-md text-sky-400"></span></div>
+                </template>
+
+                <template x-if="graphError && !detailLoading">
+                    <div class="text-center py-8"><p class="text-xs text-red-400">Failed to compute family graph.</p></div>
+                </template>
+
+                <!-- ═══ DYNAMIC TREE (recursive, x-html rendered) ═══ -->
+                <template x-if="selectedFamily && !detailLoading && !graphLoading && treeNodes.length > 0">
+                    <div class="tree-canvas">
+                        <div class="tree-container" @click="handleTreeClick($event)" x-html="renderTree()">
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="selectedFamily && !detailLoading && !graphLoading && treeNodes.length === 0 && familyMembers.length > 0 && !graphError">
+                    <p class="text-sm text-gray-400 py-10 text-center">No family graph links found.</p>
+                </template>
+            </div>
+
+            <!-- RIGHT: Detail Panel -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 space-y-3">
+
+                <template x-if="!selectedFamily && !detailLoading">
+                    <div>
+                        <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Details</span>
+                        <p class="text-xs text-gray-400 mt-2">Select a family to see details.</p>
+                    </div>
+                </template>
+
+                <template x-if="selectedFamily && !detailLoading">
+                    <div class="space-y-3">
+                        <!-- Family Info -->
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Family Info</span>
+                            <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs mt-2">
+                                <div>
+                                    <span class="data-label">ID</span>
+                                    <div class="data-family-id" x-text="selectedFamily.family_id"></div>
+                                </div>
+                                <div>
+                                    <span class="data-label">Status</span>
+                                    <div>
+                                        <span class="badge badge-xs"
+                                              :class="selectedFamily.is_active ? 'badge-status-active' : 'badge-status-inactive'"
+                                              x-text="selectedFamily.status_name"></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="data-label">Name</span>
+                                    <div class="font-semibold text-gray-700" x-text="selectedFamily.family_name"></div>
+                                </div>
+                                <div>
+                                    <span class="data-label">Sakha</span>
+                                    <div class="data-sakha-name" x-text="selectedFamily.sakha_name || '—'"></div>
+                                </div>
+                                <div>
+                                    <span class="data-label">Formed</span>
+                                    <div class="text-gray-600" x-text="selectedFamily.formed_date || '—'"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selected Person -->
+                        <template x-if="selectedPerson">
+                            <div class="detail-card">
+                                <!-- Header -->
+                                <div class="flex items-start gap-3 mb-2">
+                                    <div class="node-avatar flex-shrink-0" :class="getAvatarClass(selectedPerson)"
+                                         x-text="getInitials(selectedPerson)"
+                                         style="width:48px;height:48px;font-size:0.9rem;border:2px solid #fff;"></div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold text-sm text-gray-800" x-text="formatName(selectedPerson)"></div>
+                                        <div class="text-xs font-mono text-gray-400" x-text="selectedPerson.person_id"></div>
+                                        <div class="flex items-center gap-1 mt-1 flex-wrap">
+                                            <template x-if="selectedPerson.person_pk === viewerPersonPk">
+                                                <span class="badge badge-xs badge-role-viewer">YOU</span>
+                                            </template>
+                                            <template x-if="selectedPerson.is_head">
+                                                <span class="badge badge-xs badge-role-head">HEAD</span>
+                                            </template>
+                                            <template x-if="selectedPersonDetail && selectedPersonDetail.is_active">
+                                                <span class="badge badge-xs badge-status-active">Active</span>
+                                            </template>
+                                            <template x-if="selectedPersonDetail && !selectedPersonDetail.is_active">
+                                                <span class="badge badge-xs badge-status-inactive">Inactive</span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Relationship -->
+                                <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-indigo-50 mb-2">
+                                    <svg class="w-3 h-3 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    <span class="text-xs font-semibold text-indigo-600" x-text="displayRelationship(selectedPerson)"></span>
+                                </div>
+
+                                <template x-if="selectedPersonLoading">
+                                    <div class="flex items-center gap-2 py-3">
+                                        <span class="loading loading-spinner loading-xs"></span>
+                                        <span class="text-xs text-gray-400">Loading...</span>
+                                    </div>
+                                </template>
+
+                                <template x-if="selectedPersonDetail && !selectedPersonLoading">
+                                    <div class="space-y-2">
+                                        <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                                            <div>
+                                                <span class="data-label">DOB</span>
+                                                <div class="font-medium text-gray-700" x-text="selectedPersonDetail.date_of_birth || '—'"></div>
+                                            </div>
+                                            <div>
+                                                <span class="data-label">Gender</span>
+                                                <div>
+                                                    <span class="badge badge-xs"
+                                                          :class="NSS.genderBadgeClass(selectedPersonDetail.gender_code)"
+                                                          x-text="selectedPersonDetail.gender_name || '—'"></span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span class="data-label">Marital</span>
+                                                <div>
+                                                    <span class="badge badge-xs badge-marital"
+                                                          x-text="selectedPersonDetail.marital_status_name || '—'"></span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span class="data-label">Blood</span>
+                                                <div class="font-medium text-gray-700" x-text="selectedPersonDetail.blood_group_name || '—'"></div>
+                                            </div>
+                                            <div>
+                                                <span class="data-label">Mobile</span>
+                                                <div class="font-medium text-gray-700" x-text="(selectedPersonDetail.country_phone_code || '') + ' ' + (selectedPersonDetail.mobile_number || '—')"></div>
+                                            </div>
+                                            <div>
+                                                <span class="data-label">Email</span>
+                                                <div class="font-medium text-gray-700 truncate" x-text="selectedPersonDetail.email || '—'"></div>
+                                            </div>
+                                            <template x-if="selectedPersonDetail.aadhaar_last4">
+                                                <div>
+                                                    <span class="data-label">Aadhaar</span>
+                                                    <div class="font-medium font-mono text-gray-700" x-text="'XXXX-XXXX-' + selectedPersonDetail.aadhaar_last4"></div>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <!-- Spouse -->
+                                        <template x-if="getSpouseName(selectedPerson.person_pk)">
+                                            <div class="detail-section">
+                                                <div class="detail-label">Spouse</div>
+                                                <div class="spouse-card" @click.stop="selectSpouse(selectedPerson.person_pk)">
+                                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                                                         x-text="getSpouseInitials(selectedPerson.person_pk)"></div>
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="text-xs font-semibold text-gray-700" x-text="getSpouseName(selectedPerson.person_pk)"></div>
+                                                        <div class="text-[0.6rem] text-gray-400">Tap to view</div>
+                                                    </div>
+                                                    <svg class="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <!-- Membership -->
+                                        <template x-if="selectedPersonMembershipLoading">
+                                            <div class="detail-section">
+                                                <div class="flex items-center gap-2 py-1">
+                                                    <span class="loading loading-spinner loading-xs"></span>
+                                                    <span class="text-xs text-gray-400">Loading membership...</span>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="selectedPersonMembership && !selectedPersonMembershipLoading && selectedPersonMembership.sangha_sevi_id">
+                                            <div class="detail-section">
+                                                <div class="detail-label">Sangha Membership</div>
+                                                <div class="space-y-2 text-xs">
+                                                    <!-- Sangha Sevi ID — full width, prominent -->
+                                                    <div>
+                                                        <span class="data-label">Sangha Sevi ID</span>
+                                                        <div class="data-sevi-id" x-text="selectedPersonMembership.sangha_sevi_id"></div>
+                                                    </div>
+                                                    <!-- Type & Status — side by side -->
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span class="badge badge-xs"
+                                                              :class="NSS.typeBadgeClass(selectedPersonMembership.membership_type_code)"
+                                                              x-text="selectedPersonMembership.membership_type_name || '—'"></span>
+                                                        <template x-if="selectedPersonMembership.status_name">
+                                                            <span class="badge badge-xs"
+                                                                  :class="NSS.statusBadgeClass(selectedPersonMembership.status_code)"
+                                                                  x-text="selectedPersonMembership.status_name"></span>
+                                                        </template>
+                                                    </div>
+                                                    <!-- Sakha + ERP No -->
+                                                    <template x-if="selectedPersonMembership.organization_name">
+                                                        <div>
+                                                            <span class="data-label">Sakha</span>
+                                                            <div class="flex items-center gap-1.5">
+                                                                <span class="data-sakha-name" x-text="selectedPersonMembership.organization_name"></span>
+                                                                <template x-if="isMemberSakhaMismatch(selectedPerson.person_pk)">
+                                                                    <span class="badge badge-xs bg-amber-100 text-amber-700 border-amber-200 gap-0.5"
+                                                                          title="Different from family's home Sakha">
+                                                                        &#9888; Different
+                                                                    </span>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="selectedPersonMembership.local_sakha_erp_id">
+                                                        <div>
+                                                            <span class="data-label">Sakha Sangha ID</span>
+                                                            <div class="data-erp-no" x-text="selectedPersonMembership.local_sakha_erp_id"></div>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="selectedPersonMembership && !selectedPersonMembershipLoading && selectedPersonMembership.parichaya_patra_number">
+                                            <div class="detail-section">
+                                                <div class="detail-label">Parichaya Patra</div>
+                                                <div class="space-y-2 text-xs">
+                                                    <!-- Kendra Number — full width, prominent -->
+                                                    <div>
+                                                        <span class="data-label">Kendra No.</span>
+                                                        <div class="data-kendra-no" x-text="selectedPersonMembership.parichaya_patra_number"></div>
+                                                    </div>
+                                                    <!-- Status badge -->
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span class="badge badge-xs"
+                                                              :class="selectedPersonMembership.parichaya_patra_status === 'ACTIVE' ? 'badge-status-active' : 'badge-status-inactive'"
+                                                              x-text="selectedPersonMembership.parichaya_patra_status || '—'"></span>
+                                                        <template x-if="selectedPersonMembership.parichaya_patra_valid_to">
+                                                            <span class="text-gray-400">Valid to <span class="font-medium text-gray-600" x-text="selectedPersonMembership.parichaya_patra_valid_to"></span></span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <!-- Anumati Patra — Darshaka only, not Associate (MBR-019A/B) -->
+                                        <template x-if="selectedPersonMembership && !selectedPersonMembershipLoading && NSS.showAnumatiPatra(selectedPersonMembership.membership_type_code) && selectedPersonMembership.anumati_patra_number">
+                                            <div class="detail-section">
+                                                <div class="detail-label">Anumati Patra</div>
+                                                <div class="space-y-2 text-xs">
+                                                    <div>
+                                                        <span class="data-label">Document No.</span>
+                                                        <div class="font-mono font-semibold text-gray-700" x-text="selectedPersonMembership.anumati_patra_number"></div>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span class="badge badge-xs"
+                                                              :class="selectedPersonMembership.anumati_patra_status === 'ACTIVE' ? 'badge-status-active' : 'badge-status-inactive'"
+                                                              x-text="selectedPersonMembership.anumati_patra_status || '—'"></span>
+                                                        <template x-if="selectedPersonMembership.anumati_patra_valid_to">
+                                                            <span class="text-gray-400">Valid to <span class="font-medium text-gray-600" x-text="selectedPersonMembership.anumati_patra_valid_to"></span></span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="selectedPersonMembership && !selectedPersonMembershipLoading && !selectedPersonMembership.sangha_sevi_id">
+                                            <div class="detail-section">
+                                                <div class="detail-label">Membership</div>
+                                                <p class="text-xs text-gray-400">No record found.</p>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="selectedPersonDetail.emergency_contact_name">
+                                            <div class="detail-section">
+                                                <div class="detail-label">Emergency Contact</div>
+                                                <div class="text-xs text-gray-600">
+                                                    <span class="font-medium" x-text="selectedPersonDetail.emergency_contact_name"></span>
+                                                    <span class="text-gray-400" x-text="' (' + (selectedPersonDetail.emergency_relationship_name || '') + ')'"></span>
+                                                    <span class="text-gray-500 ml-1" x-text="selectedPersonDetail.emergency_contact_phone || ''"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <template x-if="!selectedPersonDetail && !selectedPersonLoading">
+                                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs mt-1">
+                                        <div>
+                                            <span class="text-gray-400">Since</span>
+                                            <div class="text-gray-600" x-text="selectedPerson.effective_from || '—'"></div>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-400">Current</span>
+                                            <div class="text-gray-600" x-text="selectedPerson.is_current ? 'Yes' : 'No'"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- Members -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Members</span>
+                                <span class="text-xs text-gray-300 font-mono" x-text="familyMembers.length"></span>
+                            </div>
+                            <template x-if="!membersLoading && familyMembers.length > 0">
+                                <div class="space-y-0.5">
+                                    <template x-for="m in familyMembers" :key="m.family_relationship_pk">
+                                        <div class="flex items-center justify-between px-2 py-1.5 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                                             :class="{ 'bg-indigo-50': selectedPerson?.person_pk === m.person_pk }"
+                                             @click="selectPerson(m)">
+                                            <div class="flex items-center gap-1.5 min-w-0">
+                                                <span class="text-xs font-medium text-gray-700 truncate" x-text="formatName(m)"></span>
+                                                <template x-if="m.person_pk === viewerPersonPk">
+                                                    <span class="badge badge-xs badge-role-viewer">YOU</span>
+                                                </template>
+                                                <template x-if="m.is_head">
+                                                    <span class="badge badge-xs badge-role-head">HEAD</span>
+                                                </template>
+                                                <template x-if="isMemberSakhaMismatch(m.person_pk)">
+                                                    <span class="badge badge-xs bg-amber-100 text-amber-700 border-amber-200"
+                                                          :title="'Affiliated with ' + (getMemberSakhaName(m.person_pk) || 'different Sakha')">&#9888;</span>
+                                                </template>
+                                            </div>
+                                            <span class="text-xs text-gray-400 flex-shrink-0 ml-2"
+                                                  x-text="m.person_pk === viewerPersonPk ? '—' : (graphMembers.find(g => g.person_pk === m.person_pk)?.relationship_label || displayRelationship(m))">
+                                            </span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Head History -->
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Head History</span>
+                            <template x-if="!headLoading && headHistory.length > 0">
+                                <div class="space-y-1 mt-1.5">
+                                    <template x-for="h in headHistory" :key="h.family_head_history_pk">
+                                        <div class="flex items-center justify-between px-2 py-1.5 rounded-lg bg-gray-50 text-xs">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-medium text-gray-700" x-text="formatName(h)"></span>
+                                                <template x-if="!h.effective_to">
+                                                    <span class="badge badge-xs badge-status-active">Now</span>
+                                                </template>
+                                            </div>
+                                            <span class="text-gray-400 text-[0.65rem]" x-text="h.effective_from + (h.effective_to ? ' — ' + h.effective_to : '')"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!headLoading && headHistory.length === 0">
+                                <p class="text-xs text-gray-400 mt-1">No history.</p>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
 
-        <!-- Footer -->
-        <footer class="text-center text-xs text-base-content/30 mt-6">
-            <p>&copy; 2026 Nilachala Saraswata Sangha. All rights reserved.</p>
+        <footer class="text-center text-xs text-gray-300 mt-6 pb-4">
+            &copy; 2026 Nilachala Saraswata Sangha
         </footer>
-
     </div>
 
-    <script src="/assets/js/family.js"></script>
+    <script src="/assets/js/family.js?v=23"></script>
 </body>
 </html>
