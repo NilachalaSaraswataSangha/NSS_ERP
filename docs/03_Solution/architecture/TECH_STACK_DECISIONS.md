@@ -14,6 +14,7 @@
 | 1.1 | 2026-08-20 | §6 Deployment and Git reconciled to live remote state: removed `pie` (Apple-internal remote, removed from the repo 2026-08-15); `org` — github.com/NilachalaSaraswataSangha/NSS_ERP is now an actual configured git remote (added 2026-08-18), not just a description — the Production remote row and Flow row now use the `org` alias consistently. No other section changed. |
 | 1.2 | 2026-08-28 | §4 Mobile Strategy: replaced PWA-first/Capacitor/conditional-Flutter with Flutter (Android + iOS) from day one (TECH-MOB-001 FROZEN). §5 Offline: added mobile-specific storage (Hive/Drift) and sync. §7 Architecture: updated client diagram. §8 Phase 5: Flutter app phases replace PWA+Capacitor. |
 | 1.3 | 2026-09-08 | Django-to-FastAPI migration: §2 Backend rewritten (Django removed, FastAPI sole framework, raw psycopg2, python-dotenv). §3 Frontend updated (static HTML served by FastAPI, not Django Templates). §1 Database hosting updated (Neon.dev production, not generic "PostgreSQL"). §6 Deployment updated (Render.com app + Neon.dev database, infrastructure-as-code). §7 Architecture diagram rewritten. §8 Implementation order updated (Django Models phase removed). §10 Alternatives: Django added as considered-and-departed. Architectural rationale for the migration documented throughout. |
+| 1.4 | 2026-09-16 | §6 Deployment: start command updated from single worker to `--workers 2`; connection pool tuned to `minconn=2`. §6 "Why not gunicorn" updated. Performance rationale documented in PERFORMANCE_TUNING.md. |
 
 ---
 
@@ -124,7 +125,7 @@ The Django prototype (`backend/`) was implemented during initial development and
 | Database hosting | Neon.dev (free tier) | 512 MB PostgreSQL 16, no inactivity pause, no expiry, SSL required |
 | Infrastructure-as-code | `render.yaml` in repo root | Defines Render web service; DB credentials set as env vars pointing to Neon |
 | Build script | `render_build.sh` in repo root | Installs deps, idempotent DB bootstrap (DDL + seed if fresh) |
-| Start command | `uvicorn api.main:app --host 0.0.0.0 --port $PORT` | Render sets `$PORT`; no gunicorn wrapper needed for ASGI |
+| Start command | `uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 2` | Render sets `$PORT`; 2 workers for request concurrency on free tier (see PERFORMANCE_TUNING.md) |
 | Flow | feature/* → develop (`personal`) → main → push to `org` → Render auto-deploys |
 | Branch policy | Complete current branch, merge to develop, then create next |
 
@@ -157,7 +158,7 @@ Neon.dev (free tier)
 ### Why not nginx / gunicorn?
 
 - **Nginx** handles TLS termination, static file serving, and reverse proxying. Render's edge proxy provides all three — nginx is unnecessary on a managed platform. It becomes relevant only if self-hosting on a VM (Tier 5+ concern).
-- **Gunicorn** is a WSGI process manager for Django. FastAPI is ASGI — Uvicorn serves it directly. Multiple Uvicorn workers can be added later if concurrency demands it (`uvicorn --workers N`), but on the free tier's limited memory, a single worker is appropriate.
+- **Gunicorn** is a WSGI process manager for Django. FastAPI is ASGI — Uvicorn serves it directly. Uvicorn's `--workers N` flag spawns multiple worker processes for concurrency (currently 2 on free tier). See `PERFORMANCE_TUNING.md` for scaling guidance.
 
 ---
 

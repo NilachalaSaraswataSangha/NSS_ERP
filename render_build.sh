@@ -158,6 +158,10 @@ run_sql "tier4 family_link (seed)"      "${SEED_BASE}/04_family/02_tier4_verific
 run_sql "tier4 membership (seed)"       "${SEED_BASE}/05_membership/01_tier4_verification_membership.sql"
 
 echo ""
+echo "--- Phase 8b: Performance Indexes (migrations) ---"
+run_sql "performance indexes" "${REPO_ROOT}/database/migrations/add_performance_indexes.sql"
+
+echo ""
 echo "--- Ensuring nss_db_owner and nss_db_backend roles exist ---"
 # database/scripts/00_create_database.sql normally creates both roles,
 # but that script requires a true Postgres superuser + dblink back to

@@ -23,6 +23,16 @@ should). Each file here is self-contained and named for what it fixes, not for a
 | File | Fixes | When you need it |
 |---|---|---|
 | `update_darshaka.sql` | `nss.master_data` row `value_code = 'PROBATIONARY'` (category `MEMBERSHIP_TYPE`): updates `value_name` from `'Probationary Member'` to `'Darshaka'` (NSS Bye-Law §B naming) | **Only** if your database was bootstrapped before this fix landed in `database/seed/01_foundation/02_master_data.sql` — i.e. it still shows `value_name = 'Probationary Member'` for that row. A database built fresh from the current `02_build.sh` already seeds `'Darshaka'` directly and does not need this script. |
+| `add_performance_indexes.sql` | Adds 4 composite partial indexes on `family_relationship`, `sangha_sevi`, `membership_sakha_affiliation`, and `organization`, covering the FAM-036 majority-rule CTE hot path used by `_FAMILY_SELECT` (family.py) and `_CHILDREN_STATS_SQL` (organization.py). See `docs/03_Solution/architecture/PERFORMANCE_TUNING.md`. | Applied automatically by `02_build.sh`/`.ps1` and `render_build.sh` as "Phase 8b" on every build. **Released as v0.10.4.** |
+
+**Known inconsistency (unresolved):** `add_performance_indexes.sql` breaks both rules stated
+above — it's a schema change (`CREATE INDEX`, not a data fix), and it *is* wired into
+`02_build.sh`, `02_build.ps1`, and `render_build.sh` as an automatic build phase. It uses
+`CREATE INDEX IF NOT EXISTS` so it's harmless to re-run, but its presence here contradicts this
+folder's own documented purpose. Left for the project maintainer to decide how to reconcile —
+either move the file under `database/ddl/` (it fits the "Two-Pass DDL Strategy" better as a
+schema artifact) or update this README's stated convention to explicitly carve out an exception
+for idempotent, build-wired index migrations. Not resolved as part of this documentation pass.
 
 ## Running a script here
 

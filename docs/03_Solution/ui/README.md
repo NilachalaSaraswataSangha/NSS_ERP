@@ -5,14 +5,17 @@ UI/UX design documentation (screen specs, wireframes) per the UI Roadmap in
 
 ## Relationship to the implemented `frontend/`
 
-`frontend/` (repo root) is a real, already-implemented frontend — the Tier 0 Bootstrap
-Verification UI, served by FastAPI at `/` (see root `CLAUDE.md` → Frontend). It shares the same
-tech stack as the mockups below (Tailwind CSS + DaisyUI via CDN, Alpine.js, no build step) but is
-a distinct, functional artifact: it calls the real `/api/v1/bootstrap/*` endpoints and verifies
-DB connectivity/RBAC seed data, whereas the mockups in `mockups/` are static, non-functional
-visual targets for the future admin-dashboard UI (Phase 4) with sample/placeholder data only.
-None of the 13 mockups below is the Tier 0 Bootstrap Verification UI, and the Tier 0 UI does not
-supersede or implement any of them — they cover different, non-overlapping screens.
+`frontend/` (repo root) is a real, already-implemented frontend — six Verification UIs (Tier 0
+Bootstrap, Tier 1 Foundation, Tier 2 Organization, Tier 3 Person, Tier 4 Family, Tier 4
+Membership), served by FastAPI at `/`, `/foundation`, `/organization`, `/person`, `/family`, and
+`/membership` respectively (see root `CLAUDE.md` → Frontend and `frontend/README.md`). It shares
+the same tech stack as the mockups below (Tailwind CSS + DaisyUI via CDN, Alpine.js, no build
+step) but is a distinct, functional artifact: each page calls its tier's real `/api/v1/*`
+endpoints and verifies DB connectivity/seed data, whereas the mockups in `mockups/` are static,
+non-functional visual targets for the future admin-dashboard UI (Phase 4) with sample/placeholder
+data only. None of the 13 mockups below is one of these six Verification UIs, and the
+Verification UIs do not supersede or implement any of them — they cover different,
+non-overlapping screens.
 
 ## Contents
 

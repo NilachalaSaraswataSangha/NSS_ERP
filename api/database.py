@@ -22,7 +22,7 @@ def get_pool() -> psycopg2.pool.SimpleConnectionPool:
     if _pool is None or _pool.closed:
         settings.validate()
         _pool = psycopg2.pool.SimpleConnectionPool(
-            minconn=1,
+            minconn=2,
             maxconn=5,
             dbname=settings.DB_NAME,
             user=settings.DB_USER,

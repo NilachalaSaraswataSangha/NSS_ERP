@@ -53,9 +53,8 @@ migration tool for this track). Bootstrap sequence (full commands and rationale 
    Tier 4:** hardcodes `organization` = 3 rows, `person` = 0 rows, and `master_data` = 88 rows
    (was 82 at last check, has grown again — verify against the live seed file rather than
    trusting this number); all are wrong (Tier 4 verification seed grows organization/person),
-   and there are no Family/Membership
-   checks yet at all — expect
-   this script to report false failures until it's updated.
+   and there are no Family/Membership checks yet at all — expect this script to report false
+   failures until it's updated.
 5. `database/scripts/04_grant_backend.sql` (as `nss_db_owner`) — grants `nss_db_backend`
    read-only `SELECT`, needed before the API can connect. Already run as `02_build`'s Phase 9;
    this manual step is only needed if you skip the full build script.
@@ -71,10 +70,22 @@ not a schema-migration framework, just a place for narrowly-scoped `UPDATE`/data
 living directly under `database/seed/` (not a numbered module folder) — also not run by
 `02_build.sh`.
 
-**Known cross-platform script drift (unresolved):** `02_build.sh` gained Phases 5-9 above
-(Person/Family/Membership DDL + Tier 4 verification seed + grant) but `02_build.ps1` was not
-updated to match — violates the `.sh`/`.ps1` parity rule below. Fix `.ps1` before relying on it
-for a Windows bootstrap of Tier 3/4.
+**Released as v0.10.4** (performance-hardening pass, merged from branch
+`performance-optimization`): a second file, `add_performance_indexes.sql` (4
+`CREATE INDEX IF NOT EXISTS` composite partial indexes for the FAM-036 majority-rule CTE hot
+path), was added to `database/migrations/` and *is* wired into `02_build.sh`, `02_build.ps1`,
+and `render_build.sh` as a new "Phase 8b" step — directly contradicting both stated rules above
+(it's a schema change, and it does run automatically). Flagged as an unresolved inconsistency in
+`database/migrations/README.md`; not resolved here. See
+`docs/03_Solution/architecture/PERFORMANCE_TUNING.md` for the full rationale (also:
+`render.yaml` start command gained `--workers 2`, `api/database.py`'s connection pool `minconn`
+went 1→2, and `family.js`/`membership.js` made their health-check fetch fire-and-forget plus
+split the org-children-stats fetch to load in the background).
+
+**Known cross-platform script drift — resolved in v0.10.4:** `02_build.sh` gained Phases 5-9
+above (Person/Family/Membership DDL + Tier 4 verification seed + grant) and, for a time,
+`02_build.ps1` was not updated to match — violating the `.sh`/`.ps1` parity rule below. Fixed in
+v0.10.4 (adds the missing Phases 6-9 plus the new 8b to `.ps1`).
 
 `.sh`/`.ps1` script pairs must stay operationally identical — shell-mechanics wrappers only,
 never a place for platform-specific logic.
@@ -305,7 +316,6 @@ Items explicitly deferred to later tiers. Do not implement these until their tar
 | Kumari DDL (5 tables) | Tier 8 | Requires frozen Membership module | `kumari_sangha`, `kumari_member`, `kumari_activity`, `kumari_activity_participant`, `kumari_membership_transition` |
 | Sevak/Mahila DDL | Tier 9 | Requires frozen Membership + Kumari | `sevak_sangha` tables, `mahila_sangha` tables |
 | Fix `test_kumari_transition_has_event` | Pre-freeze | SS5 seed needs KUMARI_TRANSITION journey event | `test_membership.py` |
-| Fix `database/scripts/02_build.ps1` | Pre-freeze | `.sh` gained Phases 5-9 (Person/Family/Membership + Tier 4 verification seed + grant); `.ps1` wasn't updated to match | `database/scripts/02_build.ps1` |
 | Fix `database/scripts/03_validate.sh`/`.ps1` | Pre-freeze | Hardcodes `organization`=3, `person`=0, `master_data`=88 rows — all stale after Tier 4 verification seed + STATUS expansion; no Family/Membership checks exist | `database/scripts/03_validate.sh`, `.ps1` |
 | Factor out duplicated FAM-036 SQL | Pre-freeze | The majority-rule "effective Sakha" CTE is implemented twice, identically, in `organization.py`'s `/children-stats` and `family.py`'s `/sakha-alignment`/`_FAMILY_SELECT` — no shared helper | `api/routers/organization.py`, `api/routers/family.py` |
 | Add depth-cap guard to `_CHILDREN_STATS_SQL` | Pre-freeze | Its recursive CTE has no `depth < 10` guard, unlike `/hierarchy` — a circular parent reference could recurse indefinitely | `api/routers/organization.py` |

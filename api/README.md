@@ -2,8 +2,9 @@
 
 FastAPI application — the only web/API layer in the codebase. Currently implements **Tier 0**
 (read-only bootstrap-RBAC), **Tier 1** (read-only Foundation), **Tier 2** (read-only
-Organization), and **Tier 3** (read-only Person) — no authentication, no ORM — behind a
-cross-tier security middleware stack (headers, opt-in CORS, rate limiting).
+Organization), **Tier 3** (read-only Person), and **Tier 4** (read-only Family + Membership) —
+no authentication, no ORM — behind a cross-tier security middleware stack (headers, opt-in CORS,
+rate limiting).
 
 An earlier Django prototype lived under `backend/` and covered parts of Foundation,
 Authentication, Family, Membership, and Heritage; it was fully archived and removed once the
@@ -16,18 +17,20 @@ FastAPI direction (`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) was 
 api/
 ├── main.py             FastAPI app entry point — builds `app`, registers the security
 │                        middleware stack (rate limiting → opt-in CORS → security headers, in
-│                        that order), includes all four routers, mounts `frontend/assets/` at
+│                        that order), includes all six routers, mounts `frontend/assets/` at
 │                        `/assets`, serves `frontend/index.html` at `/`,
 │                        `frontend/foundation.html` at `/foundation` (if present),
-│                        `frontend/organization.html` at `/organization` (if present), and
-│                        `frontend/person.html` at `/person` (if present), closes
+│                        `frontend/organization.html` at `/organization` (if present),
+│                        `frontend/person.html` at `/person` (if present),
+│                        `frontend/family.html` at `/family` (if present), and
+│                        `frontend/membership.html` at `/membership` (if present), closes
 │                        the DB pool on shutdown
 ├── config.py            Settings: DB_NAME/DB_USER/DB_PASSWORD (required), DB_HOST (default
 │                        localhost), DB_PORT (default 5432), API_PORT (default 8001),
 │                        DISABLE_DOCS (default false), CORS_ORIGINS (comma-separated, default
 │                        empty), RATE_LIMIT (default `60/minute`) — read from api/.env via
 │                        python-dotenv
-├── database.py          psycopg2 SimpleConnectionPool (1-5 conns), connects as
+├── database.py          psycopg2 SimpleConnectionPool (2-5 conns), connects as
 │                        `nss_db_backend` (read-only); get_connection() is a FastAPI
 │                        generator dependency
 ├── helpers.py           Shared cursor→Pydantic conversion helpers (`rows_to_models`,
@@ -45,12 +48,25 @@ api/
 │   │                    role_permission
 │   ├── foundation.py    17 endpoints under /api/v1/foundation across 11 tables — master data,
 │   │                    system config, geography, and runtime document metadata (see below)
-│   ├── organization.py  6 endpoints under /api/v1/organization across 3 tables — reference
+│   ├── organization.py  7 endpoints under /api/v1/organization across 3 tables — reference
 │   │                    data (types, statuses), core organizations (list/detail/children),
-│   │                    and a self-referencing hierarchy tree via `WITH RECURSIVE`
-│   └── person.py        4 endpoints under /api/v1/person across 2 tables — person list
-│                        (with gender/marital-status/blood-group filters + pagination),
-│                        person detail, person addresses, and trigram-based (`pg_trgm`) search
+│   │                    children-stats (recursive, no depth-cap guard — see Gotchas), and a
+│   │                    self-referencing hierarchy tree via `WITH RECURSIVE`
+│   ├── person.py        4 endpoints under /api/v1/person across 2 tables — person list
+│   │                    (with gender/marital-status/blood-group filters + pagination),
+│   │                    person detail, person addresses, and trigram-based (`pg_trgm`) search
+│   ├── family.py        7 endpoints under /api/v1/family across 5 tables — family group
+│   │                    list/detail/members/head-history, plus `/graph` (dynamic
+│   │                    relationship-label BFS via `api/services/family_graph.py`),
+│   │                    `/sakha-alignment` (FAM-036 majority-rule computation), and
+│   │                    `/person/{pk}/membership-summary`
+│   └── membership.py    7 endpoints under /api/v1/membership — member list/detail, member
+│                        search (7-field), member Sakha affiliations, Parichaya Patra records,
+│                        Anumati Patra records, and journey events
+├── services/
+│   └── family_graph.py  BFS graph-traversal relationship computation over `nss.family_link`
+│                        edges — first file in this layer, distinct from routers/schemas; no
+│                        test coverage yet (see Gotchas)
 └── schemas/
     ├── bootstrap.py      Pydantic response models (RoleResponse, PermissionResponse,
     │                     HealthResponse) — audit columns deliberately excluded
@@ -62,10 +78,16 @@ api/
     │                     contact/online-presence fields (phone_number, mobile_number, email,
     │                     org_email, website_url, org_website_url, youtube_channel_url,
     │                     org_youtube_channel_url)
-    └── person.py         3 Pydantic models (PersonResponse, PersonSummaryResponse,
-                          PersonAddressResponse) — PersonResponse/PersonSummaryResponse never
-                          include `aadhaar_encrypted`/`aadhaar_hash`, only `aadhaar_last4` for
-                          masked display (PER-BR-081); audit columns excluded
+    ├── person.py         3 Pydantic models (PersonResponse, PersonSummaryResponse,
+    │                     PersonAddressResponse) — PersonResponse/PersonSummaryResponse never
+    │                     include `aadhaar_encrypted`/`aadhaar_hash`, only `aadhaar_last4` for
+    │                     masked display (PER-BR-081); audit columns excluded
+    ├── family.py         8 Pydantic models (FamilyGroupResponse, FamilyMemberResponse,
+    │                     FamilyGraphMemberResponse, PersonMembershipSummaryResponse,
+    │                     FamilyHeadHistoryResponse, SakhaAffiliationCount, MemberSakhaInfo,
+    │                     FamilySakhaAlignmentResponse)
+    └── membership.py     5 Pydantic models (MemberResponse, SakhaAffiliationResponse,
+                          ParichayaPatraResponse, AnumatiPatraResponse, JourneyEventResponse)
 ```
 
 ## Security middleware
@@ -137,7 +159,7 @@ tests (`tests/test_foundation.py`).
 
 ## Endpoints (Tier 2)
 
-6 read-only endpoints under `/api/v1/organization` — no auth, no ORM, raw
+7 read-only endpoints under `/api/v1/organization` — no auth, no ORM, raw
 parameterized SQL. Organization type values come from Foundation `master_data`
 (category `ORGANIZATION_TYPE`). Status values come from the unified ERP-wide
 `STATUS` category. Organization LEFT JOINs
@@ -151,10 +173,11 @@ for address resolution, since those FKs are nullable.
 | GET | `/api/v1/organization/organizations` | Organizations with resolved type/status/parent/geography context; optional `type_code`/`status_code` filters, `limit`/`offset` pagination (default 100, max 500) |
 | GET | `/api/v1/organization/organizations/{organization_pk}` | Single organization detail; 404 if missing/inactive |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children` | Direct children of an organization; 404 if the parent `organization_pk` doesn't exist |
+| GET | `/api/v1/organization/organizations/{organization_pk}/children-stats` | Aggregate family/member/person counts per direct child, recursing through descendant Sakhas and applying the FAM-036 majority-rule "effective Sakha" computation; its own recursive CTE has **no** depth-cap guard, unlike `/hierarchy` |
 | GET | `/api/v1/organization/hierarchy` | Full organization tree as a flat list with a `depth` field, via a `WITH RECURSIVE` CTE (depth guard at 10); `limit`/`offset` pagination |
 
 All list endpoints filter `is_active = TRUE`; detail/children endpoints 404 on a missing parent.
-Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`. Verified by 64 pytest
+Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`. Verified by 72 pytest
 integration tests (`tests/test_organization.py`).
 
 ## Endpoints (Tier 3)
@@ -173,7 +196,42 @@ against Foundation's `master_data`. Trigram search relies on `pg_trgm` (installe
 
 `aadhaar_encrypted` and `aadhaar_hash` are never returned by any endpoint — only
 `aadhaar_last4` for masked display (PER-BR-081). Full contract:
-`docs/03_Solution/api/PERSON_API_CONTRACT.md`. Verified by 56 pytest integration tests
+`docs/03_Solution/api/PERSON_API_CONTRACT.md`. Verified by 61 pytest integration tests
 (`tests/test_person.py`).
 
-See `docs/PROJECT_DOCUMENTATION.md` → Key workflows for more detail on all four tiers.
+## Endpoints (Tier 4)
+
+14 read-only endpoints across Family and Membership — no auth, no ORM, raw parameterized SQL.
+
+**Family** — 7 endpoints under `/api/v1/family`, across 5 tables:
+
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | `/api/v1/family/families` | Family group list with filters + pagination |
+| GET | `/api/v1/family/families/{family_group_pk}` | Family group detail |
+| GET | `/api/v1/family/families/{family_group_pk}/members` | Family group members |
+| GET | `/api/v1/family/families/{family_group_pk}/head-history` | Family head history |
+| GET | `/api/v1/family/families/{family_group_pk}/graph?viewer_person_pk=` | Dynamic relationship-label computation via BFS traversal over `nss.family_link` edges (`api/services/family_graph.py`); no test coverage yet |
+| GET | `/api/v1/family/families/{family_group_pk}/sakha-alignment` | FAM-036 majority-rule "effective Sakha" computation — `is_aligned` is hardcoded `True` by design; per-member `is_home_sakha` flags surface real mismatches |
+| GET | `/api/v1/family/person/{person_pk}/membership-summary` | Bridges family context to membership context for a UI panel; no test coverage yet |
+
+Full contract: `docs/03_Solution/api/API_CONTRACT.md`. Verified by 67 pytest integration tests
+(`tests/test_family.py`) — `/graph` and `/person/{pk}/membership-summary` are the two
+exceptions with no coverage.
+
+**Membership** — 7 endpoints under `/api/v1/membership`:
+
+| Method | Path | Returns |
+|--------|------|---------|
+| GET | `/api/v1/membership/members` | Member list with filters + pagination |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}` | Member detail |
+| GET | `/api/v1/membership/search` | 7-field member search: `sangha_sevi_id`, `person_id`, `local_sakha_erp_id`, name (trigram 0.45), mobile, email, Kendra number |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/affiliations` | Member Sakha affiliations (current + historical) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/parichaya-patra` | Member Parichaya Patra records |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/anumati-patra` | Member Anumati Patra records |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/journey` | Member journey events |
+
+Full contract: `docs/03_Solution/api/API_CONTRACT.md` (46 endpoints total across all six tiers).
+Verified by 99 pytest integration tests (`tests/test_membership.py`).
+
+See `docs/PROJECT_DOCUMENTATION.md` → Key workflows for more detail on all six tiers.
