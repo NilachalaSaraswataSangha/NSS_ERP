@@ -83,7 +83,7 @@ for f in database/ddl/03_person/0[2-3]*.sql; do
 done
 
 # ─────────────────────────────────────────────────
-# Phase 6: Family DDL (4 tables)
+# Phase 6: Family DDL (5 tables)
 # ─────────────────────────────────────────────────
 for f in database/ddl/04_family/0*.sql; do
     psql -U nss_db_owner -d nss_erp -f "$f"
@@ -108,6 +108,12 @@ done
 for f in database/seed/05_membership/0*.sql; do
     psql -U nss_db_owner -d nss_erp -f "$f"
 done
+# ─────────────────────────────────────────────────
+# Phase 8b: Performance Indexes (migrations) — v0.10.4.
+#           See `database/migrations/README.md` for the
+#           convention tension this file introduces.
+# ─────────────────────────────────────────────────
+psql -U nss_db_owner -d nss_erp -f database/migrations/add_performance_indexes.sql
 
 # ─────────────────────────────────────────────────
 # Phase 9: Grant nss_db_backend read-only access
@@ -193,16 +199,16 @@ dependency and may be created in any order.
 | 1 | Foundation | `13_city_village_postal_code_map.sql` | `city_village_postal_code_map` | 4 | #89 |
 | 3 | Organization | `03_organization.sql` | `organization` | 1 | #33 |
 
-Person, Family, and Membership tables are now implemented too (18 tables
+Person, Family, and Membership tables are now implemented too (19 tables
 across 3 modules) — see their own module READMEs for the per-file
 Depth/Seq# breakdown rather than duplicating it here:
 - `ddl/03_person/README.md` (2 tables: `person`, `person_address`)
-- `ddl/04_family/README.md` (4 tables: `family_group`, `family_relationship`,
-  `family_head_history`, `family_transition_history`)
+- `ddl/04_family/README.md` (5 tables: `family_group`, `family_relationship`,
+  `family_head_history`, `family_transition_history`, `family_link`)
 - `ddl/05_membership/README.md` (12 tables, `sangha_sevi` first)
 
-**Total implemented: 34 tables (3 Bootstrap RBAC + 12 Foundation + 1
-Organization + 2 Person + 4 Family + 12 Membership)**
+**Total implemented: 35 tables (3 Bootstrap RBAC + 12 Foundation + 1
+Organization + 2 Person + 5 Family + 12 Membership)**
 **Organization type/status moved to Foundation `master_data` — standalone tables retired.**
 **Phase 0 seed partial: `role_master` seeded (8 roles); `permission_master`/`role_permission` empty, pending the permission catalogue freeze**
 
@@ -246,7 +252,7 @@ database/
 │   ├── 02_organization/  1 table (Depth 1) — IMPLEMENTED
 │   ├── 03_person/        2 tables (`person`, `person_address`) — IMPLEMENTED
 │   │                     (01_person_master_tables.sql superseded — see below)
-│   ├── 04_family/        4 tables — IMPLEMENTED
+│   ├── 04_family/        5 tables — IMPLEMENTED
 │   └── 05_membership/    12 tables (`sangha_sevi` first) — IMPLEMENTED
 ├── seed/
 │   ├── 00_bootstrap/     8 roles seeded; permission catalogue PENDING
@@ -269,14 +275,14 @@ database/
 | Foundation | 12 | ✅ IMPLEMENTED | — |
 | Organization | 1 | ✅ IMPLEMENTED | — |
 | Person | 2 | ✅ IMPLEMENTED | — |
-| Family | 4 | ✅ IMPLEMENTED | — |
+| Family | 5 | ✅ IMPLEMENTED | — |
 | Membership | 12 | ✅ IMPLEMENTED | — |
 | Authentication | 2 | ⏳ DESIGN | Freeze user_account, password_history columns |
 | Administration | 5 | ⏳ DESIGN | 3 RBAC tables in Bootstrap; correspondence columns pending |
 | Heritage | 4 | ⬜ NOT YET | — |
 
 Table counts for the implemented modules above are the actual counts of
-tables created by their DDL files. Family (4) and Membership (12) exceed
+tables created by their DDL files. Family (5) and Membership (12) exceed
 the frozen SOL-ARCH-010 inventory figures used in earlier planning (3 and
 9 respectively) — the implemented slice grew during design; this is a
 known SOL-ARCH-010 inventory drift to reconcile in a future governance
@@ -371,9 +377,10 @@ Phases executed:
 | 3 | Organization | 1 table (Depth 1) |
 | 4 | Organization | Seed data (named orgs; types/statuses come from Foundation seed) |
 | 5 | Person | 2 tables (`person`, `person_address`) |
-| 6 | Family | 4 tables |
+| 6 | Family | 5 tables |
 | 7 | Membership | 12 tables (`sangha_sevi` first) |
 | 8 | Tier 4 Verification | Seed data — Organization → Person → Family → Membership |
+| 8b | Performance Indexes | 4 composite partial indexes on the FAM-036 majority-rule CTE hot path (`database/migrations/add_performance_indexes.sql`) — released as v0.10.4 |
 | 9 | Grant Backend | `nss_db_backend` read-only access |
 
 **Not executed:** `ddl/03_person/01_person_master_tables.sql` /

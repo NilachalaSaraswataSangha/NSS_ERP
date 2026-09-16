@@ -52,7 +52,8 @@ function membershipApp() {
         // ── Init ──────────────────────────────────────────────────
 
         async init() {
-            await this.fetchHealth();
+            // Fire health check in parallel — don't block data loading
+            this.fetchHealth();
             await this.fetchMembers();
         },
 

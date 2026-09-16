@@ -340,7 +340,7 @@ def get_pool() -> psycopg2.pool.SimpleConnectionPool:
     if _pool is None or _pool.closed:
         settings.validate()
         _pool = psycopg2.pool.SimpleConnectionPool(
-            minconn=1,
+            minconn=2,
             maxconn=5,
             dbname=settings.DB_NAME,
             user=settings.DB_USER,
@@ -354,9 +354,11 @@ def get_pool() -> psycopg2.pool.SimpleConnectionPool:
 Declares `global _pool` so it can rebind the module-level variable; if `_pool is None or
 _pool.closed` (i.e. never created, or previously closed), it calls `settings.validate()` (fail
 fast if credentials are missing) and then constructs `psycopg2.pool.SimpleConnectionPool(...)`.
-`minconn=1` keeps one connection warm at all times; `maxconn=5` caps concurrent connections to
-PostgreSQL at 5. Either way, the function returns `_pool` — callers never construct a pool
-themselves.
+`minconn=2` keeps two connections warm at all times (v0.10.4 —
+pre-warms enough connections so a 2-worker Uvicorn deployment has no
+cold-start latency on first request; see `docs/03_Solution/architecture/PERFORMANCE_TUNING.md`);
+`maxconn=5` caps concurrent connections to PostgreSQL at 5. Either way, the function returns
+`_pool` — callers never construct a pool themselves.
 
 Lines 36–41:
 
@@ -451,15 +453,18 @@ a collection of importable modules.
 
 **Line-by-line**
 
-Lines 1–26 — module docstring:
+Lines 1–34 — module docstring:
 
 ```python
 """
 NSS ERP — FastAPI application entry point.
 
-Tier 0 Bootstrap + Tier 1 Foundation API + Frontend:
-  - Read-only endpoints for RBAC and Foundation data verification
-  - Serves frontend/ static files (Verification UI)
+Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person
++ Tier 4 Family + Membership
+API + Frontend:
+  - Read-only endpoints for RBAC, Foundation, Organization, Person,
+    Family, and Membership data verification
+  - Serves frontend/ static files (Verification UIs)
   - No authentication (Tier 5)
   - No ORM — raw psycopg2 against nss.* schema
   - Connects as nss_db_backend (SELECT-only privileges)
@@ -476,16 +481,22 @@ Start with:
     (run from the repository root)
 
 URLs:
-    http://localhost:8001/          -> Bootstrap Verification UI
-    http://localhost:8001/docs      -> Swagger UI (OpenAPI)
-    http://localhost:8001/api/v1/   -> API endpoints
+    http://localhost:8001/              -> Bootstrap Verification UI
+    http://localhost:8001/foundation    -> Foundation Verification UI
+    http://localhost:8001/organization  -> Organization Verification UI
+    http://localhost:8001/person        -> Person Verification UI
+    http://localhost:8001/family        -> Family Verification UI
+    http://localhost:8001/membership    -> Membership Verification UI
+    http://localhost:8001/docs          -> Swagger UI (OpenAPI)
+    http://localhost:8001/api/v1/       -> API endpoints
 """
 ```
 
-Summarizes the file as "Tier 0 Bootstrap + Tier 1 Foundation API + Frontend," lists what it
-doesn't do (no auth, no ORM), names the security middleware present, gives the exact `uvicorn`
-start commands for macOS/Linux and Windows (must be run from the repository root), and the
-three URLs served (`/`, `/docs`, `/api/v1/...`).
+Summarizes the file as covering all six tiers (Bootstrap through Family + Membership), lists what
+it doesn't do (no auth, no ORM), names the security middleware present, gives the exact `uvicorn`
+start commands for macOS/Linux and Windows (must be run from the repository root), and all eight
+URLs served (`/`, `/foundation`, `/organization`, `/person`, `/family`, `/membership`, `/docs`,
+`/api/v1/...`).
 
 Line 28:
 
@@ -534,11 +545,11 @@ Lines 40–43:
 from api.config import settings
 from api.database import close_pool
 from api.middleware import add_security_headers
-from api.routers import bootstrap, foundation
+from api.routers import bootstrap, foundation, organization, person, family, membership
 ```
 
 Pulls in configuration, the pool-shutdown function, the security-headers middleware function,
-and both routers.
+and all six routers.
 
 Line 45:
 
@@ -587,7 +598,8 @@ app = FastAPI(
     version="0.1.0",
     description=(
         "Nilachala Saraswata Sangha ERP — "
-        "Tier 0 Bootstrap + Tier 1 Foundation API. "
+        "Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization "
+        "+ Tier 3 Person + Tier 4 Family + Membership API. "
         "Read-only verification endpoints."
     ),
     lifespan=lifespan,
@@ -656,11 +668,16 @@ Lines 98–99:
 ```python
 app.include_router(bootstrap.router)
 app.include_router(foundation.router)
+app.include_router(organization.router)
+app.include_router(person.router)
+app.include_router(family.router)
+app.include_router(membership.router)
 ```
 
-Mounts all 4 Bootstrap endpoints and all 17 Foundation endpoints onto the app.
+Mounts all 46 endpoints across all six routers onto the app: 4 Bootstrap, 17 Foundation, 7
+Organization, 4 Person, 7 Family, 7 Membership.
 
-Lines 105–124:
+Lines 118–169:
 
 ```python
 if _FRONTEND_DIR.is_dir():
@@ -683,6 +700,38 @@ if _FRONTEND_DIR.is_dir():
         async def serve_foundation():
             """Serve the Foundation Verification UI."""
             return FileResponse(str(_foundation_path))
+
+    _organization_path = _FRONTEND_DIR / "organization.html"
+    if _organization_path.is_file():
+
+        @app.get("/organization", include_in_schema=False)
+        async def serve_organization():
+            """Serve the Organization Verification UI."""
+            return FileResponse(str(_organization_path))
+
+    _person_path = _FRONTEND_DIR / "person.html"
+    if _person_path.is_file():
+
+        @app.get("/person", include_in_schema=False)
+        async def serve_person():
+            """Serve the Person Verification UI."""
+            return FileResponse(str(_person_path))
+
+    _family_path = _FRONTEND_DIR / "family.html"
+    if _family_path.is_file():
+
+        @app.get("/family", include_in_schema=False)
+        async def serve_family():
+            """Serve the Family Verification UI."""
+            return FileResponse(str(_family_path))
+
+    _membership_path = _FRONTEND_DIR / "membership.html"
+    if _membership_path.is_file():
+
+        @app.get("/membership", include_in_schema=False)
+        async def serve_membership():
+            """Serve the Membership Verification UI."""
+            return FileResponse(str(_membership_path))
 ```
 
 The entire frontend-serving block is conditional on the `frontend/` directory existing, so the
@@ -692,9 +741,12 @@ name="frontend-assets")` serves CSS/JS/images under `/assets/*` — deliberately
 `/assets` rather than `/` so it can't shadow `/docs` or `/openapi.json`. `@app.get("/",
 include_in_schema=False) async def serve_frontend(): return FileResponse(str(_index_path))`
 serves `frontend/index.html` at the root; `include_in_schema=False` keeps this page route out
-of the OpenAPI schema (it's a UI page, not an API contract). Finally, `_foundation_path =
-_FRONTEND_DIR / "foundation.html"; if _foundation_path.is_file():` — same pattern, gated on the
-file's existence, serving the Tier 1 Foundation Verification UI at `/foundation`.
+of the OpenAPI schema (it's a UI page, not an API contract). The same
+`_x_path = _FRONTEND_DIR / "x.html"; if _x_path.is_file():` pattern then repeats four more times
+— `foundation.html` at `/foundation`, `organization.html` at `/organization`, `person.html` at
+`/person`, `family.html` at `/family`, and `membership.html` at `/membership` — each gated
+independently on that specific HTML file's existence, so a partial frontend checkout (e.g. only
+some tier pages present) still serves whichever pages do exist.
 
 ---
 

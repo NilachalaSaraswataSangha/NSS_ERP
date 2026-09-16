@@ -13,7 +13,7 @@ services:
     runtime: python
     plan: free
     buildCommand: ./render_build.sh
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
       # Set these in Render dashboard → Environment, pointing to Neon.dev
       - key: DB_NAME

@@ -1,8 +1,8 @@
 # NSS ERP — Deployment Procedure
 
 **Document Type:** Operations / Deployment Guide
-**Version:** 1.0
-**Date:** 2026-09-09
+**Version:** 1.1
+**Date:** 2026-09-16
 **Status:** Active
 **Audience:** Project maintainer
 
@@ -74,7 +74,7 @@ PostGIS and dblink are **not used** in current DDL and are not required.
    - Branch: `main`
 3. Render will detect `render.yaml` and auto-configure:
    - **Build command:** `./render_build.sh`
-   - **Start command:** `uvicorn api.main:app --host 0.0.0.0 --port $PORT`
+   - **Start command:** `uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 2`
    - **Plan:** Free
    - **Python version:** 3.12.4
 
@@ -107,6 +107,11 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap) and `api/m
      - Phase 0: Bootstrap RBAC (3 tables + seed)
      - Phase 1: Foundation (12 tables + seed)
      - Phase 2: Organization (3 tables + seed)
+     - Phase 6: Family (5 tables)
+     - Phase 7: Membership (12 tables)
+     - Phase 8: Tier 4 Verification Seed Data
+     - Phase 8b: Performance Indexes (4 composite partial indexes)
+     - Phase 9: Grant nss_db_backend read-only access
    - If **already bootstrapped**: skips DDL/seed (idempotent)
 3. Uvicorn starts serving FastAPI.
 
@@ -201,6 +206,7 @@ This creates a `.neon` link file in the project directory for CLI operations (br
 ## Related Documents
 
 - `TECH_STACK_DECISIONS.md` — Architecture rationale (§6 Deployment and Git)
+- `PERFORMANCE_TUNING.md` — Workers, connection pool, indexes, scaling guidance
 - `render.yaml` — Render infrastructure-as-code definition
 - `render_build.sh` — Build + bootstrap script (annotated)
 - `docs/05_Releases/v0.6.0.md` — First deployable release notes

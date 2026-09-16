@@ -2533,7 +2533,8 @@ Sakha-alignment state, and the rebuilt-tree state. Notably `viewMode` defaults t
 
 ```js
 async init() {
-    await this.fetchHealth();
+    // Fire health check in parallel — don't block data loading
+    this.fetchHealth();
     if (this.viewMode === "admin") {
         await this.fetchOrgRoot();
     } else {
@@ -2544,6 +2545,8 @@ async init() {
 
 `init()` now branches on `viewMode` — since it defaults to `"admin"`, a fresh page load fetches
 the Kendra root org and its children (`fetchOrgRoot()`) rather than the flat family list.
+`fetchHealth()` is fire-and-forget here (no `await`) — it only updates a status indicator, so it
+no longer blocks the org/family fetch from starting (v0.10.4; see `PERFORMANCE_TUNING.md`).
 
 **`selectFamily()` — extended, not replaced:**
 
@@ -2816,6 +2819,14 @@ three Family endpoints above — it consumes Organization's `/organizations?type
 `/organizations/{pk}/children`, and `/organizations/{pk}/children-stats` endpoints, not any new
 Family endpoint, and is out of scope for this pass; see `ORGANIZATION_API_CONTRACT.md` for that
 endpoint's contract.
+
+**Update (v0.10.4, performance-hardening release):** `fetchOrgChildren(orgPk)` no
+longer awaits both the children list and the stats query together. It now fetches and renders
+`orgChildren` immediately, then kicks off a new `_fetchOrgChildrenStats(orgPk)` method
+separately (not awaited) to populate `orgChildrenStats` once the heavier recursive
+`/children-stats` CTE resolves. A failure in `_fetchOrgChildrenStats()` is treated as non-fatal
+("stats are supplementary") and no longer clears `orgChildren`. See
+`docs/03_Solution/architecture/PERFORMANCE_TUNING.md` §2.2.
 
 ---
 

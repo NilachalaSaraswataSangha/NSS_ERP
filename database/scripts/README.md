@@ -13,7 +13,7 @@ Run from the repository root.
 |---|---|---|---|
 | `00_create_database.sql` | superuser (`postgres`) | `postgres` | Creates `nss_erp` database, `nss_db_owner`/`nss_db_backend` roles (both with LOGIN, no password). Installs `dblink`. Fully idempotent. |
 | `01_extensions.sql` | superuser (`postgres`) | `nss_erp` | Installs `pgcrypto`, `pg_trgm`, `btree_gin`, `postgis`. Creates `nss` schema owned by `nss_db_owner`. Idempotent. |
-| `02_build.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Runs all implemented DDL + seed (Bootstrap RBAC, Foundation, Organization, Person, Family, Membership) plus Tier 4 verification seed data. Not idempotent — drop/recreate DB for clean rebuild. |
+| `02_build.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Runs all implemented DDL + seed (Bootstrap RBAC, Foundation, Organization, Person, Family, Membership) plus Tier 4 verification seed data and performance indexes (Phase 8b, v0.10.4). Not idempotent — drop/recreate DB for clean rebuild. |
 | `03_validate.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Post-build checks: table existence, row counts, unique constraints, FK integrity. Run after build; does not execute any DDL/seed. |
 | `04_grant_backend.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_backend` read-only access: `USAGE` on `nss` schema, `SELECT` on all tables, `ALTER DEFAULT PRIVILEGES` for future tables. Idempotent. |
 
@@ -97,7 +97,7 @@ statuses). The standalone `organization_type_master` and
 status/address type data now lives in Foundation `master_data` seed (Phase 2)
 and is not run.
 
-### Phase 6 — Family DDL (4 tables, Depths 2–3)
+### Phase 6 — Family DDL (5 tables, Depths 2–3)
 
 | Step | File | Table |
 |-----:|------|-------|
@@ -105,6 +105,7 @@ and is not run.
 | DDL | `ddl/04_family/02_family_relationship.sql` | `family_relationship` |
 | DDL | `ddl/04_family/03_family_head_history.sql` | `family_head_history` |
 | DDL | `ddl/04_family/04_family_transition_history.sql` | `family_transition_history` |
+| DDL | `ddl/04_family/05_family_link.sql` | `family_link` |
 
 ### Phase 7 — Membership DDL (12 tables, Depths 2–4)
 
@@ -136,6 +137,21 @@ Membership.
 | Seed | `seed/03_person/02_tier4_verification_persons.sql` | Verification persons |
 | Seed | `seed/04_family/01_tier4_verification_family.sql` | Verification family groups/relationships |
 | Seed | `seed/05_membership/01_tier4_verification_membership.sql` | Verification membership records |
+
+### Phase 8b — Performance Indexes (migrations)
+
+**Released as v0.10.4.**
+
+| Step | File | Purpose |
+|-----:|------|---------|
+| Migration | `database/migrations/add_performance_indexes.sql` | 4 composite partial indexes covering the FAM-036 majority-rule CTE hot path (`family_relationship`, `sangha_sevi`, `membership_sakha_affiliation`, `organization`) used by `_FAMILY_SELECT` (family.py) and `_CHILDREN_STATS_SQL` (organization.py). See `docs/03_Solution/architecture/PERFORMANCE_TUNING.md`. |
+
+This step puts a schema-affecting file (`CREATE INDEX` statements) inside `database/migrations/`
+and wires it into the build scripts — which contradicts that folder's own documented convention
+(see `database/migrations/README.md` — reserved for one-off *data-fix* scripts, never schema
+changes, never wired into `02_build.sh`/`.ps1`/Render). Flagged there as an unresolved
+inconsistency for the maintainer to reconcile (e.g. move the file under `database/ddl/`, or
+update the migrations README's stated convention).
 
 ### Phase 9 — Grant Backend Access
 
