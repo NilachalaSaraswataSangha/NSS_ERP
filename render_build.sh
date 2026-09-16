@@ -28,6 +28,11 @@
 
 set -euo pipefail
 
+echo "=== Building Tailwind CSS (tree-shaken + DaisyUI) ==="
+npm install
+npx tailwindcss -i frontend/assets/css/tailwind-input.css -o frontend/assets/css/tailwind.min.css --minify
+
+echo ""
 echo "=== Installing Python dependencies ==="
 pip install --upgrade pip
 pip install -r requirements.txt

@@ -24,6 +24,18 @@ for running any of them (see repo-root `README.md` → Getting Started).
 **410 tests total** across all 8 files (Tiers 0–4 + cross-tier security + cross-module data
 integrity). 1 known-failing test: `test_kumari_transition_has_event` in `test_membership.py`.
 
+**⚠️ Currently 10 additional failures on `develop` (uncommitted as of this writing):** the
+Tailwind CDN→CLI migration (see `frontend/README.md`) removed the literal strings
+`cdn.tailwindcss.com` and (lowercase) `daisyui` from every page's `<head>` markup, breaking
+`test_page_loads_tailwind` and `test_page_loads_daisyui` in `test_bootstrap.py`,
+`test_foundation.py`, `test_organization.py`, `test_person.py` (both assertions each) and
+`test_family.py`, `test_membership.py` (`daisyui` assertion only — these two never had a
+`test_page_loads_tailwind`). Confirmed by actually running
+`pytest -k "daisyui or tailwind"` against the current working tree: **10 failed**. Not fixed
+here — these assertions need to be updated to check for the new
+`<link rel="stylesheet" href="/assets/css/tailwind.min.css">` tag instead once the migration is
+committed.
+
 ## Running
 
 ```bash

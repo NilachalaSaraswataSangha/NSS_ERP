@@ -43,8 +43,9 @@ tables; Foundation: 12 tables; Organization: 1 table; Person: 2 tables; Family: 
 Membership: 12 tables — 35 tables implemented,
 plus one superseded Person prototype file (`01_person_master_tables.sql`); see the `database/`
 detail below), a `tests/` pytest
-suite (410 integration tests against a real local Postgres, 1 known failing test — see
-Conventions & Gotchas), and an extensive, mature
+suite (410 integration tests against a real local Postgres, 1 known failing test — plus 10 more
+currently failing on `develop`/uncommitted due to the Tailwind CDN→CLI migration, see
+Conventions & Gotchas and Open questions / TODOs), and an extensive, mature
 governance/documentation corpus that is significantly ahead of the code. Solution-layer design
 documentation (`docs/03_Solution/modules/`) is complete or near-complete across 22 module
 folders — with zero corresponding API/SQL work beyond the Tier 0-4 endpoints
@@ -67,13 +68,21 @@ Browser
 Security middleware (api/middleware.py + api/main.py) — rate limiting → CORS (if configured) →
 security headers
    │
-   ├──→ GET /              FastAPI (api/main.py) → FileResponse(frontend/index.html)
-   ├──→ GET /foundation     FastAPI (api/main.py) → FileResponse(frontend/foundation.html)
-   ├──→ GET /organization   FastAPI (api/main.py) → FileResponse(frontend/organization.html)
-   ├──→ GET /assets/*       FastAPI StaticFiles mount → frontend/assets/
-   ├──→ GET /api/v1/bootstrap/...   FastAPI (api/routers/bootstrap.py)
-   ├──→ GET /api/v1/foundation/...  FastAPI (api/routers/foundation.py)
-   └──→ GET /api/v1/organization/... FastAPI (api/routers/organization.py)
+   ├──→ GET /               FastAPI (api/main.py) → FileResponse(frontend/index.html)
+   ├──→ GET /foundation      FastAPI (api/main.py) → FileResponse(frontend/foundation.html)
+   ├──→ GET /organization    FastAPI (api/main.py) → FileResponse(frontend/organization.html)
+   ├──→ GET /person          FastAPI (api/main.py) → FileResponse(frontend/person.html)
+   ├──→ GET /family          FastAPI (api/main.py) → FileResponse(frontend/family.html)
+   ├──→ GET /membership      FastAPI (api/main.py) → FileResponse(frontend/membership.html)
+   ├──→ GET /assets/*        FastAPI StaticFiles mount → frontend/assets/ (incl. pre-built
+   │                          tailwind.min.css — see Frontend layer below)
+   ├──→ GET /api/v1/bootstrap/...    FastAPI (api/routers/bootstrap.py)
+   ├──→ GET /api/v1/foundation/...   FastAPI (api/routers/foundation.py)
+   ├──→ GET /api/v1/organization/... FastAPI (api/routers/organization.py)
+   ├──→ GET /api/v1/person/...       FastAPI (api/routers/person.py)
+   ├──→ GET /api/v1/family/...       FastAPI (api/routers/family.py) → /graph delegates to
+   │                                  api/services/family_graph.py (BFS traversal)
+   └──→ GET /api/v1/membership/...   FastAPI (api/routers/membership.py)
                                 │
                                 ▼
                     psycopg2 connection pool (api/database.py) — raw SQL, no ORM
@@ -93,30 +102,58 @@ security headers
   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
   `Referrer-Policy: strict-origin-when-cross-origin`, and
   `Permissions-Policy: camera=(), microphone=(), geolocation=()` on every response, plus
-  `Cache-Control: no-store` scoped to paths starting `/api/` only (not on `/`, `/foundation`, or
-  `/assets/*`). Deliberately omits `X-XSS-Protection` (obsolete), CSP (deferred — Tailwind Play
-  CDN's inline styles conflict with a strict policy), and HSTS (left to Render's edge TLS). Full
+  `Cache-Control: no-store` scoped to paths starting `/api/` only, and (new, uncommitted)
+  `Cache-Control: public, max-age=86400, must-revalidate` on `/assets/*` — no test coverage yet
+  for the latter. Deliberately omits `X-XSS-Protection` (obsolete) and HSTS (left to Render's
+  edge TLS); CSP remains deferred, though the original reason (Tailwind Play CDN's inline
+  styles) no longer applies now that Tailwind is pre-built — an audit of any *remaining* inline
+  styles (Alpine.js `x-cloak`, etc.) would need to happen before CSP could actually be enabled.
+  Full
   line-by-line walkthrough: `docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`.
 - **Web/API layer:** FastAPI (`api/`), the only web/API layer in the codebase — the earlier
-  Django prototype (`backend/`) has been fully removed. `api/main.py` builds the `FastAPI` app,
-  includes four routers (`api/routers/bootstrap.py`, prefix `/api/v1/bootstrap`;
-  `api/routers/foundation.py`, prefix `/api/v1/foundation`; `api/routers/organization.py`,
-  prefix `/api/v1/organization`; and `api/routers/person.py`, prefix `/api/v1/person`), and (if
-  `frontend/` exists on disk)
-  mounts `frontend/assets/` at `/assets` and serves `frontend/index.html` via an explicit
-  `GET /` route, plus `frontend/foundation.html` via `GET /foundation`,
-  `frontend/organization.html` via `GET /organization`, and `frontend/person.html` via
-  `GET /person`, each only if that file exists —
-  mounting at `/assets` rather than `/` avoids shadowing FastAPI's own `/docs` (Swagger UI) and
+  Django prototype (`backend/`) has been fully removed. `api/main.py` builds the `FastAPI` app
+  and includes six routers via a single `app.include_router(...)` call per router:
+  `api/routers/bootstrap.py` (prefix `/api/v1/bootstrap`), `api/routers/foundation.py` (prefix
+  `/api/v1/foundation`), `api/routers/organization.py` (prefix `/api/v1/organization`),
+  `api/routers/person.py` (prefix `/api/v1/person`), `api/routers/family.py` (prefix
+  `/api/v1/family`), and `api/routers/membership.py` (prefix `/api/v1/membership`) — 46
+  endpoints total. `family.py`'s `/graph` endpoint delegates its BFS relationship computation to
+  a new `api/services/` layer (`api/services/family_graph.py`, `build_family_graph()` +
+  `FamilyGraph.compute_relationships()`) — the first module in that layer, distinct from
+  `routers`/`schemas`; no other endpoint uses it. If `frontend/` exists on disk, `api/main.py`
+  mounts `frontend/assets/` at `/assets` and serves each of the six HTML pages via its own
+  `if <page>_path.is_file(): @app.get(...)` block — a repeated pattern, not one monolithic
+  frontend-serving block, so each page is independently gated on that specific file's presence:
+  `frontend/index.html` via an explicit `GET /` route (always registered if `frontend/` is a
+  directory), then `frontend/foundation.html` via `GET /foundation`,
+  `frontend/organization.html` via `GET /organization`, `frontend/person.html` via `GET /person`,
+  `frontend/family.html` via `GET /family`, and `frontend/membership.html` via `GET /membership`
+  — mounting at `/assets` rather than `/` avoids shadowing FastAPI's own `/docs` (Swagger UI) and
   `/openapi.json`. Swagger UI/ReDoc/OpenAPI schema can be disabled via `DISABLE_DOCS` in
   `api/.env`. The security middleware stack above is registered; there is still no auth
   middleware.
-- **Frontend layer:** `frontend/` — four single-page views built with Tailwind CSS + DaisyUI
-  (CDN, pinned to `4.12.14` with SRI `integrity`/`crossorigin`) and Alpine.js (CDN, pinned to
-  `3.14.8` with SRI), no build step, no framework: a Tier 0 "Bootstrap Verification UI"
-  (`index.html`), a Tier 1 "Foundation Verification UI" (`foundation.html`), a Tier 2
-  "Organization Verification UI" (`organization.html`), and a Tier 3 "Person Verification UI"
-  (`person.html`), none an admin dashboard.
+- **Frontend layer:** `frontend/` — six single-page views built with Tailwind CSS + DaisyUI and
+  Alpine.js, no framework: a Tier 0 "Bootstrap Verification UI" (`index.html`), a Tier 1
+  "Foundation Verification UI" (`foundation.html`), a Tier 2 "Organization Verification UI"
+  (`organization.html`), a Tier 3 "Person Verification UI" (`person.html`), and two Tier 4
+  UIs — a "Family Verification UI" (`family.html`, includes an org-admin drill-down `viewMode`,
+  a family-tree/graph visualization consuming `/graph`, and Sakha-alignment mismatch badges
+  consuming `/sakha-alignment`) and a "Membership Verification UI" (`membership.html`) — none an
+  admin dashboard. Alpine.js is still CDN-loaded on every page, pinned to `3.14.8` with SRI
+  `integrity`/`crossorigin`, unchanged. **Tailwind CSS + DaisyUI moved off the CDN** (new,
+  currently uncommitted on `develop`, not yet on `main`): all six pages now
+  `<link rel="stylesheet" href="/assets/css/tailwind.min.css">` instead of the old
+  `<script src="https://cdn.tailwindcss.com">` Play-CDN tag plus a DaisyUI CDN `<link>` with an
+  SRI hash. `frontend/assets/css/tailwind-input.css` (just the three `@tailwind base/components/
+  utilities` directives) is compiled by the Tailwind CLI (`npx tailwindcss -i
+  frontend/assets/css/tailwind-input.css -o frontend/assets/css/tailwind.min.css --minify`) into
+  `frontend/assets/css/tailwind.min.css` (~72 KB, committed to the repo and NOT gitignored, so a
+  fresh clone still works without running Node), driven by root `tailwind.config.js` (content
+  globs `./frontend/**/*.html` + `./frontend/assets/js/**/*.js`, `daisyui` plugin, single
+  `"light"` theme) and root `package.json` (`devDependencies`: `tailwindcss` `^3.4.17`,
+  `daisyui` `^4.12.14`; scripts `css:build`/`css:watch`). `render_build.sh` now runs `npm
+  install` + that same `npx tailwindcss ... --minify` build as its first step, before the Python
+  dependency install — also new/uncommitted. `.gitignore` gained a `node_modules/` entry.
   `frontend/assets/js/app.js` defines `bootstrapApp()`, fetching
   `/api/v1/bootstrap/{health,roles,permissions}` in parallel on load and driving 4 UI sections
   (system status, RBAC roles, permissions, an interactive role→permissions drill-down).
@@ -126,17 +163,26 @@ security headers
   lazily fetching from `/api/v1/organization/*` per tab across a 3-tab layout (Reference Data,
   Organizations with click-to-drill-down children, Hierarchy tree). `frontend/assets/js/person.js`
   defines `personApp()`, fetching from `/api/v1/person/*` across a 2-tab layout (Persons with
-  filter/detail/addresses drill-down, debounced trigram Search). See `frontend/README.md` for
-  the full file/function/state reference. Served entirely by FastAPI — same-origin, so the
-  frontend itself needs no CORS;
-  `CORSMiddleware` above exists for *other* (cross-origin) API consumers, and is a no-op locally
-  since `CORS_ORIGINS` defaults to empty.
+  filter/detail/addresses drill-down, debounced trigram Search). `frontend/assets/js/family.js`
+  defines `familyApp()` (const `FAMILY_API = "/api/v1/family"`, `ORG_API = "/api/v1/organization"`),
+  rendering a recursive, generation-based family tree from the `/graph` endpoint's dynamically
+  computed relationship labels (a "View As" viewer selector re-labels the whole tree client-side
+  with no data re-entry) alongside an org-admin drill-down view and Sakha-alignment mismatch
+  badges. `frontend/assets/js/membership.js` defines `membershipApp()` (const `MEMBERSHIP_API =
+  "/api/v1/membership"`), covering the three-tier identity model (Sangha Sevi ID / Sakha Sangha
+  ID / Kendra Number) across a Members tab (list + type/status filters + detail + sub-data) and a
+  Search tab (trigram + prefix search across all three identity tiers plus name). See
+  `frontend/README.md` for the full file/function/state reference. Served entirely by FastAPI —
+  same-origin, so the frontend itself needs no CORS; `CORSMiddleware` above exists for *other*
+  (cross-origin) API consumers, and is a no-op locally since `CORS_ORIGINS` defaults to empty.
 - **Data layer:** a single track — **hand-written PostgreSQL DDL** under `database/ddl/`,
   following the project's own UUID-`_pk` + business-`_code` convention (see Conventions &
   Gotchas). This is the "real" schema per the governance/standards docs, and it is now consumed
-  — read-only — by the FastAPI Tier 0, Tier 1, Tier 2, and Tier 3 endpoints via raw parameterized
-  SQL (no ORM). `organization` has a read-only API (`api/routers/organization.py`); `person` now
-  does too (`api/routers/person.py`, unreleased — see "Current position" above).
+  — read-only — by the FastAPI Tier 0 through Tier 4 endpoints (Bootstrap, Foundation,
+  Organization, Person, Family, Membership) via raw parameterized SQL (no ORM). `organization`
+  has a read-only API (`api/routers/organization.py`); so do `person` (`api/routers/person.py`),
+  `family` (`api/routers/family.py`, 5 tables), and `membership` (`api/routers/membership.py`,
+  12 tables) — see "Current position" above.
 - **Test layer:** `tests/` — pytest, configured via `pytest.ini` (repo root). `tests/conftest.py`
   wraps `fastapi.testclient.TestClient(app)` against a **real** local PostgreSQL DB (nothing
   mocked); all tests carry the custom `integration` marker. `test_bootstrap.py` (21 tests, 5
@@ -191,13 +237,17 @@ security headers
   This layer is far more mature than the code.
 
 **Approved future direction (SOLUTION layer, partially implemented in code):**
-`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` (v1.3) is the authoritative technology
+`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md` (v1.5) is the authoritative technology
 decision record — FastAPI/Uvicorn is now the sole backend framework (the earlier Django
 prototype was implemented, then fully archived and removed as part of v1.3's
-Django-to-FastAPI migration) + Tailwind/DaisyUI/Alpine.js UI + Flutter mobile. The FastAPI half is
-now partially wired up (Tier 0 bootstrap endpoints), and the Tailwind/DaisyUI/Alpine.js web UI
-direction now has a first real implementation (`frontend/`'s Tier 0 Bootstrap Verification UI,
-not yet the full admin dashboard the mockups describe); the Flutter mobile client remains
+Django-to-FastAPI migration) + Tailwind/DaisyUI/Alpine.js UI + Flutter mobile. The FastAPI half
+is now implemented through Tier 4 (Bootstrap, Foundation, Organization, Person, Family,
+Membership — 46 endpoints), and the Tailwind/DaisyUI/Alpine.js web UI
+direction now has six real Verification UIs under `frontend/` (Bootstrap, Foundation,
+Organization, Person, Family, Membership —
+not yet the full admin dashboard the mockups describe); Tailwind/DaisyUI moved from CDN to a
+pre-built CLI output (v1.5, currently uncommitted on `develop`, see Architecture above and
+Gotchas below); the Flutter mobile client remains
 unbuilt, and `render.yaml`/`render_build.sh` declare a Render.com + Neon.dev deployment that has
 not yet run in production. **Mobile strategy:** the app's own
 mobile client is Flutter, targeting Android + iOS from day one (Hive/Drift for offline local
@@ -768,9 +818,12 @@ frontend/
 ```
 
 None of the six pages is an admin dashboard — all are Tier-scoped verification UIs proving the
-database→API→frontend chain end to end for their tier. Tech stack is Tailwind CSS + DaisyUI +
-Alpine.js, all via CDN (DaisyUI/Alpine.js pinned with SRI hashes; Tailwind's Play CDN JIT
-compiler can't be SRI-pinned — see Architecture above) — no Node.js build step, no framework, no
+database→API→frontend chain end to end for their tier. Tech stack is Tailwind CSS + DaisyUI
+(pre-built via Tailwind CLI — root `package.json`/`tailwind.config.js`, output
+`frontend/assets/css/tailwind.min.css`, ~72 KB, committed; previously CDN-loaded, migrated on
+`develop`, currently uncommitted as of this writing — see Architecture above) + Alpine.js (CDN,
+pinned to `3.14.8` with SRI `integrity`/`crossorigin`, unchanged by the migration) — no
+frontend framework, no
 Django templates. Served entirely by FastAPI (see `api/` detail above); no separate frontend
 server is needed since all six pages are same-origin with the API. Every fetch method across
 `app.js`, `foundation.js`, `organization.js`, `person.js`, `family.js`, and `membership.js`
@@ -2012,6 +2065,16 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
   `KUMARI_TRANSITION` journey event it doesn't have; the one known failing test in the
   410-test suite (the earlier `test_organization.py::test_list_returns_13_statuses` failure
   was fixed alongside the `/children-stats` work).
+- **Fix `test_page_loads_tailwind`/`test_page_loads_daisyui` — 10 tests, currently failing on
+  `develop` (uncommitted).** The Tailwind CDN→CLI migration (see Architecture above) removed the
+  literal strings `cdn.tailwindcss.com` and lowercase `daisyui` from every page's `<head>` — the
+  new same-origin `<link rel="stylesheet" href="/assets/css/tailwind.min.css">` tag's comment
+  says "DaisyUI" (capitalized) and carries no `integrity=` attribute. Confirmed by actually
+  running `pytest -k "daisyui or tailwind"` against the working tree: 10 failed, across
+  `test_bootstrap.py`, `test_foundation.py`, `test_organization.py`, `test_person.py` (both
+  assertions each), and `test_family.py`/`test_membership.py` (`daisyui` assertion only — these
+  two never had a `test_page_loads_tailwind`). Not fixed here — needs the assertions updated to
+  check for `tailwind.min.css` once this migration is committed.
 - **Reconcile the "stop zero-padding IDs" decision with the actual `id_sequence_master` seed
   data** — Tier 4 introduced unpadded ID examples throughout the docs/governance baseline
   (`P1`, `SS1`, `SKH1`, `F1`) and loosened the `padding_length` CHECK constraint to allow `0`,
@@ -2053,7 +2116,8 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
   (v0.10.0, see "Current position" above) — every other tier's API phase
   (Heritage, Authentication, Administration, etc.) remains unbuilt.
 - **Grow the frontend beyond Tier 0/1/2/3/4** — `frontend/` now has six verification UIs
-  (Tailwind + DaisyUI + Alpine.js, no build step): the Tier 0 Bootstrap Verification UI, the
+  (Tailwind CSS + DaisyUI, pre-built via Tailwind CLI as of a currently-uncommitted `develop`
+  change — see Architecture above — + Alpine.js CDN): the Tier 0 Bootstrap Verification UI, the
   Tier 1 Foundation Verification UI, the Tier 2 Organization Verification UI, the Tier 3
   Person Verification UI, and the Tier 4 Family + Membership Verification UIs (released v0.10.0).
   None is the full admin dashboard; the 13 mockups under

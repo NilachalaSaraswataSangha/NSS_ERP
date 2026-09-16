@@ -27,3 +27,6 @@ Thumbs.db
 *.tmp
 *.bak
 .commit_msg.txt
+
+# Node / Tailwind CSS build tooling
+node_modules/

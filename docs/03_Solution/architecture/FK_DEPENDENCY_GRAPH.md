@@ -134,7 +134,7 @@ table creation order.
 Note: Heritage's `spiritual_literature` uses `publication_type_pk` and
 `language_pk` referencing Foundation's `master_data` table.
 
-## Family (4 tables)
+## Family (5 tables)
 
 | # | Table | Module-internal FKs | Cross-module FKs |
 |--:|-------|--------------------|--------------------|
@@ -142,6 +142,7 @@ Note: Heritage's `spiritual_literature` uses `publication_type_pk` and
 | 2 | `family_relationship` | family_group_pk → family_group | person_pk → person (Person), relationship_type_pk → master_data (Foundation) |
 | 3 | `family_head_history` | family_group_pk → family_group | person_pk → person (Person) |
 | 4 | `family_transition_history` | old_family_group_pk → family_group, new_family_group_pk → family_group | person_pk → person (Person) |
+| 5 | `family_link` | family_group_pk → family_group | person_a_pk → person (Person), person_b_pk → person (Person). Graph-edge table storing only direct `PARENT_OF`/`SPOUSE_OF` relationships — all other relationship labels are computed dynamically via BFS traversal in `api/services/family_graph.py`, not stored |
 
 ## Membership (12 tables)
 

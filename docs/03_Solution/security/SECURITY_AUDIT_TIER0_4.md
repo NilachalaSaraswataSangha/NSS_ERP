@@ -125,7 +125,7 @@ but not yet implemented. All are scoped to Tier 5+.
 | Authentication (login) | Tier 5 | Current API is read-only verification; no write operations |
 | Authorization (RBAC enforcement) | Tier 5 | No write operations to protect yet |
 | HTTPS / HSTS | Deployment platform | Render/hosting adds TLS automatically |
-| Content-Security-Policy (CSP) | Tier 5 | Tailwind Play CDN uses inline styles; CSP needs nonce strategy |
+| Content-Security-Policy (CSP) | Tier 5 | Tailwind moved from CDN to a pre-built stylesheet (uncommitted, `develop`), removing the original blocker, but a full audit of remaining inline styles (e.g. Alpine.js `x-cloak`) hasn't happened; CSP still needs a nonce strategy |
 | Row-Level Security (RLS) | Tier 5 | No multi-tenant access yet |
 | Session management | Tier 5 | No login sessions exist |
 | MFA | Tier 5 | Requires authentication first |

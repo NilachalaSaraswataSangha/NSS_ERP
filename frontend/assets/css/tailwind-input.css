@@ -1,0 +1,13 @@
+/*
+ * NSS ERP — Tailwind CSS input file.
+ *
+ * Processed by `npx tailwindcss` (see package.json scripts).
+ * Output: frontend/assets/css/tailwind.min.css
+ *
+ * DaisyUI is loaded as a Tailwind plugin (tailwind.config.js)
+ * and injected into @tailwind components automatically.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

@@ -24,6 +24,16 @@ app requires all three DB credentials (no defaults for name/user/password). Opti
 `CORS_ORIGINS` (comma-separated allowed origins), `RATE_LIMIT` (default `60/minute`),
 `DISABLE_DOCS` (disable Swagger/ReDoc).
 
+`frontend/assets/css/tailwind.min.css` is a committed, generated artifact — a fresh clone
+already has a working build, no Node.js required just to run the app. Only needed if you're
+changing Tailwind/DaisyUI classes in `frontend/*.html` or `frontend/assets/js/*.js`:
+
+```bash
+npm install
+npm run css:build   # one-shot rebuild
+npm run css:watch   # rebuild on file change, for active frontend dev
+```
+
 ## Database
 
 Hand-written PostgreSQL DDL under `database/ddl/`, numeric folder order, executed via `psql` (no
@@ -97,7 +107,11 @@ boundaries.
 **Deployment (Render.com):** `render.yaml` + `render_build.sh` (repo root) duplicate the same
 DDL/seed sequence directly via `psql` as an idempotent Render build step — keep in sync with
 `02_build.sh` if phase order changes. Points at an external Neon.dev Postgres instance (no
-managed DB declared in `render.yaml` itself). Not yet run in production.
+managed DB declared in `render.yaml` itself). Not yet run in production. **Unverified risk (new,
+uncommitted):** `render_build.sh` now runs `npm install`/`npx tailwindcss` as its first step, but
+`render.yaml` declares `runtime: python` — Node.js availability in that runtime is untested; see
+`docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md` Step 2 for the full risk and fallback
+options.
 
 ## Running the FastAPI API
 
@@ -181,13 +195,27 @@ Person Verification UI (`person.html`, served at `/person`) plus a Tier 4 Family
 UI (`family.html`, served at `/family` — includes a family-tree visualization consuming
 `/graph` and Sakha-alignment mismatch badges consuming `/sakha-alignment`) plus a Tier 4
 Membership Verification UI (`membership.html`, served at `/membership`); none of these are
-an admin dashboard. Served as static files by FastAPI: Tailwind CSS + DaisyUI (CDN), Alpine.js
-(CDN), vanilla `fetch()`. No React/Vue/Angular, no Node.js build step, no Django templates.
+an admin dashboard. Served as static files by FastAPI: Tailwind CSS + DaisyUI (pre-built via
+Tailwind CLI — no longer CDN, see below), Alpine.js (CDN), vanilla `fetch()`. No React/Vue/
+Angular, no Django templates.
 All 6 pages share `assets/js/nss-config.js` (display-name overrides, e.g. `PROBATIONARY` →
 "Darshaka"; badge-class lookup maps; document-visibility rules) and `assets/css/badges.css`
 (every `badge-status-*`/`badge-type-*`/`badge-aff-*`/`badge-gender-*` class) — pages must NOT
 redefine these classes locally in inline `<style>` blocks. See
 `frontend/README.md` for the full file/function reference.
+
+**CSS build (new, uncommitted on `develop` as of this writing):** Tailwind CSS + DaisyUI moved
+from CDN (`<script src="https://cdn.tailwindcss.com">` + DaisyUI CDN `<link>`) to a pre-built,
+tree-shaken, minified stylesheet — `frontend/assets/css/tailwind.min.css` (~72 KB), generated
+from `frontend/assets/css/tailwind-input.css` via `tailwind.config.js` and the root
+`package.json` (`devDependencies`: `tailwindcss`, `daisyui`; `npm run css:build` / `css:watch`).
+All 6 HTML pages now `<link>` the built file instead of loading the CDN scripts; Alpine.js stays
+on CDN (unchanged). `render_build.sh` runs `npm install` + `npx tailwindcss ... --minify` before
+the Python dependency step. **If you edit any Tailwind/DaisyUI class in `frontend/*.html` or
+`frontend/assets/js/*.js`, you must re-run `npm run css:build` locally** (or the change won't
+appear — `tailwind.min.css` is a committed, generated artifact, not rebuilt automatically on
+page load like the old CDN JIT compiler was). `node_modules/` is gitignored;
+`package-lock.json`/`tailwind.min.css`/`tailwind-input.css` are committed.
 
 ## Tests & lint
 
@@ -217,7 +245,13 @@ silently pass through) cover Tiers 0–4 and cross-tier security middleware
 respectively. **410 tests total** (1 known failing test:
 `test_kumari_transition_has_event` — SS5 seed still needs a KUMARI_TRANSITION journey event;
 see Deferred Items — the earlier `test_organization.py::test_list_returns_13_statuses` failure
-was fixed alongside the `/children-stats` work). No lint/format tooling is configured yet —
+was fixed alongside the `/children-stats` work). **10 more currently fail on `develop`**
+(uncommitted): the Tailwind CDN→CLI migration removed `cdn.tailwindcss.com` and lowercase
+`daisyui` from every page's `<head>`, breaking `test_page_loads_tailwind`/`test_page_loads_daisyui`
+in `test_bootstrap.py`/`test_foundation.py`/`test_organization.py`/`test_person.py` and
+`test_page_loads_daisyui` in `test_family.py`/`test_membership.py` — confirmed by running
+`pytest -k "daisyui or tailwind"`. Not fixed here; see `tests/README.md`. No lint/format
+tooling is configured yet —
 don't add one unilaterally.
 
 ## Architecture
@@ -231,8 +265,12 @@ NSS_ERP/
 │   ├── routers/            bootstrap.py (Tier 0), foundation.py (Tier 1), organization.py (Tier 2), person.py (Tier 3), family.py (Tier 4), membership.py (Tier 4)
 │   ├── schemas/            bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py — Pydantic response models
 │   └── services/           family_graph.py — BFS graph-traversal relationship computation (new layer, distinct from routers/schemas)
-├── frontend/               Web UI (Tailwind/DaisyUI + Alpine.js, served by FastAPI)
-│   └── assets/             js/nss-config.js + css/badges.css — shared config/badge-styles for all 6 pages
+├── frontend/               Web UI (Tailwind/DaisyUI pre-built + Alpine.js CDN, served by FastAPI)
+│   └── assets/             js/nss-config.js + css/badges.css + css/tailwind.min.css (generated,
+│                             see package.json) — shared config/badge-styles/CSS for all 6 pages
+├── package.json            CSS build tooling only (Tailwind CLI + DaisyUI devDependencies) —
+│                             not a general Node.js app; `npm run css:build`/`css:watch`
+├── tailwind.config.js       Tailwind content globs (`frontend/**/*.html`, `frontend/assets/js/**/*.js`) + DaisyUI plugin
 ├── database/               Hand-written PostgreSQL DDL + seed + scripts
 │   ├── ddl/                Table definitions (00_bootstrap, 01_foundation, 02_organization, 03_person, 04_family, 05_membership)
 │   ├── seed/                Seed data (mirrors ddl/ folder order, plus standalone 99_*.sql scripts)
@@ -251,7 +289,10 @@ adopted — it no longer exists on disk, only in Git history. `api/` (FastAPI, r
 psycopg2, no ORM/SQLAlchemy/migration tool) is the only API layer; authentication is deferred to
 Tier 5 — Tiers 0-2 have no auth, no fake auth, no API keys. Security middleware
 (`api/middleware.py`) provides security headers (X-Content-Type-Options, X-Frame-Options,
-Referrer-Policy, Permissions-Policy), Cache-Control scoping (no-store on `/api/*` only), CORS
+Referrer-Policy, Permissions-Policy), Cache-Control scoping (`no-store` on `/api/*`;
+`public, max-age=86400, must-revalidate` on `/assets/*` — new, uncommitted; no test coverage yet
+for the `/assets/*` value, only the pre-existing `/api/*`/frontend-root assertions in
+`tests/test_security.py`), CORS
 (configurable via `CORS_ORIGINS`), and rate limiting (SlowAPIMiddleware, default 60/minute).
 
 **DB naming (SQL DDL track):** tables `snake_case`; internal PK suffix `_pk`; FKs reference
@@ -316,6 +357,8 @@ Items explicitly deferred to later tiers. Do not implement these until their tar
 | Kumari DDL (5 tables) | Tier 8 | Requires frozen Membership module | `kumari_sangha`, `kumari_member`, `kumari_activity`, `kumari_activity_participant`, `kumari_membership_transition` |
 | Sevak/Mahila DDL | Tier 9 | Requires frozen Membership + Kumari | `sevak_sangha` tables, `mahila_sangha` tables |
 | Fix `test_kumari_transition_has_event` | Pre-freeze | SS5 seed needs KUMARI_TRANSITION journey event | `test_membership.py` |
+| Add test coverage for `/assets/*` Cache-Control header | Pre-freeze | New `public, max-age=86400, must-revalidate` header (Tailwind CDN→CLI migration) has no assertion; existing `test_static_response_no_cache_control_no_store` only checks `/`, not `/assets/*` | `tests/test_security.py`, `api/middleware.py` |
+| Fix `test_page_loads_tailwind`/`test_page_loads_daisyui` (10 tests, currently failing) | Pre-freeze | Tailwind CDN→CLI migration removed the literal strings these assertions check for (`cdn.tailwindcss.com`, lowercase `daisyui`) from every page's `<head>` | `tests/test_bootstrap.py`, `test_foundation.py`, `test_organization.py`, `test_person.py`, `test_family.py`, `test_membership.py` |
 | Fix `database/scripts/03_validate.sh`/`.ps1` | Pre-freeze | Hardcodes `organization`=3, `person`=0, `master_data`=88 rows — all stale after Tier 4 verification seed + STATUS expansion; no Family/Membership checks exist | `database/scripts/03_validate.sh`, `.ps1` |
 | Factor out duplicated FAM-036 SQL | Pre-freeze | The majority-rule "effective Sakha" CTE is implemented twice, identically, in `organization.py`'s `/children-stats` and `family.py`'s `/sakha-alignment`/`_FAMILY_SELECT` — no shared helper | `api/routers/organization.py`, `api/routers/family.py` |
 | Add depth-cap guard to `_CHILDREN_STATS_SQL` | Pre-freeze | Its recursive CTE has no `depth < 10` guard, unlike `/hierarchy` — a circular parent reference could recurse indefinitely | `api/routers/organization.py` |

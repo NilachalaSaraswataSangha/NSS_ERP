@@ -8,7 +8,7 @@
 |---|---|
 | Document Name | Getting Started |
 | Repository Path | docs/03_Solution/architecture/GETTING_STARTED.md |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | Active |
 | Authority | NSS ERP Architecture |
 
@@ -19,6 +19,9 @@
 - PostgreSQL 14+ (local or Neon.dev)
 - Python 3.12+ with pip
 - psql CLI (included with PostgreSQL)
+- Node.js + npm — **optional**, only needed if you're changing Tailwind/DaisyUI CSS classes.
+  `frontend/assets/css/tailwind.min.css` is a committed, generated artifact, so a fresh clone
+  runs the app without Node.js installed at all.
 
 ---
 
@@ -117,6 +120,20 @@ DB_PORT=5432
 
 ---
 
+# 3b. Frontend CSS (optional — only if editing Tailwind/DaisyUI classes)
+
+```bash
+npm install
+npm run css:build   # one-shot rebuild of frontend/assets/css/tailwind.min.css
+npm run css:watch   # rebuild on every file change, for active frontend dev
+```
+
+Skip this section if you're not touching `frontend/*.html` or `frontend/assets/js/*.js` class
+names — the built CSS is already committed. `render_build.sh` runs this build automatically on
+every deploy.
+
+---
+
 # 4. Start the API
 
 ```bash
@@ -154,8 +171,9 @@ python3 -m pytest tests/ -v
 py -m pytest tests/ -v
 ```
 
-**363 tests total:** 21 (Tier 0 Bootstrap) + 59 (Tier 1 Foundation) + 64 (Tier 2 Organization) +
-61 (Tier 3 Person) + 8 (Security Middleware) + 51 (Tier 4 Family) + 99 (Tier 4 Membership). See
+**410 tests total:** 21 (Tier 0 Bootstrap) + 59 (Tier 1 Foundation) + 72 (Tier 2 Organization) +
+61 (Tier 3 Person) + 8 (Security Middleware) + 67 (Tier 4 Family) + 99 (Tier 4 Membership) + 23
+(cross-module data integrity). 1 known failing test: `test_kumari_transition_has_event`. See
 `tests/README.md` for the per-file test inventory.
 
 ---
@@ -256,9 +274,10 @@ single `02_build.sh` / `02_build.ps1` invocation:
 | 3 | Organization DDL | 1 table |
 | 4 | Organization Seed | Base organizations |
 | 5 | Person DDL | 2 tables |
-| 6 | Family DDL | 4 tables |
+| 6 | Family DDL | 5 tables |
 | 7 | Membership DDL | 12 tables |
 | 8 | Tier 4 Verification Seed | Test organizations, persons, families, memberships |
+| 8b | Performance Indexes | 4 composite partial indexes for the FAM-036 CTE hot path (`database/migrations/add_performance_indexes.sql`) |
 | 9 | Grant Backend | Read-only access for `nss_db_backend` |
 
 ## Troubleshooting

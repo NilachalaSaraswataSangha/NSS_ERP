@@ -8,9 +8,11 @@ for Nilachala Saraswata Sangha.
 None of the six pages is an operational administration dashboard. Together they establish the
 frontend shell that later tiers grow into.
 
-**Tech stack:** Tailwind CSS + DaisyUI (CDN), Alpine.js (CDN), vanilla
-`fetch()` for JSON API consumption. No React/Vue/Angular. No Node.js
-build step. No Django templates.
+**Tech stack:** Tailwind CSS + DaisyUI (pre-built via Tailwind CLI — no longer CDN, see
+`../package.json`/`../tailwind.config.js`), Alpine.js (CDN), vanilla
+`fetch()` for JSON API consumption. No React/Vue/Angular. No Django templates. Node.js/npm is
+only needed to rebuild CSS after a Tailwind/DaisyUI class change — the built CSS
+(`assets/css/tailwind.min.css`) is committed, so running the app itself needs no Node.js.
 
 **Served by:** FastAPI mounts this directory as static files. No
 separate frontend server, no CORS configuration needed.
@@ -29,10 +31,13 @@ frontend/
 ├── membership.html         Tier 4 Membership Verification UI (Alpine.js application)
 ├── assets/
 │   ├── css/
-│   │   ├── badges.css      Shared badge-status/type/affiliation/gender CSS classes + data-identity typography (all six pages)
-│   │   └── style.css       Minimal project-specific CSS overrides
+│   │   ├── badges.css          Shared badge-status/type/affiliation/gender CSS classes + data-identity typography (all six pages)
+│   │   ├── style.css           Minimal project-specific CSS overrides
+│   │   ├── tailwind-input.css  Tailwind directives (`@tailwind base/components/utilities`) — build input, see ../package.json
+│   │   └── tailwind.min.css    Generated, committed build output (~72 KB) — DO NOT hand-edit; regenerate via `npm run css:build`
 │   ├── img/
-│   │   └── nss-logo.png    NSS logo (PNG with transparency)
+│   │   ├── nss-logo.png          NSS logo, compressed for web (~100 KB, was 1.4 MB)
+│   │   └── nss-logo-original.png Uncompressed original, kept for reference/reprocessing
 │   └── js/
 │       ├── app.js          Alpine.js data component + API fetch logic for index.html
 │       ├── foundation.js   Alpine.js data component + API fetch logic for foundation.html
@@ -103,14 +108,13 @@ Each section is rendered by Alpine.js directives bound to the
 - Card padding scales: `p-4` base, `xl:p-6` on desktop
 - Grid gap scales: `gap-4` base, `xl:gap-6` on desktop
 
-**CDN dependencies (loaded in `<head>`, identical on `index.html`, `foundation.html`,
+**CSS/JS dependencies (loaded in `<head>`, identical on `index.html`, `foundation.html`,
 `organization.html`, `person.html`, `family.html`, and `membership.html`):**
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| Tailwind CSS | Play CDN (3.x JIT, unpinned) | Utility-first CSS framework — a browser JIT compiler, so SRI pinning doesn't apply to it |
-| DaisyUI | `4.12.14`, pinned with `integrity`/`crossorigin` (SRI) | Component library (cards, tables, badges, alerts, spinners) |
-| Alpine.js | `3.14.8`, pinned with `integrity`/`crossorigin` (SRI) | Reactive UI state and DOM binding |
+| Tailwind CSS + DaisyUI | `3.4.17` / `4.12.14`, pre-built via Tailwind CLI into `assets/css/tailwind.min.css` (`<link rel="stylesheet" href="/assets/css/tailwind.min.css">`) — no longer CDN, no SRI (same-origin static file, not a third-party script) | Utility-first CSS framework + component library (cards, tables, badges, alerts, spinners) |
+| Alpine.js | `3.14.8`, pinned with `integrity`/`crossorigin` (SRI), still CDN | Reactive UI state and DOM binding |
 
 The old unpinned `tailwindcss@2` prebuilt CSS and an incompatible `@tailwindcss/browser` 4.x
 build were both removed as part of the security-hardening pass — see
@@ -550,7 +554,7 @@ right before `nss-config.js`.
 **Rule for future page authors:** individual pages must **not** define `badge-status-*`,
 `badge-type-*`, or `badge-aff-*` classes in a page-local inline `<style>` block — this file is
 the only place they're allowed to live. Also overrides DaisyUI's default `.badge`/`.badge-xs`
-padding (`!important`, since DaisyUI's CDN stylesheet would otherwise win).
+padding (`!important`, since DaisyUI's compiled stylesheet would otherwise win).
 
 ---
 
@@ -580,9 +584,9 @@ inline `!== 'ASSOCIATE'` check repeated in both `membership.html` and `family.ht
 
 ### assets/css/style.css
 
-Minimal project-specific CSS. Tailwind and DaisyUI handle all styling
-via CDN — this file exists only for overrides that cannot be expressed
-as utility classes.
+Minimal project-specific CSS. Tailwind and DaisyUI handle almost all styling
+via the pre-built `tailwind.min.css` — this file exists only for overrides that cannot be
+expressed as utility classes.
 
 **Current rules:**
 
@@ -592,10 +596,27 @@ as utility classes.
 
 ---
 
+### assets/css/tailwind-input.css / tailwind.min.css
+
+`tailwind-input.css` is the build input — just the three `@tailwind` directives
+(`base`/`components`/`utilities`), processed by Tailwind CLI per `../tailwind.config.js`
+(`content` globs cover `frontend/**/*.html` and `frontend/assets/js/**/*.js`; `daisyui` plugin
+loaded). `tailwind.min.css` is the generated, minified, tree-shaken output (~72 KB) that all six
+pages `<link>` — it's committed to the repo (not gitignored), so cloning the repo gives a
+working build without installing Node.js. Regenerate via `npm run css:build` (one-shot) or
+`npm run css:watch` (rebuild on change) from the repository root after editing any
+Tailwind/DaisyUI class in the HTML or JS files — the old CDN Play compiler generated classes at
+page-load time in the browser; this pre-built file does not, so a missed rebuild means the new
+class silently has no styling.
+
+---
+
 ### assets/img/nss-logo.png
 
-NSS logo with transparent background. Copied from `NSS LOGO/logooo.png`
-in the repository root. Displayed in the page header at 56 × 56 pixels.
+NSS logo with transparent background, compressed for web (~100 KB, down from a 1.4 MB original).
+Copied from `NSS LOGO/logooo.png`
+in the repository root. Displayed in the page header at 56 × 56 pixels. The uncompressed
+original is kept alongside it as `assets/img/nss-logo-original.png` for future reprocessing.
 
 ---
 

@@ -103,8 +103,12 @@ Registered in `api/main.py`, order matters (outermost registered last runs first
 3. **Security headers** (`api/middleware.py`) — always on: `X-Content-Type-Options: nosniff`,
    `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
    `Permissions-Policy: camera=(), microphone=(), geolocation=()` on every response, plus
-   `Cache-Control: no-store` on `/api/*` responses only. Deliberately skips `X-XSS-Protection`
-   (obsolete), CSP (deferred — Tailwind Play CDN's inline styles conflict with a strict policy),
+   `Cache-Control: no-store` on `/api/*` responses, and `Cache-Control: public, max-age=86400,
+   must-revalidate` on `/assets/*` responses (new, uncommitted — Tailwind CDN→CLI migration; no
+   test coverage yet). Deliberately skips `X-XSS-Protection`
+   (obsolete); CSP remains deferred — the original blocker (Tailwind Play CDN's inline styles)
+   no longer applies now that Tailwind is pre-built, but a full audit of remaining inline styles
+   hasn't happened yet —
    and HSTS (left to Render's edge TLS).
 
 Verified by `tests/test_security.py` (8 tests, 3 classes). Full walkthrough:

@@ -1422,8 +1422,8 @@ the expected structural elements:
 | `test_page_contains_title` | 462–466 | HTML contains "Organization Verification" |
 | `test_page_contains_branding` | 467–471 | HTML contains "Nilachala Saraswata Sangha" |
 | `test_page_loads_alpine_js` | 472–477 | HTML contains "alpinejs" and "integrity=" (SRI) |
-| `test_page_loads_daisyui` | 478–483 | HTML contains "daisyui" and "integrity=" (SRI) |
-| `test_page_loads_tailwind` | 484–488 | HTML contains "cdn.tailwindcss.com" |
+| `test_page_loads_daisyui` | 478–483 | HTML contains "daisyui" and "integrity=" (SRI) — **currently FAILING** on the uncommitted `develop` Tailwind CDN→CLI migration; the new same-origin `<link>` tag's comment says "DaisyUI" (capitalized), not lowercase "daisyui", and carries no `integrity=` attribute at all (same-origin files don't need SRI). Verified by actually running `pytest -k daisyui` against the current working tree (10 tests fail this way across all 6 UI test files). Not fixed here — flagged for whoever commits the Tailwind migration to update these assertions to check for `tailwind.min.css` instead. |
+| `test_page_loads_tailwind` | 484–488 | HTML contains "cdn.tailwindcss.com" — **currently FAILING**, same cause: this string no longer appears anywhere in the page since Tailwind is no longer CDN-loaded. |
 | `test_page_loads_organization_js` | 489–493 | HTML contains "organization.js" |
 | `test_page_has_alpine_data_binding` | 494–498 | HTML contains `x-data="organizationApp()"` |
 | `test_page_has_nav_links` | 499–505 | HTML contains `href="/"`, `href="/foundation"`, `href="/organization"` (all 3 tiers) |
@@ -1917,8 +1917,8 @@ Person is the newest tier. `test_page_has_two_tabs` (lines 491–495) checks for
 | `test_page_contains_title` | 446–449 | HTML contains "Person Verification" |
 | `test_page_contains_branding` | 451–454 | HTML contains "Nilachala Saraswata Sangha" |
 | `test_page_loads_alpine_js` | 456–460 | HTML contains "alpinejs" and "integrity=" (SRI) |
-| `test_page_loads_daisyui` | 462–466 | HTML contains "daisyui" and "integrity=" (SRI) |
-| `test_page_loads_tailwind` | 468–471 | HTML contains "cdn.tailwindcss.com" |
+| `test_page_loads_daisyui` | 462–466 | HTML contains "daisyui" and "integrity=" (SRI) — **currently FAILING** on the uncommitted `develop` Tailwind CDN→CLI migration (same cause as the Organization table above — see that row for detail) |
+| `test_page_loads_tailwind` | 468–471 | HTML contains "cdn.tailwindcss.com" — **currently FAILING**, same cause |
 | `test_page_loads_person_js` | 473–476 | HTML contains "person.js" |
 | `test_page_has_alpine_data_binding` | 478–481 | HTML contains `x-data="personApp()"` |
 | `test_page_has_system_status_section` | 497–500 | HTML contains "System Status" |

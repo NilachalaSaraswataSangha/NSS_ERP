@@ -36,21 +36,28 @@ home, and the same pattern extends cleanly as new layers are added in the future
   `02_person.sql`/`03_person_address.sql` and all of `04_family/` (now 5 tables) and
   `05_membership/` are real, implemented DDL), full column-by-column detail for DDL,
   representative sampling (not verbatim row transcription) for large seed files.
-- **`UI_CODE_EXPLANATIONS.md`** (v1.4, Complete — updated: Tier 4 Family, Membership) — every
+- **`UI_CODE_EXPLANATIONS.md`** (v1.7, Complete — updated: Tailwind CSS + DaisyUI switched from
+  CDN delivery to a same-origin pre-built `/assets/css/tailwind.min.css` via Tailwind CLI,
+  Alpine.js unchanged) — every
   file under `frontend/` except binary assets: `index.html`, `foundation.html`,
   `organization.html`, `person.html`, `family.html`, `membership.html`, `assets/js/app.js`,
   `assets/js/foundation.js`, `assets/js/organization.js`, `assets/js/person.js`,
   `assets/js/family.js`, `assets/js/membership.js`, `assets/css/style.css`.
-- **`SECURITY_CODE_EXPLANATIONS.md`** (v1.1, Complete — updated: Tier 3 Person) —
+- **`SECURITY_CODE_EXPLANATIONS.md`** (v1.2, Complete — updated: Tailwind CDN→CLI migration,
+  `/assets/*` Cache-Control) —
   `api/middleware.py` in full, plus the security-relevant slices of `api/config.py`
   (`CORS_ORIGINS`/`RATE_LIMIT`/`DISABLE_DOCS`) and `api/main.py` (the middleware-registration
-  block), plus the SRI-pinned CDN assets in `frontend/` (now covering all 4 HTML pages). Family's
-  and Membership's router registration and their pages' CDN blocks follow the identical pattern
-  already documented here — no Family/Membership-specific update needed in this file.
-- **`TESTING_CODE_EXPLANATIONS.md`** (v1.4, Complete — updated: Tier 4 Family + Membership) —
+  block), plus the SRI-pinned CDN assets in `frontend/` — now just Alpine.js, since Tailwind/
+  DaisyUI moved to a same-origin pre-built stylesheet (across all 6 HTML pages). Family's
+  and Membership's router registration and their pages' dependency blocks follow the identical
+  pattern already documented here — no Family/Membership-specific update needed in this file.
+- **`TESTING_CODE_EXPLANATIONS.md`** (v1.7, Complete — updated: `test_family.py` dynamic-seed-
+  discovery rewrite, org-admin-filtering/FAM-036 test classes, and flagged 10 tests currently
+  failing on `develop` due to the Tailwind CDN→CLI migration) —
   every file under `tests/`: `conftest.py`, `test_bootstrap.py`, `test_foundation.py`,
   `test_organization.py`, `test_person.py`, `test_security.py`, `test_family.py`,
-  `test_membership.py` (363 tests total).
+  `test_membership.py` (410 tests total, 1 known-failing pre-existing +10 more currently
+  failing on the uncommitted Tailwind migration — see `tests/README.md`).
 
 Security audit reports for Tiers 0–4 (`TIER0_SECURITY_AUDIT.md` … `TIER4_SECURITY_AUDIT.md`, plus
 the cross-tier `SECURITY_AUDIT_TIER0_4.md`) live at `docs/03_Solution/security/`, not in this

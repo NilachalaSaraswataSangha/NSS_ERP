@@ -3,9 +3,9 @@
 | Field       | Value                                                                  |
 |-------------|-------------------------------------------------------------------------|
 | Document    | UI_CODE_EXPLANATIONS                                                   |
-| Version     | 1.6                                                                     |
+| Version     | 1.7                                                                     |
 | Scope       | All source files under `frontend/`, excluding binary assets (images)    |
-| Status      | Complete (updated: `family.html`/`family.js` rebuilt for the dynamic family-tree graph, Sakha-alignment display, and Selected Person panel) |
+| Status      | Complete (updated: Tailwind CSS + DaisyUI switched from CDN delivery to a same-origin pre-built `/assets/css/tailwind.min.css`, generated via Tailwind CLI — Alpine.js unchanged) |
 
 ---
 
@@ -71,37 +71,39 @@ Alpine.js component.
 ```
 - Favicon and tab title both reuse the NSS logo asset served from the static mount.
 
-CDN dependency block (identical on `foundation.html`, exact strings from the current
+CDN/asset dependency block (identical on `foundation.html`, exact strings from the current
 file):
 ```html
-<!-- Tailwind CSS Play CDN (Tailwind 3.x JIT — generates utility classes in-browser) -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- DaisyUI 4.12.14 (requires Tailwind 3.x) -->
-<link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR" crossorigin="anonymous">
+<!-- Tailwind CSS 3.x + DaisyUI 4 (pre-built, tree-shaken — see tailwind.config.js) -->
+<link rel="stylesheet" href="/assets/css/tailwind.min.css">
 <!-- Alpine.js 3.14.8 -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 
 <link rel="stylesheet" href="/assets/css/style.css">
 ```
-- **Tailwind CSS** — loaded via the Play CDN (`cdn.tailwindcss.com`), a browser-side
-  JIT compiler that scans the DOM for utility classes and generates matching CSS at
-  runtime. It always serves the latest Tailwind 3.x; there is no version to pin in the
-  URL, and Subresource Integrity (SRI) does not apply to it because its content is not a
-  fixed, hashable artifact — it is explicitly a development-time tool, acknowledged
-  as a residual risk rather than hardened.
-- **DaisyUI** — pinned to the exact version `4.12.14` on jsdelivr, with an `integrity`
-  attribute carrying a `sha384-` Subresource Integrity hash
-  (`sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR`) and
-  `crossorigin="anonymous"` (required for the browser to perform the SRI check on a
-  cross-origin resource). If jsdelivr ever served a tampered or corrupted file not
-  matching this hash, the browser would refuse to apply the stylesheet.
-- **Alpine.js** — pinned to `3.14.8`, also on jsdelivr, with its own SRI hash
+- **Tailwind CSS + DaisyUI** — as of the current working tree, both are a single
+  same-origin, pre-built stylesheet: `/assets/css/tailwind.min.css` (~72 KB, minified,
+  tree-shaken), served by the existing `/assets/*` `StaticFiles` mount in `api/main.py`.
+  It is generated at build time by the Tailwind CLI (root `package.json`
+  devDependencies `tailwindcss` + `daisyui`; root `tailwind.config.js` sets `content`
+  globs to `frontend/**/*.html` + `frontend/assets/js/**/*.js` and loads the `daisyui`
+  plugin; input file `frontend/assets/css/tailwind-input.css` holds only the three
+  `@tailwind base/components/utilities` directives). The compiled file is committed to
+  git (not gitignored), so cloning the repo yields a working build without Node.js
+  installed; `render_build.sh` runs `npm install` plus the Tailwind CLI build as its
+  first step, before Python deps. This replaces the earlier Tailwind Play CDN
+  `<script>` tag and the DaisyUI CDN `<link>` (pinned to `4.12.14` with a `sha384-`
+  Subresource Integrity hash) that older revisions of this document described — no SRI
+  `integrity`/`crossorigin` attributes are needed on a same-origin file, since an
+  attacker able to tamper with it could tamper with any file this server serves.
+- **Alpine.js** — unchanged by the Tailwind/DaisyUI switch. Still pinned to `3.14.8` on
+  jsdelivr, with its own SRI hash
   (`sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb`) and
   `crossorigin="anonymous"`. The `defer` attribute delays script execution until the
   HTML document has been fully parsed, so Alpine's `x-data`/`x-init` scan finds a
   complete DOM.
-- The local stylesheet `/assets/css/style.css` (§2.5) is loaded last, after the CDN
-  stylesheets, so any override rules in it win on specificity ties.
+- The local stylesheet `/assets/css/style.css` (§2.5) is loaded last, after
+  `tailwind.min.css`, so any override rules in it win on specificity ties.
 - **(v1.5, Tier 4 shared-config extraction.)** The page-local `<style>` block described in
   earlier revisions of this document — a `.badge`/`.badge-xs`/`.badge-sm` padding override plus
   6 `.badge-status-*` classes, duplicated near-identically across `index.html`,
@@ -147,13 +149,14 @@ Served by FastAPI's `GET /organization` route, conditional on the file existing 
 **Section-by-section walkthrough:**
 
 **`<head>`:**
-- Same CDN dependency block as `index.html` and `foundation.html`: Tailwind Play CDN,
-  DaisyUI 4.12.14 with SRI (`sha384-iMbeRReqpIEp0z+...`), Alpine.js 3.14.8 with SRI
-  (`sha384-X9kJyAubVxnP0hcA+...`), local `style.css`. Only the `<title>` differs
-  ("— Organization Verification").
+- Same asset dependency block as `index.html` and `foundation.html`: the pre-built,
+  same-origin `/assets/css/tailwind.min.css` (Tailwind 3.x + DaisyUI 4, tree-shaken —
+  see §2.1 for the build-pipeline detail; no SRI, since same-origin files need none),
+  Alpine.js 3.14.8 with SRI (`sha384-X9kJyAubVxnP0hcA+...`, unchanged), local
+  `style.css`. Only the `<title>` differs ("— Organization Verification").
 - A page-local `<style>` block (also duplicated in `index.html`/`foundation.html` — see below)
   overrides DaisyUI's default `.badge`/`.badge-xs`/`.badge-sm` padding (`!important`, since
-  DaisyUI's CDN stylesheet loads after any plain CSS in `style.css` and would otherwise win)
+  `tailwind.min.css` loads after any plain CSS in `style.css` and would otherwise win)
   and defines 13 `.badge-status-*` classes (`active`/`proposed`/`approved`/`suspended`/
   `inactive`/`lapsed`/`transferred`/`resigned`/`expelled`/`deceased`/`dissolved`/`archived`/
   `expired`), each a solid background color with white text — replacing DaisyUI's
@@ -724,9 +727,10 @@ the opportunity to render them — only the masked `aadhaar_last4` is displayed.
 <link rel="stylesheet" href="/assets/css/badges.css">
 <script src="/assets/js/nss-config.js"></script>
 ```
-- Same CDN dependency block as the other three pages: Tailwind Play CDN, DaisyUI 4.12.14
-  with SRI, Alpine.js 3.14.8 with SRI, local `style.css`. Only the `<title>` differs
-  ("— Person Verification").
+- Same asset dependency block as the other three pages: same-origin, pre-built
+  `/assets/css/tailwind.min.css` (Tailwind 3.x + DaisyUI 4, no SRI needed), Alpine.js
+  3.14.8 with SRI, local `style.css`. Only the `<title>` differs ("— Person
+  Verification").
 - **(v1.5, Tier 4 shared-config extraction.)** The page-local `<style>` block quoted in
   earlier revisions of this document — a `.badge`/`.badge-xs`/`.badge-sm` padding override
   plus 3 `.badge-status-*` classes (`active`/`inactive`/`deceased`) — has been **removed**
@@ -1457,19 +1461,16 @@ route, conditional on the file existing on disk.
 ```html
 <title>Nilachala Saraswata Sangha — Foundation Verification</title>
 
-<!-- Tailwind CSS Play CDN (Tailwind 3.x JIT — generates utility classes in-browser) -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- DaisyUI 4.12.14 (requires Tailwind 3.x) -->
-<link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR" crossorigin="anonymous">
+<!-- Tailwind CSS 3.x + DaisyUI 4 (pre-built, tree-shaken — see tailwind.config.js) -->
+<link rel="stylesheet" href="/assets/css/tailwind.min.css">
 <!-- Alpine.js 3.14.8 -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 
 <link rel="stylesheet" href="/assets/css/style.css">
 ```
-- Byte-for-byte the same CDN block as `index.html` (§2.1) — same Tailwind Play CDN script
-  tag, same DaisyUI 4.12.14 `<link>` with the identical
-  `integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR"`
-  hash, same Alpine.js 3.14.8 `<script defer>` with the identical
+- Byte-for-byte the same asset block as `index.html` (§2.1) — same same-origin,
+  pre-built `/assets/css/tailwind.min.css` `<link>` (no SRI, since it is served by this
+  app itself), same Alpine.js 3.14.8 `<script defer>` with the identical
   `integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb"`
   hash, same local `/assets/css/style.css` link, and — as of the Tier 4 shared-config
   extraction (see §2.1) — the same `/assets/css/badges.css` + `/assets/js/nss-config.js`
@@ -2229,9 +2230,10 @@ formatSample(seq) {
 
 ### 2.5 `frontend/assets/css/style.css`
 
-**Requirement.** Tailwind and DaisyUI (both CDN-delivered) supply essentially all visual
-styling via utility classes and components; this file exists only to hold the one rule
-that **cannot** be expressed as a Tailwind utility class because it targets a
+**Requirement.** Tailwind and DaisyUI (now a single same-origin, pre-built stylesheet —
+`/assets/css/tailwind.min.css`, see §2.1 — rather than CDN-delivered) supply essentially
+all visual styling via utility classes and components; this file exists only to hold the
+one rule that **cannot** be expressed as a Tailwind utility class because it targets a
 framework-specific attribute (`x-cloak`) that Tailwind doesn't know about. It is the
 smallest file in the frontend layer, shared unmodified by both `index.html` and
 `foundation.html`.
@@ -2249,7 +2251,11 @@ smallest file in the frontend layer, shared unmodified by both `index.html` and
     display: none !important;
 }
 ```
-- The header comment states the file's scope and intent directly.
+- The header comment states the file's scope and intent directly. **Note:** as of the
+  Tailwind Play CDN → pre-built `tailwind.min.css` switch (see §2.1), this comment's
+  wording ("via CDN") is stale in the actual file — it was not updated when the build
+  pipeline changed — but is transcribed here verbatim per this document's byte-for-byte
+  quoting convention (line 41–42 above).
 - **The one rule** — an attribute selector, `[x-cloak]`, matching any element carrying
   the `x-cloak` attribute (used in `foundation.html`'s four tab panels; see §2.3) — sets
   `display: none !important;`.
@@ -2369,8 +2375,9 @@ file existing on disk.
 
 **Section-by-section walkthrough:**
 
-**`<head>`:** Same CDN dependency block as the other tier pages (Tailwind Play CDN, DaisyUI
-4.12.14 with SRI, Alpine.js 3.14.8 with SRI, local `style.css`), plus `/assets/css/badges.css` and
+**`<head>`:** Same asset dependency block as the other tier pages (same-origin, pre-built
+`/assets/css/tailwind.min.css` — Tailwind 3.x + DaisyUI 4, no SRI needed — plus Alpine.js
+3.14.8 with SRI, local `style.css`), plus `/assets/css/badges.css` and
 `/assets/js/nss-config.js` (see §2.14–§2.15) — the old two-class page-local
 `.badge-status-active`/`.badge-status-inactive` block has been fully replaced by shared classes.
 The page-local `<style>` block is now much larger than before: alongside CSS custom properties for
@@ -2943,8 +2950,9 @@ ID / Kendra Number) that did not exist as shared classes before.
 .badge         { padding: 0.25rem 0.75rem !important; }
 .badge-xs      { padding: 0.125rem 0.4rem !important; height: auto !important; min-height: 1.125rem; font-size: 0.6rem; }
 ```
-- The same DaisyUI-padding-override purpose every page's old inline block served (DaisyUI's CDN
-  stylesheet loads after this file and would otherwise win on the base `.badge`/`.badge-xs`
+- The same DaisyUI-padding-override purpose every page's old inline block served
+  (`tailwind.min.css` — Tailwind 3.x + DaisyUI 4, same-origin pre-built stylesheet, see
+  §2.1 — loads after this file and would otherwise win on the base `.badge`/`.badge-xs`
   rules without `!important`), now defined once. The `badge-xs` values here (`0.125rem 0.4rem`,
   `font-size: 0.6rem`) are a new, slightly more compact spec than several of the removed
   per-page overrides (e.g. `index.html`'s old copy used `0.15rem 0.5rem` with no explicit

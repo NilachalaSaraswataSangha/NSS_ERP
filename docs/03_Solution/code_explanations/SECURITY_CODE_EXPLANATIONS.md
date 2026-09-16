@@ -3,9 +3,9 @@
 | Field       | Value                                    |
 |-------------|-------------------------------------------|
 | Document    | SECURITY_CODE_EXPLANATIONS                |
-| Version     | 1.1                                       |
-| Scope       | `api/middleware.py` in full, plus the security-relevant portions of `api/config.py` and `api/main.py`, plus the SRI-pinned CDN assets in `frontend/` |
-| Status      | Complete (updated: Tier 3 Person)        |
+| Version     | 1.2                                       |
+| Scope       | `api/middleware.py` in full, plus the security-relevant portions of `api/config.py` and `api/main.py`, plus the SRI-pinned CDN assets in `frontend/` (Alpine.js only, as of the Tailwind CDN→CLI migration) |
+| Status      | Complete (updated: Tailwind CDN→CLI migration — Alpine.js is now the only CDN dependency; `/assets/*` Cache-Control) |
 
 ---
 
@@ -151,35 +151,45 @@ and a `call_next` callable that invokes the rest of the middleware chain plus th
     Headers added to API responses only (/api/* paths):
       Cache-Control: no-store
         Prevents caching of API responses so they always reflect
-        current database state. NOT applied to static assets
-        (HTML, CSS, JS, images) — browsers should cache those normally.
+        current database state.
+
+    Headers added to static asset responses (/assets/* paths):
+      Cache-Control: public, max-age=86400, must-revalidate
+        Caches static files for 24 hours. JS files use ?v=N cache
+        busting; CSS is rebuilt on deploy. Images rarely change.
 
     Not added here:
       X-XSS-Protection — obsolete in modern browsers; superseded by CSP.
       Strict-Transport-Security (HSTS) — Render adds this automatically
         on custom domains with TLS.
-      Content-Security-Policy (CSP) — deferred until the frontend CDN
-        strategy is finalized (Tailwind Play CDN uses inline styles).
+      Content-Security-Policy (CSP) — deferred until all inline styles
+        are audited; Tailwind CSS is now pre-built (no CDN).
     """
 ```
 
 This extended docstring enumerates exactly which headers are added unconditionally
-(`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`), which is
-added conditionally (`Cache-Control: no-store`, API routes only), and which headers were
+(`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`), which two
+are added conditionally by path (`Cache-Control: no-store` on `/api/*`; `Cache-Control: public,
+max-age=86400, must-revalidate` on `/assets/*` — new, currently uncommitted on `develop`, part of
+the Tailwind CDN→CLI migration, see Architecture in `PROJECT_DOCUMENTATION.md`), and which
+headers were
 deliberately *not* added and why: `X-XSS-Protection` (obsolete, superseded by CSP),
 `Strict-Transport-Security` (Render adds this automatically on custom domains with TLS — setting
 it here without controlling TLS termination would be misleading), and `Content-Security-Policy`
-(deferred — the Tailwind Play CDN injects inline `<style>` tags at runtime, and a strict CSP
-would break the UI before the CDN strategy is finalized).
+(still deferred — the original blocker, Tailwind's Play CDN injecting inline `<style>` tags at
+runtime, no longer applies now that Tailwind is pre-built, but a full audit of any *remaining*
+inline styles, e.g. Alpine.js's `x-cloak` pattern, hasn't happened yet).
 
 > **Tier 2/3 note:** The Organization and Person endpoints (`/api/v1/organization/*`,
 > `/api/v1/person/*`) pass through the exact same middleware stack as Bootstrap and Foundation —
 > no per-tier registration is needed. The path-based `Cache-Control: no-store` conditional
-> (`if request.url.path.startswith("/api/")`) automatically covers all Organization (6) and
-> Person (4) API routes, and the UI routes `/organization` and `/person` are automatically
+> (`if path.startswith("/api/")`) automatically covers all Organization (7) and
+> Person (4) API routes (as well as Family's 7 and Membership's 7), and the UI routes
+> `/organization` and `/person` are automatically
 > excluded, exactly like `/` and `/foundation`. This is verified by 3 dedicated tests in
 > `test_organization.py::TestOrganizationSecurity` and 5 tests in
-> `test_person.py::TestPersonSecurity`.
+> `test_person.py::TestPersonSecurity`. No test yet covers the new `/assets/*` Cache-Control
+> value.
 
 ```python
     response = await call_next(request)
@@ -214,16 +224,24 @@ page itself) access to the camera, microphone, and geolocation device APIs, none
 ERP app has any use for.
 
 ```python
-    # Cache-Control: no-store only on API responses, not static assets
-    if request.url.path.startswith("/api/"):
+    # Cache-Control: differentiate by path
+    path = request.url.path
+    if path.startswith("/api/"):
+        # API responses must never be cached — always reflect current DB state
         response.headers["Cache-Control"] = "no-store"
+    elif path.startswith("/assets/"):
+        # Static assets (CSS, JS, images): cache for 1 day, revalidate after.
+        # Cache-busted via ?v=N query strings on JS files; CSS rebuilt on deploy.
+        response.headers["Cache-Control"] = "public, max-age=86400, must-revalidate"
 ```
 
-Scoped exclusively to `/api/*` paths. API responses must always reflect the current database
-state, so caching is forbidden. This is deliberately **not** applied to `/`, `/assets/*`, or
-`/foundation` — those are static HTML/CSS/JS/images that should be cached normally by the
-browser; forcing `no-store` on them would mean re-downloading the whole frontend on every page
-load for no security benefit.
+`/api/*` responses must always reflect the current database
+state, so caching is forbidden there (`no-store`). `/assets/*` responses (CSS, JS, images) get a
+day-long cache instead — new, currently uncommitted — reasoned as safe because JS files are
+cache-busted via `?v=N` query strings on their `<script>` tags, CSS is a generated build artifact
+rebuilt on every deploy, and images rarely change. Neither value is applied to `/`, `/foundation`,
+or the other UI page routes — those responses get no `Cache-Control` header at all, same as
+before this change.
 
 ```python
     return response
@@ -391,71 +409,67 @@ are the last thing applied to every outgoing response no matter which layer gene
 
 ---
 
-### 2.4 CDN Subresource Integrity (SRI) pinning — `frontend/index.html`, `frontend/foundation.html`, `frontend/organization.html`, `frontend/person.html`
+### 2.4 CDN Subresource Integrity (SRI) pinning — `frontend/*.html`
 
-*(The rest of all four files' markup — body structure, Alpine.js directives, every card/tab — is
-explained in full in `UI_CODE_EXPLANATIONS.md` §2.1, §2.3, §2.6, and §2.8. This entry covers only the
-`<head>` CDN block, which is byte-for-byte identical in all four files.)*
+*(The rest of all six files' markup — body structure, Alpine.js directives, every card/tab — is
+explained in full in `UI_CODE_EXPLANATIONS.md`. This entry covers only the
+`<head>` dependency block, which is byte-for-byte identical across all six files.)*
 
 **Requirement**
 
 Every third-party script/stylesheet loaded from a CDN is a supply-chain trust boundary — if the
 CDN is compromised or serves a tampered file, the browser has no way to know unless the page
-tells it what hash to expect. Two of the three CDN dependencies (DaisyUI, Alpine.js) can be
-pinned to an exact version with a Subresource Integrity hash; the third (Tailwind's Play CDN)
-cannot, because it's a browser-side JIT compiler that generates CSS dynamically from the page's
-own class names — there is no single static file whose hash could be checked. Before this
-hardening pass, DaisyUI and Alpine.js were both loaded unpinned (`@4`, `@3` — "latest of major
-version"), so a compromised or yanked CDN release could silently change what code the browser
-executes on every page load; pinning removes that window entirely.
+tells it what hash to expect. As of a currently-uncommitted change on `develop` (Tailwind
+CDN→CLI migration; not yet on `main`), **Alpine.js is now the only remaining CDN dependency** —
+Tailwind CSS and DaisyUI moved to a same-origin, pre-built, minified stylesheet
+(`frontend/assets/css/tailwind.min.css`, generated via Tailwind CLI from `tailwind-input.css` +
+root `tailwind.config.js`, served from this app's own `/assets/*` static mount). Before that
+migration, two of the three CDN dependencies (DaisyUI, Alpine.js) could be pinned to an exact
+version with a Subresource Integrity hash; the third (Tailwind's Play CDN) could not, because it
+was a browser-side JIT compiler that generated CSS dynamically from the page's own class names —
+there was no single static file whose hash could be checked. That whole class of problem is now
+moot for Tailwind/DaisyUI: a same-origin file carries no CDN trust boundary at all (see the Tier
+4 note below, which already established this reasoning for `badges.css`/`nss-config.js` and now
+applies equally to `tailwind.min.css`).
 
-**Line-by-line** (identical in `frontend/index.html`, `frontend/foundation.html`,
-`frontend/organization.html`, and `frontend/person.html`'s `<head>` block):
-
-```html
-<!-- Tailwind CSS Play CDN (Tailwind 3.x JIT — generates utility classes in-browser) -->
-<script src="https://cdn.tailwindcss.com"></script>
-```
-
-The comment documents inline why no SRI hash follows. The `<script>` tag itself carries no
-`integrity`/`crossorigin` attributes at all — this is the one CDN dependency that cannot be
-pinned: the script itself is a JIT compiler that scans the page's HTML for Tailwind utility class
-names and generates matching CSS rules in the browser at runtime. The actual *styling* differs
-per page depending on which classes appear, so there is no single fixed file whose bytes could be
-hashed once and checked forever.
+**Line-by-line** (identical in all six HTML files' `<head>` block):
 
 ```html
-<!-- DaisyUI 4.12.14 (requires Tailwind 3.x) -->
-<link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" integrity="sha384-iMbeRReqpIEp0z+cPe0FZxnbV/GbGyGjDfou8Rjcr6KSJIptc245QXNVjLMtu5TR" crossorigin="anonymous">
+<!-- Tailwind CSS 3.x + DaisyUI 4 (pre-built, tree-shaken — see tailwind.config.js) -->
+<link rel="stylesheet" href="/assets/css/tailwind.min.css">
 ```
 
-The comment records the exact pinned version for anyone reading the source. `@4.12.14` in the URL
-pins the exact npm release (not `@4`, which would silently track the newest 4.x release on every
-page load); `integrity="sha384-..."` is the base64-encoded SHA-384 hash of the exact file jsDelivr
-is expected to serve; `crossorigin="anonymous"` is required by the browser's SRI spec for any
-cross-origin resource carrying an `integrity` attribute — without it, the browser refuses to even
-attempt the integrity check. If jsDelivr ever served different bytes at this exact URL
-(compromise, or a broken deploy), the browser would refuse to apply the stylesheet at all — a
-broken (unstyled) page, not a silently compromised one.
+Same-origin `<link>`, no `integrity`/`crossorigin` attributes — same trust boundary as
+`badges.css`/`style.css`/any other file under `frontend/assets/`, not a third-party CDN resource
+that needs SRI. The actual Tailwind/DaisyUI CSS is generated once at build time (`npm run
+css:build`, or automatically during `render_build.sh` on deploy) rather than compiled in the
+browser on every page load, so unlike the old Play CDN script, there *is* now a single fixed file
+whose bytes are stable between deploys — but pinning it with SRI would be redundant: if an
+attacker could alter this file on the server, they could already alter every other same-origin
+file this server serves.
 
 ```html
 <!-- Alpine.js 3.14.8 -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 ```
 
-Same pinning/SRI/`crossorigin` pattern as DaisyUI, applied to the Alpine.js runtime itself (the
-library every `x-data`/`x-init`/`x-text` directive in both pages depends on); `defer` ensures the
-script executes only after the HTML is fully parsed, so every `x-data` element it needs to bind
-to already exists in the DOM.
+The comment records the exact pinned version for anyone reading the source. `@3.14.8` in the URL
+pins the exact npm release (not `@3`, which would silently track the newest 3.x release on every
+page load); `integrity="sha384-..."` is the base64-encoded SHA-384 hash of the exact file jsDelivr
+is expected to serve; `crossorigin="anonymous"` is required by the browser's SRI spec for any
+cross-origin resource carrying an `integrity` attribute — without it, the browser refuses to even
+attempt the integrity check. If jsDelivr ever served different bytes at this exact URL
+(compromise, or a broken deploy), the browser would refuse to execute the script at all — a
+broken (unstyled/non-interactive) page, not a silently compromised one. This is unchanged by the
+Tailwind migration.
 
-**What was removed to get here:** an older, unpinned `tailwindcss@2` prebuilt CSS `<link>` (the
-pre-JIT Tailwind 2.x distribution) and a separate, incompatible attempt at `@tailwindcss/browser`
-4.x (which conflicts with DaisyUI 4.x's Tailwind-3.x-only compatibility) were both deleted from
-both HTML files as part of this same pass — see `UI_CODE_EXPLANATIONS.md` for the current full
-`<head>` block in context.
+**What changed to get here:** the previous unpinned `<script src="https://cdn.tailwindcss.com">`
+(Tailwind Play CDN) and pinned DaisyUI CDN `<link>` (`@4.12.14` with an SRI hash) were both
+replaced with the single same-origin `tailwind.min.css` `<link>` above, across all six HTML
+files, as part of the currently-uncommitted CDN→CLI migration.
 
-> **Tier 3 note:** `frontend/person.html` uses the identical CDN `<head>` block — same versions,
-> same SRI hashes. No new CDN dependencies were introduced in Tier 3.
+> **Tier 3 note:** `frontend/person.html` uses the identical dependency `<head>` block — same
+> versions. No new CDN dependencies were introduced in Tier 3.
 
 > **Tier 4 note:** `frontend/assets/css/badges.css` and `frontend/assets/js/nss-config.js`
 > (added in the Tier 4 shared-config extraction, loaded by all six pages' `<head>` — see
@@ -465,7 +479,8 @@ both HTML files as part of this same pass — see `UI_CODE_EXPLANATIONS.md` for 
 > exists specifically to protect against a *third-party* origin serving different bytes than
 > expected; a same-origin file carries no such cross-origin trust gap (if an attacker could
 > alter it, they could already alter every other file this server serves, SRI or not), so
-> neither file needs — or has — an `integrity` attribute.
+> neither file needs — or has — an `integrity` attribute. `tailwind.min.css` now falls into this
+> same category (see above).
 
 ---
 

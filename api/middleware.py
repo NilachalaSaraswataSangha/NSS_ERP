@@ -34,15 +34,19 @@ async def add_security_headers(request: Request, call_next) -> Response:
     Headers added to API responses only (/api/* paths):
       Cache-Control: no-store
         Prevents caching of API responses so they always reflect
-        current database state. NOT applied to static assets
-        (HTML, CSS, JS, images) — browsers should cache those normally.
+        current database state.
+
+    Headers added to static asset responses (/assets/* paths):
+      Cache-Control: public, max-age=86400, must-revalidate
+        Caches static files for 24 hours. JS files use ?v=N cache
+        busting; CSS is rebuilt on deploy. Images rarely change.
 
     Not added here:
       X-XSS-Protection — obsolete in modern browsers; superseded by CSP.
       Strict-Transport-Security (HSTS) — Render adds this automatically
         on custom domains with TLS.
-      Content-Security-Policy (CSP) — deferred until the frontend CDN
-        strategy is finalized (Tailwind Play CDN uses inline styles).
+      Content-Security-Policy (CSP) — deferred until all inline styles
+        are audited; Tailwind CSS is now pre-built (no CDN).
     """
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -52,8 +56,14 @@ async def add_security_headers(request: Request, call_next) -> Response:
         "camera=(), microphone=(), geolocation=()"
     )
 
-    # Cache-Control: no-store only on API responses, not static assets
-    if request.url.path.startswith("/api/"):
+    # Cache-Control: differentiate by path
+    path = request.url.path
+    if path.startswith("/api/"):
+        # API responses must never be cached — always reflect current DB state
         response.headers["Cache-Control"] = "no-store"
+    elif path.startswith("/assets/"):
+        # Static assets (CSS, JS, images): cache for 1 day, revalidate after.
+        # Cache-busted via ?v=N query strings on JS files; CSS rebuilt on deploy.
+        response.headers["Cache-Control"] = "public, max-age=86400, must-revalidate"
 
     return response

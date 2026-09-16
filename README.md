@@ -50,7 +50,11 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 ## Frontend
 
-* Tailwind CSS + DaisyUI (CDN) + Alpine.js (CDN) — no build step, no framework.
+* Tailwind CSS + DaisyUI (pre-built via Tailwind CLI, no longer CDN — see `package.json`,
+  `tailwind.config.js`, `frontend/assets/css/tailwind-input.css`/`tailwind.min.css`) + Alpine.js
+  (CDN) — no frontend framework. Node.js is only needed to rebuild CSS after a class change
+  (`npm install && npm run css:build`); the built CSS is committed, so a fresh clone runs
+  without Node.js.
 * `frontend/` implements a Tier 0 "Bootstrap Verification UI" (`index.html`, at `/`), a
   Tier 1 "Foundation Verification UI" (`foundation.html`, at `/foundation`), a Tier 2
   "Organization Verification UI" (`organization.html`, at `/organization`), a Tier 3
@@ -649,9 +653,9 @@ Completed:
   permissions, role→permissions; no auth, no ORM, raw `psycopg2` against `nss.*`, connects as
   `nss_db_backend`; the Django prototype that previously lived under `backend/` was archived
   and removed)
-* Tier 0 Bootstrap Verification UI (`frontend/` — Tailwind CSS + DaisyUI + Alpine.js, no build
-  step, served as static files by FastAPI; 4 sections: system status, RBAC roles, permissions,
-  interactive role→permissions drill-down)
+* Tier 0 Bootstrap Verification UI (`frontend/` — Tailwind CSS + DaisyUI (pre-built via Tailwind
+  CLI, no longer CDN) + Alpine.js, served as static files by FastAPI; 4 sections: system status,
+  RBAC roles, permissions, interactive role→permissions drill-down)
 * FastAPI Tier 1 Foundation API (`api/routers/foundation.py` — 17 read-only endpoints across
   11 tables: master data, system settings, ID sequences, geography (country → state → district
   → city/village + postal codes), and document_master; `field_change_log` deliberately not
@@ -773,6 +777,16 @@ Completed:
 * Assets & Property Module Design (Module #22, v1.0.0, SOURCE ALIGNED — 7 tables: property,
   asset, custodianship, property_statutory_record, maintenance_record, property_document,
   asset_document; 74 business rules)
+* Frontend CSS build migration (uncommitted on `develop` as of this writing): Tailwind CSS +
+  DaisyUI moved from CDN (`<script src="https://cdn.tailwindcss.com">` + DaisyUI CDN `<link>`)
+  to a pre-built, tree-shaken, minified stylesheet (`frontend/assets/css/tailwind.min.css`,
+  ~72 KB) generated via Tailwind CLI (`package.json`, `tailwind.config.js`); all 6 verification
+  pages updated to `<link>` the built file; `render_build.sh` runs `npm install` + the Tailwind
+  build before Python deps. `api/middleware.py` gained a `Cache-Control: public, max-age=86400,
+  must-revalidate` header on `/assets/*` responses (previously only `/api/*` had a Cache-Control
+  value at all) — no test coverage yet for this new header. The logo asset
+  (`frontend/assets/img/nss-logo.png`) was also compressed (1.4 MB → ~100 KB), with the original
+  kept as `nss-logo-original.png`.
 
 Current Focus:
 

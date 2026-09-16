@@ -1,8 +1,8 @@
 # NSS ERP — Technology Stack and Decision Matrix
 
 **Document Type:** Solution Architecture Decision Record
-**Version:** 1.3
-**Date:** 2026-09-08
+**Version:** 1.5
+**Date:** 2026-09-16
 **Status:** Approved
 **Branch:** develop
 
@@ -14,7 +14,7 @@
 | 1.1 | 2026-08-20 | §6 Deployment and Git reconciled to live remote state: removed `pie` (Apple-internal remote, removed from the repo 2026-08-15); `org` — github.com/NilachalaSaraswataSangha/NSS_ERP is now an actual configured git remote (added 2026-08-18), not just a description — the Production remote row and Flow row now use the `org` alias consistently. No other section changed. |
 | 1.2 | 2026-08-28 | §4 Mobile Strategy: replaced PWA-first/Capacitor/conditional-Flutter with Flutter (Android + iOS) from day one (TECH-MOB-001 FROZEN). §5 Offline: added mobile-specific storage (Hive/Drift) and sync. §7 Architecture: updated client diagram. §8 Phase 5: Flutter app phases replace PWA+Capacitor. |
 | 1.3 | 2026-09-08 | Django-to-FastAPI migration: §2 Backend rewritten (Django removed, FastAPI sole framework, raw psycopg2, python-dotenv). §3 Frontend updated (static HTML served by FastAPI, not Django Templates). §1 Database hosting updated (Neon.dev production, not generic "PostgreSQL"). §6 Deployment updated (Render.com app + Neon.dev database, infrastructure-as-code). §7 Architecture diagram rewritten. §8 Implementation order updated (Django Models phase removed). §10 Alternatives: Django added as considered-and-departed. Architectural rationale for the migration documented throughout. |
-| 1.4 | 2026-09-16 | §6 Deployment: start command updated from single worker to `--workers 2`; connection pool tuned to `minconn=2`. §6 "Why not gunicorn" updated. Performance rationale documented in PERFORMANCE_TUNING.md. |
+| 1.5 | 2026-09-16 | §3 Frontend: Tailwind CSS + DaisyUI migrated from CDN runtime to pre-built CLI output (tree-shaken, minified). §6 Deployment: render_build.sh now includes `npm install` + Tailwind CSS build step before Python deps. .gitignore updated for `node_modules/`. |
 
 ---
 
@@ -73,8 +73,8 @@ The Django prototype (`backend/`) was implemented during initial development and
 | Parameter | Decision | Rationale |
 |-----------|----------|-----------|
 | Serving | Static HTML served by FastAPI | Single process, no separate frontend server, no CORS configuration needed |
-| CSS framework | Tailwind CSS + DaisyUI (CDN) | Modern SaaS look, color-coded domains, theme system, dark mode built-in; no Node.js build step |
-| Interactivity | Alpine.js (CDN) | Reactive data binding, dropdowns, modals, toggles — tiny, no build step |
+| CSS framework | Tailwind CSS 3.x + DaisyUI 4 (CLI-built) | Pre-built, tree-shaken, minified CSS (~72 KB); eliminates ~300 KB CDN runtime JS. Built via `npx tailwindcss` during deploy (see `render_build.sh`). Config: `tailwind.config.js`, input: `frontend/assets/css/tailwind-input.css`, output: `frontend/assets/css/tailwind.min.css` |
+| Interactivity | Alpine.js 3.14.8 (CDN) | Reactive data binding, dropdowns, modals, toggles — tiny (~15 KB gzip), no build step; production-ready static JS from jsDelivr CDN |
 | API communication | Vanilla `fetch()` | JSON API consumption; no HTMX in Tier 0 (may be evaluated for later tiers if server-rendered partials become valuable) |
 | Design language | Saffron (#DC7831) accent, institutional/spiritual, accessible to elderly | NSS identity, not corporate ERP |
 | Previous (replaced) | Django Templates + HTMX | Removed with Django; static HTML + Alpine.js achieves the same result without framework coupling |
@@ -124,7 +124,7 @@ The Django prototype (`backend/`) was implemented during initial development and
 | App hosting | Render.com (free tier) | Auto-deploy from `org/main`; HTTPS, SSL certs, edge proxy provided — no nginx/gunicorn needed |
 | Database hosting | Neon.dev (free tier) | 512 MB PostgreSQL 16, no inactivity pause, no expiry, SSL required |
 | Infrastructure-as-code | `render.yaml` in repo root | Defines Render web service; DB credentials set as env vars pointing to Neon |
-| Build script | `render_build.sh` in repo root | Installs deps, idempotent DB bootstrap (DDL + seed if fresh) |
+| Build script | `render_build.sh` in repo root | Builds Tailwind CSS (`npm install` + `npx tailwindcss`), installs Python deps, idempotent DB bootstrap (DDL + seed if fresh). **⚠️ Unverified:** `render.yaml` declares `runtime: python`; Node.js/npm availability in that runtime has not been confirmed against an actual Render deploy — see `DEPLOYMENT_PROCEDURE.md` Step 2 for the risk and fallback options. |
 | Start command | `uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 2` | Render sets `$PORT`; 2 workers for request concurrency on free tier (see PERFORMANCE_TUNING.md) |
 | Flow | feature/* → develop (`personal`) → main → push to `org` → Render auto-deploys |
 | Branch policy | Complete current branch, merge to develop, then create next |

@@ -1,7 +1,7 @@
 # NSS ERP — Deployment Procedure
 
 **Document Type:** Operations / Deployment Guide
-**Version:** 1.1
+**Version:** 1.2
 **Date:** 2026-09-16
 **Status:** Active
 **Audience:** Project maintainer
@@ -78,6 +78,18 @@ PostGIS and dblink are **not used** in current DDL and are not required.
    - **Plan:** Free
    - **Python version:** 3.12.4
 
+**⚠️ Unverified risk (new, uncommitted as of this writing):** `render.yaml` declares
+`runtime: python`, but `render_build.sh` now runs `npm install` and `npx tailwindcss` as its
+first step (Tailwind CDN → CLI migration). Render's native Python runtime environment is not
+confirmed to include Node.js/npm — this has **not been tested against an actual Render deploy
+yet** (deployment is still "not yet run in production" per `CLAUDE.md`). If `npm`/`npx` aren't
+on `PATH` in that runtime, the build will fail immediately with `npm: command not found`.
+Options if that happens: switch `runtime` to `docker` with a Dockerfile that installs both
+Python and Node, or pre-commit the built `tailwind.min.css` and make the `npm`/`npx` step
+conditional (skip if `node`/`npm` aren't found) so a missing Node toolchain degrades gracefully
+instead of failing the whole deploy. Not resolved here — flag for whoever runs the first real
+Render deploy after this change.
+
 ---
 
 ## Step 3: Set Environment Variables
@@ -101,6 +113,9 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap) and `api/m
 
 1. **Trigger manual deploy** in Render dashboard (or push to `org/main`).
 2. `render_build.sh` runs automatically:
+   - Builds Tailwind CSS (`npm install` + `npx tailwindcss -i ... -o
+     frontend/assets/css/tailwind.min.css --minify`) — uncommitted as of this writing, see
+     `TECH_STACK_DECISIONS.md` §3
    - Installs Python dependencies (`pip install -r requirements.txt`)
    - Checks if `nss.role_master` exists on Neon
    - If **fresh database**: creates `nss` schema, installs extensions, runs all DDL + seed in order:

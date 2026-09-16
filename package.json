@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "description": "NSS ERP — CSS build tooling only (Tailwind CLI + DaisyUI)",
+  "scripts": {
+    "css:build": "tailwindcss -i frontend/assets/css/tailwind-input.css -o frontend/assets/css/tailwind.min.css --minify",
+    "css:watch": "tailwindcss -i frontend/assets/css/tailwind-input.css -o frontend/assets/css/tailwind.min.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17",
+    "daisyui": "^4.12.14"
+  }
+}
