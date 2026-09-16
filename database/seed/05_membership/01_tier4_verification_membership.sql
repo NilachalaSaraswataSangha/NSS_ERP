@@ -632,6 +632,13 @@ ON CONFLICT (document_number) DO UPDATE SET
 -- SECTION 4: TRANSFER HISTORY (MBR-027 to MBR-031)
 -- =========================================================
 
+-- Idempotency: clear seed transfer history for test members before re-inserting.
+DELETE FROM nss.membership_transfer_history
+WHERE sangha_sevi_pk IN (
+    SELECT sangha_sevi_pk FROM nss.sangha_sevi
+    WHERE sangha_sevi_id IN ('SS1','SS2','SS3','SS4','SS5')
+);
+
 -- -------------------------------------------------
 -- Suresh Patel: SKH1 → SKH2
 -- Effective date = Dola Purnima 2025 (MBR-029).
@@ -669,6 +676,13 @@ WHERE ss.sangha_sevi_id = 'SS3'
 -- =========================================================
 -- SECTION 5: MEMBERSHIP JOURNEY EVENTS
 -- =========================================================
+
+-- Idempotency: clear seed journey events for test members before re-inserting.
+DELETE FROM nss.membership_journey_event
+WHERE sangha_sevi_pk IN (
+    SELECT sangha_sevi_pk FROM nss.sangha_sevi
+    WHERE sangha_sevi_id IN ('SS1','SS2','SS3','SS4','SS5')
+);
 
 -- --- Ramesh (SS1) ---
 
@@ -747,6 +761,13 @@ FROM nss.sangha_sevi ss WHERE ss.sangha_sevi_id = 'SS5';
 -- SECTION 6: MEMBERSHIP STATUS HISTORY
 -- =========================================================
 
+-- Idempotency: clear seed status history for test members before re-inserting.
+DELETE FROM nss.membership_status_history
+WHERE sangha_sevi_pk IN (
+    SELECT sangha_sevi_pk FROM nss.sangha_sevi
+    WHERE sangha_sevi_id IN ('SS1','SS2','SS3','SS4','SS5')
+);
+
 -- Ramesh: ACTIVE from joining
 -- Append-only history; no natural key to upsert on.
 INSERT INTO nss.membership_status_history
@@ -814,6 +835,13 @@ WHERE ss.sangha_sevi_id = 'SS5'
 -- =========================================================
 -- SECTION 7: RENEWAL HISTORY
 -- =========================================================
+
+-- Idempotency: clear seed renewal history for test members before re-inserting.
+DELETE FROM nss.membership_renewal_history
+WHERE sangha_sevi_pk IN (
+    SELECT sangha_sevi_pk FROM nss.sangha_sevi
+    WHERE sangha_sevi_id IN ('SS1','SS2','SS3','SS4','SS5')
+);
 
 -- Ramesh — latest renewal (FY 2026-2027)
 -- Append-only history; no natural key to upsert on.

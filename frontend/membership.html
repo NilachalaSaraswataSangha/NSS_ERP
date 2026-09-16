@@ -6,6 +6,8 @@
     <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
     <title>Nilachala Saraswata Sangha — Membership Verification</title>
 
+    <!-- Preconnect to Alpine.js CDN for faster fetch -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <!-- Tailwind CSS 3.x + DaisyUI 4 (pre-built, tree-shaken — see tailwind.config.js) -->
     <link rel="stylesheet" href="/assets/css/tailwind.min.css">
     <!-- Alpine.js 3.14.8 -->
@@ -16,16 +18,16 @@
     <script src="/assets/js/nss-config.js"></script>
 </head>
 <body class="bg-base-200 min-h-screen">
-
+<main>
     <div x-data="membershipApp()" x-init="init()" class="mx-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-10 2xl:px-16">
 
         <!-- Header -->
         <header class="mb-4 sm:mb-6 flex items-center justify-between flex-wrap gap-3 sm:gap-4">
             <div class="flex items-center gap-3 sm:gap-4">
-                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" width="56" height="56" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
                 <div>
                     <h1 class="text-lg sm:text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
-                    <p class="text-xs sm:text-sm text-base-content/60">Tier 4 — Membership Verification</p>
+                    <p class="text-xs sm:text-sm text-base-content/70">Tier 4 — Membership Verification</p>
                 </div>
             </div>
             <nav class="flex gap-2 flex-wrap">
@@ -41,10 +43,10 @@
         <!-- System Status -->
         <section class="card bg-base-100 shadow-sm mb-4 sm:mb-6 max-w-md mx-auto">
             <div class="card-body py-3 text-center">
-                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50 justify-center">System Status</h2>
+                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70 justify-center">System Status</h2>
                 <div class="flex items-center justify-center gap-2 mt-1">
                     <template x-if="health.loading">
-                        <span class="flex items-center gap-2 text-sm text-base-content/60">
+                        <span class="flex items-center gap-2 text-sm text-base-content/70">
                             <span class="loading loading-spinner loading-xs"></span>
                             Checking...
                         </span>
@@ -68,21 +70,21 @@
         <!-- Three-tier Identity Legend -->
         <section class="card bg-base-100 shadow-sm mb-4 sm:mb-6 max-w-2xl mx-auto">
             <div class="card-body py-3 px-4">
-                <h2 class="card-title text-xs uppercase tracking-wide text-base-content/50 justify-center mb-1">Three-Tier Member Identity</h2>
+                <h2 class="card-title text-xs uppercase tracking-wide text-base-content/70 justify-center mb-1">Three-Tier Member Identity</h2>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                     <div class="text-center">
                         <span class="font-semibold">Sangha Sevi ID</span>
-                        <p class="text-base-content/50">NSS-wide, permanent</p>
+                        <p class="text-base-content/70">NSS-wide, permanent</p>
                         <span class="data-sevi-id">SS1</span>
                     </div>
                     <div class="text-center">
                         <span class="font-semibold">Sakha Sangha ID</span>
-                        <p class="text-base-content/50">Sakha-scoped, auto-generated</p>
+                        <p class="text-base-content/70">Sakha-scoped, auto-generated</p>
                         <span class="data-erp-no">ESS1192</span>
                     </div>
                     <div class="text-center">
                         <span class="font-semibold">Kendra Number</span>
-                        <p class="text-base-content/50">Kendra-wide, annual</p>
+                        <p class="text-base-content/70">Kendra-wide, annual</p>
                         <span class="data-kendra-no">345/2026/2027</span>
                     </div>
                 </div>
@@ -107,7 +109,7 @@
             <section class="card bg-base-100 shadow-sm xl:col-span-2">
                 <div class="card-body p-3 sm:p-4 xl:p-6">
                     <div class="flex items-center justify-between flex-wrap gap-2">
-                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Members</h2>
+                        <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Members</h2>
                         <span class="badge badge-ghost badge-sm" x-text="members.length + ' members'"></span>
                     </div>
 
@@ -152,7 +154,7 @@
 
                     <template x-if="!membersLoading && !membersError && members.length === 0">
                         <div class="py-4">
-                            <p class="text-sm text-base-content/60">No members match the current filters.</p>
+                            <p class="text-sm text-base-content/70">No members match the current filters.</p>
                         </div>
                     </template>
 
@@ -212,10 +214,10 @@
             <!-- Member Detail (right) -->
             <section class="card bg-base-100 shadow-sm">
                 <div class="card-body p-3 sm:p-4 xl:p-6">
-                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Detail</h2>
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Member Detail</h2>
 
                     <template x-if="!selectedMember && !detailLoading">
-                        <p class="text-sm text-base-content/60 py-2">
+                        <p class="text-sm text-base-content/70 py-2">
                             Select a member from the list to view details.
                         </p>
                     </template>
@@ -231,27 +233,27 @@
                             <!-- Identity -->
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                                 <div>
-                                    <span class="text-base-content/50">Sangha Sevi ID:</span>
+                                    <span class="text-base-content/70">Sangha Sevi ID:</span>
                                     <span class="data-sevi-id" x-text="selectedMember.sangha_sevi_id"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Sakha Sangha ID:</span>
+                                    <span class="text-base-content/70">Sakha Sangha ID:</span>
                                     <span class="data-erp-no" x-text="selectedMember.local_sakha_erp_id || '—'"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Person ID:</span>
+                                    <span class="text-base-content/70">Person ID:</span>
                                     <span class="font-mono" x-text="selectedMember.person_id"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Name:</span>
+                                    <span class="text-base-content/70">Name:</span>
                                     <span class="font-semibold" x-text="formatName(selectedMember)"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Mobile:</span>
+                                    <span class="text-base-content/70">Mobile:</span>
                                     <span x-text="selectedMember.mobile_number ? (selectedMember.country_phone_code || '') + ' ' + selectedMember.mobile_number : '—'"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Email:</span>
+                                    <span class="text-base-content/70">Email:</span>
                                     <template x-if="selectedMember.email">
                                         <a :href="'mailto:' + selectedMember.email" class="link link-primary text-xs" x-text="selectedMember.email"></a>
                                     </template>
@@ -260,23 +262,23 @@
                                     </template>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Type:</span>
+                                    <span class="text-base-content/70">Type:</span>
                                     <span class="badge badge-xs" :class="typeBadgeClass(selectedMember)" x-text="typeDisplayName(selectedMember)"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Status:</span>
+                                    <span class="text-base-content/70">Status:</span>
                                     <span class="badge badge-xs" :class="statusBadgeClass(selectedMember)" x-text="selectedMember.status_name"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Sakha:</span>
+                                    <span class="text-base-content/70">Sakha:</span>
                                     <span x-text="selectedMember.organization_name"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Joining:</span>
+                                    <span class="text-base-content/70">Joining:</span>
                                     <span x-text="selectedMember.joining_date"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Renewal Due:</span>
+                                    <span class="text-base-content/70">Renewal Due:</span>
                                     <span x-text="selectedMember.renewal_due_date || '—'"></span>
                                 </div>
                             </div>
@@ -284,13 +286,13 @@
                             <!-- Sakha Affiliations -->
                             <div>
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Sakha Affiliations
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="affiliations.length"></span>
                                 </h3>
 
                                 <template x-if="!affiliations.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No affiliations.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No affiliations.</p>
                                 </template>
 
                                 <template x-if="affiliations.length > 0">
@@ -305,7 +307,7 @@
                                                           x-text="a.affiliation_status"></span>
                                                     <span class="badge badge-xs badge-ghost" x-text="a.source_event_type"></span>
                                                 </div>
-                                                <div class="text-base-content/60 mt-0.5">
+                                                <div class="text-base-content/70 mt-0.5">
                                                     <span x-text="a.effective_from"></span>
                                                     <span x-text="a.effective_to ? ' — ' + a.effective_to : ' — present'"></span>
                                                 </div>
@@ -318,13 +320,13 @@
                             <!-- Parichaya Patra -->
                             <div>
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Parichaya Patra
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="parichayaPatras.length"></span>
                                 </h3>
 
                                 <template x-if="!parichayaPatras.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No Parichaya Patra records.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No Parichaya Patra records.</p>
                                 </template>
 
                                 <template x-if="parichayaPatras.length > 0">
@@ -336,7 +338,7 @@
                                                     <span class="data-kendra-no" x-text="pp.document_number"></span>
                                                     <span class="badge badge-xs" :class="docBadgeClass(pp)" x-text="pp.status"></span>
                                                 </div>
-                                                <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-base-content/60">
+                                                <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-base-content/70">
                                                     <div>Issued: <span x-text="pp.issue_date"></span></div>
                                                     <div>Valid: <span x-text="pp.valid_from + ' — ' + pp.valid_to"></span></div>
                                                     <div x-show="pp.affiliated_organization_name">
@@ -355,13 +357,13 @@
                             <!-- Anumati Patra (Darshaka only — not applicable to Associate per MBR-019A/B) -->
                             <div x-show="NSS.showAnumatiPatra(selectedMember.membership_type_code)">
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Anumati Patra
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="anumatiPatras.length"></span>
                                 </h3>
 
                                 <template x-if="!anumatiPatras.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No Anumati Patra records.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No Anumati Patra records.</p>
                                 </template>
 
                                 <template x-if="anumatiPatras.length > 0">
@@ -372,7 +374,7 @@
                                                     <span class="font-mono font-semibold" x-text="ap.document_number"></span>
                                                     <span class="badge badge-xs" :class="docBadgeClass(ap)" x-text="ap.status"></span>
                                                 </div>
-                                                <div class="text-base-content/60 mt-0.5">
+                                                <div class="text-base-content/70 mt-0.5">
                                                     Issued: <span x-text="ap.issue_date"></span> |
                                                     Valid: <span x-text="ap.valid_from + ' — ' + ap.valid_to"></span>
                                                 </div>
@@ -385,13 +387,13 @@
                             <!-- Journey Events -->
                             <div>
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Journey Timeline
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="journeyEvents.length"></span>
                                 </h3>
 
                                 <template x-if="!journeyEvents.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No journey events.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No journey events.</p>
                                 </template>
 
                                 <template x-if="journeyEvents.length > 0">
@@ -401,8 +403,8 @@
                                                 <li class="step step-primary" :data-content="idx + 1">
                                                     <div class="text-left py-1">
                                                         <span class="font-semibold" x-text="ev.event_type.replace(/_/g, ' ')"></span>
-                                                        <span class="text-base-content/50 ml-1" x-text="ev.event_date"></span>
-                                                        <p x-show="ev.remarks" class="text-base-content/60 italic" x-text="ev.remarks"></p>
+                                                        <span class="text-base-content/70 ml-1" x-text="ev.event_date"></span>
+                                                        <p x-show="ev.remarks" class="text-base-content/70 italic" x-text="ev.remarks"></p>
                                                     </div>
                                                 </li>
                                             </template>
@@ -422,10 +424,10 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Statuses</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Member Statuses</h2>
                             <span class="badge badge-ghost badge-sm">4 statuses</span>
                         </div>
-                        <p class="text-xs text-base-content/40 mt-1">Person-level — a member is a person</p>
+                        <p class="text-xs text-base-content/60 mt-1">Person-level — a member is a person</p>
                         <div class="overflow-x-auto mt-2">
                             <table class="table table-sm">
                                 <thead>
@@ -437,10 +439,10 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td class="text-center text-xs text-base-content/40">1</td><td><span class="badge badge-xs badge-status-active">Active</span></td><td class="font-mono text-xs whitespace-nowrap">ACTIVE</td><td class="text-xs text-base-content/60">Currently active person record</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">2</td><td><span class="badge badge-xs badge-status-inactive">Inactive</span></td><td class="font-mono text-xs whitespace-nowrap">INACTIVE</td><td class="text-xs text-base-content/60">Temporarily non-operational</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">3</td><td><span class="badge badge-xs badge-status-deceased">Deceased</span></td><td class="font-mono text-xs whitespace-nowrap">DECEASED</td><td class="text-xs text-base-content/60">Person is deceased (Bye-Law §D(d)(i))</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">4</td><td><span class="badge badge-xs badge-status-archived">Archived</span></td><td class="font-mono text-xs whitespace-nowrap">ARCHIVED</td><td class="text-xs text-base-content/60">Permanently closed, retained for history</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">1</td><td><span class="badge badge-xs badge-status-active">Active</span></td><td class="font-mono text-xs whitespace-nowrap">ACTIVE</td><td class="text-xs text-base-content/70">Currently active person record</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">2</td><td><span class="badge badge-xs badge-status-inactive">Inactive</span></td><td class="font-mono text-xs whitespace-nowrap">INACTIVE</td><td class="text-xs text-base-content/70">Temporarily non-operational</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">3</td><td><span class="badge badge-xs badge-status-deceased">Deceased</span></td><td class="font-mono text-xs whitespace-nowrap">DECEASED</td><td class="text-xs text-base-content/70">Person is deceased (Bye-Law §D(d)(i))</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">4</td><td><span class="badge badge-xs badge-status-archived">Archived</span></td><td class="font-mono text-xs whitespace-nowrap">ARCHIVED</td><td class="text-xs text-base-content/70">Permanently closed, retained for history</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -451,10 +453,10 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Membership Statuses</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Membership Statuses</h2>
                             <span class="badge badge-ghost badge-sm">11 statuses</span>
                         </div>
-                        <p class="text-xs text-base-content/40 mt-1">Membership-record lifecycle</p>
+                        <p class="text-xs text-base-content/60 mt-1">Membership-record lifecycle</p>
                         <div class="overflow-x-auto mt-2">
                             <table class="table table-sm">
                                 <thead>
@@ -466,17 +468,17 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td class="text-center text-xs text-base-content/40">1</td><td><span class="badge badge-xs badge-status-active">Active</span></td><td class="font-mono text-xs whitespace-nowrap">ACTIVE</td><td class="text-xs text-base-content/60">Currently active membership</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">2</td><td><span class="badge badge-xs badge-status-inactive">Inactive</span></td><td class="font-mono text-xs whitespace-nowrap">INACTIVE</td><td class="text-xs text-base-content/60">Temporarily non-operational</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">3</td><td><span class="badge badge-xs badge-status-suspended">Suspended</span></td><td class="font-mono text-xs whitespace-nowrap">SUSPENDED</td><td class="text-xs text-base-content/60">Suspended by governance decision</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">4</td><td><span class="badge badge-xs badge-status-lapsed">Lapsed</span></td><td class="font-mono text-xs whitespace-nowrap">LAPSED</td><td class="text-xs text-base-content/60">Non-renewal or non-attendance (Bye-Law §D(d))</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">5</td><td><span class="badge badge-xs badge-status-transferred">Transferred</span></td><td class="font-mono text-xs whitespace-nowrap">TRANSFERRED</td><td class="text-xs text-base-content/60">Transferred to another Sakha</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">6</td><td><span class="badge badge-xs badge-status-resigned">Resigned</span></td><td class="font-mono text-xs whitespace-nowrap">RESIGNED</td><td class="text-xs text-base-content/60">Voluntarily departed</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">7</td><td><span class="badge badge-xs badge-status-expelled">Expelled</span></td><td class="font-mono text-xs whitespace-nowrap">EXPELLED</td><td class="text-xs text-base-content/60">Expelled by governance (Bye-Law §D(d)(iii))</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">8</td><td><span class="badge badge-xs badge-status-archived">Archived</span></td><td class="font-mono text-xs whitespace-nowrap">ARCHIVED</td><td class="text-xs text-base-content/60">Permanently closed, retained for history</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">9</td><td><span class="badge badge-xs badge-status-renewal-pending">Renewal Pending</span></td><td class="font-mono text-xs whitespace-nowrap">RENEWAL_PENDING</td><td class="text-xs text-base-content/60">Renewal requested, awaiting approval</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">10</td><td><span class="badge badge-xs badge-status-on-hold">On Hold</span></td><td class="font-mono text-xs whitespace-nowrap">ON_HOLD</td><td class="text-xs text-base-content/60">Temporarily on hold (administrative)</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">11</td><td><span class="badge badge-xs badge-status-disciplinary-review">Disciplinary Review</span></td><td class="font-mono text-xs whitespace-nowrap">DISCIPLINARY_REVIEW</td><td class="text-xs text-base-content/60">Under disciplinary review (Bye-Law §D(d)(iii))</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">1</td><td><span class="badge badge-xs badge-status-active">Active</span></td><td class="font-mono text-xs whitespace-nowrap">ACTIVE</td><td class="text-xs text-base-content/70">Currently active membership</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">2</td><td><span class="badge badge-xs badge-status-inactive">Inactive</span></td><td class="font-mono text-xs whitespace-nowrap">INACTIVE</td><td class="text-xs text-base-content/70">Temporarily non-operational</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">3</td><td><span class="badge badge-xs badge-status-suspended">Suspended</span></td><td class="font-mono text-xs whitespace-nowrap">SUSPENDED</td><td class="text-xs text-base-content/70">Suspended by governance decision</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">4</td><td><span class="badge badge-xs badge-status-lapsed">Lapsed</span></td><td class="font-mono text-xs whitespace-nowrap">LAPSED</td><td class="text-xs text-base-content/70">Non-renewal or non-attendance (Bye-Law §D(d))</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">5</td><td><span class="badge badge-xs badge-status-transferred">Transferred</span></td><td class="font-mono text-xs whitespace-nowrap">TRANSFERRED</td><td class="text-xs text-base-content/70">Transferred to another Sakha</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">6</td><td><span class="badge badge-xs badge-status-resigned">Resigned</span></td><td class="font-mono text-xs whitespace-nowrap">RESIGNED</td><td class="text-xs text-base-content/70">Voluntarily departed</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">7</td><td><span class="badge badge-xs badge-status-expelled">Expelled</span></td><td class="font-mono text-xs whitespace-nowrap">EXPELLED</td><td class="text-xs text-base-content/70">Expelled by governance (Bye-Law §D(d)(iii))</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">8</td><td><span class="badge badge-xs badge-status-archived">Archived</span></td><td class="font-mono text-xs whitespace-nowrap">ARCHIVED</td><td class="text-xs text-base-content/70">Permanently closed, retained for history</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">9</td><td><span class="badge badge-xs badge-status-renewal-pending">Renewal Pending</span></td><td class="font-mono text-xs whitespace-nowrap">RENEWAL_PENDING</td><td class="text-xs text-base-content/70">Renewal requested, awaiting approval</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">10</td><td><span class="badge badge-xs badge-status-on-hold">On Hold</span></td><td class="font-mono text-xs whitespace-nowrap">ON_HOLD</td><td class="text-xs text-base-content/70">Temporarily on hold (administrative)</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">11</td><td><span class="badge badge-xs badge-status-disciplinary-review">Disciplinary Review</span></td><td class="font-mono text-xs whitespace-nowrap">DISCIPLINARY_REVIEW</td><td class="text-xs text-base-content/70">Under disciplinary review (Bye-Law §D(d)(iii))</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -487,10 +489,10 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Membership Types</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Membership Types</h2>
                             <span class="badge badge-ghost badge-sm">4 types</span>
                         </div>
-                        <p class="text-xs text-base-content/40 mt-1">Classification per Bye-Law §B</p>
+                        <p class="text-xs text-base-content/60 mt-1">Classification per Bye-Law §B</p>
                         <div class="overflow-x-auto mt-2">
                             <table class="table table-sm">
                                 <thead>
@@ -502,10 +504,10 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td class="text-center text-xs text-base-content/40">1</td><td><span class="badge badge-xs badge-type-probationary">Darshaka</span></td><td class="font-mono text-xs whitespace-nowrap">PROBATIONARY</td><td class="text-xs text-base-content/60">Initial membership stage (Bye-Law §B). Receives Anumati Patra.</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">2</td><td><span class="badge badge-xs badge-type-regular">Regular</span></td><td class="font-mono text-xs whitespace-nowrap">REGULAR</td><td class="text-xs text-base-content/60">Full membership (Bye-Law §B). Receives Parichaya Patra.</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">3</td><td><span class="badge badge-xs badge-type-associate">Associate</span></td><td class="font-mono text-xs whitespace-nowrap">ASSOCIATE</td><td class="text-xs text-base-content/60">Associate member (Bye-Law §B). Parichaya Patra only (MBR-019A/B).</td></tr>
-                                    <tr><td class="text-center text-xs text-base-content/40">4</td><td><span class="badge badge-xs badge-type-honorary">Honorary</span></td><td class="font-mono text-xs whitespace-nowrap">HONORARY</td><td class="text-xs text-base-content/60">Honorary member (ERP-FROZEN operational category).</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">1</td><td><span class="badge badge-xs badge-type-probationary">Darshaka</span></td><td class="font-mono text-xs whitespace-nowrap">PROBATIONARY</td><td class="text-xs text-base-content/70">Initial membership stage (Bye-Law §B). Receives Anumati Patra.</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">2</td><td><span class="badge badge-xs badge-type-regular">Regular</span></td><td class="font-mono text-xs whitespace-nowrap">REGULAR</td><td class="text-xs text-base-content/70">Full membership (Bye-Law §B). Receives Parichaya Patra.</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">3</td><td><span class="badge badge-xs badge-type-associate">Associate</span></td><td class="font-mono text-xs whitespace-nowrap">ASSOCIATE</td><td class="text-xs text-base-content/70">Associate member (Bye-Law §B). Parichaya Patra only (MBR-019A/B).</td></tr>
+                                    <tr><td class="text-center text-xs text-base-content/60">4</td><td><span class="badge badge-xs badge-type-honorary">Honorary</span></td><td class="font-mono text-xs whitespace-nowrap">HONORARY</td><td class="text-xs text-base-content/70">Honorary member (ERP-FROZEN operational category).</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -526,7 +528,7 @@
             <!-- Search Results (left / full) -->
             <section class="card bg-base-100 shadow-sm xl:col-span-2">
                 <div class="card-body p-3 sm:p-4 xl:p-6">
-                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Search</h2>
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Member Search</h2>
 
                     <!-- Search input -->
                     <div class="form-control mt-2 max-w-md">
@@ -538,7 +540,7 @@
                                    @input="searchQuery.length >= 2 ? executeSearch() : (searchResults = [])">
                         </div>
                         <label class="label">
-                            <span class="label-text-alt text-base-content/40">Uses trigram similarity for fuzzy name matching across all 3 identity tiers</span>
+                            <span class="label-text-alt text-base-content/60">Uses trigram similarity for fuzzy name matching across all 3 identity tiers</span>
                         </label>
                     </div>
 
@@ -556,7 +558,7 @@
 
                     <template x-if="!searchLoading && !searchError && searchExecuted && searchResults.length === 0">
                         <div class="py-4">
-                            <p class="text-sm text-base-content/60">No results found.</p>
+                            <p class="text-sm text-base-content/70">No results found.</p>
                         </div>
                     </template>
 
@@ -617,10 +619,10 @@
             <!-- Member Detail (right — same detail panel as Members tab) -->
             <section class="card bg-base-100 shadow-sm">
                 <div class="card-body p-3 sm:p-4 xl:p-6">
-                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Member Detail</h2>
+                    <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Member Detail</h2>
 
                     <template x-if="!selectedMember && !detailLoading">
-                        <p class="text-sm text-base-content/60 py-2">
+                        <p class="text-sm text-base-content/70 py-2">
                             Click a search result to view details.
                         </p>
                     </template>
@@ -636,27 +638,27 @@
                             <!-- Identity -->
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                                 <div>
-                                    <span class="text-base-content/50">Sangha Sevi ID:</span>
+                                    <span class="text-base-content/70">Sangha Sevi ID:</span>
                                     <span class="data-sevi-id" x-text="selectedMember.sangha_sevi_id"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Sakha Sangha ID:</span>
+                                    <span class="text-base-content/70">Sakha Sangha ID:</span>
                                     <span class="data-erp-no" x-text="selectedMember.local_sakha_erp_id || '—'"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Person ID:</span>
+                                    <span class="text-base-content/70">Person ID:</span>
                                     <span class="font-mono" x-text="selectedMember.person_id"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Name:</span>
+                                    <span class="text-base-content/70">Name:</span>
                                     <span class="font-semibold" x-text="formatName(selectedMember)"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Mobile:</span>
+                                    <span class="text-base-content/70">Mobile:</span>
                                     <span x-text="selectedMember.mobile_number ? (selectedMember.country_phone_code || '') + ' ' + selectedMember.mobile_number : '—'"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Email:</span>
+                                    <span class="text-base-content/70">Email:</span>
                                     <template x-if="selectedMember.email">
                                         <a :href="'mailto:' + selectedMember.email" class="link link-primary text-xs" x-text="selectedMember.email"></a>
                                     </template>
@@ -665,23 +667,23 @@
                                     </template>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Type:</span>
+                                    <span class="text-base-content/70">Type:</span>
                                     <span class="badge badge-xs" :class="typeBadgeClass(selectedMember)" x-text="typeDisplayName(selectedMember)"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Status:</span>
+                                    <span class="text-base-content/70">Status:</span>
                                     <span class="badge badge-xs" :class="statusBadgeClass(selectedMember)" x-text="selectedMember.status_name"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Sakha:</span>
+                                    <span class="text-base-content/70">Sakha:</span>
                                     <span x-text="selectedMember.organization_name"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Joining:</span>
+                                    <span class="text-base-content/70">Joining:</span>
                                     <span x-text="selectedMember.joining_date"></span>
                                 </div>
                                 <div>
-                                    <span class="text-base-content/50">Renewal Due:</span>
+                                    <span class="text-base-content/70">Renewal Due:</span>
                                     <span x-text="selectedMember.renewal_due_date || '—'"></span>
                                 </div>
                             </div>
@@ -689,13 +691,13 @@
                             <!-- Sakha Affiliations -->
                             <div>
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Sakha Affiliations
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="affiliations.length"></span>
                                 </h3>
 
                                 <template x-if="!affiliations.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No affiliations.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No affiliations.</p>
                                 </template>
 
                                 <template x-if="affiliations.length > 0">
@@ -710,7 +712,7 @@
                                                           x-text="a.affiliation_status"></span>
                                                     <span class="badge badge-xs badge-ghost" x-text="a.source_event_type"></span>
                                                 </div>
-                                                <div class="text-base-content/60 mt-0.5">
+                                                <div class="text-base-content/70 mt-0.5">
                                                     <span x-text="a.effective_from"></span>
                                                     <span x-text="a.effective_to ? ' — ' + a.effective_to : ' — present'"></span>
                                                 </div>
@@ -723,13 +725,13 @@
                             <!-- Parichaya Patra -->
                             <div>
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Parichaya Patra
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="parichayaPatras.length"></span>
                                 </h3>
 
                                 <template x-if="!parichayaPatras.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No Parichaya Patra records.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No Parichaya Patra records.</p>
                                 </template>
 
                                 <template x-if="parichayaPatras.length > 0">
@@ -741,7 +743,7 @@
                                                     <span class="data-kendra-no" x-text="pp.document_number"></span>
                                                     <span class="badge badge-xs" :class="docBadgeClass(pp)" x-text="pp.status"></span>
                                                 </div>
-                                                <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-base-content/60">
+                                                <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-1 text-base-content/70">
                                                     <div>Issued: <span x-text="pp.issue_date"></span></div>
                                                     <div>Valid: <span x-text="pp.valid_from + ' — ' + pp.valid_to"></span></div>
                                                     <div x-show="pp.affiliated_organization_name">
@@ -760,13 +762,13 @@
                             <!-- Anumati Patra (Darshaka only — not applicable to Associate per MBR-019A/B) -->
                             <div x-show="NSS.showAnumatiPatra(selectedMember.membership_type_code)">
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Anumati Patra
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="anumatiPatras.length"></span>
                                 </h3>
 
                                 <template x-if="!anumatiPatras.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No Anumati Patra records.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No Anumati Patra records.</p>
                                 </template>
 
                                 <template x-if="anumatiPatras.length > 0">
@@ -777,7 +779,7 @@
                                                     <span class="font-mono font-semibold" x-text="ap.document_number"></span>
                                                     <span class="badge badge-xs" :class="docBadgeClass(ap)" x-text="ap.status"></span>
                                                 </div>
-                                                <div class="text-base-content/60 mt-0.5">
+                                                <div class="text-base-content/70 mt-0.5">
                                                     Issued: <span x-text="ap.issue_date"></span> |
                                                     Valid: <span x-text="ap.valid_from + ' — ' + ap.valid_to"></span>
                                                 </div>
@@ -790,13 +792,13 @@
                             <!-- Journey Events -->
                             <div>
                                 <div class="divider my-1"></div>
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                                <h3 class="text-xs font-semibold uppercase tracking-wide text-base-content/70">
                                     Journey Timeline
                                     <span class="badge badge-ghost badge-xs ml-1" x-text="journeyEvents.length"></span>
                                 </h3>
 
                                 <template x-if="!journeyEvents.length">
-                                    <p class="text-xs text-base-content/60 mt-1">No journey events.</p>
+                                    <p class="text-xs text-base-content/70 mt-1">No journey events.</p>
                                 </template>
 
                                 <template x-if="journeyEvents.length > 0">
@@ -806,8 +808,8 @@
                                                 <li class="step step-primary" :data-content="idx + 1">
                                                     <div class="text-left py-1">
                                                         <span class="font-semibold" x-text="ev.event_type.replace(/_/g, ' ')"></span>
-                                                        <span class="text-base-content/50 ml-1" x-text="ev.event_date"></span>
-                                                        <p x-show="ev.remarks" class="text-base-content/60 italic" x-text="ev.remarks"></p>
+                                                        <span class="text-base-content/70 ml-1" x-text="ev.event_date"></span>
+                                                        <p x-show="ev.remarks" class="text-base-content/70 italic" x-text="ev.remarks"></p>
                                                     </div>
                                                 </li>
                                             </template>
@@ -824,12 +826,13 @@
         </div>
 
         <!-- Footer -->
-        <footer class="text-center text-xs text-base-content/30 mt-6">
+        <footer class="text-center text-xs text-base-content/60 mt-6">
             <p>&copy; 2026 Nilachala Saraswata Sangha. All rights reserved.</p>
         </footer>
 
     </div>
 
     <script src="/assets/js/membership.js?v=4.0"></script>
+</main>
 </body>
 </html>

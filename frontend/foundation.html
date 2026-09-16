@@ -6,6 +6,8 @@
     <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
     <title>Nilachala Saraswata Sangha — Foundation Verification</title>
 
+    <!-- Preconnect to Alpine.js CDN for faster fetch -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <!-- Tailwind CSS 3.x + DaisyUI 4 (pre-built, tree-shaken — see tailwind.config.js) -->
     <link rel="stylesheet" href="/assets/css/tailwind.min.css">
     <!-- Alpine.js 3.14.8 -->
@@ -16,16 +18,16 @@
     <script src="/assets/js/nss-config.js"></script>
 </head>
 <body class="bg-base-200 min-h-screen">
-
+<main>
     <div x-data="foundationApp()" x-init="init()" class="mx-auto px-3 py-4 sm:px-6 sm:py-6 lg:px-10 2xl:px-16">
 
         <!-- Header with navigation -->
         <header class="mb-4 sm:mb-6 flex items-center justify-between flex-wrap gap-3 sm:gap-4">
             <div class="flex items-center gap-3 sm:gap-4">
-                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" width="56" height="56" class="h-10 w-10 sm:h-14 sm:w-14 object-contain">
                 <div>
                     <h1 class="text-lg sm:text-2xl font-bold text-base-content">Nilachala Saraswata Sangha</h1>
-                    <p class="text-xs sm:text-sm text-base-content/60">Tier 1 — Foundation Verification</p>
+                    <p class="text-xs sm:text-sm text-base-content/70">Tier 1 — Foundation Verification</p>
                 </div>
             </div>
             <nav class="flex gap-2 flex-wrap">
@@ -41,10 +43,10 @@
         <!-- System Status (centred) -->
         <section class="card bg-base-100 shadow-sm mb-6 max-w-md mx-auto">
             <div class="card-body py-3 text-center">
-                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50 justify-center">System Status</h2>
+                <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70 justify-center">System Status</h2>
                 <div class="flex items-center justify-center gap-2 mt-1">
                     <template x-if="health.loading">
-                        <span class="flex items-center gap-2 text-sm text-base-content/60">
+                        <span class="flex items-center gap-2 text-sm text-base-content/70">
                             <span class="loading loading-spinner loading-xs"></span>
                             Checking...
                         </span>
@@ -85,7 +87,7 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Master Categories</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Master Categories</h2>
                             <span class="badge badge-ghost badge-sm" x-text="categories.length + ' categories'"></span>
                         </div>
 
@@ -116,7 +118,7 @@
                                             <tr class="hover">
                                                 <td class="font-mono text-xs whitespace-nowrap" x-text="cat.category_code"></td>
                                                 <td class="text-xs" x-text="cat.category_name"></td>
-                                                <td class="text-xs text-base-content/60 max-w-xs truncate" x-text="cat.description || '—'" :title="cat.description"></td>
+                                                <td class="text-xs text-base-content/70 max-w-xs truncate" x-text="cat.description || '—'" :title="cat.description"></td>
                                                 <td class="text-xs text-center" x-text="cat.display_order"></td>
                                                 <td class="text-center">
                                                     <span x-show="cat.is_active" class="text-success">&#10003;</span>
@@ -135,7 +137,7 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between flex-wrap gap-2">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Master Data Values</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Master Data Values</h2>
                             <span class="badge badge-ghost badge-sm" x-text="filteredMasterData.length + ' values'"></span>
                         </div>
 
@@ -206,7 +208,7 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">System Settings</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">System Settings</h2>
                             <span class="badge badge-ghost badge-sm" x-text="settings.length + ' settings'"></span>
                         </div>
 
@@ -237,7 +239,7 @@
                                                 <td class="font-mono text-xs whitespace-nowrap" x-text="s.setting_key"></td>
                                                 <td class="text-xs font-semibold" x-text="s.setting_value"></td>
                                                 <td><span class="badge badge-outline badge-xs" x-text="s.data_type"></span></td>
-                                                <td class="text-xs text-base-content/60 max-w-xs truncate" x-text="s.description || '—'" :title="s.description"></td>
+                                                <td class="text-xs text-base-content/70 max-w-xs truncate" x-text="s.description || '—'" :title="s.description"></td>
                                             </tr>
                                         </template>
                                     </tbody>
@@ -251,7 +253,7 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">ID Sequences</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">ID Sequences</h2>
                             <span class="badge badge-ghost badge-sm" x-text="sequences.length + ' sequences'"></span>
                         </div>
 
@@ -308,13 +310,13 @@
                     <span class="font-semibold" x-text="selectedCountry.country_name"></span>
                     <template x-if="selectedState">
                         <span class="flex items-center gap-1">
-                            <span class="text-base-content/40">&#x203A;</span>
+                            <span class="text-base-content/60">&#x203A;</span>
                             <span class="font-semibold" x-text="selectedState.state_name"></span>
                         </span>
                     </template>
                     <template x-if="selectedDistrict">
                         <span class="flex items-center gap-1">
-                            <span class="text-base-content/40">&#x203A;</span>
+                            <span class="text-base-content/60">&#x203A;</span>
                             <span class="font-semibold" x-text="selectedDistrict.district_name"></span>
                         </span>
                     </template>
@@ -327,7 +329,7 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Countries</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Countries</h2>
                             <span class="badge badge-ghost badge-sm" x-text="countries.length"></span>
                         </div>
 
@@ -356,12 +358,12 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">States</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">States</h2>
                             <span class="badge badge-ghost badge-sm" x-text="states.length"></span>
                         </div>
 
                         <template x-if="!selectedCountry">
-                            <p class="text-sm text-base-content/60 py-2">Select a country to view states.</p>
+                            <p class="text-sm text-base-content/70 py-2">Select a country to view states.</p>
                         </template>
 
                         <template x-if="selectedCountry && statesLoading">
@@ -389,12 +391,12 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Districts</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Districts</h2>
                             <span class="badge badge-ghost badge-sm" x-text="districts.length"></span>
                         </div>
 
                         <template x-if="!selectedState">
-                            <p class="text-sm text-base-content/60 py-2">Select a state to view districts.</p>
+                            <p class="text-sm text-base-content/70 py-2">Select a state to view districts.</p>
                         </template>
 
                         <template x-if="selectedState && districtsLoading">
@@ -404,7 +406,7 @@
                         </template>
 
                         <template x-if="selectedState && !districtsLoading && !districtsError && districts.length === 0">
-                            <p class="text-sm text-base-content/60 py-2">No districts seeded for this state.</p>
+                            <p class="text-sm text-base-content/70 py-2">No districts seeded for this state.</p>
                         </template>
 
                         <template x-if="selectedState && !districtsLoading && !districtsError && districts.length > 0">
@@ -426,12 +428,12 @@
                 <section class="card bg-base-100 shadow-sm">
                     <div class="card-body p-3 sm:p-4">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Cities / Villages</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Cities / Villages</h2>
                             <span class="badge badge-ghost badge-sm" x-text="cities.length"></span>
                         </div>
 
                         <template x-if="!selectedDistrict">
-                            <p class="text-sm text-base-content/60 py-2">Select a district to view cities/villages.</p>
+                            <p class="text-sm text-base-content/70 py-2">Select a district to view cities/villages.</p>
                         </template>
 
                         <template x-if="selectedDistrict && citiesLoading">
@@ -442,8 +444,8 @@
 
                         <template x-if="selectedDistrict && !citiesLoading && !citiesError && cities.length === 0">
                             <div class="py-4">
-                                <p class="text-sm text-base-content/60">No cities/villages seeded.</p>
-                                <p class="text-xs text-base-content/40 mt-1">This is expected — city/village data is deferred reference data.</p>
+                                <p class="text-sm text-base-content/70">No cities/villages seeded.</p>
+                                <p class="text-xs text-base-content/60 mt-1">This is expected — city/village data is deferred reference data.</p>
                             </div>
                         </template>
 
@@ -475,7 +477,7 @@
                 <section class="card bg-base-100 shadow-sm mt-4">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">
                                 Postal Codes — <span x-text="selectedCountry.country_name"></span>
                             </h2>
                             <span class="badge badge-ghost badge-sm" x-text="postalCodes.length + ' codes'"></span>
@@ -488,7 +490,7 @@
                         </template>
 
                         <template x-if="!postalCodesLoading && postalCodes.length === 0">
-                            <p class="text-sm text-base-content/60 py-2">No postal codes seeded for this country.</p>
+                            <p class="text-sm text-base-content/70 py-2">No postal codes seeded for this country.</p>
                         </template>
 
                         <template x-if="!postalCodesLoading && postalCodes.length > 0">
@@ -532,7 +534,7 @@
                 <section class="card bg-base-100 shadow-sm max-w-2xl">
                     <div class="card-body p-3 sm:p-4 xl:p-6">
                         <div class="flex items-center justify-between">
-                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/50">Document Master</h2>
+                            <h2 class="card-title text-sm uppercase tracking-wide text-base-content/70">Document Master</h2>
                             <span class="badge badge-ghost badge-sm" x-text="documents.length + ' documents'"></span>
                         </div>
 
@@ -544,8 +546,8 @@
 
                         <template x-if="!documentsLoading && documents.length === 0">
                             <div class="py-4">
-                                <p class="text-sm text-base-content/60">No documents stored yet.</p>
-                                <p class="text-xs text-base-content/40 mt-1">
+                                <p class="text-sm text-base-content/70">No documents stored yet.</p>
+                                <p class="text-xs text-base-content/60 mt-1">
                                     This is expected — document_master is a runtime table populated
                                     when document-consuming modules start using it.
                                 </p>
@@ -580,7 +582,7 @@
                         </template>
 
                         <div class="mt-4 pt-3 border-t border-base-200">
-                            <p class="text-xs text-base-content/40">
+                            <p class="text-xs text-base-content/60">
                                 field_change_log exists in the database but is not exposed in Tier 1.
                                 Audit data requires authentication — deferred to Tier 5.
                             </p>
@@ -591,12 +593,13 @@
         </div>
 
         <!-- Footer -->
-        <footer class="text-center text-xs text-base-content/30 mt-6">
+        <footer class="text-center text-xs text-base-content/60 mt-6">
             <p>&copy; 2026 Nilachala Saraswata Sangha. All rights reserved.</p>
         </footer>
 
     </div>
 
     <script src="/assets/js/foundation.js"></script>
+</main>
 </body>
 </html>
