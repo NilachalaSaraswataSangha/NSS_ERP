@@ -53,11 +53,13 @@ design philosophy, ensuring that business rules are frozen before implementation
 * Tailwind CSS + DaisyUI (CDN) + Alpine.js (CDN) — no build step, no framework.
 * `frontend/` implements a Tier 0 "Bootstrap Verification UI" (`index.html`, at `/`), a
   Tier 1 "Foundation Verification UI" (`foundation.html`, at `/foundation`), a Tier 2
-  "Organization Verification UI" (`organization.html`, at `/organization`), and a Tier 3
-  "Person Verification UI" (`person.html`, at `/person`) — none of these is
-  the full admin dashboard yet — served as static files by FastAPI; see `frontend/README.md`
-  for the full file/function reference. 13 static mockups for later tiers exist under
-  `docs/03_Solution/ui/mockups/`.
+  "Organization Verification UI" (`organization.html`, at `/organization`), a Tier 3
+  "Person Verification UI" (`person.html`, at `/person`), a Tier 4 "Family Verification UI"
+  (`family.html`, at `/family` — incl. a family-tree visualization and Sakha-alignment mismatch
+  badges), and a Tier 4 "Membership Verification UI" (`membership.html`, at `/membership`) —
+  none of these is the full admin dashboard yet — served as static files by FastAPI; see
+  `frontend/README.md` for the full file/function reference. 13 static mockups for later tiers
+  exist under `docs/03_Solution/ui/mockups/`.
 
 ---
 
@@ -65,10 +67,11 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 * FastAPI — the only web/API layer in the codebase (`api/`), currently a Tier 0 read-only
   bootstrap-RBAC API plus a Tier 1 read-only Foundation API (17 endpoints across 11 tables) plus
-  a Tier 2 read-only Organization API (6 endpoints) plus a Tier 3 read-only Person API
-  (4 endpoints across 2 tables); no ORM, raw `psycopg2`, no auth. See
-  `docs/PROJECT_DOCUMENTATION.md` → Architecture and
-  `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`.
+  a Tier 2 read-only Organization API (7 endpoints) plus a Tier 3 read-only Person API
+  (4 endpoints across 2 tables) plus a Tier 4 read-only Family API (7 endpoints across 5 tables)
+  and Membership API (7 endpoints); 46 endpoints total; no ORM, raw `psycopg2`, no auth. See
+  `docs/PROJECT_DOCUMENTATION.md` → Architecture,
+  `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`, and `docs/03_Solution/api/API_CONTRACT.md`.
 * Django — an earlier prototype existed under `backend/` but was fully archived and removed
   once the FastAPI direction was adopted; `backend/` is now empty.
 
@@ -116,7 +119,7 @@ Browser / HTTP client
 Security Middleware (CORS, rate limiting, security headers)
    │
    ▼
-FastAPI (api/main.py, Tier 0 bootstrap + Tier 1 foundation + Tier 2 organization + Tier 3 person routers)
+FastAPI (api/main.py, Tier 0 bootstrap + Tier 1 foundation + Tier 2 organization + Tier 3 person + Tier 4 family + membership routers)
    │
    ▼
 psycopg2 connection pool (api/database.py) — raw SQL, no ORM
@@ -233,11 +236,12 @@ Notes:
 
 # Module Structure
 
-*The sections below describe the full planned module roadmap. Foundation, Organization, and
-Person are the only modules on this list with API/backend implementation so far — a Tier 0
-FastAPI bootstrap-RBAC API, a Tier 1 Foundation API, a Tier 2 Organization API, and a Tier 3
-Person API (see Current Development Status below for full endpoint/table counts), plus SQL DDL
-for Bootstrap RBAC, Foundation, Organization, and Person. An earlier Django prototype briefly
+*The sections below describe the full planned module roadmap. Foundation, Organization,
+Person, Family, and Membership are the only modules on this list with API/backend implementation
+so far — a Tier 0 FastAPI bootstrap-RBAC API, a Tier 1 Foundation API, a Tier 2 Organization
+API, a Tier 3 Person API, and a Tier 4 Family + Membership API (see Current Development Status
+below for full endpoint/table counts), plus SQL DDL for Bootstrap RBAC, Foundation,
+Organization, Person, Family, and Membership. An earlier Django prototype briefly
 implemented parts of Foundation, Membership, Family, Governance (stub), Attendance (stub), and
 Founder & Heritage under `backend/`, but it was fully archived and removed once the FastAPI
 direction was adopted. Solution-layer design documentation (overview/ERD/lifecycle/business-
@@ -492,6 +496,7 @@ v0.7.0.md
 v0.8.0.md
 v0.9.0.md
 v0.10.0.md
+v0.10.4.md
 ```
 
 ---
@@ -635,7 +640,7 @@ Completed:
   values, shared across modules) — now consumed by the Tier 2 Organization API (see below). This
   diverges from the frozen 3-table module design — see `docs/PROJECT_DOCUMENTATION.md` →
   Gotchas. Combined with Foundation, Bootstrap RBAC, Person, Family, and Membership:
-  **34 tables implemented** — see `database/README.md`)
+  **35 tables implemented** — see `database/README.md`)
 * Bootstrap RBAC DDL (`role_master`/`permission_master`/`role_permission`, `SOL-BOOT-001`/
   `SOL-ARCH-011` — DDL implemented and committed; `role_master` seeded with 8 roles,
   the other two empty pending the permission catalogue; ownership stays with Administration,
@@ -715,6 +720,17 @@ Completed:
 * New `tests/test_data_integrity.py` (23 tests) — cross-module smoke tests verifying every
   module has at least one active entity
 * Merged to `develop` and `main`, tagged `v0.10.0` (see `docs/05_Releases/v0.10.0.md`)
+* Three patch/hotfix tags followed v0.10.0, no individual release-notes docs yet: `v0.10.1`
+  (wired `family_link` into `02_build.sh`/`render_build.sh`, extended `render_build.sh` through
+  the full Tier 4 phase sequence), `v0.10.2` (creates `nss_db_owner`/`nss_db_backend` roles on
+  Neon before granting — `render_build.sh` was failing at the grant step on a fresh Neon
+  deploy), `v0.10.3` (root-cause idempotency fix: every `CREATE TABLE`/`INDEX` in `database/ddl/`
+  now uses `IF NOT EXISTS`, every seed `INSERT` is now an upsert — fixes a production Neon
+  database that was silently missing newer `master_data` columns/rows because a multi-`INSERT`
+  seed file aborted partway through on the first pre-existing row)
+* `v0.10.4` — performance-hardening pass (composite partial indexes for the FAM-036 CTE hot
+  path, Uvicorn `--workers 2`, connection pool `minconn` 1→2, non-blocking frontend fetches);
+  merged `performance-optimization` → `develop` → `main` (see `docs/05_Releases/v0.10.4.md`)
 * Global Location Model
 * Membership Module Design (v1.0, DRAFT — table/column shapes now match the implemented DDL,
   but the design doc itself hasn't been reconciled to FROZEN yet)

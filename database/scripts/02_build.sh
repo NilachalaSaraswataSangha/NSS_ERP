@@ -37,6 +37,7 @@
 #   Phase 6  — Family DDL (5 tables)
 #   Phase 7  — Membership DDL (12 tables)
 #   Phase 8  — Tier 4 Verification Seed Data
+#   Phase 8b — Performance Indexes (migrations)
 #   Phase 9  — Grant nss_db_backend read-only access
 #
 # NOT executed:
@@ -249,6 +250,16 @@ run_sql "tier4 persons (seed)"          "${SEED_BASE}/03_person/02_tier4_verific
 run_sql "tier4 family (seed)"           "${SEED_BASE}/04_family/01_tier4_verification_family.sql"
 run_sql "tier4 family_link (seed)"      "${SEED_BASE}/04_family/02_tier4_verification_family_links.sql"
 run_sql "tier4 membership (seed)"       "${SEED_BASE}/05_membership/01_tier4_verification_membership.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 8b: Performance Indexes (migrations)
+# Composite partial indexes for the family_majority
+# CTE hot path (used by family list + org stats).
+# Must run after DDL phases create the base tables.
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 8b] Performance Indexes${NC}"
+run_sql "performance indexes" "${REPO_ROOT}/database/migrations/add_performance_indexes.sql"
 echo ""
 
 # -------------------------------------------------

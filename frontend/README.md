@@ -295,7 +295,8 @@ card, a DaisyUI `tabs tabs-boxed` bar with 2 tabs, each lazily loaded on first v
 | **Persons** | Filterable list (2-column layout): left/wide panel is the person table (person_id/name/gender/DOB/mobile/email/marital status/blood group/status) with `<select>` filters for gender, marital status, and blood group (all sourced from Foundation master-data via `GET /api/v1/foundation/master-data?category_code=`); right panel is a detail view — identity, demographics, contact, masked Aadhaar ("XXXX XXXX 1234"), emergency contact section (name/phone/relationship), remarks, and an Addresses sub-section showing each address as a card with type badge, primary badge, address lines, landmark, and resolved location chain (city/village, postal code, district, state, country). Addresses auto-load on row click (`selectPerson()`, toggle-deselect on repeat click). Person lifecycle states (Active/Deceased/Inactive) are derived from `is_active` + `date_of_death` and shown via dedicated `.badge-status-*` CSS classes |
 | **Search** | Trigram fuzzy search input (min 2 chars, 300ms debounce) querying `GET /api/v1/person/search?q=`; results table (person_id/name/gender/DOB/mobile/email/status) in a grid layout (`xl:col-span-2`) alongside its own inline "Person Detail" panel — clicking a result calls `selectPerson(p)` directly (no tab switch, same pattern as `membership.js`'s Search tab); if the search returns exactly one result it is auto-selected |
 
-Loads `<script src="/assets/js/person.js">` at the bottom.
+Loads `<script src="/assets/js/person.js?v=2.2">` at the bottom (cache-bust version — see the
+note under `family.html` above; treat as a snapshot, not re-verified every doc pass).
 
 ---
 
@@ -339,57 +340,117 @@ try/fetch/check `res.ok`/parse JSON → catch sets error flag only → finally c
 
 ### family.html
 
-The Tier 4 Family Verification UI entry point, structurally parallel to `person.html`: same head
-boilerplate and System Status card (reusing `GET /api/v1/bootstrap/health`), but with "Family"
-active in the nav bar and subtitle "Tier 4 — Family Verification". Unlike every earlier tier
-page, it has **no tab bar** — Family's surface area (a families list plus one family's detail)
-is small enough to render as a single-screen master-detail layout, `grid-cols-1 xl:grid-cols-3`:
-the families table occupies `xl:col-span-2` (left, wider — Family ID, Family Name, Sakha,
-Formed Date, Status) and the detail panel occupies the remaining column (right — identity
-fields, a Members sub-table showing each current relationship, and a Head History sub-section
-rendered as bordered cards rather than a table, each showing a "Current" badge when
-`effective_to` is null). Selecting a family row fetches its members and head history in
-parallel via `Promise.all`; both fetches are treated as non-fatal, so a transient failure never
-blocks the family's own core fields from displaying.
+The Tier 4 Family Verification UI entry point, structurally parallel to the earlier tier pages
+for header/status boilerplate (same head boilerplate and System Status card reusing
+`GET /api/v1/bootstrap/health`, "Family" active in the nav bar, subtitle "Tier 4 — Family
+Verification"), but the body departs from every other tier page's tab-bar pattern. It renders a
+tab-less 3-panel layout — `grid-cols-1 lg:grid-cols-[220px_1fr] xl:grid-cols-[220px_1fr_360px]` —
+driven by a `viewMode` toggle ("My Family" / "Org View"; state `viewMode`, default `"admin"`,
+despite an in-code comment still calling `"member"` "the current default"):
 
-Loads `<script src="/assets/js/family.js">` at the bottom.
+| Panel | Contents |
+|-------|----------|
+| **Left (220px)** | The view-mode toggle buttons, then — in **Org View** (`viewMode === 'admin'`) — an org breadcrumb (`orgBreadcrumb`, clickable via `breadcrumbNav(i)`) and a drill-down list of org-children cards (`orgChildren`, one card per child org with name/code/type plus inline family/member/person count badges once `orgChildrenStats` loads); once a Sakha is drilled into (`selectedSakhaCode` set) the panel switches to a **Families** list scoped to that Sakha. In **My Family** view (`viewMode === 'member'`) the panel shows the same Families list, unfiltered. Clicking a family row calls `selectFamily(f)` |
+| **Center (1fr)** | "Family Tree" — a "View As" `<select>` (`viewerPersonPk`) letting the user re-root the relationship computation on any family member, then a dynamic generation-based tree rendered via `x-html="renderTree()"` inside `.tree-canvas`: couples grouped in dashed boxes, connector lines between generations, avatar circles color-coded by relationship (`av-viewer`/`av-spouse`/`av-parent`/... classes), viewer/head corner-indicator badges. Clicking any tree node calls `handleTreeClick($event)` → `selectPerson()` |
+| **Right (360px, `xl` only)** | Family Info (ID/status/name/Sakha/formed date), then — once a person is selected from the tree or member list — a detail card with demographics, a spouse mini-card (click to jump to the spouse), a "Sangha Membership" block (Sangha Sevi ID, type/status badges, Sakha + Sakha Sangha ID with an amber "Different" mismatch badge when `isMemberSakhaMismatch()` is true), Parichaya Patra / Anumati Patra snapshots, and emergency contact; below that, a Members list (each row clickable, YOU/HEAD badges, amber mismatch warning icon) and a Head History list (bordered rows, "Now" badge when `effective_to` is null) |
+
+The org-admin drill-down (`fetchOrgRoot()` → `fetchOrgChildren(orgPk)` → `drillIntoOrg(org)`)
+starts from the Kendra root and lets an admin walk Kendra → Anchalika → ... → Sakha; drilling
+into a `SAKHA_SANGHA`-typed org stops the org-tree descent and loads that Sakha's families
+instead. Per-child family/member/person count badges are populated by a **separate,
+non-blocking** background fetch (`_fetchOrgChildrenStats()`), so the org-children cards render
+immediately and the (heavier, uncapped-recursion) stats badges fill in a beat later. The tree/
+graph visualization consumes `GET /api/v1/family/families/{pk}/graph?viewer_person_pk=`; the
+Sakha-mismatch badges consume `GET /api/v1/family/families/{pk}/sakha-alignment`.
+
+Loads `<script src="/assets/js/family.js?v=24">` at the bottom (cache-bust version — treat this
+and the other pages' `?v=N` strings below as a snapshot taken during this doc pass, not
+something to re-verify line-by-line every time).
 
 ---
 
 ### assets/js/family.js
 
 Alpine.js data component for `family.html`. Defines one global function: `familyApp()`.
-Constant `FAMILY_API = "/api/v1/family"`.
+Constants `FAMILY_API = "/api/v1/family"` and `ORG_API = "/api/v1/organization"`. Also defines
+module-level tree-rendering helpers: `avatarClass(gen, isHead, isSpouse)` (relationship →
+`.av-*` CSS class) plus the `GEN_LABELS`/`SPOUSE_LABELS` lookup tables.
 
-**State groups:** `health{loading,connected}` (shared pattern with `app.js`), families
-(`families`, `selectedFamily`, `detailLoading`), members (`familyMembers`, `membersLoading`),
-head history (`headHistory`, `headLoading`). No `activeTab` state — this is the only tier page
-with a single, tab-less screen.
+**State groups:** `health{loading,connected}` (shared pattern with `app.js`); view mode
+(`viewMode` — `"member"`/`"admin"`, default `"admin"`); org navigation (`orgBreadcrumb`,
+`orgChildren`, `orgChildrenLoading`, `orgChildrenStats`, `selectedSakhaCode`); families
+(`families`, `familiesLoading`, `familiesError`, `selectedFamily`, `detailLoading`); members and
+head history (`familyMembers`, `membersLoading`, `headHistory`, `headLoading`); graph
+(`viewerPersonPk`, `graphMembers`, `graphLoading`, `graphError`); selected-person detail
+(`selectedPerson`, `selectedPersonDetail`, `selectedPersonLoading`, `selectedPersonMembership`,
+`selectedPersonMembershipLoading`); Sakha alignment (`sakhaAlignment`, `sakhaAlignmentLoading`);
+and the recursive tree itself (`treeHead`, `treeSpouse`, `treeNodes`, `_allTreePersons`,
+rebuilt by `buildTree()` every time `graphMembers` changes). No `activeTab` state — this is the
+only tier page without a DaisyUI tab bar.
 
-**Lifecycle:** `init()` calls `fetchHealth()` then `fetchFamilies()` sequentially (not in
-parallel, unlike most other tier pages' `init()`).
+**Lifecycle:** `init()` fires `fetchHealth()` without awaiting it ("Fire health check in
+parallel — don't block data loading" per the code comment), then branches on `viewMode`:
+`await this.fetchOrgRoot()` for `"admin"`, `await this.fetchFamilies()` for `"member"`.
+`switchViewMode(mode)` re-runs the same branch when the user toggles "My Family"/"Org View",
+resetting family/detail/org state first.
 
-**API calls** (all relative, all under `${FAMILY_API}` except the shared health check):
-`GET /api/v1/bootstrap/health`, `GET ${FAMILY_API}/families` (no filter UI exists yet, so always
-called with no query parameters), `GET ${FAMILY_API}/families/{family_group_pk}/members`,
-`GET ${FAMILY_API}/families/{family_group_pk}/head-history` (the latter two fetched together via
-`Promise.all` in `selectFamily()`).
+**API calls:**
+`GET /api/v1/bootstrap/health`;
+`GET ${ORG_API}/organizations?type_code=KENDRA` (`fetchOrgRoot()` — finds the Kendra root and
+seeds `orgBreadcrumb`);
+`GET ${ORG_API}/organizations/{pk}/children` (`fetchOrgChildren(orgPk)` — awaited, renders cards
+immediately);
+`GET ${ORG_API}/organizations/{pk}/children-stats` (`_fetchOrgChildrenStats(orgPk)` — fired from
+inside `fetchOrgChildren()` but **not awaited by it**, so it resolves in the background and
+populates `orgChildrenStats` after the org-children cards are already on screen);
+`GET ${FAMILY_API}/families` (optional `?sakha_code=`, used both for the unfiltered "My Family"
+list and the Sakha-scoped list once `drillIntoOrg()` lands on a `SAKHA_SANGHA`);
+`GET ${FAMILY_API}/families/{pk}/members` and `GET ${FAMILY_API}/families/{pk}/head-history`
+(fetched together via `Promise.all` in `selectFamily()`);
+`GET ${FAMILY_API}/families/{pk}/graph?viewer_person_pk=` (`fetchGraph()` — called after a
+family loads, defaulting `viewerPersonPk` to the head or the first member if there's no head —
+and again from `changeViewer()`);
+`GET ${FAMILY_API}/families/{pk}/sakha-alignment` (`fetchSakhaAlignment()`, fired
+fire-and-forget from `selectFamily()`);
+`GET /api/v1/person/persons/{person_pk}` and
+`GET ${FAMILY_API}/person/{person_pk}/membership-summary` (fetched together via `Promise.all`
+in `selectPerson()`, populating `selectedPersonDetail` and `selectedPersonMembership`).
 
-**Error-handling pattern:** identical to other tier JS files for the top-level families fetch —
-loading=true/error=false → try/fetch/check `res.ok`/parse JSON → catch sets error flag only →
-finally clears loading. The members/head-history fetch inside `selectFamily()` deliberately
-does **not** set an error flag on failure — comments in the code call this out explicitly
-("Non-fatal — family detail still shows") — a departure from `person.js`'s addresses fetch,
-which does track its own error state. `selectFamily(f)` toggle-deselects, same as
-`selectPerson()`/`selectOrganization()`. Unlike `person.js`'s `selectPerson()`, selecting a
-family does **not** issue a separate detail-fetch call — the row object already fetched by
-`fetchFamilies()` (which carries every `FamilyGroupResponse` field) is reused directly as
-`selectedFamily`.
+**Error-handling pattern:** the top-level `fetchHealth()`/`fetchOrgRoot()`/`fetchFamilies()`
+calls follow the usual loading/error-flag/finally shape. Everything downstream of a family or
+org selection is treated as non-fatal on failure — `selectFamily()`'s members/head-history
+fetch, `_fetchOrgChildrenStats()`, and `fetchSakhaAlignment()` all swallow errors silently
+(comments call stats and alignment "supplementary"/"informational"), so a partial failure never
+blocks the family's core fields, the org cards, or the tree from rendering. `fetchGraph()` is
+the one exception in this cluster — it does set `graphError = true` on failure, surfaced in the
+UI as "Failed to compute family graph." `selectFamily(f)`/`selectPerson(member)` both
+toggle-deselect on repeat click of the same row, same convention as
+`selectOrganization()`/`selectPerson()` (person.js).
 
-**Helper:**
-- `formatMemberName(m)` — joins first/middle/last name parts, filtering nulls (same
-  implementation as `person.js`'s `formatName()` and `membership.js`'s `formatName()`); used for
-  both member rows and head-history cards.
+**Helpers:**
+- `formatName(m)` — joins first/middle/last name parts, filtering nulls (same implementation as
+  `person.js`'s `formatName()` and `membership.js`'s `formatName()`)
+- `displayRelationship(m)` — resolves a display label for a member: viewer flag → direct
+  `relationship_label` (from `/graph`) → lookup in `graphMembers` by `person_pk` → viewer-PK
+  match → `is_head` fallback → static `relationship_type_name`/`relationship_type_code`
+- `getInitials(m)`, `getAvatarClass(m)` — avatar-circle initials and `.av-*` CSS class, falling
+  back to a `graphMembers` lookup when called for a plain member-table row that lacks
+  `_avatarClass`
+- `getSpouseName(personPk)` / `getSpousePersonPk(personPk)` / `getSpouseInitials(personPk)` /
+  `selectSpouse(personPk)` — resolve and navigate to a person's spouse via `graphMembers`
+  (falling back to the synthesized `treeSpouse` for the viewer)
+- `isMemberSakhaMismatch(personPk)` / `getMemberSakhaName(personPk)` — read
+  `sakhaAlignment.members` to flag/display a member whose affiliated Sakha differs from the
+  family's FAM-036 majority Sakha
+- `buildTree()` — rebuilds the recursive couple/children tree from `graphMembers` every time the
+  graph loads (synthesizes the viewer node, groups spouses into couples, links couples to
+  parent couples via `parent_person_pks`, finds root couples with no parent in the graph)
+- `renderTree()` / `_renderSubtree()` / `_renderCouple()` / `_renderPerson()` / `_esc()` — build
+  the tree's HTML string by hand (not Alpine templates) for `x-html`, since the tree's depth and
+  branching are only known at runtime; `_esc()` does minimal HTML-escaping of user-visible
+  name/label text before interpolation
+- `handleTreeClick(event)` — event-delegation click handler on the tree container; resolves the
+  clicked `data-person-pk` back to a member object and calls `selectPerson()`
 
 ---
 
@@ -421,7 +482,8 @@ Number"/"ERP Number" used in `docs/03_Solution/api/API_CONTRACT.md`. `PROBATIONA
 type likewise displays as **"Darshaka"** (`typeDisplayName()`, MBR-007) — the database stores
 `PROBATIONARY`, the portal shows the Odia/NSS operational term.
 
-Loads `<script src="/assets/js/membership.js?v=3.9">` at the bottom.
+Loads `<script src="/assets/js/membership.js?v=4.0">` at the bottom (cache-bust version — see
+the note under `family.html` above; treat as a snapshot, not re-verified every doc pass).
 
 ---
 
@@ -437,8 +499,9 @@ members (`members`, `selectedTypeFilter`, `selectedStatusFilter`, `selectedMembe
 `searchResults`, `searchExecuted`, `_searchDebounce`). Each collection has matching
 `*Loading`/`*Error` booleans following the same convention as the other tier JS files.
 
-**Lifecycle:** `init()` calls `fetchHealth()` then `fetchMembers()`. `switchTab()` re-fetches
-members only if the list is still empty (guard against redundant refetch on repeat tab visits).
+**Lifecycle:** `init()` fires `fetchHealth()` without awaiting it (doesn't block data loading),
+then awaits `fetchMembers()`. `switchTab()` re-fetches members only if the list is still empty
+(guard against redundant refetch on repeat tab visits).
 
 **API calls** (all relative, all under `${MEMBERSHIP_API}` except the shared health check):
 `GET /api/v1/bootstrap/health`, `GET ${MEMBERSHIP_API}/members` (optional
@@ -643,11 +706,20 @@ Response schemas are defined in `api/schemas/person.py`. Sensitive fields (`aadh
 | GET | `/api/v1/family/families/{family_group_pk}` | `FamilyGroupResponse` | Not called directly by the UI (list already carries full detail); available for future use |
 | GET | `/api/v1/family/families/{family_group_pk}/members` | `FamilyMemberResponse[]` | 3 current members (Ramesh/Sushma/Aniket Mishra) |
 | GET | `/api/v1/family/families/{family_group_pk}/head-history` | `FamilyHeadHistoryResponse[]` | 1 head-history record (Ramesh Mishra, current) |
+| GET | `/api/v1/family/families?sakha_code=` | `FamilyGroupResponse[]` | Used by the org-admin drill-down view (`family.js`'s `fetchFamilies()`) once a Sakha is selected |
+| GET | `/api/v1/family/families/{family_group_pk}/graph?viewer_person_pk=` | graph-member array | Dynamic relationship-label computation via BFS traversal over `nss.family_link`, implemented in `api/services/family_graph.py`; drives the tree visualization. No test coverage yet |
+| GET | `/api/v1/family/families/{family_group_pk}/sakha-alignment` | `FamilySakhaAlignmentResponse` | FAM-036 majority-rule "effective Sakha" computation; powers the amber mismatch badges |
+| GET | `/api/v1/family/person/{person_pk}/membership-summary` | membership summary | Bridges family context to membership context for the right-panel detail card. No test coverage yet |
+| GET | `/api/v1/person/persons/{person_pk}` | `PersonResponse` | Full person detail, fetched alongside `membership-summary` when a tree node/member row is selected |
+| GET | `/api/v1/organization/organizations?type_code=KENDRA` | `OrganizationResponse[]` | Admin-view root lookup (`fetchOrgRoot()`) |
+| GET | `/api/v1/organization/organizations/{organization_pk}/children` | `OrganizationResponse[]` | Admin-view drill-down cards |
+| GET | `/api/v1/organization/organizations/{organization_pk}/children-stats` | aggregate counts | Background, non-blocking fetch; populates the family/member/person count badges on org-children cards |
 
-Response schemas are defined in `api/schemas/family.py`. `FamilyGroupResponse` resolves family
-status (Foundation's unified `STATUS` category) and Sakha name/code via JOINs; member and
-head-history responses resolve person name fields and (for members) relationship type via
-JOINs. Full contract: `docs/03_Solution/api/API_CONTRACT.md` §7.
+Response schemas are defined in `api/schemas/family.py` (and `api/schemas/organization.py` for
+the org-navigation calls above). `FamilyGroupResponse` resolves family status (Foundation's
+unified `STATUS` category) and Sakha name/code via JOINs; member and head-history responses
+resolve person name fields and (for members) relationship type via JOINs. Full contract:
+`docs/03_Solution/api/API_CONTRACT.md` §7.
 
 **`membership.html` (via `membership.js`):**
 

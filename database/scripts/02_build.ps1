@@ -151,6 +151,58 @@ Invoke-Sql "person"         "$DdlBase\03_person\02_person.sql"
 Invoke-Sql "person_address" "$DdlBase\03_person\03_person_address.sql"
 Write-Host ""
 
+# Phase 6: Family DDL (5 tables)
+# Note: family_link stores only direct PARENT_OF/
+#       SPOUSE_OF edges; all other relationship labels
+#       are computed dynamically via BFS traversal.
+Write-Host "[Phase 6] Family - DDL (5 tables)" -ForegroundColor Cyan
+Invoke-Sql "family_group"              "$DdlBase\04_family\01_family_group.sql"
+Invoke-Sql "family_relationship"       "$DdlBase\04_family\02_family_relationship.sql"
+Invoke-Sql "family_head_history"       "$DdlBase\04_family\03_family_head_history.sql"
+Invoke-Sql "family_transition_history" "$DdlBase\04_family\04_family_transition_history.sql"
+Invoke-Sql "family_link"               "$DdlBase\04_family\05_family_link.sql"
+Write-Host ""
+
+# Phase 7: Membership DDL (12 tables)
+# Note: sangha_sevi must be created first - all
+#       other membership tables depend on it.
+Write-Host "[Phase 7] Membership - DDL (12 tables)" -ForegroundColor Cyan
+Invoke-Sql "sangha_sevi"                    "$DdlBase\05_membership\01_sangha_sevi.sql"
+Invoke-Sql "membership_status_history"      "$DdlBase\05_membership\02_membership_status_history.sql"
+Invoke-Sql "membership_renewal_request"     "$DdlBase\05_membership\03_membership_renewal_request.sql"
+Invoke-Sql "membership_renewal_history"     "$DdlBase\05_membership\04_membership_renewal_history.sql"
+Invoke-Sql "membership_transfer_history"    "$DdlBase\05_membership\05_membership_transfer_history.sql"
+Invoke-Sql "membership_sakha_affiliation"   "$DdlBase\05_membership\06_membership_sakha_affiliation.sql"
+Invoke-Sql "membership_journey_event"       "$DdlBase\05_membership\07_membership_journey_event.sql"
+Invoke-Sql "probationary_member_review"     "$DdlBase\05_membership\08_probationary_member_review.sql"
+Invoke-Sql "parichaya_patra"                "$DdlBase\05_membership\09_parichaya_patra.sql"
+Invoke-Sql "parichaya_patra_history"        "$DdlBase\05_membership\10_parichaya_patra_history.sql"
+Invoke-Sql "anumati_patra"                  "$DdlBase\05_membership\11_anumati_patra.sql"
+Invoke-Sql "anumati_patra_history"          "$DdlBase\05_membership\12_anumati_patra_history.sql"
+Write-Host ""
+
+# Phase 8: Tier 4 Verification Seed Data
+# Order: Organization -> Person -> Family -> Membership
+Write-Host "[Phase 8] Tier 4 Verification - Seed Data" -ForegroundColor Cyan
+Invoke-Sql "tier4 organizations (seed)"    "$SeedBase\02_organization\04_tier4_verification_orgs.sql"
+Invoke-Sql "tier4 persons (seed)"          "$SeedBase\03_person\02_tier4_verification_persons.sql"
+Invoke-Sql "tier4 family (seed)"           "$SeedBase\04_family\01_tier4_verification_family.sql"
+Invoke-Sql "tier4 family_link (seed)"      "$SeedBase\04_family\02_tier4_verification_family_links.sql"
+Invoke-Sql "tier4 membership (seed)"       "$SeedBase\05_membership\01_tier4_verification_membership.sql"
+Write-Host ""
+
+# Phase 8b: Performance Indexes (migrations)
+# Composite partial indexes for the family_majority
+# CTE hot path (used by family list + org stats).
+Write-Host "[Phase 8b] Performance Indexes" -ForegroundColor Cyan
+Invoke-Sql "performance indexes" "$RepoRoot\database\migrations\add_performance_indexes.sql"
+Write-Host ""
+
+# Phase 9: Grant nss_db_backend read-only access
+Write-Host "[Phase 9] Grant nss_db_backend read-only access" -ForegroundColor Cyan
+Invoke-Sql "grant_backend" "$ScriptDir\04_grant_backend.sql"
+Write-Host ""
+
 # Summary
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  BUILD SUMMARY" -ForegroundColor Cyan

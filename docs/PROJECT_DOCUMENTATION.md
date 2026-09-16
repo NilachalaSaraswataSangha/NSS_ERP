@@ -25,9 +25,11 @@ API-layer consumption; Tier 2 caught Organization up with a read-only API
 (`api/routers/organization.py` — see Architecture and Key Workflow #4 below), Tier 3 did the
 same for Person (`api/routers/person.py` — see Key Workflow #5 below; released as v0.9.0), and
 Tier 4 has now done the same for Family and Membership (`api/routers/family.py`,
-`api/routers/membership.py` — see Key Workflow #6 below, though this work is currently
-uncommitted on `feature/tier4-family-membership`, not yet merged or released), though several
-of all four modules' own design decisions remain open (see Gotchas).
+`api/routers/membership.py` — see Key Workflow #6 below; merged and released as v0.10.0, followed
+by three hotfix tags v0.10.1-v0.10.3), though several
+of all four modules' own design decisions remain open (see Gotchas). A performance-hardening
+pass on top of Tier 4 was released as **v0.10.4**, merged from branch `performance-optimization`
+(see Gotchas and "Current position" below).
 
 The codebase today is an early-stage skeleton: a Tier 0 + Tier 1 + Tier 2 + Tier 3 + Tier 4
 FastAPI application (`api/`) exposing 4 read-only bootstrap-RBAC endpoints plus 17 read-only
@@ -386,26 +388,31 @@ Tier 0's API phase is **implemented** (4 read-only bootstrap-RBAC endpoints in
 `api/routers/bootstrap.py`). Tier 1's API phase (Foundation) is **implemented** — 17 read-only
 endpoints across 11 tables in `api/routers/foundation.py`, with a matching Foundation
 Verification UI (`frontend/foundation.html`) and 59 pytest integration tests — merged to `main`
-and tagged as v0.7.0. Tier 2's API phase (Organization) is **implemented** — originally 6,
-now 7 read-only
+and tagged as v0.7.0. Tier 2's API phase (Organization) is **implemented** — 7 read-only
 endpoints (reference data, organizations list/detail/children with `limit`/`offset` pagination,
-a new `/children-stats` aggregate-counts endpoint added on top of Tier 4 (see Key Workflow #6),
+a `/children-stats` aggregate-counts endpoint added on top of Tier 4 (see Key Workflow #6),
 a recursive-CTE `/hierarchy`, also paginated) in `api/routers/organization.py`, with a matching
 Organization Verification UI (`frontend/organization.html`) — merged to `main` and tagged as
-v0.8.0 (the 7th endpoint is a later, still-uncommitted addition). Tier 3's API phase (Person) is **implemented and released** — 4 read-only
+v0.8.0 (the 7th endpoint, `/children-stats`, landed later as part of the Tier 4 work and is
+committed, not a still-uncommitted addition). Tier 3's API phase (Person) is **implemented and released** — 4 read-only
 endpoints (`/persons` list with gender/marital-status/blood-group filters + pagination,
 `/persons/{person_pk}` detail, `/persons/{person_pk}/addresses`, `/search?q=` pg_trgm fuzzy
 search) in `api/routers/person.py`, a matching Person Verification UI (`frontend/person.html`)
 — merged to `main` and tagged as v0.9.0, alongside the Organization master-data migration (see
-Key Workflow #4). Tier 4's API phase (Family + Membership) is **implemented but uncommitted**
+Key Workflow #4). Tier 4's API phase (Family + Membership) is **implemented and released**
 — 7 read-only Family endpoints (`api/routers/family.py`: `/families` list, detail, members,
 head history, plus `/graph`, `/sakha-alignment`, `/person/{pk}/membership-summary` — see Key
 Workflow #6) and 7 read-only Membership endpoints (`api/routers/membership.py`: `/members`
 list, detail, `/search` (7-field), Sakha affiliation history, Parichaya Patra, Anumati Patra,
 journey-event timeline — see Key Workflow #6), each with a matching Verification UI
-(`frontend/family.html`, `frontend/membership.html`). This work sits entirely uncommitted in
-the working tree on branch `feature/tier4-family-membership` — not yet staged, committed,
-merged to `develop`/`main`, or tagged (contrast with Tiers 1-3, all released). A combined 410
+(`frontend/family.html`, `frontend/membership.html`). This work was merged to `main` and tagged
+as **v0.10.0**, followed by three hotfix tags — **v0.10.1** (wired `family_link` into the build
+scripts, extended `render_build.sh` through Tier 4), **v0.10.2** (Neon role-creation-order fix —
+creates `nss_db_owner`/`nss_db_backend` before granting), and **v0.10.3** (idempotent DDL
+`CREATE TABLE`/`INDEX` plus idempotent seed `INSERT`s, root-causing a Neon schema/data drift
+bug) — see Gotchas for detail on each. A performance-hardening pass on top of this (query
+indexes, connection-pool sizing, non-blocking frontend fetches) was released as **v0.10.4**,
+merged from branch `performance-optimization`. A combined 410
 pytest integration tests now exist across all five tiers (21 bootstrap + 59 foundation + 72
 organization + 61 person + 8 security + 67 family + 99 membership + 23 cross-module integrity);
 one,
@@ -425,18 +432,24 @@ names, FK references, and index targets.
 ```
 NSS_ERP/
 ├── api/                          FastAPI application (Tier 0 Bootstrap + Tier 1 Foundation +
-│                                   Tier 2 Organization + Tier 3 Person endpoints, see below)
+│                                   Tier 2 Organization + Tier 3 Person + Tier 4 Family +
+│                                   Membership endpoints, plus a new `services/` layer, see below)
 ├── frontend/                      Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization +
-│                                   Tier 3 Person Verification UIs, served as static files by
-│                                   FastAPI (see below)
+│                                   Tier 3 Person + Tier 4 Family + Membership Verification UIs,
+│                                   served as static files by FastAPI (see below)
 ├── backend/                      Empty — the earlier Django prototype was archived and removed
 ├── database/
 │   ├── ddl/                     Hand-written PostgreSQL schema, numbered by module
 │   ├── seed/                    Reference/lookup data matching the DDL
+│   ├── migrations/              Narrow escape valve for one-off ad-hoc data-fix scripts against
+│   │                             already-bootstrapped databases — not a schema-migration tool,
+│   │                             never wired into `02_build.sh`/`.ps1` (see
+│   │                             `database/migrations/README.md` and Gotchas)
 │   └── scripts/                 Executable bootstrap/build/validate/grant scripts (see below)
 ├── tests/                        pytest integration tests (test_bootstrap.py,
 │                                   test_foundation.py, test_organization.py, test_person.py,
-│                                   test_security.py, conftest.py) — see Setup & running
+│                                   test_family.py, test_membership.py, test_security.py,
+│                                   test_data_integrity.py, conftest.py) — see Setup & running
 ├── docs/
 │   ├── PROJECT_DOCUMENTATION.md This file
 │   ├── 00_Project_Governance/   AUTH/ GOV/ GDR/ STD/ — governance framework + engineering standards
@@ -459,7 +472,7 @@ NSS_ERP/
 │   │                            below), distinct from the real, implemented root-level `api/`
 │   │                            code folder
 │   ├── 04_Testing/              Scaffolded only — unit/integration/api/ui/database/security/acceptance subfolders, no content yet
-│   └── 05_Releases/             Release notes, v0.1.0 → v0.9.0
+│   └── 05_Releases/             Release notes, v0.1.0 → v0.10.4
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
 ├── render.yaml                    Render.com Infrastructure-as-Code — free-tier web service
 │                                   (`uvicorn api.main:app`); does not provision a database — DB
@@ -1063,7 +1076,9 @@ summarize the full sequence from a clean machine to a running API.
    updated to match — the two are no longer operationally identical, contradicting the rule
    below; fix `.ps1` before relying on it for a Windows Tier 3/4 bootstrap. Also,
    `03_validate.sh`/`.ps1` now report false failures — they hardcode `organization` = 3 rows,
-   `person` = 0 rows, and `master_data` = 82 rows (real count 88 and rising); the first two
+   `person` = 0 rows, and `master_data` = 88 rows (stale — the row-count was captured at 82 at
+   one point and has grown since; verify against the live seed file rather than trusting either
+   number); the first two
    grow once the Tier 4 verification seed step runs, and there
    are no Family/Membership checks yet at all.
    This raw-SQL schema **is** now consumed — read-only — by the
@@ -1108,7 +1123,7 @@ summarize the full sequence from a clean machine to a running API.
    Tier 3 endpoints (read-only, no authentication) — 4 endpoints under `/api/v1/person/*`
    (`/persons`, `/persons/{person_pk}`, `/persons/{person_pk}/addresses`, `/search`); see
    `docs/03_Solution/api/PERSON_API_CONTRACT.md` for the full catalogue.
-   Tier 4 endpoints (read-only, no authentication, **uncommitted** — see Current position) — 7
+   Tier 4 endpoints (read-only, no authentication) — 7
    Family endpoints under `/api/v1/family/*` (`/families`, `/families/{family_pk}`, members,
    head history, `/graph`, `/sakha-alignment`, `/person/{person_pk}/membership-summary`) and 7 Membership endpoints under `/api/v1/membership/*` (`/members`,
    `/members/{member_pk}`, `/search`, Sakha affiliations, Parichaya Patra, Anumati Patra,
@@ -1282,7 +1297,8 @@ dedicated security audit (`docs/03_Solution/security/TIER2_SECURITY_AUDIT.md` �
 `code_explanations/` to a dedicated `security/` folder as part of the Tier 4 work).
 Consumed by `frontend/organization.html`'s 3-tab UI (see `frontend/` detail above). Merged to
 `main` and released as v0.8.0 (see "Current position" above) — the 7th endpoint,
-`/children-stats`, was added later, on top of Tier 4, and is still uncommitted.
+`/children-stats`, was added later, on top of Tier 4, and shipped as part of the v0.10.0
+Family + Membership release, so it is now committed and released too.
 
 **Two freezes live outside this module's own doc set, not inside it:** (1) the business rules
 doc's freeze of exactly **8 organization types** — `KENDRA`, `NILACHALA_KUTIRA`,
@@ -1362,7 +1378,7 @@ work was merged to `main` and tagged **v0.9.0**, alongside the Organization mast
 migration. See "Current position"
 above and `docs/03_Solution/api/PERSON_API_CONTRACT.md` for the formal contract.
 
-### 6. Family + Membership — the largest vertical slice yet (DB + API implemented, Tier 4, uncommitted)
+### 6. Family + Membership — the largest vertical slice yet (DB + API implemented, Tier 4, released v0.10.0)
 `docs/03_Solution/modules/family/` and `docs/03_Solution/modules/membership/` specify the
 design (both still `Version: 1.0, Status: DRAFT` — not yet reconciled to FROZEN even though the
 implemented DDL already matches their table/column shapes 1:1, unlike Person's docs which were
@@ -1529,12 +1545,21 @@ moved from `docs/03_Solution/code_explanations/TIERn_SECURITY_AUDIT.md` to a ded
 (and currently the most current of) `README.md`'s Getting Started section and this file's Setup
 & running section.
 
-**Status:** implemented and tested, but **entirely uncommitted** — sitting in the working tree
-on branch `feature/tier4-family-membership`, not yet staged, committed, merged to
-`develop`/`main`, or tagged. Target release: **v0.10.0**. See "Current position" above,
+**Status:** implemented, tested, merged to `main`, and released as **v0.10.0**, followed by
+three hotfix tags — **v0.10.1** (`6b31500` — wired `family_link` into the build scripts,
+extended `render_build.sh` through Tier 4), **v0.10.2** (`621ea52` — Neon role-creation-order
+fix, creates `nss_db_owner`/`nss_db_backend` before granting), and **v0.10.3** (`6677b95` —
+idempotent DDL `CREATE TABLE`/`INDEX` plus idempotent seed `INSERT`s, root-causing a Neon
+schema/data drift bug), then a performance-hardening release, **v0.10.4** (composite partial
+indexes, connection-pool sizing, `--workers 2`, non-blocking frontend fetches). See "Current
+position"
+above,
 Conventions & Gotchas for the ID-format decision this branch also introduced, and Open
-questions / TODOs for known bugs it introduced (`.ps1` build-script drift,
-`03_validate.sh` staleness).
+questions / TODOs for the still-real follow-up items it left behind (`03_validate.sh`
+staleness, the duplicated FAM-036 CTE, missing `/graph` and
+`/membership-summary` test coverage, stale router docstrings — `.ps1` build-script parity was
+fixed in v0.10.4). The performance-hardening pass on top of this release, **v0.10.4**, is
+covered above — see Gotchas.
 
 ### 7. Foundation API — master data, geography, config, runtime (implemented, Tier 1)
 `api/routers/foundation.py` (526 lines, prefix `/api/v1/foundation`) exposes 17 read-only GET
@@ -1604,16 +1629,16 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
   use `_id` in their own examples instead — that's a doc-side inconsistency, not a convention
   change; use `_id` for system-generated sequence identifiers and `_code` for short/reference
   codes in new DDL, matching the pattern above.
-- **Family and Membership now have read-only APIs too, entirely uncommitted.**
+- **Family and Membership now have read-only APIs too, released as v0.10.0.**
   `api/routers/family.py`/`api/routers/membership.py` (Tier 4) read all 16 Family/Membership
   tables — the Tier 0 bootstrap-RBAC endpoints, the Tier 2
   Organization endpoints, the Tier 3 Person endpoints, and the Tier 4 Family/Membership
   endpoints (see Key
   Workflow #6) are the DB-backed data exposed today. All five tiers remain deliberately read-only;
   the earlier Django ORM track that once described a second, unreconciled version of these
-  tables has been fully removed (see Architecture and Key Workflow #3/#4/#5/#6 above). Tiers 0-3
-  are merged and released (v0.6.0-v0.9.0); Tier 4 is implemented but **entirely
-  uncommitted** — see "Current position" above.
+  tables has been fully removed (see Architecture and Key Workflow #3/#4/#5/#6 above). All five
+  tiers are now merged and released (v0.6.0-v0.10.0, with v0.10.1-v0.10.3 as follow-up hotfix
+  tags and v0.10.4 as a performance-hardening release) — see "Current position" above.
 - **`backend/` is empty.** The Django prototype (`config`, `authentication`, `dashboard`,
   `foundation`, `family`, `membership`, `governance`, `attendance`, `heritage` apps, templates,
   static files, `manage.py`) was fully archived and removed once the FastAPI direction was
@@ -1621,7 +1646,7 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
 - **`api/` has security middleware but still no auth; six routers registered.** `api/main.py`
   includes `api/routers/bootstrap.py` (Tier 0), `api/routers/foundation.py` (Tier 1),
   `api/routers/organization.py` (Tier 2), `api/routers/person.py` (Tier 3), and
-  `api/routers/family.py`/`api/routers/membership.py` (Tier 4, uncommitted), plus
+  `api/routers/family.py`/`api/routers/membership.py` (Tier 4, released v0.10.0), plus
   the cross-tier security middleware stack (rate limiting, opt-in CORS, security headers — see
   Architecture and Key Workflow #8 above). All five tiers remain deliberately read-only and
   unauthenticated — the new middleware hardens the transport/response layer, it does not add
@@ -1910,6 +1935,27 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
   (breaking the `NN_module/` folder convention on purpose, since they're cross-cutting
   additions to already-seeded data, not a new module's own seed) — neither is run by
   `02_build.sh`.
+- **Performance-hardening pass on top of Tier 4, released as v0.10.4 (merged from branch
+  `performance-optimization`).** Driven by slow Family/Membership page loads after FAM-036's
+  dynamic Sakha computation landed: `database/migrations/add_performance_indexes.sql` (4
+  composite partial indexes on `family_relationship`, `sangha_sevi`,
+  `membership_sakha_affiliation`, and `organization`, targeting the `family_majority` CTE hot
+  path), wired into `database/scripts/02_build.sh`/`.ps1` and `render_build.sh` as a new "Phase
+  8b — Performance Indexes" step; `render.yaml`'s start command now adds `--workers 2`;
+  `api/database.py`'s connection pool `minconn` goes from 1 to 2; and `frontend/assets/js/family.js`/
+  `membership.js` now fire the health-check fetch without awaiting it, with `family.js` also
+  splitting its org-children fetch so the fast children list renders immediately while
+  `_fetchOrgChildrenStats()` loads the heavier stats query in the background. A new
+  `docs/03_Solution/architecture/PERFORMANCE_TUNING.md` documents the root-cause analysis and
+  tuning rationale. **Unresolved inconsistency:** `add_performance_indexes.sql` is a schema
+  change (`CREATE INDEX` statements) placed under `database/migrations/`, which — per
+  `database/migrations/README.md`'s own stated convention (the bullet above) — is reserved for
+  one-off *data-fix* scripts only, is supposed to never contain schema changes, and is supposed
+  to never be wired into `02_build.sh`/`.ps1`/the Render build; this new file does both, directly
+  contradicting that folder's documented convention. Flagged, not resolved here — the project
+  maintainer needs to decide whether to move the file under `database/ddl/` or update the
+  migrations README's stated convention (mirrors the `.sh`/`.ps1` parity gotcha above in spirit:
+  a known, named inconsistency awaiting a decision).
 - **`tests/test_bootstrap.py`'s exact-8-role assertions were loosened to "at least 8"/subset
   checks** — verified this is purely defensive test-robustness hardening, not a reflection of
   any actual seed-data change: `database/seed/00_bootstrap/02_role_master.sql` still seeds
@@ -1929,15 +1975,22 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
   add rows for the new CORS/rate-limiting/security-header protections added in
   `SECURITY_CODE_EXPLANATIONS.md`, even though the advisory tables above them were updated.
   Cosmetic, not a correctness issue.
-- **Stage, commit, and release Tier 4 `Family`+`Membership`** — implemented (16 tables, 11
-  endpoints, 2 verification UIs, 150 tests) but sitting entirely uncommitted on
-  `feature/tier4-family-membership` — see Key Workflow #6/"Current position" above.
-- **Fix `database/scripts/02_build.ps1`** — `02_build.sh` gained Phases 5-9 (Person/Family/
-  Membership DDL + Tier 4 verification seed + grant) but the `.ps1` counterpart was not updated
-  to match, violating this project's own `.sh`/`.ps1` parity rule.
+- **Tier 4 `Family`+`Membership` is staged, committed, and released** — merged to `main` and
+  tagged v0.10.0 (17 tables, 14 endpoints, 2 verification UIs, plus 166 Family+Membership tests),
+  followed by hotfix tags v0.10.1-v0.10.3 and performance-hardening release v0.10.4 — see Key
+  Workflow #6/"Current position" above. The
+  genuine follow-up items this work left behind are tracked individually below
+  (`03_validate.sh` staleness, the duplicated FAM-036 CTE, missing `/graph`/
+  `/membership-summary` test coverage, stale router docstrings) rather than as one umbrella item
+  — `.ps1` parity was fixed in v0.10.4.
+- **`database/scripts/02_build.ps1` fixed in v0.10.4** — `02_build.sh` had gained Phases 5-9
+  (Person/Family/Membership DDL + Tier 4 verification seed + grant) while the `.ps1` counterpart
+  lagged behind, violating this project's own `.sh`/`.ps1` parity rule; v0.10.4 added the
+  missing Phases 6-9 plus the new Phase 8b to `.ps1`, restoring parity.
 - **Fix `database/scripts/03_validate.sh`/`.ps1`** — hardcodes `organization` = 3 rows,
-  `person` = 0 rows, and `master_data` = 82 rows (now stale — the real count is 88 and has
-  changed more than once, verify against the live seed file rather than trusting this
+  `person` = 0 rows, and `master_data` = 88 rows (stale — this count was captured at 82 at one
+  point and has changed more than once since, verify against the live seed file rather than
+  trusting this
   document); all three are now wrong (Tier 4 verification
   seed adds rows to `organization`/`person`; new `STATUS` and `ORGANIZATION_TYPE` seed values
   grow `master_data`), and there are no Family/Membership
@@ -1987,21 +2040,22 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
 - **Implement the Founder & Heritage schema** — the v1.0.0 design
   (`docs/03_Solution/modules/heritage/`) specifies 8 tables; zero implementation exists (neither
   SQL DDL nor an API) for any of them.
-- **Build API endpoints for `family`, `membership`, and `heritage`** — SQL DDL exists for none
-  of these yet either; nothing is reachable over HTTP.
+- **Build API endpoints for `heritage`** — SQL DDL exists for none of it yet either; nothing is
+  reachable over HTTP (Family and Membership, once also in this category, now have both DDL and
+  a released read-only API as of v0.10.0 — see Key Workflow #6).
 - **Decide the scope of `governance` and `attendance`** — Solution-layer designs exist for both,
   but no DDL or API implementation exists yet for either.
 - **Build out the FastAPI application beyond Tier 0/1/2/3/4** — per `TECH_STACK_DECISIONS.md`,
   FastAPI is the approved API layer; Tier 0's 4 read-only bootstrap-RBAC endpoints, Tier 1's
-  17 read-only Foundation endpoints, and Tier 2's 6 read-only Organization endpoints are all
+  17 read-only Foundation endpoints, and Tier 2's 7 read-only Organization endpoints are all
   implemented and released (v0.7.0, v0.8.0); Tier 3's 4 read-only Person endpoints are
-  released (v0.9.0); Tier 4's 4 Family + 7 Membership endpoints are implemented but entirely
-  uncommitted (see "Current position" above) — every other tier's API phase
+  released (v0.9.0); Tier 4's 7 Family + 7 Membership endpoints are implemented and released
+  (v0.10.0, see "Current position" above) — every other tier's API phase
   (Heritage, Authentication, Administration, etc.) remains unbuilt.
 - **Grow the frontend beyond Tier 0/1/2/3/4** — `frontend/` now has six verification UIs
   (Tailwind + DaisyUI + Alpine.js, no build step): the Tier 0 Bootstrap Verification UI, the
   Tier 1 Foundation Verification UI, the Tier 2 Organization Verification UI, the Tier 3
-  Person Verification UI, and the Tier 4 Family + Membership Verification UIs (uncommitted).
+  Person Verification UI, and the Tier 4 Family + Membership Verification UIs (released v0.10.0).
   None is the full admin dashboard; the 13 mockups under
   `docs/03_Solution/ui/mockups/` remain the visual target for later tiers, and login/session UI
   is deferred to Tier 5.

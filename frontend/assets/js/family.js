@@ -382,7 +382,8 @@ function familyApp() {
         // ── Init ──────────────────────────────────────────────
 
         async init() {
-            await this.fetchHealth();
+            // Fire health check in parallel — don't block data loading
+            this.fetchHealth();
             if (this.viewMode === "admin") {
                 await this.fetchOrgRoot();
             } else {
@@ -440,15 +441,26 @@ function familyApp() {
             this.orgChildrenLoading = true;
             this.orgChildrenStats = {};
             try {
-                const [childRes, statsRes] = await Promise.all([
-                    fetch(`${ORG_API}/organizations/${orgPk}/children`),
-                    fetch(`${ORG_API}/organizations/${orgPk}/children-stats`),
-                ]);
+                // Children list is fast — show cards immediately
+                const childRes = await fetch(`${ORG_API}/organizations/${orgPk}/children`);
                 if (childRes.ok) {
                     this.orgChildren = await childRes.json();
                 } else {
                     this.orgChildren = [];
                 }
+            } catch {
+                this.orgChildren = [];
+            } finally {
+                this.orgChildrenLoading = false;
+            }
+            // Stats load in background (heavy recursive CTE — non-blocking)
+            this._fetchOrgChildrenStats(orgPk);
+        },
+
+        /** Background fetch for org children stats (non-blocking) */
+        async _fetchOrgChildrenStats(orgPk) {
+            try {
+                const statsRes = await fetch(`${ORG_API}/organizations/${orgPk}/children-stats`);
                 if (statsRes.ok) {
                     const stats = await statsRes.json();
                     const map = {};
@@ -456,9 +468,7 @@ function familyApp() {
                     this.orgChildrenStats = map;
                 }
             } catch {
-                this.orgChildren = [];
-            } finally {
-                this.orgChildrenLoading = false;
+                // Non-fatal — stats are supplementary
             }
         },
 

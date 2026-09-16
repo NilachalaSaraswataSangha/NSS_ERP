@@ -485,7 +485,7 @@ database/
     02_person.sql                   (28 columns, 15 FKs, CHECK constraints)
     03_person_address.sql           (person_address table)
 tests/
-  test_person.py                    <- 57 integration tests
+  test_person.py                    <- 61 integration tests
 frontend/
   person.html                       <- Person Verification UI (2 tabs)
   assets/js/person.js               <- Alpine.js data component
