@@ -1,9 +1,12 @@
 # database/ddl/05_membership/
 
-Membership Module DDL — 12 tables (Depth 2–4) per SOL-MEM-005, SOL-MEM-003.
+Membership Module DDL — 13 tables (Depth 2–4) per SOL-MEM-005, SOL-MEM-003, plus (for
+`darshak_attendance_registration`) SOL-MEM-006. The 13th table is new, uncommitted, on branch
+`feature/tier5-authentication-administration`.
 
 Authority: SOL-MEM-005 v1.0 (Physical Table Design), SOL-MEM-003 (Business Rules), MBR-001
-through MBR-035 (business-rule identifiers cited in table comments)
+through MBR-035 (business-rule identifiers cited in table comments); SOL-MEM-006 for
+`darshak_attendance_registration`.
 
 > **Design-doc status note:** `docs/03_Solution/modules/membership/README.md` still reads
 > "Status: DRAFT — full Solution design complete, **not yet implemented in SQL**" / "SQL
@@ -33,6 +36,7 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
 | 10 | `10_parichaya_patra_history.sql` | `parichaya_patra_history` | 4 | `parichaya_patra` |
 | 11 | `11_anumati_patra.sql` | `anumati_patra` | 3 | `sangha_sevi` |
 | 12 | `12_anumati_patra_history.sql` | `anumati_patra_history` | 4 | `anumati_patra` |
+| 13 | `13_darshak_attendance_registration.sql` | `darshak_attendance_registration` | 3 | `sangha_sevi`, `organization` (×2) |
 
 ## What Each Table Is For
 
@@ -95,6 +99,17 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
   Regular enrolment (Bye-Law §B(b)(i)).
 - **`anumati_patra_history`** — change log for an `anumati_patra` row, same shape and rationale
   as `parichaya_patra_history`.
+- **`darshak_attendance_registration`** — (new, uncommitted, Tier 5 branch) a member's
+  registration to attend Sangha Puja as a Darshak at a **different** Sakha than their own
+  (`chk_dar_att_reg_different_sakha` forbids `home_organization_pk = attending_organization_pk`).
+  Goes through a 3-step approval chain (`PENDING_HOME_SAKHA` → `PENDING_PARICHALAK` →
+  `PENDING_TARGET_SAKHA` → `APPROVED`/`REJECTED`/`REVOKED`); on `APPROVED`, the attending Sakha
+  assigns a `darshak_local_number` (required by `chk_dar_att_reg_number_on_approval`, unique per
+  attending org via `uq_dar_att_reg_local_number`, persistent per person per Sakha, never
+  reassigned). Distinct from `membership_sakha_affiliation`, which tracks *home*-Sakha
+  membership, not cross-Sakha attendance. A partial unique index
+  (`uq_dar_att_reg_active`) enforces at most one `ACTIVE` `registration_status` row per member at
+  a time.
 
 ## The "Current State + History" Pairing Pattern
 
@@ -163,5 +178,10 @@ replaced), not just what the *current* value happens to be.
 
 See `docs/03_Solution/modules/membership/05_membership_table_design.md` (`SOL-MEM-005`) for the
 full design rationale — noting the design-doc status caveat at the top of this file. See also
-`docs/PROJECT_DOCUMENTATION.md` for the tier-by-tier plan and
-`docs/03_Solution/api/API_CONTRACT.md` §8 for how these tables are exposed over HTTP.
+`docs/03_Solution/modules/membership/06_darshak_attendance_registration.md` (new, uncommitted)
+for the `darshak_attendance_registration` design rationale,
+`docs/PROJECT_DOCUMENTATION.md` for the tier-by-tier plan, and
+`docs/03_Solution/api/API_CONTRACT.md` §8 for how these tables are exposed over HTTP (note: no
+router currently reads/writes `darshak_attendance_registration` — it exists in DDL only as of
+this pass, though `api/routers/admin.py`'s user-list queries do LEFT JOIN it for
+`darshak_local_number` display).

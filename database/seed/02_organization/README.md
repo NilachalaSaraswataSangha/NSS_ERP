@@ -1,8 +1,8 @@
 # database/seed/02_organization/
 
 Organization Module seed data — the three unique organizations required
-before downstream modules, plus Tier 4 verification organizations used by
-the Family + Membership vertical slice.
+before downstream modules, plus 175 real Sakha Sangha branches from the
+official NSS branch directory.
 
 Authority: SOL-ORG-005 §48, SOL-ARCH-010 §8
 
@@ -15,7 +15,7 @@ Execute AFTER:
 | # | File | Seeds Into | Depends On |
 |--:|------|-----------|-----------|
 | 03 | `03_organization.sql` | `organization` | Foundation `master_category`/`master_data` seed, Foundation `country`/`postal_code` seed, Organization DDL complete |
-| 04 | `04_tier4_verification_orgs.sql` | `organization` | `03_organization.sql` (needs `KEN` as parent); Foundation `master_data`/`postal_code` seed |
+| 05 | `05_sakha_branches.sql` | `organization` | `03_organization.sql` (needs `KEN` as parent); Foundation `master_data` seed |
 
 > **Moved:** The former `01_organization_type_master.sql` and
 > `02_organization_status_master.sql` seed files are gone. Type and status
@@ -25,6 +25,10 @@ Execute AFTER:
 > and `STATUS` value rows). `03_organization.sql` looks these up at insert
 > time via joins on `master_data`/`master_category` (`category_code` +
 > `value_code`) rather than FK'ing to dedicated master tables.
+
+> **Removed:** The former `04_tier4_verification_orgs.sql` (ANC1, SKH1,
+> ANC2, SKH2 — 4 test organizations for Tier 4 verification) has been
+> deleted. Real Sakha branches are now seeded via `05_sakha_branches.sql`.
 
 ## Execution Command
 
@@ -58,23 +62,22 @@ All three are seeded with status `ACTIVE` and country = IN (India).
 Kendra's representative office address is seeded inline: Satsikshya Mandir,
 A/4, Unit-9, Bhubaneswar - 751022, Odisha, India.
 
-### 04_tier4_verification_orgs.sql
+### 05_sakha_branches.sql
 
-Seeds 4 additional organizations under `KEN` for Tier 4 (Family +
-Membership) verification: two Anchalika Sanghas (administrative groupings,
-no address fields) each with one child Sakha Sangha (physical location).
+Seeds 175 real Sakha Sangha branches from the official NSS branch directory
+document (v2.0). All parented to Kendra (`KEN`). Codes: `SKH1`–`SKH175`
+(unpadded). SKH1 = Ekamra Saraswata Sangha.
 
-| # | `organization_code` | Name | Type (`value_code`) | Parent |
-|--:|---------------------|------|------|--------|
-| 1 | `ANC1` | Puri Anchalika Sangha | `ANCHALIKA_SANGHA` | `KEN` |
-| 2 | `SKH1` | Ekamra Sakha Sangha | `SAKHA_SANGHA` | `ANC1` |
-| 3 | `ANC2` | Cuttack Anchalika Sangha | `ANCHALIKA_SANGHA` | `KEN` |
-| 4 | `SKH2` | Cuttack Sakha Sangha | `SAKHA_SANGHA` | `ANC2` |
-
-All four are seeded with status `ACTIVE`. `SKH1` and `SKH2` exist
-specifically to exercise the Membership module's Sakha-transfer flow
-(a verification person transfers from `SKH1` to `SKH2`) — see
-`database/seed/03_person/README.md` and `database/seed/05_membership/README.md`.
+Features:
+- PIN codes extracted from addresses and resolved to `postal_code_pk` FK
+  (63 of 175 branches have PIN codes; rest have NULL `postal_code_pk`)
+- Depends on `database/seed/01_foundation/09_sakha_postal_codes.sql` for
+  postal code records
+- `short_code` column: NULL by default, admin-assignable via admin panel
+  (3-5 uppercase alphanumeric, e.g. "EKM" for Ekamra)
+- Country: `IN` for Indian branches, `US` for America Saraswata Sangha
+- CTE-based bulk INSERT with master_data + postal_code JOINs
+- Idempotent via `ON CONFLICT (organization_code) DO UPDATE`
 
 ---
 
@@ -86,15 +89,14 @@ specifically to exercise the Membership module's Sakha-transfer flow
 - **Unique org hierarchy (ERP-FROZEN):**
   KEN, NKT, SMR are peer root organizations (`parent = NULL`).
   KEN remains the apex governing body. Physical location/operational
-  association ≠ organizational parent-child relationship.
+  association != organizational parent-child relationship.
   Constitutional/functional roles are distinguished by
   `organization_type_master_data_pk`.
 - Unique organizations have no `organization_id` — identified by
   `organization_code` alone. `organization_id` (sequence-generated via
   `id_sequence_master`) is for multi-instance types only.
-- Beyond the Tier 4 verification set in `04_tier4_verification_orgs.sql`,
-  additional organizations (Anchalika, Zilla, Sakha, etc.) are created
-  at runtime through governance workflows, not seeded.
+- Beyond the seeded Sakha branches, additional organizations (Anchalika,
+  Zilla, etc.) are created at runtime through governance workflows.
 - Foundation seed data (`master_category`, `master_data`, `country`,
   `postal_code`) must be loaded before Organization seed.
 - All addresses are editable at runtime — seed values are initial state only.

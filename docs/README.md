@@ -8,6 +8,6 @@ See **`PROJECT_DOCUMENTATION.md`** in this folder for the full, code-verified pr
 | `00_Project_Governance/` | Governance framework (`AUTH/`, `GOV/`, `GDR/`) and concrete engineering standards (`STD/`) |
 | `01_Authoritative_References/` | Source-faithful transcription of NSS's Constitution & Bye-Laws (NSS, Mahila Sangha); `CIRCULARS/`, `NOTIFICATIONS/`, `RESOLUTIONS/` awaiting source material |
 | `02_Requirements/` | Scaffolded — `business/`, `functional/`, `non_functional/`, `traceability/` (content deferred to requirements phase) |
-| `03_Solution/` | 22 module design docs (`modules/`), `architecture/`, `standards/`, `infrastructure/`, `database/` (cross-module conventions), `security/` (architecture map), `ui/` (13 mockups); `api/` now holds 4 contract docs (Bootstrap Tier 0, Foundation Tier 1, Organization Tier 2, Person Tier 3) for the implemented FastAPI service |
+| `03_Solution/` | 22 module design docs (`modules/`), `architecture/`, `standards/`, `infrastructure/`, `database/` (cross-module conventions), `security/` (architecture map), `ui/` (13 mockups); `api/` holds per-tier contract docs (Bootstrap, Foundation, Organization, Person) plus a consolidated `API_CONTRACT.md` covering Family + Membership (46 endpoints) — no separate Tier 5 (auth/admin) contract doc yet, that work is in progress, uncommitted, on `feature/tier5-authentication-administration` |
 | `04_Testing/` | Scaffolded — `unit/`, `integration/`, `api/`, `ui/`, `database/`, `security/`, `acceptance/` (content follows implementation) |
-| `05_Releases/` | Release notes, v0.1.0 → v0.8.0 |
+| `05_Releases/` | Release notes, v0.1.0 → v0.10.4 (latest released tier: Tier 4 Family + Membership; Tier 5 Authentication + Administration is in progress, not yet tagged) |

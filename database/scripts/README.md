@@ -11,11 +11,13 @@ Run from the repository root.
 
 | File | Run as | Target DB | Purpose |
 |---|---|---|---|
-| `00_create_database.sql` | superuser (`postgres`) | `postgres` | Creates `nss_erp` database, `nss_db_owner`/`nss_db_backend` roles (both with LOGIN, no password). Installs `dblink`. Fully idempotent. |
+| `00_create_database.sql` | superuser (`postgres`) | `postgres` | Creates `nss_erp` database, `nss_db_owner`/`nss_db_backend`/`nss_db_writer` roles (all with LOGIN, no password). Installs `dblink`. Fully idempotent. |
 | `01_extensions.sql` | superuser (`postgres`) | `nss_erp` | Installs `pgcrypto`, `pg_trgm`, `btree_gin`, `postgis`. Creates `nss` schema owned by `nss_db_owner`. Idempotent. |
-| `02_build.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Runs all implemented DDL + seed (Bootstrap RBAC, Foundation, Organization, Person, Family, Membership) plus Tier 4 verification seed data and performance indexes (Phase 8b, v0.10.4). Not idempotent — drop/recreate DB for clean rebuild. |
+| `06_setup_env.sh` | superuser (`postgres`) | `postgres` | Prompts for each role's password, sets them on all 3 PostgreSQL roles, and generates `api/.env` with matching credentials + random JWT secret. Run once after `00_create_database.sql`; use `--force` to overwrite existing `.env`. |
+| `02_build.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Runs all implemented DDL + seed (Phases 0–13: Bootstrap RBAC through Tier 5 verification seed). Idempotent — skips tables/rows that already exist. |
 | `03_validate.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Post-build checks: table existence, row counts, unique constraints, FK integrity. Run after build; does not execute any DDL/seed. |
-| `04_grant_backend.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_backend` read-only access: `USAGE` on `nss` schema, `SELECT` on all tables, `ALTER DEFAULT PRIVILEGES` for future tables. Idempotent. |
+| `04_grant_backend.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_backend` read-only access: `USAGE` on `nss` schema, `SELECT` on all tables, `ALTER DEFAULT PRIVILEGES` for future tables. Idempotent. Run as Phase 9 inside `02_build.sh`. |
+| `05_create_writer_role.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_writer` write access on auth + admin tables only. Idempotent. Run as Phase 12 inside `02_build.sh`. |
 
 Build and validate scripts accept optional args:
 
@@ -36,7 +38,7 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 | DDL | `ddl/00_bootstrap/02_permission_master.sql` | `permission_master` | 0 |
 | DDL | `ddl/00_bootstrap/03_role_permission.sql` | `role_permission` | 1 |
 | Seed | `seed/00_bootstrap/01_permission_master.sql` | *(empty — catalogue not frozen)* | — |
-| Seed | `seed/00_bootstrap/02_role_master.sql` | 8 frozen roles | — |
+| Seed | `seed/00_bootstrap/02_role_master.sql` | 9 frozen roles | — |
 | Seed | `seed/00_bootstrap/03_role_permission.sql` | *(empty — depends on permissions)* | — |
 
 ### Phase 1 — Foundation DDL (12 tables, Depths 0–4)
@@ -138,20 +140,13 @@ Membership.
 | Seed | `seed/04_family/01_tier4_verification_family.sql` | Verification family groups/relationships |
 | Seed | `seed/05_membership/01_tier4_verification_membership.sql` | Verification membership records |
 
-### Phase 8b — Performance Indexes (migrations)
+### Phase 8b — Performance Indexes
 
 **Released as v0.10.4.**
 
-| Step | File | Purpose |
-|-----:|------|---------|
-| Migration | `database/migrations/add_performance_indexes.sql` | 4 composite partial indexes covering the FAM-036 majority-rule CTE hot path (`family_relationship`, `sangha_sevi`, `membership_sakha_affiliation`, `organization`) used by `_FAMILY_SELECT` (family.py) and `_CHILDREN_STATS_SQL` (organization.py). See `docs/03_Solution/architecture/PERFORMANCE_TUNING.md`. |
-
-This step puts a schema-affecting file (`CREATE INDEX` statements) inside `database/migrations/`
-and wires it into the build scripts — which contradicts that folder's own documented convention
-(see `database/migrations/README.md` — reserved for one-off *data-fix* scripts, never schema
-changes, never wired into `02_build.sh`/`.ps1`/Render). Flagged there as an unresolved
-inconsistency for the maintainer to reconcile (e.g. move the file under `database/ddl/`, or
-update the migrations README's stated convention).
+Performance indexes (4 composite partial indexes for FAM-036 majority-rule CTE
+hot path) are baked into the respective table DDL files under `database/ddl/`.
+See `docs/03_Solution/architecture/PERFORMANCE_TUNING.md` for details.
 
 ### Phase 9 — Grant Backend Access
 
@@ -159,17 +154,53 @@ update the migrations README's stated convention).
 |-----:|------|---------|
 | Grant | `04_grant_backend.sql` | Grants `nss_db_backend` read-only access. Must run after all DDL so `GRANT SELECT ON ALL TABLES` covers every table just created. |
 
+### Phase 10 — Authentication DDL (4 tables, Depths 3–4)
+
+| Step | File | Table | Depth |
+|-----:|------|-------|------:|
+| DDL | `ddl/06_authentication/01_user_account.sql` | `user_account` | 3 |
+| DDL | `ddl/06_authentication/02_password_history.sql` | `password_history` | 4 |
+| DDL | `ddl/06_authentication/03_registration_claim.sql` | `registration_claim` | 3 |
+| DDL | `ddl/06_authentication/04_password_reset_token.sql` | `password_reset_token` | 4 |
+
+### Phase 11 — Administration DDL (2 tables, Depths 4–5)
+
+| Step | File | Table | Depth |
+|-----:|------|-------|------:|
+| DDL | `ddl/07_administration/01_user_role.sql` | `user_role` | 4 |
+| DDL | `ddl/07_administration/02_admin_scope.sql` | `admin_scope` | 5 |
+
+### Phase 12 — Grant Writer Access
+
+| Step | File | Purpose |
+|-----:|------|---------|
+| Grant | `05_create_writer_role.sql` | Grants `nss_db_writer` schema USAGE, SELECT on all tables, INSERT/UPDATE on auth + admin tables. Must run after Phases 10–11. |
+
+### Phase 13 — Admin Bootstrap Seed
+
+| Step | File | Seeds |
+|-----:|------|-------|
+| Script | `scripts/bootstrap_admin.py` (Python, not `psql`) | Runs `database/seed/04_admin/01_admin_bootstrap.sql` in sections, supplying a **runtime-generated Argon2 hash** for the one statement that needs it (`user_account.password_hash` has no default and cannot be pre-computed into a plain seed file). Seeds `P1`/`SS1` ("NSS Admin"), `user_account` (`ACTIVE`, `force_password_change = TRUE`), `password_history`, `user_role` (`NSS_ERP_ADMIN`), `admin_scope` (`NSS-WIDE`). Default login: `SS1` (or `P1`) / `NSSAdmin1` — **change this password before using outside local dev.** Idempotent (`WHERE NOT EXISTS` guards). |
+
+> **Corrected from an earlier draft of this doc:** Phase 13 does **not** run
+> `seed/06_authentication/01_tier5_verification_users.sql` or
+> `seed/07_administration/01_tier5_verification_admin.sql` — those files don't exist;
+> `database/seed/06_authentication/`/`07_administration/` are empty placeholder directories.
+> There is also no test user "Ramesh Mishra" or password `Admin@123` anywhere in the seed
+> data — see `database/seed/04_admin/README.md` for the actual credentials.
+
 ### Not executed (future phases)
 
 - Pass 2 audit-actor FK constraints (deferred until `sangha_sevi`'s own audit
   columns are wired to authenticated actors — Tier 5)
-- All remaining modules (Authentication, Administration Phase 4+, Governance, etc.)
+- MFA enforcement, self-reset OTP, auth enforcement on Tier 0–4 endpoints (Tier 5.1)
+- All remaining modules (Governance, Attendance, etc.)
 
 ## Role Naming Convention
 
 | Pattern | Layer | Examples |
 |---|---|---|
-| `nss_db_*` | PostgreSQL infrastructure | `nss_db_owner`, `nss_db_backend` |
+| `nss_db_*` | PostgreSQL infrastructure | `nss_db_owner`, `nss_db_backend`, `nss_db_writer` |
 | `NSS_ERP_*` | Application RBAC (`role_master`) | `NSS_ERP_ADMIN`, `NSS_ERP_KENDRA_ADMIN` |
 
 ## Cross-Platform Principle (Frozen)

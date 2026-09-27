@@ -1,9 +1,11 @@
 # database/ddl/01_foundation/
 
-Foundation Module DDL — 12 tables (Depths 0–4).
+Foundation Module DDL — 13 tables (Depths 0–4), plus one cross-cutting audit trigger. `14_system_event_log.sql`/`15_audit_trigger.sql` are new, uncommitted, on branch
+`feature/tier5-authentication-administration`.
 
 Authority: SOL-ARCH-010 (DDL Creation Order) + Amendment (PIN Code Geographic
-Model), SOL-FND-004 (Foundation Table Design)
+Model), SOL-FND-004 (Foundation Table Design); `system_event_log`/the audit trigger cite
+SOL-AUDIT-004 §8–9 (Data Change Architecture, 2026-09-22).
 
 ## File Execution Order
 
@@ -27,12 +29,20 @@ by earlier-numbered files in this directory.
 | 11 | `11_city_village.sql` | `city_village` | 3 | #32 |
 | 12 | `12_postal_code.sql` | `postal_code` | 2 | #87 (amendment) |
 | 13 | `13_city_village_postal_code_map.sql` | `city_village_postal_code_map` | 4 | #88 (amendment) |
+| 14 | `14_system_event_log.sql` | `system_event_log` | 0 | — (Tier 5) |
+| 15 | `15_audit_trigger.sql` | *(no table — trigger function + `DO` block attaching it to every `nss.*` table)* | — | — (Tier 5) |
 
 **Note:** Files 12–13 depend on `country`+`state` (Depth 0/1 — `postal_code` has a direct
 `state_pk` FK) and `city_village` (Depth 3) respectively. They are
 numbered after the original 11 files for clarity but
 execute correctly in sequence because their dependencies are already created
-by earlier files.
+by earlier files. **Files 14–15 (new, uncommitted, Tier 5) must run last** — `15_audit_trigger.sql`
+attaches `nss.fn_audit_trigger()` to every table already present in the `nss` schema at the
+time it runs (`SELECT tablename FROM pg_tables WHERE schemaname = 'nss'`), excluding only
+`system_event_log` and `field_change_log` themselves; if it ran before later modules'
+DDL (Organization/Person/Family/Membership/Authentication/Administration), those tables
+would silently end up without an audit trigger. `02_build.sh`/`02_build.ps1` run it as the
+final step of the full build, after every other module's DDL.
 
 ## Execution Command
 
@@ -117,7 +127,7 @@ sequences — they receive fixed codes directly from seed data.
 | `sequence_name` | VARCHAR(100) | UNIQUE, NOT NULL | Human-readable name |
 | `prefix` | VARCHAR(20) | NOT NULL | ID prefix (e.g. `P`, `SKH`, `ANC`) |
 | `current_value` | BIGINT | NOT NULL, default 0 | Last used counter value; CHECK >= 0 |
-| `padding_length` | INTEGER | NOT NULL, default 8 | Zero-padding width; CHECK 4–12 |
+| `padding_length` | INTEGER | NOT NULL, default 8 | Zero-padding width; CHECK 0–12 (loosened from 4–12 to allow unpadded business IDs like `P1`, `SS1` — see `docs/00_Project_Governance/STD/01_project_standards.md`) |
 | `description` | TEXT | NULL | Optional description |
 | `created_at` | TIMESTAMPTZ | NOT NULL, auto | Row creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NULL | Last modification timestamp |
@@ -367,6 +377,66 @@ large city with multiple post offices).
 **Unique:** `(city_village_pk, postal_code_pk)` — no duplicate mappings
 
 **Indexes:** `city_village_pk`, `postal_code_pk`
+
+---
+
+### 13. `system_event_log` (Depth 0, new/uncommitted — Tier 5)
+
+Centralized, immutable audit trail (SOL-AUDIT-004 §8–9). Every authenticated write
+operation is expected to append a row here — either explicitly via the application-layer
+`api/helpers.py::log_audit()` helper (used by `api/routers/family.py`'s 9 new write
+endpoints), or automatically via the `nss.fn_audit_trigger()` database trigger
+(`15_audit_trigger.sql`, below) attached to every other `nss.*` table. Rows are INSERT-only
+— no UPDATE/DELETE path exists in the application or DDL.
+
+No FK constraints — `record_pk`/`actor_sangha_sevi_pk`/`actor_user_account_pk` are stored as
+plain UUID values (same pattern as `field_change_log`) to avoid circular dependencies, since
+this table must be creatable at Depth 0 yet needs to reference rows in every other table.
+
+| Column | Type | Constraint | Purpose |
+|--------|------|-----------|---------|
+| `system_event_log_pk` | UUID | PK, auto | Internal primary key |
+| `event_at` | TIMESTAMPTZ | NOT NULL, auto | When the event occurred |
+| `actor_sangha_sevi_pk` | UUID | NULL, no FK | Who performed the action (NULL = system/unauthenticated) |
+| `actor_user_account_pk` | UUID | NULL, no FK | User account cross-reference (e.g. for pre-`sangha_sevi` login events) |
+| `action` | VARCHAR(50) | NOT NULL | `CREATE`/`UPDATE`/`DELETE`/`APPROVE`/`REJECT`/`STATUS_CHANGE`/`LOGIN`/`PASSWORD_CHANGE`/etc. |
+| `table_name` | VARCHAR(100) | NOT NULL | Table the event happened on |
+| `record_pk` | UUID | NOT NULL, no FK | PK of the affected record |
+| `module` | VARCHAR(50) | NULL | Functional area, e.g. `admin`/`auth`/`family`/`registration`/`trigger` (the DB-trigger path always sets `'trigger'`) |
+| `summary` | VARCHAR(500) | NULL | Human-readable one-line summary |
+| `detail` | JSONB | NULL | Structured payload — app-layer calls pass a free-form summary string; the DB trigger passes `{"new": ...}`/`{"old": ...}`/`{"changed": {...}}` |
+| `is_success` | BOOLEAN | NULL, default TRUE | TRUE = success, FALSE = failure, NULL = not applicable |
+
+**Indexes:** `(table_name, record_pk)`, `actor_sangha_sevi_pk` (partial, `WHERE NOT NULL`),
+`event_at`, `(module, event_at)`, `(action, event_at)`
+
+**Note — two independent write paths, not yet reconciled:** the application-layer
+`log_audit()` calls in `family.py` and the database-level `fn_audit_trigger()` (below) can
+both fire for the *same* write (e.g. `INSERT INTO nss.family_group` triggers both the trigger
+*and* an explicit `log_audit()` call in `create_family()`), producing two rows per event with
+different `module`/`summary`/`detail` shapes rather than one. No de-duplication exists yet.
+
+---
+
+### `15_audit_trigger.sql` — `nss.fn_audit_trigger()` (no new table)
+
+Not a table file — a `SECURITY DEFINER` PL/pgSQL trigger function plus a `DO $$ ... $$` block
+that dynamically attaches an `AFTER INSERT OR UPDATE OR DELETE` trigger
+(`trg_audit_<table>`) to every table currently in the `nss` schema (via
+`pg_tables`), excluding `system_event_log` and `field_change_log` themselves. On `UPDATE` it
+diffs `OLD`/`NEW` via `jsonb_each` to log only changed columns; on `INSERT`/`DELETE` it logs
+the full new/old row as JSONB. Actor identity comes from two Postgres session
+variables — `nss.actor_sangha_sevi_pk` / `nss.actor_user_account_pk` — that the application is
+expected to `SET` at the start of each request; if unset, actor columns are simply `NULL`.
+`api/dependencies/auth.py`'s `get_current_user()`/`get_optional_user()` set both via
+`SELECT set_config('nss.actor_...', %s, TRUE)` right after loading the JWT's `UserContext`
+(the `TRUE` third argument scopes it to the current transaction). Idempotent — re-running
+`DROP TRIGGER IF EXISTS` + `CREATE TRIGGER` for every table on each build.
+
+Because it dynamically discovers `nss` tables at *run time* rather than listing them, this
+file must execute **after every other module's DDL** (see the Note on Files 14–15 above) or
+tables created later would never get a trigger attached — there is no re-run mechanism if a
+new table is added after the initial build.
 
 ---
 

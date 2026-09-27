@@ -55,13 +55,24 @@ design philosophy, ensuring that business rules are frozen before implementation
   (CDN) — no frontend framework. Node.js is only needed to rebuild CSS after a class change
   (`npm install && npm run css:build`); the built CSS is committed, so a fresh clone runs
   without Node.js.
-* `frontend/` implements a Tier 0 "Bootstrap Verification UI" (`index.html`, at `/`), a
-  Tier 1 "Foundation Verification UI" (`foundation.html`, at `/foundation`), a Tier 2
-  "Organization Verification UI" (`organization.html`, at `/organization`), a Tier 3
-  "Person Verification UI" (`person.html`, at `/person`), a Tier 4 "Family Verification UI"
-  (`family.html`, at `/family` — incl. a family-tree visualization and Sakha-alignment mismatch
-  badges), and a Tier 4 "Membership Verification UI" (`membership.html`, at `/membership`) —
-  none of these is the full admin dashboard yet — served as static files by FastAPI; see
+* `frontend/` now consists of exactly four pages: `login.html` (at `/login`, which `/` also
+  302-redirects to), `register.html` (at `/register`), `dashboard.html` (at `/dashboard` — the
+  role-aware member dashboard, see `docs/03_Solution/architecture/MEMBER_DASHBOARD.md`; tabs:
+  Personal, Family, Membership, Attendance, Governance, Documents), and `admin.html` (at
+  `/admin` — the administration console; tabs: Users, User Detail, Create User, Create
+  Sangha-Sevi, Password, Create Organization, Organizations, Claims, Person Directory, Member
+  Directory, Organization Hierarchy, Reference Data, Geography, System Settings), plus their
+  `assets/js/*.js` files (`login.js`, `register.js`, `dashboard.js`, `admin.js`, `auth.js`, and
+  the shared helpers `nss-config.js`/`nss-datepicker.js`/`nss-dialog.js`/`nss-location.js`/
+  `nss-layout.js`). The Tier 0-4 standalone verification pages (`index.html`,
+  `foundation.html`, `organization.html`, `person.html`, `family.html`, `membership.html`) and
+  their per-page JS have been **deleted**; their functionality was folded into `admin.html`
+  (Foundation → Reference Data / Geography, Organization → Organizations / Organization
+  Hierarchy, Person → Person Directory, Membership → Member Directory) and `dashboard.html`
+  (Family → Family tab, incl. the family-tree visualization and Sakha-alignment mismatch
+  badges; Membership → Membership tab). **`claim-approval.html` does not exist** — the
+  registration-claim review queue backed by `api/routers/claim_approval.py` is served by
+  `admin.html`'s Claims tab instead. All pages are served as static files by FastAPI; see
   `frontend/README.md` for the full file/function reference. 13 static mockups for later tiers
   exist under `docs/03_Solution/ui/mockups/`.
 
@@ -70,10 +81,30 @@ design philosophy, ensuring that business rules are frozen before implementation
 ## Backend
 
 * FastAPI — the only web/API layer in the codebase (`api/`), currently a Tier 0 read-only
-  bootstrap-RBAC API plus a Tier 1 read-only Foundation API (17 endpoints across 11 tables) plus
-  a Tier 2 read-only Organization API (7 endpoints) plus a Tier 3 read-only Person API
-  (4 endpoints across 2 tables) plus a Tier 4 read-only Family API (7 endpoints across 5 tables)
-  and Membership API (7 endpoints); 46 endpoints total; no ORM, raw `psycopg2`, no auth. See
+  bootstrap-RBAC API plus a Tier 1 Foundation API (23 endpoints across 11 tables — 17 reads
+  plus 6 new write endpoints, in progress/uncommitted, gated by a `FOUNDATION_MANAGE`
+  permission) plus
+  a Tier 2 Organization API (7 endpoints) plus a Tier 3 Person API
+  (4 endpoints across 2 tables) plus a Tier 4 Family API (16 endpoints across 6
+  tables — 7 original read endpoints plus 9 newer Tier 5 authenticated write endpoints
+  implemented directly in this router file, see below) and Membership API (7 endpoints); 61
+  Tier 0-4 endpoints total; no ORM, raw `psycopg2`. **Partway through the same in-progress
+  branch below, Foundation/Organization/Person/Membership's GET endpoints also
+  gained `require_permission(...)` gating, and Family separately gained an ownership-based auth
+  model on all 16 of its endpoints (a person reaches their own family through their
+  `family_relationship`/`family_admin` row, with `FAMILY_VIEW`/`FAMILY_MANAGE` as the admin
+  override) — only Tier 0's 4 `bootstrap.py` endpoints remain unauthenticated.** Plus, in
+  progress/uncommitted on
+  `feature/tier5-authentication-administration`:** a Tier 5 Authentication API
+  (`api/routers/auth.py` — login/refresh/logout/change-password/forgot-password/reset-password/me/
+  profile, 8 endpoints), Registration API (`api/routers/registration.py` — self-service
+  `POST /api/v1/register` plus `GET /check-duplicate`), Claim Approval API (`api/routers/claim_approval.py` — 5 endpoints for
+  Sakha-admin review of registration claims), Admin API (`api/routers/admin.py` — user/role/
+  organization/Sangha-Sevi management, 23 endpoints), and a new Audit API
+  (`api/routers/audit.py` — `GET /change-log` over `nss.field_change_log`, gated by `AUDIT_VIEW`)
+  — none of these are released or merged to `develop`/
+  `main` yet — **89 endpoints across 11 routers in total**. See `CLAUDE.md` and `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5") for
+  the current, code-verified detail.
   `docs/PROJECT_DOCUMENTATION.md` → Architecture,
   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`, and `docs/03_Solution/api/API_CONTRACT.md`.
 * Django — an earlier prototype existed under `backend/` but was fully archived and removed
@@ -89,8 +120,17 @@ design philosophy, ensuring that business rules are frozen before implementation
 
 ## Authentication
 
-* None yet — Tier 0 is deliberately unauthenticated by design. RBAC/JWT enforcement is planned
-  for a later tier.
+* **Tiers 0-4 were originally deliberately unauthenticated by design (read-only).** JWT-based
+  authentication + RBAC is now implemented — Argon2 password hashing, access/refresh JWTs,
+  `nss.user_account`/
+  `password_history`/`registration_claim`/`password_reset_token` tables, and role/scope-based
+  authorization for `/api/v1/admin/*` — but **in progress/uncommitted** on `feature/tier5-
+  authentication-administration`, not yet merged or released. **Partway through that same
+  branch, Foundation/Organization/Person/Membership's Tier 1-4 GET endpoints also gained
+  `require_permission(...)` gating, and Family gained an ownership-based auth model on all 16
+  of its endpoints instead** (only Tier 0's 4 `bootstrap.py` endpoints remain
+  unauthenticated), and `nss.permission_master`/`role_permission` are now seeded, so these
+  permission checks no longer blanket-403.
 
 ---
 
@@ -201,40 +241,62 @@ The system is designed to support NSS activities within India and internationall
 
 ```text
 KENDRA
-├── ANCHALIKA
-│   └── SAKHA
-├── ZILLA
-│   └── SAKHA
-└── PATHA_CHAKRA
+├── ANCHALIKA_SANGHA
+│   └── SAKHA_SANGHA / SAKHA_ASANA
+│       ├── KUMARI_SANGHA
+│       ├── SEVAK_SANGHA
+│       └── MAHILA_SANGHA          (local, per-Sakha)
+├── ZILLA_SANGHA
+│   └── SAKHA_SANGHA / SAKHA_ASANA
+│       ├── KUMARI_SANGHA
+│       ├── SEVAK_SANGHA
+│       └── MAHILA_SANGHA          (local, per-Sakha)
+├── PATHA_CHAKRA
+├── PARIBARIK_SANGHA                ("Gruhasana" — see notes)
+└── MAHILA_SANGHA                   (Kendra / Central — exactly one)
+
+NILACHALA_KUTIRA   — unique, no parent, no children; peer of KENDRA, not under it
+SMRUTI_MANDIRA     — unique, no parent, no children; peer of KENDRA, not under it
 ```
 
 Notes:
 
-* PATHA_CHAKRA is an Organization Type.
-* PATHA_CHAKRA exists directly under KENDRA.
-* PATHA_CHAKRA may operate within India or internationally.
-* SAKHA exists under ANCHALIKA or ZILLA.
+* `ANCHALIKA_SANGHA` and `ZILLA_SANGHA` are siblings directly under `KENDRA` — never nested
+  under each other.
+* `SAKHA_SANGHA`/`SAKHA_ASANA` sit only under `ANCHALIKA_SANGHA` or `ZILLA_SANGHA`.
+* `KUMARI_SANGHA`/`SEVAK_SANGHA` sit only under `SAKHA_SANGHA`.
+* `MAHILA_SANGHA` is **one type, two tiers, distinguished by parent** — `parent = KENDRA`
+  identifies the single Kendra/Central Mahila Sangha; `parent = SAKHA_SANGHA` identifies a
+  local, per-Sakha Mahila Sangha. The Bye-Law's central-supervises-branches relationship is a
+  governance relationship, deliberately *not* encoded as a parent-child org edge.
+* `PARIBARIK_SANGHA` ("Paribarik Sangha", family organisation attached to Kendra — Bye-Law
+  Preamble) sits directly under `KENDRA`. It is org-level, not tied to an individual person.
+* `PARIBARIK_ASANA` ("Gruhasana") is conceptually attached to a `sangha_sevi` (a person's
+  membership record), not to another organization — that `sangha_sevi` belongs to exactly one
+  `SAKHA_SANGHA`. Since `nss.organization` has no direct link to `sangha_sevi` today, its
+  `parent_organization_pk` is set to that person's current Sakha Sangha as an implementation
+  proxy, not a literal org-tree claim.
+* `PATHA_CHAKRA` may operate within India or internationally.
+* Admin scope levels (`nss.admin_scope`/`nss.role_master.scope_level`) cover `NSS-WIDE`,
+  `KENDRA`, `ANCHALIKA`, `ZILLA`, `SAKHA`, `PATHA_CHAKRA`, and `KENDRA_MAHILA_SANGHA` only — no
+  role is scoped to `SAKHA_ASANA`, `KUMARI_SANGHA`, `SEVAK_SANGHA`, `PARIBARIK_SANGHA`, or
+  `PARIBARIK_ASANA`.
 
-> **Open:** the Organization module's business rules (v1.1.0, GOVERNANCE ALIGNED,
-> `docs/03_Solution/modules/organization/04_organization_business_rules.md`) explicitly leave
-> the type-to-type parent compatibility matrix shown above as an **open item**, not a frozen
-> decision — only the generic apex + self-referencing 3-table structure is frozen. Treat this
-> diagram as the current working assumption, not a closed design.
+> **Frozen (2026-09-25):** the type-to-type parent compatibility matrix above is now frozen —
+> see `docs/03_Solution/modules/organization/04_organization_business_rules.md` §28
+> (ORG-BR-087–095), an explicit governance decision. This supersedes the prior "open item"
+> framing (the matrix used to be left undecided; only the generic apex + self-referencing
+> structure was frozen).
 
-> **Frozen separately:** an **8-type inventory** — the 5 types in the diagram above, plus
-> `NILACHALA_KUTIRA` and `SMRUTI_MANDIRA` (both unique, fixed-code, not shown here since they
-> don't participate in the parent hierarchy) and `SAKHA_ASANA` (sequence-generated like `SAKHA`,
-> not yet placed in this diagram — its own parent relationship is part of the still-open matrix
-> above). This is a type-*inventory* freeze only, separate from the still-open parent-matrix
-> question.
+> **Frozen separately:** a **13-type inventory** (`docs/03_Solution/modules/organization/
+> 04_organization_business_rules.md` ORG-BR-064 lists the earlier 8; the remaining 5 —
+> `PARIBARIK_SANGHA`, `PATHA_CHAKRA`, `KUMARI_SANGHA`, `SEVAK_SANGHA`, `MAHILA_SANGHA` — are
+> seeded in `database/seed/01_foundation/02_master_data.sql` under `ORGANIZATION_TYPE`).
 
 > **Open:** the frozen 3-table structure is no longer what's implemented in SQL — the former
 > `organization_type_master`/`organization_status_master` tables were retired in favor of rows
 > in Foundation's generic `master_data` (see `docs/PROJECT_DOCUMENTATION.md` → Gotchas for the
-> full reconciliation status). Separately, the seeded `ORGANIZATION_TYPE` `master_data` rows use
-> `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`/`SAKHA_SANGHA` as their business codes, not the short
-> `ANCHALIKA`/`ZILLA`/`SAKHA` forms shown in the diagram above. See
-> `docs/PROJECT_DOCUMENTATION.md` → Open questions / TODOs.
+> full reconciliation status).
 
 ---
 
@@ -662,7 +724,9 @@ Completed:
   exposed, deferred to Tier 5; no auth, no ORM, backed by 59 pytest integration tests — see
   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`)
 * Tier 1 Foundation Verification UI (`frontend/foundation.html` + `assets/js/foundation.js` —
-  4-tab layout: Master Data, System Config, Geographic drill-down, Runtime Tables)
+  4-tab layout: Master Data, System Config, Geographic drill-down, Runtime Tables) — **page since
+  retired and deleted; this functionality now lives in `admin.html`'s Reference Data and
+  Geography tabs**
 * Released as v0.7.0 — merged to `main`
 * FastAPI Tier 2 Organization API (`api/routers/organization.py` — 6 read-only endpoints under
   `/api/v1/organization`: reference data (types, statuses), organization records (list with
@@ -670,7 +734,9 @@ Completed:
   hierarchy tree via `WITH RECURSIVE`; no auth, no ORM, backed by 64 pytest integration tests —
   see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`)
 * Tier 2 Organization Verification UI (`frontend/organization.html` +
-  `assets/js/organization.js` — 3-tab layout: Reference Data, Organizations, Hierarchy)
+  `assets/js/organization.js` — 3-tab layout: Reference Data, Organizations, Hierarchy) — **page
+  since retired and deleted; this functionality now lives in `admin.html`'s Organizations and
+  Organization Hierarchy tabs**
 * Implemented and released as v0.8.0 — merged to `main`
 * FastAPI Tier 3 Person API (`api/routers/person.py` — 4 read-only endpoints under
   `/api/v1/person`: person list with `gender_code`/`marital_status_code`/`blood_group_code`
@@ -680,7 +746,8 @@ Completed:
   returned — only `aadhaar_last4` for masked display (PER-BR-081); no auth, no ORM, backed by
   61 pytest integration tests — see `docs/03_Solution/api/PERSON_API_CONTRACT.md`)
 * Tier 3 Person Verification UI (`frontend/person.html` + `assets/js/person.js` — Persons/Search
-  tab layout structurally parallel to the Organization Verification UI)
+  tab layout structurally parallel to the Organization Verification UI) — **page since retired
+  and deleted; this functionality now lives in `admin.html`'s Person Directory tab**
 * Implemented and released as v0.9.0 — merged to `main`
 * FastAPI Tier 4 Family API (`api/routers/family.py` — 7 read-only endpoints under
   `/api/v1/family`: family list with filters and pagination, family detail, family members
@@ -702,14 +769,18 @@ Completed:
   (aggregate family/member/person counts per direct child, recursing through descendant
   Sakhas and reusing the same FAM-036 majority-rule computation — implemented independently
   from Family's version, a real SQL duplication; its own docstring claims org-admin-sidebar UI
-  wiring that doesn't actually exist in `organization.html`/`organization.js` yet)
+  wiring that does not exist in `admin.html`/`admin.js`'s Organization Hierarchy tab — which
+  absorbed the deleted `organization.html`/`organization.js` — either)
 * Tier 4 Family Verification UI (`frontend/family.html` + `assets/js/family.js` — now includes
   a family-tree visualization, viewer selector, and Sakha-alignment mismatch badges) and Tier 4
-  Membership Verification UI (`frontend/membership.html` + `assets/js/membership.js`)
+  Membership Verification UI (`frontend/membership.html` + `assets/js/membership.js`) — **both
+  pages since retired and deleted; this functionality now lives in `dashboard.html`'s Family and
+  Membership tabs, with the administrative member lookup in `admin.html`'s Member Directory tab**
 * New shared frontend config: `frontend/assets/js/nss-config.js` (display-name overrides —
   `PROBATIONARY` → "Darshaka" — badge-class lookup maps, document-visibility rules) and
-  `frontend/assets/css/badges.css` (every badge CSS class, single source of truth) — all 6
-  verification pages now include both; no more per-page duplicate inline badge styles
+  `frontend/assets/css/badges.css` (every badge CSS class, single source of truth) — at the time,
+  all 6 verification pages included both; both files survive the page retirement and are now
+  included by `admin.html`/`dashboard.html`; no per-page duplicate inline badge styles
 * Family DDL (5 tables: `family_group`, `family_relationship`, `family_head_history`,
   `family_transition_history`, `family_link` — the last stores only direct
   parent/spouse edges; every other kinship term is computed dynamically) and Membership DDL
@@ -787,6 +858,33 @@ Completed:
   value at all) — no test coverage yet for this new header. The logo asset
   (`frontend/assets/img/nss-logo.png`) was also compressed (1.4 MB → ~100 KB), with the original
   kept as `nss-logo-original.png`.
+* **Tier 5 — Authentication + Administration (in progress, uncommitted on
+  `feature/tier5-authentication-administration`, not merged/released — treat every fact below as
+  a snapshot of a moving branch, verify against `git status`/`git log` before relying on it):**
+  9 new tables (`user_account`, `password_history`, `registration_claim`,
+  `password_reset_token` under `database/ddl/06_authentication/`; `user_role`, `admin_scope`
+  under `database/ddl/07_administration/`; `family_admin` and
+  `darshak_attendance_registration` added to the already-implemented Family/Membership modules;
+  plus `system_event_log` under `database/ddl/01_foundation/14_system_event_log.sql`, backed by
+  a database-level `fn_audit_trigger()` (`15_audit_trigger.sql`, `SOL-AUDIT-004`) that fires on
+  every INSERT/UPDATE/DELETE across `nss.*` business tables — actor identity comes from
+  session variables (`nss.actor_sangha_sevi_pk`/`nss.actor_user_account_pk`) the app sets per
+  request, not from application code, so writes can't bypass the audit trail; `api/helpers.py`
+  also gained an application-level `log_audit()` used explicitly by the new write endpoints) —
+  44 tables total once merged. New `api/routers/auth.py` (login/refresh/logout/change-password/
+  forgot-password/reset-password/me), `api/routers/registration.py` (self-service
+  `POST /api/v1/register`), `api/routers/claim_approval.py` (Sakha-admin review of registration
+  claims), and `api/routers/admin.py` (user/role/organization management) — plus 9 new
+  authenticated write endpoints added directly to `api/routers/family.py` (add/remove family
+  member, family links, family admin assignment, head transfer, create family). New
+  `nss_db_writer` PostgreSQL role (write access scoped to the new auth/admin tables only). Every
+  Tier 4 "verification"/demo seed file has been deleted on this branch — a fresh build now
+  produces a database with **zero demo Person/Family/Membership data**; real data comes from the
+  registration/approval flow or a single seeded admin superuser
+  (`scripts/bootstrap_admin.py`). `tests/conftest.py` was rewritten around a session-scoped
+  `SAVEPOINT`-per-module fixture architecture to support this. See `CLAUDE.md` and
+  `docs/PROJECT_DOCUMENTATION.md` for the full, current detail — this bullet is a summary, not
+  the source of truth.
 
 Current Focus:
 
@@ -801,11 +899,15 @@ Current Focus:
   Tier 3 API + Web UI (4 endpoints, 61 tests), released as v0.9.0. Also in v0.9.0: the
   Organization master-data migration retiring `organization_type_master`/
   `organization_status_master` in favor of Foundation's `master_category`/`master_data`.
-  Family and Membership now also have a full Tier 4 API + Web UI (7 + 7 endpoints, 67 + 99
-  tests — 46 endpoints total across all tiers), released as v0.10.0 (see
-  `docs/05_Releases/v0.10.0.md`). **410 tests
-  total** across the whole suite (1 known failing test — `test_kumari_transition_has_event`,
-  see `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas).
+  Family and Membership now also have a full Tier 4 API + Web UI (7 + 7 original read
+  endpoints, 67 + 99 tests — 46 endpoints total across Tiers 0-4), released as v0.10.0 (see
+  `docs/05_Releases/v0.10.0.md`). The suite has since been reorganized off flat `tests/test_*.py`
+  files into `tests/api/`, `tests/db/`, and a new Playwright browser-driven `tests/ui/` layer
+  (backing the `ui`/`db` pytest markers now in `pytest.ini` alongside `integration`), and grown
+  well past the old flat-file count as of the in-progress Tier 5 branch
+  (`feature/tier5-authentication-administration`, uncommitted) — see
+  `tests/README.md` for the current per-file breakdown and fixture architecture; the last
+  released tag (`v0.10.4`) had 410.
 
 ---
 
@@ -820,7 +922,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (7 endpoints) | Done (Organization Verification) | -- |
 | **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints) | Done (Person Verification) | -- |
 | **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Done | Done (14 endpoints) | Done (Family + Membership Verification) | -- |
-| **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | Not started | Not started | Not started | -- |
+| **5** | Authentication, Administration | `user_account`, `password_history`, RBAC management, JWT/session | In progress (uncommitted) | In progress (uncommitted — auth, registration, claim-approval, admin routers exist) | In progress (uncommitted — login/register/dashboard/admin/claim-approval pages exist) | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
 | **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
 | **8** | Kumari Sangha, Kishor Puja | Youth modules — KM/KH identity, annual events, guardian assignment, SS transition | Not started | Not started | Not started | -- |
@@ -846,7 +948,8 @@ release document under `docs/05_Releases/` before the next tier begins.
 | v0.8.0 | Tier 2 | Organization — API + Web UI (DB already done) (**released**) |
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI, plus the Organization master-data migration (**released**) |
 | v0.10.0 | Tier 4 | Family + Membership — full vertical slice, family graph, Organization children-stats (**released**) |
-| v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice |
+| v0.10.1-v0.10.4 | Tier 4 (hotfixes) | Idempotent DDL/seed, Neon role bootstrap, performance indexes, a11y/perf polish (**released**) |
+| v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice (**in progress, uncommitted on `feature/tier5-authentication-administration`, not yet tagged**) |
 | ... | Tier 6-12 | One tag per tier through Tier 12 |
 
 Next Release Target:
@@ -865,20 +968,23 @@ adds nss_db_writer role + first write endpoints.
 NSS_ERP
 │
 ├── api
-│   ├── routers              (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py)
-│   ├── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py)
-│   └── services              (family_graph.py — BFS relationship computation)
+│   ├── routers              (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, in progress/uncommitted: auth.py, admin.py, registration.py, claim_approval.py)
+│   ├── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, in progress/uncommitted: auth.py, admin.py)
+│   ├── services              (family_graph.py — BFS relationship computation; plus, in progress/uncommitted: auth_service.py, rbac_service.py)
+│   └── dependencies          (in progress/uncommitted — auth.py, rbac.py: FastAPI dependency-injected JWT/RBAC guards)
 │
-├── frontend                (Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person + Tier 4 Family + Tier 4 Membership Verification UIs, served by FastAPI)
+├── frontend                (login/register/dashboard/admin pages, served by FastAPI; the Tier 0-4 standalone verification pages were deleted and folded into admin.html/dashboard.html)
 │   └── assets               (shared js/nss-config.js + css/badges.css, plus per-page files)
 │
 ├── backend                (empty — earlier Django prototype archived and removed)
 │
 ├── database
-│   ├── ddl
+│   ├── ddl                  (00_bootstrap .. 05_membership; plus, in progress/uncommitted: 06_authentication, 07_administration)
 │   ├── seed
-│   ├── migrations           (narrow ad-hoc data-fix scripts, not a schema-migration tool)
+│   ├── fixes                (in progress/uncommitted — narrow ad-hoc data-fix scripts, successor to the removed `migrations/`)
 │   └── scripts
+│
+├── scripts                (in progress/uncommitted — repo-root Python ops scripts, e.g. `bootstrap_admin.py`; distinct from `database/scripts/`)
 │
 ├── tests                  (pytest integration tests)
 │
@@ -903,10 +1009,13 @@ See `docs/PROJECT_DOCUMENTATION.md` for the full, code-verified breakdown of eac
 # Current Stable Version
 
 ```text
-v0.9.0
+v0.10.4
 ```
 
-Tier 2 Organization — API, Web UI
+Tier 4 Family + Membership (performance-hardening hotfix) — the latest tagged release on `main`.
+Tier 5 (Authentication + Administration) is in progress, uncommitted, on
+`feature/tier5-authentication-administration` — see `CLAUDE.md` and
+`docs/PROJECT_DOCUMENTATION.md` for its current state.
 
 ---
 

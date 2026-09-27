@@ -1,19 +1,20 @@
 # database/ddl/04_family/
 
-Family Module DDL — 5 tables per SOL-FAM-005, SOL-FAM-003, SOL-ARCH-010, and (for `family_link`)
-ERP-DECISION — Graph-based dynamic relationship model.
+Family Module DDL — 6 tables per SOL-FAM-005, SOL-FAM-003, SOL-ARCH-010, and (for `family_link`)
+ERP-DECISION — Graph-based dynamic relationship model. `family_admin` (see below) is new,
+uncommitted, on branch `feature/tier5-authentication-administration`.
 
 Authority: SOL-FAM-005 (Family Table Design), SOL-FAM-003, SOL-ARCH-010 (DDL Creation Order) for
 the first 4 tables; `family_link` carries its own separate `ERP-DECISION` authority tag (see its
 own file header) rather than SOL-FAM-005, since it implements a specific, later design decision
-rather than the original Family module design.
+rather than the original Family module design; `family_admin` cites SOL-FAM-003 FAM-045..052.
 
 ## DDL Execution Order
 
 Execute AFTER all Foundation DDL (`database/ddl/01_foundation/`), Organization DDL
 (`database/ddl/02_organization/`), and Person DDL (`database/ddl/03_person/`) — `family_group`
 references `organization`, and `family_relationship`/`family_head_history`/
-`family_transition_history`/`family_link` all reference `person`.
+`family_transition_history`/`family_link`/`family_admin` all reference `person`.
 
 | # | File | Table | Depth | Sequence |
 |--:|------|-------|------:|:--------:|
@@ -22,6 +23,7 @@ references `organization`, and `family_relationship`/`family_head_history`/
 | 03 | `03_family_head_history.sql` | `family_head_history` | 3 | #57 |
 | 04 | `04_family_transition_history.sql` | `family_transition_history` | 3 | #58 |
 | 05 | `05_family_link.sql` | `family_link` | 3 | — |
+| 06 | `06_family_admin.sql` | `family_admin` | 3 | — |
 
 ## What These Tables Are For
 
@@ -52,6 +54,16 @@ implement that:
   than storing every possible relationship label as data. See "Is `family_relationship`
   superseded by `family_link`?" below — it is not; the two tables serve different, coexisting
   purposes.
+- **`family_admin`** — (new, uncommitted, Tier 5 branch) tracks Family Admin role assignments,
+  independent of `family_head_history`: a person may be Head, Admin, both, or neither at once.
+  Multiple admins per family are allowed. Only the current Family Head may assign/revoke an
+  admin (enforced in `api/routers/family.py`'s `POST`/`DELETE /families/{pk}/admins`, FAM-046/
+  FAM-050 — not a DB constraint); a partial unique index
+  (`uq_family_admin_current`) allows at most one *current* (`effective_to IS NULL`) admin row
+  per (`family_group_pk`, `person_pk`) pair, but does not itself limit how many distinct people
+  can be current admins of the same family. **Has 3 API endpoints as of the Tier 5 branch**
+  (`GET/POST/DELETE /api/v1/family/families/{pk}/admins`) — not DDL-only, correcting an earlier
+  draft of this file; zero test coverage exists for any of the three.
 
 ## Is `family_relationship` superseded by `family_link`?
 
@@ -95,6 +107,9 @@ to *derive* every other kinship label on demand). A family's `family_relationshi
 - `family_link.family_group_pk` → `family_group(family_group_pk)`; `person_a_pk` and
   `person_b_pk` both → `nss.person(person_pk)` (two separate FKs to the same table, the same
   "two FKs, one target" idiom `family_transition_history` uses for its two family-group FKs).
+- `family_admin.family_group_pk` → `family_group(family_group_pk)`; `.person_pk` →
+  `nss.person(person_pk)`; `.appointed_by_person_pk` → `nss.person(person_pk)` (a second FK to
+  the same table — the person, must be the Family Head at the time, who made the appointment).
 
 Like `organization` and `person`, audit-actor FKs (`created_by_sangha_sevi_pk`,
 `updated_by_sangha_sevi_pk`, `deleted_by_sangha_sevi_pk`) are nullable columns in this pass —
@@ -141,6 +156,12 @@ their FK constraints against `sangha_sevi` are deferred to Pass 2, after that ta
   `docs/00_Project_Governance/STD/01_project_standards.md` and
   `docs/03_Solution/database/DATABASE_DESIGN_STANDARDS.md`) — not zero-padded (`F00000001`), per
   the `id_sequence_master` DDL's loosened `CHECK (padding_length BETWEEN 0 AND 12)` constraint.
+- **`uq_family_admin_current`** — a fourth partial unique index in this module: `UNIQUE
+  (family_group_pk, person_pk) WHERE effective_to IS NULL`. Prevents the same person from being
+  recorded as a *current* admin of the same family twice, but does not cap the number of
+  distinct current admins per family (multiple admins are allowed, per the file header).
+  `family_admin` has no `is_active`/soft-delete column at all — revocation is expressed purely
+  via `effective_to`, unlike every other table in this module.
 
 Matches `docs/03_Solution/modules/family/05_family_table_design.md` (SOL-FAM-005) closely — see
 that doc for full design rationale. As of this writing that module doc set is still `Status:

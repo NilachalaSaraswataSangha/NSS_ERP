@@ -3,7 +3,8 @@
 Hand-written PostgreSQL DDL and seed data — the schema authority for the NSS ERP.
 
 **DDL Execution Authority:** PostgreSQL role `nss_db_owner`
-**Runtime Read/Write:** PostgreSQL role `nss_db_backend`
+**Runtime Read/Write:** PostgreSQL role `nss_db_backend` (read-only) plus, on the Tier 5 branch
+below, `nss_db_writer` (write access on auth+admin tables only)
 **Architecture Authority:** SOL-ARCH-010 (DDL Creation Order),
 SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 
@@ -12,6 +13,25 @@ SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 > role `NSS_ERP_ADMIN` (which is an RBAC role defined in `role_master` and
 > enforced by the application layer). See SOL-ARCH-011 §7.2 for the
 > full identity distinction.
+
+> **Tier 5 (Authentication + Administration) is in progress, uncommitted** on branch
+> `feature/tier5-authentication-administration` — not merged to `develop`/`main`, no release
+> tag. It adds `database/ddl/06_authentication/` (4 tables), `database/ddl/07_administration/`
+> (2 tables), `family_admin`/`darshak_attendance_registration` to the already-implemented
+> Family/Membership modules (2 more tables — 8 new total), a new `nss_db_writer` PostgreSQL
+> role (`database/scripts/05_create_writer_role.sql`), a new top-level
+> `scripts/bootstrap_admin.py`, a new centralized `nss.system_event_log` audit-trail table plus a
+> `fn_audit_trigger()` trigger attached to every `nss.*` table
+> (`database/ddl/01_foundation/14_system_event_log.sql`, `15_audit_trigger.sql` — 1 more new
+> table, bringing the Tier 5 total to 9), and **removes every Tier 4 "verification"/demo seed
+> file** —
+> see `database/seed/README.md` and the per-folder seed READMEs below. It also briefly added,
+> then deleted, a narrow `database/fixes/` successor to `database/migrations/` for one-off
+> data-repair scripts — its only file hardcoded UUIDs from the now-deleted demo seed data and
+> was verifiably obsolete once verified against `family.py`'s auto-transfer logic, so the whole
+> folder was removed rather than kept as documented dead weight. Most of this section
+> predates that branch and describes the pre-Tier-5 state unless noted; see
+> `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5") for the full, current detail.
 
 ---
 
@@ -207,10 +227,20 @@ Depth/Seq# breakdown rather than duplicating it here:
   `family_head_history`, `family_transition_history`, `family_link`)
 - `ddl/05_membership/README.md` (12 tables, `sangha_sevi` first)
 
-**Total implemented: 35 tables (3 Bootstrap RBAC + 12 Foundation + 1
-Organization + 2 Person + 5 Family + 12 Membership)**
+**Total implemented (pre-Tier-5): 35 tables (3 Bootstrap RBAC + 12 Foundation + 1
+Organization + 2 Person + 5 Family + 12 Membership).** **Plus, in progress/uncommitted on the
+Tier 5 branch: 9 more — `database/ddl/06_authentication/` (4), `database/ddl/07_administration/`
+(2), `family_admin` (Family), `darshak_attendance_registration` (Membership), and
+`system_event_log` (Foundation — centralized audit trail written by both application code
+(`api/helpers.py::log_audit()`) and a DB-level `fn_audit_trigger()` attached to every other
+`nss.*` table) — bringing the working-tree total to 44.** See `database/scripts/README.md` for
+the authoritative, current
+phase-by-phase build sequence (Phases 0-13) rather than the "Full Build" walkthrough above, which
+predates Tier 5 and still shows the now-deleted Tier 4 verification-seed/migrations steps.
 **Organization type/status moved to Foundation `master_data` — standalone tables retired.**
-**Phase 0 seed partial: `role_master` seeded (8 roles); `permission_master`/`role_permission` empty, pending the permission catalogue freeze**
+**Phase 0 seed now complete: `role_master` seeded (9 roles); `permission_master`/
+`role_permission` are also populated (no longer empty) — `require_permission(...)` checks
+succeed for roles with matching mappings.**
 
 See module READMEs for per-file details:
 - `ddl/00_bootstrap/README.md` / `seed/00_bootstrap/README.md`
@@ -219,6 +249,9 @@ See module READMEs for per-file details:
 - `ddl/03_person/README.md` / `seed/03_person/README.md`
 - `ddl/04_family/README.md` / `seed/04_family/README.md`
 - `ddl/05_membership/README.md` / `seed/05_membership/README.md`
+- `ddl/06_authentication/README.md` (new, uncommitted — Tier 5 branch)
+- `ddl/07_administration/README.md` (new, uncommitted — Tier 5 branch)
+- `seed/04_admin/README.md` (new, uncommitted — Tier 5 branch)
 
 ---
 
@@ -229,10 +262,12 @@ See module READMEs for per-file details:
   executed after `sangha_sevi` table exists and contains at least one record
 
 Pass 2 is not yet implemented. `sangha_sevi` (Membership DDL, Phase 7) now
-exists as a table, but no bootstrap administrator Sangha Sevi record has
-been created/seeded yet and no `ALTER TABLE ADD CONSTRAINT` step for the
-`*_by_sangha_sevi_pk` columns has been added to the build scripts — both
-are still deferred to Tier 5 (Authentication), per SOL-ARCH-011 §7.3.
+exists as a table, but no bootstrap administrator Sangha Sevi record had been
+created/seeded until the Tier 5 branch's `scripts/bootstrap_admin.py` (uncommitted, seeds
+`SS1`) — and even now, no `ALTER TABLE ADD CONSTRAINT` step for the
+`*_by_sangha_sevi_pk` columns has been added to the build scripts, including for the 8 new
+Tier 5 tables themselves (`user_account`, `user_role`, `admin_scope`, etc. all carry the same
+nullable, unconstrained audit-actor columns) — Pass 2 remains deferred.
 
 ---
 
@@ -245,23 +280,35 @@ database/
 │   ├── 01_extensions.sql        Install extensions (superuser, nss_erp DB)
 │   ├── 02_build.sh              Full schema build (all implemented phases) — .ps1 equivalent for Windows
 │   ├── 03_validate.sh           Post-build validation (all modules) — .ps1 equivalent for Windows
-│   └── 04_grant_backend.sql     Grant nss_db_backend read-only access to nss schema
+│   ├── 04_grant_backend.sql     Grant nss_db_backend read-only access to nss schema
+│   ├── 05_create_writer_role.sql (new, uncommitted) Grant nss_db_writer write access (auth+admin tables only)
+│   └── 06_setup_env.sh           (new, uncommitted) Set role passwords + generate api/.env
 ├── ddl/
 │   ├── 00_bootstrap/     3 RBAC tables (Depths 0–1) — IMPLEMENTED
-│   ├── 01_foundation/    12 tables (Depths 0–4) — IMPLEMENTED
+│   ├── 01_foundation/    12 tables (Depths 0–4) — IMPLEMENTED, plus (new/uncommitted, Tier 5)
+│   │                     `14_system_event_log.sql` (centralized audit trail) and
+│   │                     `15_audit_trigger.sql` (`fn_audit_trigger()`, attached via `DO $$`
+│   │                     block to every `nss.*` table except itself/`field_change_log`)
 │   ├── 02_organization/  1 table (Depth 1) — IMPLEMENTED
 │   ├── 03_person/        2 tables (`person`, `person_address`) — IMPLEMENTED
 │   │                     (01_person_master_tables.sql superseded — see below)
-│   ├── 04_family/        5 tables — IMPLEMENTED
-│   └── 05_membership/    12 tables (`sangha_sevi` first) — IMPLEMENTED
+│   ├── 04_family/        6 tables (incl. `family_admin`, new/uncommitted) — IMPLEMENTED
+│   ├── 05_membership/    13 tables (`sangha_sevi` first, incl.
+│   │                     `darshak_attendance_registration`, new/uncommitted) — IMPLEMENTED
+│   ├── 06_authentication/ (new, uncommitted) 4 tables: user_account, password_history,
+│   │                     registration_claim, password_reset_token
+│   └── 07_administration/ (new, uncommitted) 2 tables: user_role, admin_scope
 ├── seed/
-│   ├── 00_bootstrap/     8 roles seeded; permission catalogue PENDING
+│   ├── 00_bootstrap/     9 roles seeded; permission catalogue populated
 │   ├── 01_foundation/    reference data — IMPLEMENTED
-│   ├── 02_organization/  3 unique orgs + Tier 4 verification orgs — IMPLEMENTED
-│   ├── 03_person/        Tier 4 verification persons — IMPLEMENTED
-│   │                     (01_person_master_tables.sql superseded — see below)
-│   ├── 04_family/        Tier 4 verification family data — IMPLEMENTED
-│   └── 05_membership/    Tier 4 verification membership data — IMPLEMENTED
+│   ├── 02_organization/  3 unique orgs + 175 real Sakha branches — IMPLEMENTED (Tier 4
+│   │                     verification-org seed deleted on the Tier 5 branch)
+│   ├── 03_person/        no seed data — persons created at runtime via registration (Tier 4
+│   │                     verification-person seed deleted on the Tier 5 branch)
+│   ├── 04_family/        no seed data (Tier 4 verification-family seed deleted)
+│   ├── 05_membership/    no seed data (Tier 4 verification-membership seed deleted)
+│   └── 04_admin/         (new, uncommitted) seeds one admin superuser, via
+│                          scripts/bootstrap_admin.py (not plain psql)
 └── README.md             this file
 ```
 
@@ -271,14 +318,14 @@ database/
 
 | Module | Tables | DDL Status | Next Action |
 |--------|-------:|-----------|-------------|
-| Bootstrap RBAC | 3 | ✅ IMPLEMENTED | `permission_master`/`role_permission` seed pending permission catalogue freeze |
-| Foundation | 12 | ✅ IMPLEMENTED | — |
+| Bootstrap RBAC | 3 | ✅ IMPLEMENTED | `permission_master`/`role_permission` seed pending permission catalogue freeze — this now also blocks every Tier 5 permission check |
+| Foundation | 12 | ✅ IMPLEMENTED | — (plus `system_event_log`, new/uncommitted on the Tier 5 branch — see Directory Structure below) |
 | Organization | 1 | ✅ IMPLEMENTED | — |
 | Person | 2 | ✅ IMPLEMENTED | — |
-| Family | 5 | ✅ IMPLEMENTED | — |
-| Membership | 12 | ✅ IMPLEMENTED | — |
-| Authentication | 2 | ⏳ DESIGN | Freeze user_account, password_history columns |
-| Administration | 5 | ⏳ DESIGN | 3 RBAC tables in Bootstrap; correspondence columns pending |
+| Family | 6 | ✅ IMPLEMENTED (`family_admin` new/uncommitted) | — |
+| Membership | 13 | ✅ IMPLEMENTED (`darshak_attendance_registration` new/uncommitted, not yet consumed by any router) | — |
+| Authentication | 4 | ⏳ IN PROGRESS, UNCOMMITTED (Tier 5 branch) | Not merged/released; freeze DDL before relying on it |
+| Administration | 2 (`user_role`/`admin_scope`; 3 more RBAC tables — `role_master`/`permission_master`/`role_permission` — live in Bootstrap) | ⏳ IN PROGRESS, UNCOMMITTED (Tier 5 branch) | Not merged/released; correspondence columns still pending separately |
 | Heritage | 4 | ⬜ NOT YET | — |
 
 Table counts for the implemented modules above are the actual counts of
@@ -411,7 +458,7 @@ Validation checks per module:
 
 | Module | Tables | Checks |
 |--------|-------:|--------|
-| Bootstrap RBAC | 3 | Existence, 8 roles seeded, unique `role_code`, FK integrity (`role_permission` → both parents) |
+| Bootstrap RBAC | 3 | Existence, 9 roles seeded, unique `role_code`, FK integrity (`role_permission` → both parents) |
 | Foundation | 12 | Existence, row counts (13 categories, 88 master_data, locations, settings, postal codes), unique codes, FK integrity (location hierarchy, `master_data` → `master_category`), deferred columns on `document_master` |
 | Organization | 1 | Existence, 10 types / 13 unified statuses / 3 orgs seeded, unique codes, FK integrity (org → type, status, country, city_village, postal_code) |
 | Person | 2 | Existence, FK integrity (`person` → master_data gender/marital_status/blood_group, `person_address` → person/master_data address_type). Row-count checks assert `person`/`person_address` = 0 rows. |
