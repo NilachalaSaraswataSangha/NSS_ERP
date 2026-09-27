@@ -1,12 +1,31 @@
 # frontend/
 
-Tier 0 Bootstrap Verification UI, Tier 1 Foundation Verification UI, Tier 2 Organization
-Verification UI, Tier 3 Person Verification UI, and Tier 4 Family + Membership Verification UIs
-for Nilachala Saraswata Sangha.
+**On the Tier 5 branch (`feature/tier5-authentication-administration`, in progress,
+uncommitted), the six original Tier 0-4 verification pages this README used to document as
+current — `index.html`, `foundation.html`, `organization.html`, `person.html`, `family.html`,
+`membership.html`, and their per-page JS (`app.js`, `foundation.js`, `organization.js`,
+`person.js`, `family.js`, `membership.js`) — were deleted outright**, not just retired at the
+routing level (see the "Retired standalone verification pages" comment in `api/main.py`). Their
+functionality was folded into two of the four pages below instead: `admin.html` (Reference
+Data, Organization Hierarchy, Person Directory, Member Directory, Roles & System Settings) and
+`dashboard.html` (a Family tab, including the family-tree visualization that used to live in
+`family.html`). The **File Reference** section further down still documents those six deleted
+pages in detail — it's kept as historical reference (useful if this branch is ever reverted, or
+for understanding where a given piece of `admin.html`/`dashboard.html` logic originally came
+from) but describes files that no longer exist on disk. For the current frontend, see
+**"Tier 5 pages"** further down and the **Directory Structure** immediately below, both of which
+reflect what's actually on disk now.
 
-**Purpose:** Verify the database → API → frontend integration for each tier as it's built.
-None of the six pages is an operational administration dashboard. Together they establish the
-frontend shell that later tiers grow into.
+What's actually on disk now: a Login page, self-Registration page, Member Dashboard, and
+Administration Dashboard (`login.html`/`register.html`/`dashboard.html`/`admin.html`). The
+backing `GET/PATCH /api/v1/admin/claims/*` registration-claim-approval API (see
+`api/routers/claim_approval.py`) has a frontend — it shipped as a "Registration Approvals" tab
+inside `admin.html`/`admin.js` rather than as a standalone `claim-approval.html`; no
+`claim-approval.html` file exists, but that's not a gap.
+
+**Purpose:** these four pages are Nilachala Saraswata Sangha's authenticated login, self-service
+registration, member dashboard, and administration console. `admin.html` is a real operational
+administration dashboard, not a verification UI.
 
 **Tech stack:** Tailwind CSS + DaisyUI (pre-built via Tailwind CLI — no longer CDN, see
 `../package.json`/`../tailwind.config.js`), Alpine.js (CDN), vanilla
@@ -23,36 +42,40 @@ separate frontend server, no CORS configuration needed.
 
 ```
 frontend/
-├── index.html              Tier 0 Bootstrap Verification UI (Alpine.js application)
-├── foundation.html         Tier 1 Foundation Verification UI (Alpine.js application)
-├── organization.html       Tier 2 Organization Verification UI (Alpine.js application)
-├── person.html             Tier 3 Person Verification UI (Alpine.js application)
-├── family.html             Tier 4 Family Verification UI (Alpine.js application)
-├── membership.html         Tier 4 Membership Verification UI (Alpine.js application)
+├── login.html               Login page (Tier 5)
+├── register.html            Self-registration page (Tier 5)
+├── dashboard.html           Member Dashboard (Tier 5) — includes a Family tab
+├── admin.html                Administration Dashboard (Tier 5) — Reference Data, Organization
+│                             Hierarchy, Person Directory, Member Directory, Roles & System
+│                             Settings, and Registration Approvals (claims review) tabs
 ├── assets/
 │   ├── css/
-│   │   ├── badges.css          Shared badge-status/type/affiliation/gender CSS classes + data-identity typography (all six pages)
+│   │   ├── badges.css          Shared badge-status/type/affiliation/gender CSS classes + data-identity typography (all pages)
 │   │   ├── style.css           Minimal project-specific CSS overrides
+│   │   ├── nss-layout.css      Styles backing the `NSSLayout` sidebar/topbar mixin (`admin.html`, `dashboard.html`) — no entry below yet
+│   │   ├── nss-datepicker.css  Styles for the `nss-datepicker.js` date-picker component — no entry below yet
 │   │   ├── tailwind-input.css  Tailwind directives (`@tailwind base/components/utilities`) — build input, see ../package.json
 │   │   └── tailwind.min.css    Generated, committed build output (~72 KB) — DO NOT hand-edit; regenerate via `npm run css:build`
 │   ├── img/
 │   │   ├── nss-logo.png          NSS logo, compressed for web (~100 KB, was 1.4 MB)
-│   │   └── nss-logo-original.png Uncompressed original, kept for reference/reprocessing
+│   │   ├── nss-logo-original.png Uncompressed original, kept for reference/reprocessing
+│   │   └── ssm-mandir.webp        New (Tier 5) — no entry below yet
 │   └── js/
-│       ├── app.js          Alpine.js data component + API fetch logic for index.html
-│       ├── foundation.js   Alpine.js data component + API fetch logic for foundation.html
-│       ├── organization.js Alpine.js data component + API fetch logic for organization.html
-│       ├── person.js       Alpine.js data component + API fetch logic for person.html
-│       ├── family.js       Alpine.js data component + API fetch logic for family.html
-│       ├── membership.js   Alpine.js data component + API fetch logic for membership.html
+│       ├── login.js         Alpine.js data component + API fetch logic for login.html
+│       ├── register.js      Alpine.js data component + API fetch logic for register.html
+│       ├── dashboard.js     Alpine.js data component + API fetch logic for dashboard.html
+│       ├── admin.js         Alpine.js data component + API fetch logic for admin.html
+│       ├── auth.js          `NSSAuth` — JWT storage/refresh + authenticated `fetch()` wrapper
+│       ├── nss-layout.js    `NSSLayout` — sidebar/topbar mixin shared by admin.html/dashboard.html
+│       ├── nss-datepicker.js  Date-picker component helper
+│       ├── nss-dialog.js    Shared dialog/modal helper
+│       ├── nss-location.js  Shared location (state/district/city) picker helper
 │       └── nss-config.js   Shared `NSS` config object — badge-class lookups, Bye-Law display-name
-│                           overrides, document-visibility rules (all six pages)
+│                           overrides, document-visibility rules (all pages)
 └── README.md               This file
 ```
 
-All six pages share the same header pattern with a nav bar linking between `/` ("Bootstrap"),
-`/foundation` ("Foundation"), `/organization` ("Organization"), `/person` ("Person"), `/family`
-("Family"), and `/membership` ("Membership"), so any page is one click away from any other. Every
+The four pages share a nav bar (via `nss-layout.js` for `admin.html`/`dashboard.html`). Every
 page also loads `assets/css/badges.css` and `assets/js/nss-config.js` in `<head>`, immediately
 after `style.css` — these two files are the single source of truth for badge CSS classes and
 their display-name/visibility logic across the whole frontend. **Convention for future page
@@ -64,6 +87,13 @@ every page picks it up automatically.
 ---
 
 ## File Reference
+
+> **⚠ Retired.** `index.html`, `foundation.html`, `organization.html`, `person.html`,
+> `family.html`, `membership.html`, and their per-page JS (`app.js`, `foundation.js`,
+> `organization.js`, `person.js`, `family.js`, `membership.js`) documented in this section were
+> **deleted from disk** on the Tier 5 branch (in progress, uncommitted) — see the header note at
+> the top of this file. Everything below is kept for historical reference only; skip to
+> **"Tier 5 pages"** further down for the pages that actually exist now.
 
 ### index.html
 
@@ -627,13 +657,17 @@ exists on disk:
 
 | URL Pattern | FastAPI Handler | Serves |
 |-------------|----------------|--------|
-| `GET /` | Explicit route → `FileResponse(frontend/index.html)` | The Bootstrap Verification UI |
-| `GET /foundation` | Explicit route → `FileResponse(frontend/foundation.html)` | The Foundation Verification UI |
-| `GET /organization` | Explicit route → `FileResponse(frontend/organization.html)` | The Organization Verification UI |
-| `GET /person` | Explicit route → `FileResponse(frontend/person.html)` | The Person Verification UI |
-| `GET /family` | Explicit route → `FileResponse(frontend/family.html)` | The Family Verification UI |
-| `GET /membership` | Explicit route → `FileResponse(frontend/membership.html)` | The Membership Verification UI |
+| `GET /` | Explicit route → `RedirectResponse("/login")` | 302-redirects to the Login page (was `FileResponse(frontend/index.html)` before the six pages below were retired) |
+| `GET /login` | Explicit route → `FileResponse(frontend/login.html)` | The Login page |
+| `GET /register` | Explicit route → `FileResponse(frontend/register.html)` | The Registration page |
+| `GET /dashboard` | Explicit route → `FileResponse(frontend/dashboard.html)` | The Member Dashboard |
+| `GET /admin` | Explicit route → `FileResponse(frontend/admin.html)` | The Administration Dashboard |
+| `GET /forgot-password` | Explicit route, gated `if _forgot_password_path.is_file()` | Never registered — `frontend/forgot-password.html` doesn't exist |
 | `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by every page) |
+
+**Retired:** `GET /foundation`, `/organization`, `/person`, `/family`, `/membership`, and the
+old `/` → `frontend/index.html` route are all gone — see the "Retired standalone verification
+pages" comment in `api/main.py`.
 
 **Why not mount at `/`?** A root-level `StaticFiles` mount would shadow
 FastAPI's built-in `/docs` (Swagger UI) and `/openapi.json`. By mounting
@@ -641,15 +675,24 @@ only `/assets/*` and serving each page via an explicit route, all
 FastAPI built-in routes remain accessible.
 
 **Graceful degradation:** If `frontend/` does not exist on disk, the
-mount and all six routes are skipped entirely. If any individual HTML file is
-missing, `/` still works — the API continues to work in API-only mode — `/docs` and
-`/api/v1/*` are unaffected. The `/foundation`, `/organization`, `/person`, `/family`, and
-`/membership` routes are only registered `if` the respective HTML file exists on disk (see
+mount and all page routes are skipped entirely. If any individual HTML file is
+missing, `/api/v1/*`/`/docs` are unaffected — the API continues to work in API-only mode. Each
+of `/login`, `/register`, `/dashboard`, `/admin`, `/forgot-password` is only registered `if` its
+respective HTML file exists on disk (see
 `api/main.py`).
 
 ---
 
 ## API Endpoints Consumed
+
+> **⚠ Historical.** The per-page tables below document what the now-deleted `index.html`/
+> `foundation.html`/`organization.html`/`person.html`/`family.html`/`membership.html` consumed.
+> Two of the underlying facts have also since changed on the Tier 5 branch: `foundation.py`/
+> `organization.py`/`person.py`/`membership.py` are now gated by `require_permission(...)`
+> (were "no authentication" as stated below), and `/api/v1/bootstrap/permissions`/
+> `/roles/{pk}/permissions` are no longer guaranteed-empty now that `permission_master`/
+> `role_permission` are seeded. See `admin.js`/`dashboard.js` for what the current pages
+> actually call.
 
 All endpoints are read-only. No authentication. No CRUD.
 
@@ -658,7 +701,7 @@ All endpoints are read-only. No authentication. No CRUD.
 | Method | URL | Response | Tier 0 State |
 |--------|-----|----------|-------------|
 | GET | `/api/v1/bootstrap/health` | `{ status, database }` | `{ "status": "ok", "database": "connected" }` |
-| GET | `/api/v1/bootstrap/roles` | `RoleResponse[]` | 8 frozen roles |
+| GET | `/api/v1/bootstrap/roles` | `RoleResponse[]` | 9 frozen roles |
 | GET | `/api/v1/bootstrap/permissions` | `PermissionResponse[]` | Empty array (by design) |
 | GET | `/api/v1/bootstrap/roles/{role_pk}/permissions` | `PermissionResponse[]` | Empty array (no mappings); 404 if role not found |
 
@@ -759,22 +802,74 @@ Response schemas are defined in `api/schemas/membership.py`. `MemberResponse` re
 name/contact, membership type, status, organization (Sakha), and the current active
 `local_sakha_erp_id` via JOINs. Full contract: `docs/03_Solution/api/API_CONTRACT.md` §8.
 
+## Tier 5 pages — in progress, uncommitted on `feature/tier5-authentication-administration`
+
+**Not yet merged/released.** Four new pages, not yet documented to the same per-file/per-
+function depth as the six Tier 0-4 pages above (now deleted — see the header note at the top of
+this file) — this section is a summary pointer, not an
+exhaustive walkthrough. All four consume the new `/api/v1/auth/*`/`/api/v1/admin/*`/
+`/api/v1/register`/`/api/v1/admin/claims/*` endpoints (see `api/README.md` → "Endpoints (Tier 5)"
+and `docs/PROJECT_DOCUMENTATION.md` → Key Workflow #9).
+
+| Page | Route | JS | Purpose |
+|---|---|---|---|
+| `login.html` | `/login` (root `/` now redirects here) | `login.js`, `auth.js`, `nss-dialog.js` | Login form (`POST /api/v1/auth/login`, stores the JWT pair, redirects to `/dashboard`), plus change-password/forgot-password/reset-password flows on the same page |
+| `register.html` | `/register` | `register.js`, `auth.js`, `nss-location.js`, `nss-datepicker.js` | Self-registration form — person details + optional membership claim (Sakha dropdown sourced from the new `05_sakha_branches.sql` seed) + Darshak-attendance toggle; duplicate-check via `GET /api/v1/register/check-duplicate`, submits `POST /api/v1/register` |
+| `dashboard.html` | `/dashboard` | `dashboard.js`, `auth.js`, `nss-dialog.js`, `nss-layout.js` | Member dashboard — see `docs/03_Solution/architecture/MEMBER_DASHBOARD.md` |
+| `admin.html` | `/admin` | `admin.js`, `auth.js`, `nss-layout.js`, `nss-location.js`, `nss-dialog.js`, `nss-datepicker.js` | The actual administration dashboard, now the sole home for the retired Tier 0-4 verification functionality too — Reference Data, Organization Hierarchy, Person Directory, Member Directory, Roles & System Settings, and a **Registration Approvals** tab (claims review, see below); `GET /api/v1/auth/me` for the current admin's own permissions/scopes |
+
+**`claim-approval.html`/`claim-approval.js` were never built as standalone files, and this is
+not a gap.** The review queue for `api/routers/claim_approval.py`'s `/api/v1/admin/claims/*`
+endpoints (list/detail/edit/approve/reject `registration_claim` rows) shipped as a
+**"Registration Approvals" tab inside `admin.html`/`admin.js`** instead (`admin.js` around the
+`// ── Registration Claims (merged from claim-approval) ──` comment): status-filtered list +
+pagination, a detail view, inline edit, a pending-count sidebar badge, a `canApproveClaims`
+permission gate, and integration into the Person Directory tab (a pending claim blocks
+Sangha-Sevi creation for that person and shows a "View Claim" jump-link).
+
+**Shared new helpers** (used across the four pages above, not yet folded into `nss-config.js`):
+- `auth.js` — the `NSSAuth` global: JWT storage in `localStorage`, `apiFetch()` (auto Bearer
+  header + one-shot refresh-and-retry on a 401), `requireAuth()`/`redirectIfLoggedIn()`,
+  `logout()`. Loaded on all four pages — the actual shared auth layer the rest of this section
+  assumes.
+- `nss-layout.js` — the `NSSLayout` mixin (`admin.html`, `dashboard.html` only): spreads
+  `sidebarOpen`/`currentUser` state into a page's Alpine component, renders topbar/sidebar-footer
+  user-info HTML, and calls `NSSAuth`'s `/api/v1/auth/me` + logout under the hood. Backed by
+  `assets/css/nss-layout.css`.
+- `nss-datepicker.js` (backed by `assets/css/nss-datepicker.css`), `nss-dialog.js`,
+  `nss-location.js` (country/state/district/city_village
+  cascading selects) — used per the page/JS table above.
+
+**Known gap:** `api/main.py` registers `GET /forgot-password` guarded by
+`if _forgot_password_path.is_file()`, but `frontend/forgot-password.html` does not exist yet —
+that route is currently never registered, even though the backing API
+(`POST /api/v1/auth/forgot-password`/`reset-password`) is implemented and tested
+(`tests/api/test_forgot_password.py`).
+
+**Dead asset:** `assets/img/ssm-mandir.webp` (new, uncommitted) exists under `assets/img/` but is
+not referenced by any `<img>`/CSS in `login.html`, `register.html`, `dashboard.html`, or
+`admin.html` — currently unused.
+
 ## Future Growth
 
 This shell is designed to evolve:
 
 ```
-Tier 0   Bootstrap Verification (current)
-Tier 1   Foundation Verification (current)
-Tier 2   Organization Verification (current)
-Tier 3   Person Verification (current)
-Tier 4   Family + Membership Verification (current)
+Tier 0   Bootstrap Verification (retired — deleted, folded into admin.html)
+Tier 1   Foundation Verification (retired — deleted, folded into admin.html)
+Tier 2   Organization Verification (retired — deleted, folded into admin.html)
+Tier 3   Person Verification (retired — deleted, folded into admin.html)
+Tier 4   Family + Membership Verification (retired — deleted, folded into admin.html/dashboard.html)
   ...
-Tier 5   Authentication + login/session UI
+Tier 5   Authentication + Administration + login/session UI — IN PROGRESS, uncommitted (see
+         "Tier 5 pages" above); not yet merged/released
   ...
          Full ERP interface
 ```
 
+
 The page structure, CSS framework, and Alpine.js pattern established
-here carry forward. Authentication UI is deferred to Tier 5 — Tiers 0-4
-intentionally have no login, no session, no fake credentials.
+by the original six Tiers 0-4 pages carried forward into the four Tier 5 pages, even though
+those six pages themselves were deleted (see the header note at the top of this file).
+Authentication + Administration UI is now in progress (uncommitted, see "Tier 5 pages" above) —
+treat it as not shipped until the branch merges and a release tag exists.
