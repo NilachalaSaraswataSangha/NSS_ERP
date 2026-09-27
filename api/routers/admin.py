@@ -1,0 +1,3064 @@
+"""
+NSS ERP — Administration router.
+
+Tier 5 endpoints (all require authentication + appropriate permissions):
+  GET    /api/v1/admin/users                                — List user accounts
+  POST   /api/v1/admin/users                                — Create user account
+  POST   /api/v1/admin/sangha-sevi                          — Create Sangha Sevi record (standalone)
+  GET    /api/v1/admin/users/{user_account_pk}              — User detail + roles
+  POST   /api/v1/admin/users/{user_account_pk}/reset-password — Admin reset password
+  PATCH  /api/v1/admin/users/{user_account_pk}/status       — Activate/lock/deactivate
+  DELETE /api/v1/admin/users/{user_account_pk}              — Soft-delete user account
+  GET    /api/v1/admin/users/{user_account_pk}/roles        — List role assignments
+  POST   /api/v1/admin/users/{user_account_pk}/roles        — Assign role + scope
+  DELETE /api/v1/admin/users/{user_account_pk}/roles/{user_role_pk} — Revoke role
+  GET    /api/v1/admin/organizations                        — List organizations
+  PATCH  /api/v1/admin/organizations/{pk}/short-code        — Update short code (NSS_ERP_ADMIN only)
+  POST   /api/v1/admin/organizations                        — Create organization (NSS_ERP_ADMIN only)
+  PATCH  /api/v1/admin/organizations/{pk}                   — Update org details (ORGANIZATION_MANAGE or scoped admin)
+  GET    /api/v1/admin/dashboard-stats                       — Aggregated stats for admin dashboard cards
+
+Authority: SOL-ADMIN-001 through SOL-ADMIN-004,
+           Tier 5 design decisions (2026-09-15, 2026-09-20)
+"""
+
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+
+from api.database import get_connection, get_write_connection
+from api.dependencies.rbac import require_any_permission, require_permission
+from api.helpers import (
+    next_id, peek_next_id, resolve_or_create_city_village, resolve_or_create_postal_code,
+    get_active_status_pk, compose_local_sakha_erp_id, log_audit,
+    insert_sakha_affiliation, is_probationary_membership_type,
+    require_entity, check_duplicate_contact, record_password_history,
+    validate_and_hash_password,
+    build_order_by, natural_sort_key,
+    require_sakha_organization, resolve_kumari_sevak_parent_sakha,
+    resolve_scoped_sakha,
+)
+from api.schemas.admin import (
+    AssignRoleRequest,
+    CreateSanghaSeviRequest,
+    CreateSanghaSeviResponse,
+    CreateUserRequest,
+    ResetPasswordRequest,
+    RoleAssignmentResponse,
+    UpdateStatusRequest,
+    UserAccountResponse,
+    UserDetailResponse,
+    UserListResponse,
+)
+from api.schemas.auth import MessageResponse
+from api.services.rbac_service import (
+    UserContext,
+    actor_scope_org_pks as _actor_scope_org_pks,
+    org_in_scope as _org_in_scope,
+    require_org_in_scope as _require_org_in_scope,
+    require_person_in_scope as _require_person_in_scope,
+    require_account_in_scope as _require_account_in_scope,
+)
+
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+
+
+# ── GET /users ──────────────────────────────────────────────────────────
+
+# Sortable columns for the User Accounts table, mapped to the SQL that
+# orders them. Every key here must be a column the table actually shows,
+# and no caller input reaches the SQL — build_order_by rejects anything
+# not in this map. Business IDs use natural ordering so SS2 precedes SS10.
+_USER_SORT_COLUMNS: dict[str, str | list[str]] = {
+    "person_id": natural_sort_key("p.person_id"),
+    "sangha_sevi_id": natural_sort_key("ss.sangha_sevi_id"),
+    "person_name": "CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name)",
+    "organization_name": "COALESCE(o.organization_name, co.organization_name)",
+    "local_sakha_erp_id": natural_sort_key(
+        "COALESCE(msa.local_sakha_erp_id, rc.claimed_local_sakha_number)"
+    ),
+    "darshak_local_number": natural_sort_key("dar.darshak_local_number"),
+    "account_status": "ua.account_status",
+    "force_password_change": "ua.force_password_change",
+    "last_login_at": "ua.last_login_at",
+    "created_at": "ua.created_at",
+}
+
+
+@router.get("/users", response_model=UserListResponse)
+def list_users(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    search: str | None = Query(None, description="Search by sangha_sevi_id or person name"),
+    account_status: str | None = Query(None, description="Filter by status"),
+    sort_by: str | None = Query(None, description="Column to sort by"),
+    sort_dir: str | None = Query(None, description="Sort direction: asc or desc"),
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_VIEW", "ADMIN_USER_MANAGE", "MEMBERSHIP_APPROVE")
+    ),
+    conn=Depends(get_connection),
+) -> UserListResponse:
+    """
+    List user accounts with pagination, filtering and sorting.
+
+    Requires: ADMIN_USER_VIEW or ADMIN_USER_MANAGE or MEMBERSHIP_APPROVE permission.
+    Scope-aware: NSS-WIDE admins see all users; org-scoped admins
+    see only users whose Sangha Sevi organization matches their scope.
+
+    Sorting is done in SQL rather than in the browser because the list is
+    paginated — sorting the fetched page alone would reorder 20 rows and
+    present it as an ordering of all of them.
+    """
+    offset = (page - 1) * page_size
+    order_by = build_order_by(
+        sort_by, sort_dir, _USER_SORT_COLUMNS, "ua.created_at DESC"
+    )
+
+    # Build WHERE clause dynamically
+    conditions = ["TRUE"]
+    params: list = []
+
+    if account_status:
+        conditions.append("ua.account_status = %s")
+        params.append(account_status)
+
+    if search:
+        conditions.append(
+            "(ss.sangha_sevi_id ILIKE %s OR "
+            "p.first_name ILIKE %s OR p.last_name ILIKE %s)"
+        )
+        like_pattern = f"%{search}%"
+        params.extend([like_pattern, like_pattern, like_pattern])
+
+    with conn.cursor() as cur:
+        # ── Scope-based filtering (ADMIN-BR-076, subtree-aware) ──
+        # Global authority (NSS_ERP_ADMIN / NSS-WIDE) sees everything;
+        # every other admin sees only users whose Sangha-Sevi org — or
+        # pending-claim org — falls inside their scope subtree, matching
+        # exactly what they are allowed to manage.
+        allowed = _actor_scope_org_pks(cur, user)
+        if allowed is not None:
+            if not allowed:
+                # Scope-bounded admin with no org anchor → nothing visible.
+                return UserListResponse(users=[], total=0, page=page, page_size=page_size)
+            placeholders = ",".join(["%s"] * len(allowed))
+            allowed_list = list(allowed)
+            conditions.append(
+                f"(ss.organization_pk IN ({placeholders})"
+                f" OR rc.claimed_organization_pk IN ({placeholders}))"
+            )
+            params.extend(allowed_list)
+            params.extend(allowed_list)
+
+        where_clause = " AND ".join(conditions)
+
+        # Count total
+        cur.execute(
+            f"""
+            SELECT COUNT(*)
+            FROM nss.user_account ua
+            JOIN nss.person p ON p.person_pk = ua.person_pk
+            LEFT JOIN nss.sangha_sevi ss ON ss.person_pk = ua.person_pk
+                  AND ss.is_active = TRUE
+            LEFT JOIN nss.registration_claim rc
+                  ON rc.person_pk = ua.person_pk
+                  AND rc.claim_status = 'PENDING'
+                  AND rc.is_active = TRUE
+            WHERE {where_clause}
+            """,
+            params,
+        )
+        total = cur.fetchone()[0]
+
+        # Fetch page
+        cur.execute(
+            f"""
+            SELECT ua.user_account_pk,
+                   ua.person_pk,
+                   p.person_id,
+                   ss.sangha_sevi_id,
+                   CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name) AS person_name,
+                   COALESCE(o.organization_name, co.organization_name) AS organization_name,
+                   COALESCE(msa.local_sakha_erp_id, rc.claimed_local_sakha_number) AS local_sakha_erp_id,
+                   dar.darshak_local_number,
+                   ua.account_status,
+                   ua.force_password_change,
+                   ua.last_login_at,
+                   ua.password_expires_at,
+                   ua.created_at,
+                   ua.is_active
+            FROM nss.user_account ua
+            JOIN nss.person p ON p.person_pk = ua.person_pk
+            LEFT JOIN nss.sangha_sevi ss ON ss.person_pk = ua.person_pk
+                  AND ss.is_active = TRUE
+            LEFT JOIN nss.organization o ON o.organization_pk = ss.organization_pk
+                  AND o.is_active = TRUE
+            LEFT JOIN nss.membership_sakha_affiliation msa
+                  ON msa.sangha_sevi_pk = ss.sangha_sevi_pk
+                  AND msa.organization_pk = ss.organization_pk
+                  AND msa.affiliation_status IN ('ACTIVE', 'REACTIVATED')
+                  AND msa.effective_to IS NULL
+            LEFT JOIN nss.darshak_attendance_registration dar
+                  ON dar.sangha_sevi_pk = ss.sangha_sevi_pk
+                  AND dar.approval_status = 'APPROVED'
+                  AND dar.is_active = TRUE
+                  AND dar.registration_status = 'ACTIVE'
+            LEFT JOIN nss.registration_claim rc
+                  ON rc.person_pk = ua.person_pk
+                  AND rc.claim_status = 'PENDING'
+                  AND rc.is_active = TRUE
+            LEFT JOIN nss.organization co
+                  ON co.organization_pk = rc.claimed_organization_pk
+                  AND co.is_active = TRUE
+            WHERE {where_clause}
+            ORDER BY {order_by}
+            LIMIT %s OFFSET %s
+            """,
+            params + [page_size, offset],
+        )
+        rows = cur.fetchall()
+
+    users = [
+        UserAccountResponse(
+            user_account_pk=r[0],
+            person_pk=r[1],
+            person_id=r[2],
+            sangha_sevi_id=r[3],
+            person_name=r[4] if r[4] and r[4].strip() else None,
+            organization_name=r[5],
+            local_sakha_erp_id=r[6],
+            darshak_local_number=r[7],
+            account_status=r[8],
+            force_password_change=r[9],
+            last_login_at=r[10],
+            password_expires_at=r[11],
+            created_at=r[12],
+            is_active=r[13],
+        )
+        for r in rows
+    ]
+
+    return UserListResponse(
+        users=users,
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+# ── POST /persons (admin person creation) ──────────────────────────────
+
+class AdminCreatePersonRequest(BaseModel):
+    """POST /api/v1/admin/persons — admin creates a person directly."""
+    first_name: str = Field(..., min_length=1, max_length=100)
+    middle_name: str | None = Field(None, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    date_of_birth: str = Field(..., description="Date of birth (YYYY-MM-DD)")
+    gender_master_data_pk: str = Field(
+        ..., min_length=1, description="UUID of gender master_data row"
+    )
+    country_phone_code: str | None = Field(None, max_length=10)
+    mobile_number: str | None = Field(None, max_length=20)
+    email: str | None = Field(None, max_length=255)
+
+
+@router.post("/persons", status_code=201)
+def admin_create_person(
+    body: AdminCreatePersonRequest,
+    user: UserContext = Depends(require_permission("PERSON_MANAGE")),
+    conn=Depends(get_write_connection),
+):
+    """
+    Create a new person record (admin-only).
+
+    Requires: PERSON_MANAGE permission.
+    Returns the person_pk, person_id, and person_name.
+    """
+    if not body.mobile_number and not body.email:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="At least one of mobile_number or email is required.",
+        )
+
+    with conn.cursor() as cur:
+        check_duplicate_contact(
+            cur,
+            mobile_number=body.mobile_number,
+            country_phone_code=body.country_phone_code,
+            email=body.email,
+        )
+
+        actor = user.actor_pk
+        person_id = next_id(cur, "PERSON", actor_pk=actor)
+
+        cur.execute(
+            """
+            INSERT INTO nss.person (
+                person_id, first_name, middle_name, last_name,
+                date_of_birth, gender_master_data_pk,
+                country_phone_code, mobile_number, email
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING person_pk
+            """,
+            (
+                person_id,
+                body.first_name.strip().title(),
+                body.middle_name.strip().title() if body.middle_name else None,
+                body.last_name.strip().title() if body.last_name else None,
+                body.date_of_birth or None,
+                body.gender_master_data_pk,
+                body.country_phone_code,
+                body.mobile_number,
+                body.email.strip().lower() if body.email else None,
+            ),
+        )
+        person_pk = cur.fetchone()[0]
+        log_audit(cur, action="CREATE", table_name="person", record_pk=str(person_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary=f"Created person {body.first_name} {body.last_name}")
+
+    name_parts = [body.first_name.strip().title()]
+    if body.middle_name:
+        name_parts.append(body.middle_name.strip().title())
+    if body.last_name:
+        name_parts.append(body.last_name.strip().title())
+
+    return {
+        "person_pk": str(person_pk),
+        "person_id": person_id,
+        "person_name": " ".join(name_parts),
+    }
+
+
+# ── GET /persons/check-contact ──────────────────────────────────────────
+
+@router.get("/persons/check-contact")
+def check_person_contact(
+    mobile_number: str | None = Query(None, max_length=20),
+    country_phone_code: str | None = Query(None, max_length=10),
+    email: str | None = Query(None, max_length=255),
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Non-destructive duplicate-contact lookup for the Create Person form.
+
+    Returns, for whichever of ``mobile_number`` / ``email`` is supplied,
+    the existing active person (if any) already using it — so the UI can
+    warn inline *before* submit. Purely advisory: the authoritative 409 is
+    still raised by ``check_duplicate_contact`` on create.
+    """
+    def _match(sql: str, params: list):
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            row = cur.fetchone()
+        if not row:
+            return None
+        return {"person_id": row[0], "person_name": row[1]}
+
+    mobile_conflict = None
+    if mobile_number and country_phone_code:
+        mobile_conflict = _match(
+            """
+            SELECT person_id,
+                   TRIM(CONCAT_WS(' ', first_name, middle_name, last_name))
+            FROM nss.person
+            WHERE country_phone_code = %s AND mobile_number = %s
+              AND is_active = TRUE
+            LIMIT 1
+            """,
+            [country_phone_code, mobile_number],
+        )
+
+    email_conflict = None
+    if email:
+        email_conflict = _match(
+            """
+            SELECT person_id,
+                   TRIM(CONCAT_WS(' ', first_name, middle_name, last_name))
+            FROM nss.person
+            WHERE LOWER(email) = LOWER(%s) AND is_active = TRUE
+            LIMIT 1
+            """,
+            [email],
+        )
+
+    return {
+        "mobile_conflict": mobile_conflict,
+        "email_conflict": email_conflict,
+    }
+
+
+@router.post("/users", response_model=UserAccountResponse, status_code=201)
+def create_user(
+    body: CreateUserRequest,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+) -> UserAccountResponse:
+    """
+    Create a new user account for an existing person.
+
+    Requires: ADMIN_USER_MANAGE or PERSON_MANAGE permission (ADMIN-BR-078 —
+    account provisioning is a scoped operation, not reserved to the global
+    authority). Scope-bounded: a non-global admin may provision only for a
+    person anchored inside their scope subtree (ADMIN-BR-076).
+    Validates: person exists, no existing account, password policy.
+    Optionally creates a Sangha Sevi (membership) record if
+    create_sangha_sevi=true.
+    """
+    # Validate + hash password
+    password_hash, password_expires_at = validate_and_hash_password(body.password)
+
+    # Validate SS creation fields if requested
+    if body.create_sangha_sevi:
+        missing = []
+        if not body.membership_type_pk:
+            missing.append("membership_type_pk")
+        if not body.joining_date:
+            missing.append("joining_date")
+        # organization_pk is NOT required here: a single-Sakha admin has it
+        # auto-resolved below (resolve_scoped_sakha). An NSS-wide/multi-Sakha
+        # admin who omits it still gets a clear 422 from the resolver.
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Sangha Sevi fields required: {', '.join(missing)}",
+            )
+
+    generated_ss_id = None
+
+    with conn.cursor() as cur:
+        actor = user.actor_pk
+
+        # Check person exists
+        require_entity(cur, "person", str(body.person_pk), label="Person")
+
+        # ADMIN-BR-076/078: a scope-bounded admin may provision an account
+        # only for a person anchored inside their scope. When a Sangha Sevi
+        # is created in the same call, the in-scope organization check (after
+        # resolution, below) is that anchor; otherwise the person must already
+        # sit inside the actor's scope subtree.
+        if not body.create_sangha_sevi:
+            _require_person_in_scope(cur, user, str(body.person_pk), "create accounts")
+
+        # Check no existing account for this person
+        cur.execute(
+            "SELECT user_account_pk, is_active FROM nss.user_account WHERE person_pk = %s",
+            (str(body.person_pk),),
+        )
+        existing = cur.fetchone()
+        if existing is not None:
+            ex_pk, ex_active = existing
+            if ex_active:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A user account already exists for this person.",
+                )
+            # Reactivate the soft-deleted account with new credentials
+            cur.execute(
+                """
+                UPDATE nss.user_account
+                SET is_active = TRUE,
+                    deleted_at = NULL,
+                    account_status = 'ACTIVE',
+                    password_hash = %s,
+                    force_password_change = %s,
+                    password_expires_at = %s,
+                    failed_login_attempts = 0,
+                    locked_until = NULL,
+                    last_failed_login_at = NULL,
+                    updated_at = NOW()
+                WHERE user_account_pk = %s
+                RETURNING user_account_pk, created_at
+                """,
+                (
+                    password_hash,
+                    body.force_password_change,
+                    password_expires_at,
+                    str(ex_pk),
+                ),
+            )
+            reactivated = cur.fetchone()
+            ua_pk = reactivated[0]
+            ua_created_at = reactivated[1]
+            log_audit(cur, action="REACTIVATE", table_name="user_account", record_pk=str(ua_pk),
+                      actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                      module="admin", summary=f"Reactivated user account for person {body.person_pk}")
+            record_password_history(cur, str(ua_pk), password_hash, "ADMIN_RESET", actor_pk=actor)
+        else:
+            cur.execute(
+                """
+                INSERT INTO nss.user_account (
+                    person_pk,
+                    password_hash,
+                    account_status,
+                    force_password_change,
+                    password_expires_at
+                ) VALUES (%s, %s, 'ACTIVE', %s, %s)
+                RETURNING user_account_pk, created_at
+                """,
+                (
+                    str(body.person_pk),
+                    password_hash,
+                    body.force_password_change,
+                    password_expires_at,
+                ),
+            )
+            new_row = cur.fetchone()
+            ua_pk = new_row[0]
+            ua_created_at = new_row[1]
+            log_audit(cur, action="CREATE", table_name="user_account", record_pk=str(ua_pk),
+                      actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                      module="admin", summary=f"Created user account for person {body.person_pk}")
+            record_password_history(cur, str(ua_pk), password_hash, "ADMIN_RESET", actor_pk=actor)
+
+        # ── Optionally create Sangha Sevi record ──────────────
+        if body.create_sangha_sevi:
+            # Check no existing SS for this person
+            cur.execute(
+                "SELECT sangha_sevi_id FROM nss.sangha_sevi WHERE person_pk = %s AND is_active = TRUE",
+                (str(body.person_pk),),
+            )
+            if cur.fetchone() is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This person already has a Sangha Sevi record.",
+                )
+
+            # Get ACTIVE status pk
+            active_status_pk = get_active_status_pk(cur)
+
+            # MBR-038A: membership must be tied to a Sakha Sangha.
+            # Auto-resolve the Sakha when omitted (single-Sakha admin), or
+            # require an explicit in-scope pick otherwise — mirrors the
+            # Sangha Sevi create path.
+            if not body.organization_pk:
+                body.organization_pk = resolve_scoped_sakha(
+                    cur, user=user, requested_organization_pk=body.organization_pk
+                )
+            require_sakha_organization(cur, body.organization_pk)
+            # ADMIN-BR-076: the account is anchored to this Sakha — it must
+            # fall inside the actor's scope subtree.
+            _require_org_in_scope(cur, user, body.organization_pk, "create accounts")
+
+            generated_ss_id = next_id(cur, "SANGHA_SEVI", actor_pk=actor)
+            cur.execute(
+                """
+                INSERT INTO nss.sangha_sevi (
+                    sangha_sevi_id, person_pk,
+                    membership_type_master_data_pk,
+                    membership_status_master_data_pk,
+                    organization_pk, joining_date
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING sangha_sevi_pk
+                """,
+                (
+                    generated_ss_id,
+                    str(body.person_pk),
+                    body.membership_type_pk,
+                    str(active_status_pk),
+                    body.organization_pk,
+                    body.joining_date,
+                ),
+            )
+            ss_pk = cur.fetchone()[0]
+            log_audit(cur, action="CREATE", table_name="sangha_sevi", record_pk=str(ss_pk),
+                      actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                      module="admin", summary=f"Created sangha sevi {generated_ss_id}")
+
+            # Create membership_sakha_affiliation if local_sakha_erp_id provided
+            if body.local_sakha_erp_id:
+                aff_pk = insert_sakha_affiliation(
+                    cur,
+                    sangha_sevi_pk=str(ss_pk),
+                    organization_pk=body.organization_pk,
+                    local_number=body.local_sakha_erp_id,
+                    effective_from=body.joining_date,
+                    is_darshak=is_probationary_membership_type(
+                        cur, body.membership_type_pk
+                    ),
+                )
+                log_audit(cur, action="CREATE", table_name="membership_sakha_affiliation", record_pk=str(aff_pk),
+                          actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                          module="admin", summary="Created sakha affiliation")
+
+        # Fetch sangha_sevi_id + person_name for response
+        cur.execute(
+            """
+            SELECT ss.sangha_sevi_id,
+                   CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name)
+            FROM nss.person p
+            LEFT JOIN nss.sangha_sevi ss ON ss.person_pk = p.person_pk
+                  AND ss.is_active = TRUE
+            WHERE p.person_pk = %s
+            """,
+            (str(body.person_pk),),
+        )
+        info = cur.fetchone()
+
+    return UserAccountResponse(
+        user_account_pk=ua_pk,
+        person_pk=body.person_pk,
+        sangha_sevi_id=info[0] if info else None,
+        sangha_sevi_id_generated=generated_ss_id,
+        person_name=info[1] if info and info[1] and info[1].strip() else None,
+        account_status="ACTIVE",
+        force_password_change=body.force_password_change,
+        last_login_at=None,
+        password_expires_at=password_expires_at,
+        created_at=ua_created_at,
+        is_active=True,
+    )
+
+
+# ── POST /sangha-sevi ─────────────────────────────────────────────────
+
+@router.post("/sangha-sevi", response_model=CreateSanghaSeviResponse, status_code=201)
+def create_sangha_sevi(
+    body: CreateSanghaSeviRequest,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+) -> CreateSanghaSeviResponse:
+    """
+    Create a Sangha Sevi (membership) record for an existing person.
+
+    Standalone endpoint — decoupled from user account creation.
+    Requires: ADMIN_USER_MANAGE or PERSON_MANAGE permission.
+    Scoped admins can only create SS for organizations within their scope
+    (ADMIN-BR-076), and may bundle a login account within that scope
+    (ADMIN-BR-078). The in-scope check runs after Sakha resolution, below.
+    """
+    # Optional bundled login-account creation. Account provisioning is a
+    # scoped operation (ADMIN-BR-078): any admin authorized to create the
+    # Sangha Sevi within scope may also bundle its login. Validate the
+    # password up front (before any write) so a bad request fails fast.
+    ua_pk = None
+    password_hash = None
+    password_expires_at = None
+    if body.create_user_account:
+        if not body.password:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="password is required when create_user_account is true.",
+            )
+        password_hash, password_expires_at = validate_and_hash_password(body.password)
+
+    with conn.cursor() as cur:
+        # Check person exists
+        require_entity(cur, "person", str(body.person_pk), label="Person")
+
+        # Check no existing SS for this person
+        cur.execute(
+            "SELECT sangha_sevi_id FROM nss.sangha_sevi WHERE person_pk = %s AND is_active = TRUE",
+            (str(body.person_pk),),
+        )
+        if cur.fetchone() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This person already has a Sangha Sevi record.",
+            )
+
+        # Get ACTIVE status pk
+        active_status_pk = get_active_status_pk(cur)
+
+        # Auto-resolve the target Sakha when the caller omitted it: a
+        # single-Sakha admin gets their own Sakha filled in; an NSS-wide or
+        # multi-Sakha admin is asked to pick. This is the member-attach
+        # analogue of the Kumari/Sevak parent-Sakha auto-select pattern.
+        # Explicit picks are left untouched.
+        if not body.organization_pk:
+            body.organization_pk = resolve_scoped_sakha(
+                cur, user=user, requested_organization_pk=body.organization_pk
+            )
+
+        # MBR-038A: membership must be tied to a Sakha Sangha.
+        require_sakha_organization(cur, body.organization_pk)
+
+        # ADMIN-BR-076: the Sangha Sevi (and any bundled account) is anchored
+        # to this Sakha — it must fall inside the actor's scope subtree. Covers
+        # both the resolved and the explicitly-picked organization.
+        _require_org_in_scope(cur, user, body.organization_pk, "create Sangha Sevi records")
+
+        # Generate SS ID and insert
+        actor = user.actor_pk
+        ss_id = next_id(cur, "SANGHA_SEVI", actor_pk=actor)
+        cur.execute(
+            """
+            INSERT INTO nss.sangha_sevi (
+                sangha_sevi_id, person_pk,
+                membership_type_master_data_pk,
+                membership_status_master_data_pk,
+                organization_pk, joining_date
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING sangha_sevi_pk
+            """,
+            (
+                ss_id,
+                str(body.person_pk),
+                body.membership_type_pk,
+                str(active_status_pk),
+                body.organization_pk,
+                body.joining_date,
+            ),
+        )
+        ss_pk = cur.fetchone()[0]
+        log_audit(cur, action="CREATE", table_name="sangha_sevi", record_pk=str(ss_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary=f"Created sangha sevi {ss_id}")
+
+        # Create membership_sakha_affiliation if local_sakha_erp_id provided
+        if body.local_sakha_erp_id:
+            aff_pk = insert_sakha_affiliation(
+                cur,
+                sangha_sevi_pk=str(ss_pk),
+                organization_pk=body.organization_pk,
+                local_number=body.local_sakha_erp_id,
+                effective_from=body.joining_date,
+                is_darshak=is_probationary_membership_type(
+                    cur, body.membership_type_pk
+                ),
+            )
+            log_audit(cur, action="CREATE", table_name="membership_sakha_affiliation", record_pk=str(aff_pk),
+                      actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                      module="admin", summary="Created sakha affiliation")
+
+        # ── Optionally create a login (user account) ──────────
+        # Mirrors POST /users' account block, inverted: here the Sangha Sevi
+        # is created first and the account is bundled onto it. Validated
+        # above (ADMIN_USER_MANAGE + password present).
+        if body.create_user_account:
+            cur.execute(
+                "SELECT user_account_pk, is_active FROM nss.user_account WHERE person_pk = %s",
+                (str(body.person_pk),),
+            )
+            existing = cur.fetchone()
+            if existing is not None:
+                ex_pk, ex_active = existing
+                if ex_active:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="A user account already exists for this person.",
+                    )
+                # Reactivate the soft-deleted account with new credentials.
+                cur.execute(
+                    """
+                    UPDATE nss.user_account
+                    SET is_active = TRUE,
+                        deleted_at = NULL,
+                        account_status = 'ACTIVE',
+                        password_hash = %s,
+                        force_password_change = %s,
+                        password_expires_at = %s,
+                        failed_login_attempts = 0,
+                        locked_until = NULL,
+                        last_failed_login_at = NULL,
+                        updated_at = NOW()
+                    WHERE user_account_pk = %s
+                    RETURNING user_account_pk
+                    """,
+                    (password_hash, body.force_password_change, password_expires_at, str(ex_pk)),
+                )
+                ua_pk = cur.fetchone()[0]
+                log_audit(cur, action="REACTIVATE", table_name="user_account", record_pk=str(ua_pk),
+                          actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                          module="admin", summary=f"Reactivated user account for person {body.person_pk}")
+                record_password_history(cur, str(ua_pk), password_hash, "ADMIN_RESET", actor_pk=actor)
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO nss.user_account (
+                        person_pk, password_hash, account_status,
+                        force_password_change, password_expires_at
+                    ) VALUES (%s, %s, 'ACTIVE', %s, %s)
+                    RETURNING user_account_pk
+                    """,
+                    (str(body.person_pk), password_hash, body.force_password_change, password_expires_at),
+                )
+                ua_pk = cur.fetchone()[0]
+                log_audit(cur, action="CREATE", table_name="user_account", record_pk=str(ua_pk),
+                          actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                          module="admin", summary=f"Created user account for person {body.person_pk}")
+                record_password_history(cur, str(ua_pk), password_hash, "ADMIN_RESET", actor_pk=actor)
+
+        # Fetch person name and org name for response
+        cur.execute(
+            """
+            SELECT CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name),
+                   o.organization_name
+            FROM nss.person p
+            LEFT JOIN nss.organization o ON o.organization_pk = %s
+            WHERE p.person_pk = %s
+            """,
+            (body.organization_pk, str(body.person_pk)),
+        )
+        info = cur.fetchone()
+
+    return CreateSanghaSeviResponse(
+        sangha_sevi_pk=ss_pk,
+        sangha_sevi_id=ss_id,
+        person_pk=body.person_pk,
+        person_name=info[0] if info and info[0] and info[0].strip() else None,
+        organization_name=info[1] if info else None,
+        user_account_pk=ua_pk,
+    )
+
+
+# ── GET /sangha-sevi/check/{person_pk} ─────────────────────────────────
+
+@router.get("/sangha-sevi/check/{person_pk}")
+def check_sangha_sevi(
+    person_pk: UUID,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_VIEW", "ADMIN_USER_MANAGE", "MEMBERSHIP_APPROVE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Check if a person already has an active Sangha Sevi record.
+
+    Returns { has_sangha_sevi: bool, sangha_sevi_id: str|null }.
+    Used by the Create Sangha Sevi tab to warn the admin before proceeding.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT sangha_sevi_id FROM nss.sangha_sevi WHERE person_pk = %s AND is_active = TRUE",
+            (str(person_pk),),
+        )
+        row = cur.fetchone()
+
+    return {
+        "has_sangha_sevi": row is not None,
+        "sangha_sevi_id": row[0] if row else None,
+    }
+
+
+# ── POST /sangha-sevi/check-batch ─────────────────────────────────────
+
+@router.post("/sangha-sevi/check-batch")
+def check_sangha_sevi_batch(
+    body: dict,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_VIEW", "ADMIN_USER_MANAGE", "MEMBERSHIP_APPROVE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Batch check which persons already have active Sangha Sevi records
+    OR pending registration claims.
+
+    Request:  { "person_pks": ["<uuid>", ...] }
+    Response: {
+      "<person_pk>": {
+        "sangha_sevi_id": "SS1",          -- present if active SS exists
+        "pending_claim_pk": "<uuid>",     -- present if PENDING claim exists
+        "pending_claim_org": "Ekamra..."  -- claimed org name
+      }, ...
+    }
+    Only persons with an active SS or a pending claim appear in the map.
+    """
+    person_pks = body.get("person_pks", [])
+    if not person_pks or len(person_pks) > 100:
+        return {}
+
+    pk_strs = [str(pk) for pk in person_pks]
+    result = {}
+
+    with conn.cursor() as cur:
+        # Check active Sangha Sevi records
+        cur.execute(
+            """SELECT person_pk::text, sangha_sevi_id
+                 FROM nss.sangha_sevi
+                WHERE person_pk = ANY(%s::uuid[]) AND is_active = TRUE""",
+            (pk_strs,),
+        )
+        for r in cur.fetchall():
+            result[r[0]] = {"sangha_sevi_id": r[1]}
+
+        # Check pending registration claims
+        cur.execute(
+            """SELECT rc.person_pk::text,
+                      rc.registration_claim_pk::text,
+                      COALESCE(o.organization_name, '')
+                 FROM nss.registration_claim rc
+                 LEFT JOIN nss.organization o
+                   ON o.organization_pk = rc.claimed_organization_pk
+                WHERE rc.person_pk = ANY(%s::uuid[])
+                  AND rc.claim_status = 'PENDING'
+                  AND rc.is_active = TRUE""",
+            (pk_strs,),
+        )
+        for r in cur.fetchall():
+            entry = result.get(r[0], {})
+            entry["pending_claim_pk"] = r[1]
+            entry["pending_claim_org"] = r[2]
+            result[r[0]] = entry
+
+    return result
+
+
+# ── GET /users/{pk} ────────────────────────────────────────────────────
+
+@router.get("/users/{user_account_pk}", response_model=UserDetailResponse)
+def get_user(
+    user_account_pk: UUID,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_VIEW", "ADMIN_USER_MANAGE", "MEMBERSHIP_APPROVE")
+    ),
+    conn=Depends(get_connection),
+) -> UserDetailResponse:
+    """
+    Get full user account detail including role assignments.
+
+    Requires: ADMIN_USER_VIEW or ADMIN_USER_MANAGE permission.
+    """
+    with conn.cursor() as cur:
+        # User account + person info
+        cur.execute(
+            """
+            SELECT ua.user_account_pk,
+                   ua.person_pk,
+                   p.person_id,
+                   ss.sangha_sevi_id,
+                   CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name) AS person_name,
+                   COALESCE(o.organization_name, co.organization_name) AS organization_name,
+                   COALESCE(msa.local_sakha_erp_id, rc.claimed_local_sakha_number) AS local_sakha_erp_id,
+                   dar.darshak_local_number,
+                   ua.account_status,
+                   ua.force_password_change,
+                   ua.last_login_at,
+                   ua.password_expires_at,
+                   ua.failed_login_attempts,
+                   ua.locked_until,
+                   ua.created_at,
+                   ua.is_active
+            FROM nss.user_account ua
+            JOIN nss.person p ON p.person_pk = ua.person_pk
+            LEFT JOIN nss.sangha_sevi ss ON ss.person_pk = ua.person_pk
+                  AND ss.is_active = TRUE
+            LEFT JOIN nss.organization o ON o.organization_pk = ss.organization_pk
+                  AND o.is_active = TRUE
+            LEFT JOIN nss.membership_sakha_affiliation msa
+                  ON msa.sangha_sevi_pk = ss.sangha_sevi_pk
+                  AND msa.organization_pk = ss.organization_pk
+                  AND msa.affiliation_status IN ('ACTIVE', 'REACTIVATED')
+                  AND msa.effective_to IS NULL
+            LEFT JOIN nss.darshak_attendance_registration dar
+                  ON dar.sangha_sevi_pk = ss.sangha_sevi_pk
+                  AND dar.approval_status = 'APPROVED'
+                  AND dar.is_active = TRUE
+                  AND dar.registration_status = 'ACTIVE'
+            LEFT JOIN nss.registration_claim rc
+                  ON rc.person_pk = ua.person_pk
+                  AND rc.claim_status = 'PENDING'
+                  AND rc.is_active = TRUE
+            LEFT JOIN nss.organization co
+                  ON co.organization_pk = rc.claimed_organization_pk
+                  AND co.is_active = TRUE
+            WHERE ua.user_account_pk = %s
+            """,
+            (str(user_account_pk),),
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account not found.",
+        )
+
+    # ── Scope check: org-scoped admins can only view users in their subtree ──
+    # Subtree-aware (ADMIN-BR-076): a Kendra admin can view any user anchored
+    # to a descendant Sakha. Considers both the active Sangha-Sevi org and any
+    # pending-claim org so claim-only users stay visible to their approver.
+    with conn.cursor() as cur2:
+        allowed = _actor_scope_org_pks(cur2, user)
+        if allowed is not None:
+            person_pk_str = str(row[1])  # row[1] = person_pk
+            cur2.execute(
+                """
+                SELECT ss.organization_pk
+                FROM nss.sangha_sevi ss
+                WHERE ss.person_pk = %s AND ss.is_active = TRUE
+                UNION
+                SELECT rc.claimed_organization_pk
+                FROM nss.registration_claim rc
+                WHERE rc.person_pk = %s AND rc.claim_status = 'PENDING'
+                      AND rc.is_active = TRUE
+                """,
+                (person_pk_str, person_pk_str),
+            )
+            target_org_pks = {str(r[0]) for r in cur2.fetchall() if r[0] is not None}
+            if not target_org_pks or not target_org_pks & allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="This user is outside your admin scope.",
+                )
+
+    # Fetch role assignments
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT ur.user_role_pk,
+                   rm.role_code,
+                   rm.role_name,
+                   asc2.scope_level,
+                   asc2.organization_pk,
+                   o.organization_name,
+                   ur.created_at AS assigned_at,
+                   ur.is_active
+            FROM nss.user_role ur
+            JOIN nss.role_master rm ON rm.role_master_pk = ur.role_master_pk
+            LEFT JOIN nss.admin_scope asc2 ON asc2.user_role_pk = ur.user_role_pk
+            LEFT JOIN nss.organization o ON o.organization_pk = asc2.organization_pk
+            WHERE ur.user_account_pk = %s
+            ORDER BY ur.is_active DESC, ur.created_at DESC
+            """,
+            (str(user_account_pk),),
+        )
+        role_rows = cur.fetchall()
+
+    roles = [
+        RoleAssignmentResponse(
+            user_role_pk=r[0],
+            role_code=r[1],
+            role_name=r[2],
+            scope_level=r[3],
+            organization_pk=r[4],
+            organization_name=r[5],
+            assigned_at=r[6],
+            is_active=r[7],
+        )
+        for r in role_rows
+    ]
+
+    return UserDetailResponse(
+        user_account_pk=row[0],
+        person_pk=row[1],
+        person_id=row[2],
+        sangha_sevi_id=row[3],
+        person_name=row[4] if row[4] and row[4].strip() else None,
+        organization_name=row[5],
+        local_sakha_erp_id=row[6],
+        darshak_local_number=row[7],
+        account_status=row[8],
+        force_password_change=row[9],
+        last_login_at=row[10],
+        password_expires_at=row[11],
+        failed_login_attempts=row[12],
+        locked_until=row[13],
+        created_at=row[14],
+        is_active=row[15],
+        roles=roles,
+    )
+
+
+# ── POST /users/{pk}/reset-password ────────────────────────────────────
+
+@router.post(
+    "/users/{user_account_pk}/reset-password",
+    response_model=MessageResponse,
+)
+def reset_password(
+    user_account_pk: UUID,
+    body: ResetPasswordRequest,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+) -> MessageResponse:
+    """
+    Admin-initiated password reset.
+
+    Requires: ADMIN_USER_MANAGE or PERSON_MANAGE permission, bounded to the
+    actor's scope (ADMIN-BR-076/078). Sets force_password_change by default.
+    """
+    # Validate + hash new password
+    new_hash, new_expiry = validate_and_hash_password(body.new_password)
+
+    with conn.cursor() as cur:
+        # Check target user exists
+        require_entity(cur, "user_account", str(user_account_pk), label="User account")
+
+        # ADMIN-BR-076: a scope-bounded admin may reset only in-scope accounts.
+        _require_account_in_scope(cur, user, user_account_pk, "reset passwords")
+
+        actor = user.actor_pk
+
+        # Update password
+        cur.execute(
+            """
+            UPDATE nss.user_account
+            SET password_hash = %s,
+                password_expires_at = %s,
+                force_password_change = %s,
+                failed_login_attempts = 0,
+                locked_until = NULL,
+                updated_at = NOW()
+            WHERE user_account_pk = %s
+            """,
+            (
+                new_hash,
+                new_expiry,
+                body.force_password_change,
+                str(user_account_pk),
+            ),
+        )
+        log_audit(cur, action="PASSWORD_CHANGE", table_name="user_account", record_pk=str(user_account_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary="Admin reset password")
+
+        # Record in password_history
+        record_password_history(cur, str(user_account_pk), new_hash, "ADMIN_RESET", actor_pk=actor)
+
+    return MessageResponse(message="Password has been reset.")
+
+
+# ── PATCH /users/{pk}/status ───────────────────────────────────────────
+
+@router.patch(
+    "/users/{user_account_pk}/status",
+    response_model=MessageResponse,
+)
+def update_status(
+    user_account_pk: UUID,
+    body: UpdateStatusRequest,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+) -> MessageResponse:
+    """
+    Change a user account's status (ACTIVE, LOCKED, INACTIVE).
+
+    Requires: ADMIN_USER_MANAGE or PERSON_MANAGE permission, bounded to the
+    actor's scope (ADMIN-BR-076/078).
+    Cannot change own status (safety).
+
+    Special behaviour: when activating a PENDING_APPROVAL user who has
+    no sangha_sevi record, a Sangha Sevi ID is auto-generated using the
+    registration_claim data (membership type, organization, joining date).
+    """
+    # Prevent self-modification
+    # str() comparison: see delete_user's identical guard for why a bare
+    # `==` between a uuid.UUID and a str silently never matches.
+    if str(user_account_pk) == str(user.user_account_pk):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Cannot change your own account status.",
+        )
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT ua.account_status, ua.person_pk
+            FROM nss.user_account ua
+            WHERE ua.user_account_pk = %s AND ua.is_active = TRUE
+            """,
+            (str(user_account_pk),),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found.",
+            )
+        current_status, person_pk = row
+
+        # ADMIN-BR-076: a scope-bounded admin may act only on in-scope accounts.
+        _require_person_in_scope(cur, user, str(person_pk), "change account status")
+
+        actor = user.actor_pk
+
+        # Update the status
+        cur.execute(
+            """
+            UPDATE nss.user_account
+            SET account_status = %s,
+                updated_at = NOW()
+            WHERE user_account_pk = %s
+            """,
+            (body.account_status, str(user_account_pk)),
+        )
+        log_audit(cur, action="STATUS_CHANGE", table_name="user_account", record_pk=str(user_account_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary=f"Changed status to {body.account_status}")
+
+        # Auto-generate SS ID when activating a PENDING_APPROVAL user
+        # who has no sangha_sevi record yet
+        generated_ss_id = None
+        if (
+            body.account_status == "ACTIVE"
+            and current_status == "PENDING_APPROVAL"
+        ):
+            # Check if a sangha_sevi already exists for this person
+            cur.execute(
+                "SELECT sangha_sevi_id FROM nss.sangha_sevi WHERE person_pk = %s AND is_active = TRUE",
+                (str(person_pk),),
+            )
+            if cur.fetchone() is None:
+                # No SS record — look up the registration claim for membership details
+                cur.execute(
+                    """
+                    SELECT rc.claimed_membership_type_master_data_pk,
+                           rc.claimed_organization_pk,
+                           rc.claimed_joining_date
+                    FROM nss.registration_claim rc
+                    WHERE rc.user_account_pk = %s
+                      AND rc.claim_status = 'PENDING'
+                    ORDER BY rc.created_at DESC
+                    LIMIT 1
+                    """,
+                    (str(user_account_pk),),
+                )
+                claim_row = cur.fetchone()
+
+                # Get ACTIVE status master_data_pk
+                active_status_pk = get_active_status_pk(cur)
+
+                if claim_row:
+                    membership_type_pk, org_pk, joining_date = claim_row
+                else:
+                    # No registration claim — there is no Sakha to attach the
+                    # membership to. MBR-038A forbids defaulting a member to
+                    # Kendra (only the reserved system account may reference a
+                    # non-Sakha org), so we no longer invent a Kendra
+                    # membership here. The user is still activated; a Sangha
+                    # Sevi record must be created separately via POST
+                    # /sangha-sevi with the member's actual Sakha.
+                    membership_type_pk = None
+                    org_pk = None
+                    joining_date = None
+
+                if membership_type_pk and org_pk:
+                    # MBR-038A: membership must be tied to a Sakha Sangha.
+                    require_sakha_organization(cur, str(org_pk))
+                    generated_ss_id = next_id(cur, "SANGHA_SEVI", actor_pk=actor)
+                    cur.execute(
+                        """
+                        INSERT INTO nss.sangha_sevi (
+                            sangha_sevi_id, person_pk,
+                            membership_type_master_data_pk,
+                            membership_status_master_data_pk,
+                            organization_pk, joining_date
+                        ) VALUES (%s, %s, %s, %s, %s, COALESCE(%s, CURRENT_DATE))
+                        """,
+                        (
+                            generated_ss_id,
+                            str(person_pk),
+                            str(membership_type_pk),
+                            str(active_status_pk),
+                            str(org_pk),
+                            joining_date,
+                        ),
+                    )
+
+                    # Also mark claim as APPROVED if it was pending
+                    if claim_row:
+                        cur.execute(
+                            """
+                            UPDATE nss.registration_claim
+                            SET claim_status = 'APPROVED',
+                                reviewed_by_user_account_pk = %s,
+                                reviewed_at = NOW(),
+                                updated_at = NOW()
+                            WHERE user_account_pk = %s
+                              AND claim_status = 'PENDING'
+                            """,
+                            (str(user.user_account_pk), str(user_account_pk)),
+                        )
+
+    msg = f"Account status changed to {body.account_status}."
+    if generated_ss_id:
+        msg += f" Sangha Sevi ID '{generated_ss_id}' generated."
+
+    return MessageResponse(message=msg)
+
+
+# ── DELETE /users/{pk} ────────────────────────────────────────────────
+
+@router.delete(
+    "/users/{user_account_pk}",
+    response_model=MessageResponse,
+)
+def delete_user(
+    user_account_pk: UUID,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+) -> MessageResponse:
+    """
+    Soft-delete a user account.
+
+    Requires: ADMIN_USER_MANAGE or PERSON_MANAGE permission, bounded to the
+    actor's scope (ADMIN-BR-076/078).
+    Sets is_active=FALSE, deleted_at=NOW() on user_account.
+    Also soft-revokes all active role assignments and admin scopes.
+    Cannot delete own account (safety).
+    """
+    now = datetime.now(timezone.utc)
+
+    # Prevent self-deletion
+    # Compare via str(): user.user_account_pk may come back from the DB
+    # driver as either a str or a uuid.UUID depending on connection setup
+    # (register_uuid), and uuid.UUID.__eq__ against a str is always False
+    # even for the same value — a bare `==` here silently never fires.
+    if str(user_account_pk) == str(user.user_account_pk):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Cannot delete your own account.",
+        )
+
+    with conn.cursor() as cur:
+        # Check user exists and is active
+        cur.execute(
+            """
+            SELECT ua.user_account_pk, ua.person_pk, p.first_name, p.last_name,
+                   ss.sangha_sevi_id, ss.sangha_sevi_pk
+            FROM nss.user_account ua
+            JOIN nss.person p ON p.person_pk = ua.person_pk
+            LEFT JOIN nss.sangha_sevi ss ON ss.person_pk = ua.person_pk
+                  AND ss.is_active = TRUE
+            WHERE ua.user_account_pk = %s AND ua.is_active = TRUE
+            """,
+            (str(user_account_pk),),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found.",
+            )
+        _, person_pk, first_name, last_name, sevi_id, sevi_pk = row
+        display = sevi_id or f"{first_name} {last_name}".strip()
+
+        # ADMIN-BR-076: a scope-bounded admin may delete only in-scope accounts.
+        _require_person_in_scope(cur, user, str(person_pk), "delete accounts")
+
+        actor = user.actor_pk
+
+        # Soft-delete user_account
+        cur.execute(
+            """
+            UPDATE nss.user_account
+            SET is_active = FALSE,
+                deleted_at = %s,
+                account_status = 'INACTIVE',
+                updated_at = NOW()
+            WHERE user_account_pk = %s
+            """,
+            (now, str(user_account_pk)),
+        )
+        log_audit(cur, action="DELETE", table_name="user_account", record_pk=str(user_account_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary="Soft-deleted user account")
+
+        # Soft-revoke all active roles
+        cur.execute(
+            """
+            UPDATE nss.user_role
+            SET is_active = FALSE,
+                revoked_at = %s,
+                deleted_at = %s,
+                updated_at = NOW()
+            WHERE user_account_pk = %s AND is_active = TRUE
+            """,
+            (now, now, str(user_account_pk)),
+        )
+
+        # Soft-deactivate all admin scopes for those roles
+        cur.execute(
+            """
+            UPDATE nss.admin_scope
+            SET is_active = FALSE,
+                deleted_at = %s,
+                updated_at = NOW()
+            WHERE user_role_pk IN (
+                SELECT user_role_pk FROM nss.user_role
+                WHERE user_account_pk = %s
+            )
+            AND is_active = TRUE
+            """,
+            (now, str(user_account_pk)),
+        )
+
+        # Soft-delete Sangha Sevi record (if exists)
+        if sevi_pk:
+            cur.execute(
+                """
+                UPDATE nss.sangha_sevi
+                SET is_active = FALSE,
+                    deleted_at = %s,
+                    updated_at = NOW()
+                WHERE sangha_sevi_pk = %s AND is_active = TRUE
+                """,
+                (now, str(sevi_pk)),
+            )
+            log_audit(cur, action="DELETE", table_name="sangha_sevi", record_pk=str(sevi_pk),
+                      actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                      module="admin", summary=f"Soft-deleted SS {sevi_id} (user account deletion)")
+
+            # Soft-delete active affiliations for this SS.
+            # chk_mem_sakha_aff_status_consistency requires that any row
+            # with effective_to set also have affiliation_status='ARCHIVED'
+            # — closing a row without archiving it violates that CHECK.
+            cur.execute(
+                """
+                UPDATE nss.membership_sakha_affiliation
+                SET effective_to = %s,
+                    affiliation_status = 'ARCHIVED',
+                    updated_at = NOW()
+                WHERE sangha_sevi_pk = %s AND effective_to IS NULL
+                """,
+                (now, str(sevi_pk)),
+            )
+
+        # Soft-delete any pending registration claims for this person
+        cur.execute(
+            """
+            UPDATE nss.registration_claim
+            SET claim_status = 'REJECTED',
+                admin_remarks = 'Auto-rejected: user account deleted',
+                reviewed_at = %s,
+                updated_at = NOW()
+            WHERE person_pk = %s AND claim_status = 'PENDING'
+            """,
+            (now, str(person_pk)),
+        )
+
+    return MessageResponse(message=f"User account '{display}' has been deleted.")
+
+
+# ── GET /users/{pk}/roles ──────────────────────────────────────────────
+
+@router.get(
+    "/users/{user_account_pk}/roles",
+    response_model=list[RoleAssignmentResponse],
+)
+def list_user_roles(
+    user_account_pk: UUID,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_VIEW", "ADMIN_USER_MANAGE", "MEMBERSHIP_APPROVE")
+    ),
+    conn=Depends(get_connection),
+) -> list[RoleAssignmentResponse]:
+    """
+    List all role assignments for a user (active and revoked).
+
+    Requires: ADMIN_USER_VIEW or ADMIN_USER_MANAGE permission.
+    Scope-aware: org-scoped admins can only view roles for users in their orgs.
+    """
+    # ── Scope check: subtree-aware (ADMIN-BR-076) ──
+    # Org-scoped admins can only view roles for users inside their subtree.
+    with conn.cursor() as cur:
+        _require_account_in_scope(cur, user, user_account_pk, "view roles for accounts")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT ur.user_role_pk,
+                   rm.role_code,
+                   rm.role_name,
+                   asc2.scope_level,
+                   asc2.organization_pk,
+                   o.organization_name,
+                   ur.created_at AS assigned_at,
+                   ur.is_active
+            FROM nss.user_role ur
+            JOIN nss.role_master rm ON rm.role_master_pk = ur.role_master_pk
+            LEFT JOIN nss.admin_scope asc2 ON asc2.user_role_pk = ur.user_role_pk
+            LEFT JOIN nss.organization o ON o.organization_pk = asc2.organization_pk
+            WHERE ur.user_account_pk = %s
+            ORDER BY ur.is_active DESC, ur.created_at DESC
+            """,
+            (str(user_account_pk),),
+        )
+        rows = cur.fetchall()
+
+    return [
+        RoleAssignmentResponse(
+            user_role_pk=r[0],
+            role_code=r[1],
+            role_name=r[2],
+            scope_level=r[3],
+            organization_pk=r[4],
+            organization_name=r[5],
+            assigned_at=r[6],
+            is_active=r[7],
+        )
+        for r in rows
+    ]
+
+
+# ── POST /users/{pk}/roles ─────────────────────────────────────────────
+
+@router.post(
+    "/users/{user_account_pk}/roles",
+    response_model=RoleAssignmentResponse,
+    status_code=201,
+)
+def assign_role(
+    user_account_pk: UUID,
+    body: AssignRoleRequest,
+    user: UserContext = Depends(require_permission("ADMIN_ROLE_MANAGE")),
+    conn=Depends(get_write_connection),
+) -> RoleAssignmentResponse:
+    """
+    Assign a role with scope to a user.
+
+    Requires: ADMIN_ROLE_MANAGE permission.
+    Validates:
+      - Target user exists and is active
+      - Role code exists
+      - Organization exists (if scope_level is not NSS-WIDE)
+      - No duplicate active assignment for same role
+    """
+    with conn.cursor() as cur:
+        # Validate target user
+        cur.execute(
+            "SELECT user_account_pk FROM nss.user_account WHERE user_account_pk = %s AND is_active = TRUE",
+            (str(user_account_pk),),
+        )
+        if cur.fetchone() is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User account not found.",
+            )
+
+        # Validate role
+        cur.execute(
+            "SELECT role_master_pk, role_name FROM nss.role_master WHERE role_code = %s AND is_active = TRUE",
+            (body.role_code,),
+        )
+        role_row = cur.fetchone()
+        if role_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Role not found: {body.role_code}",
+            )
+        role_master_pk, role_name = role_row
+
+        # Validate scope
+        organization_name = None
+        if body.scope_level != "NSS-WIDE":
+            if body.organization_pk is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="organization_pk is required for non-NSS-WIDE scope levels.",
+                )
+            cur.execute(
+                "SELECT organization_name FROM nss.organization WHERE organization_pk = %s AND is_active = TRUE",
+                (str(body.organization_pk),),
+            )
+            org_row = cur.fetchone()
+            if org_row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Organization not found.",
+                )
+            organization_name = org_row[0]
+        else:
+            if body.organization_pk is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="organization_pk must be null for NSS-WIDE scope.",
+                )
+
+        # Check for duplicate active assignment (same role + same scope + same org)
+        # A user CAN have the same role with different scopes (e.g. SAKHA_ADMIN
+        # for Sakha A and Sakha B), but NOT the same role+scope+org twice.
+        cur.execute(
+            """
+            SELECT ur.user_role_pk
+            FROM nss.user_role ur
+            JOIN nss.admin_scope asc2 ON asc2.user_role_pk = ur.user_role_pk
+            WHERE ur.user_account_pk = %s
+              AND ur.role_master_pk = %s
+              AND ur.is_active = TRUE
+              AND asc2.scope_level = %s
+              AND asc2.is_active = TRUE
+              AND (asc2.organization_pk = %s OR (asc2.organization_pk IS NULL AND %s IS NULL))
+            """,
+            (
+                str(user_account_pk),
+                str(role_master_pk),
+                body.scope_level,
+                str(body.organization_pk) if body.organization_pk else None,
+                str(body.organization_pk) if body.organization_pk else None,
+            ),
+        )
+        if cur.fetchone() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"User already has an active {body.role_code} role with scope {body.scope_level}"
+                       + (f" for this organization." if body.organization_pk else "."),
+            )
+
+        # Insert user_role
+        actor = user.actor_pk
+        cur.execute(
+            """
+            INSERT INTO nss.user_role (
+                user_account_pk,
+                role_master_pk
+            ) VALUES (%s, %s)
+            RETURNING user_role_pk, created_at
+            """,
+            (str(user_account_pk), str(role_master_pk)),
+        )
+        ur_pk, assigned_at = cur.fetchone()
+        log_audit(cur, action="CREATE", table_name="user_role", record_pk=str(ur_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary=f"Assigned role {body.role_code}")
+
+        # Insert admin_scope
+        cur.execute(
+            """
+            INSERT INTO nss.admin_scope (
+                user_role_pk,
+                scope_level,
+                organization_pk
+            ) VALUES (%s, %s, %s)
+            """,
+            (
+                str(ur_pk),
+                body.scope_level,
+                str(body.organization_pk) if body.organization_pk else None,
+            ),
+        )
+
+    return RoleAssignmentResponse(
+        user_role_pk=ur_pk,
+        role_code=body.role_code,
+        role_name=role_name,
+        scope_level=body.scope_level,
+        organization_pk=body.organization_pk,
+        organization_name=organization_name,
+        assigned_at=assigned_at,
+        is_active=True,
+    )
+
+
+# ── DELETE /users/{pk}/roles/{user_role_pk} ────────────────────────────
+
+@router.delete(
+    "/users/{user_account_pk}/roles/{user_role_pk}",
+    response_model=MessageResponse,
+)
+def revoke_role(
+    user_account_pk: UUID,
+    user_role_pk: UUID,
+    user: UserContext = Depends(require_permission("ADMIN_ROLE_MANAGE")),
+    conn=Depends(get_write_connection),
+) -> MessageResponse:
+    """
+    Revoke (soft-delete) a role assignment.
+
+    Requires: ADMIN_ROLE_MANAGE permission.
+    Sets is_active=FALSE + revoked_at + revoked_by on user_role.
+    Also deactivates the associated admin_scope.
+
+    Cannot revoke your own role assignment (safety) — a user must not be
+    able to strip their own access and lock themselves out.
+    """
+    # Prevent self-revocation
+    # str() comparison: see delete_user's identical guard for why a bare
+    # `==` between a uuid.UUID and a str silently never matches.
+    if str(user_account_pk) == str(user.user_account_pk):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Cannot revoke your own role assignment.",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    with conn.cursor() as cur:
+        # Validate user_role belongs to this user and is active
+        cur.execute(
+            """
+            SELECT ur.user_role_pk
+            FROM nss.user_role ur
+            WHERE ur.user_role_pk = %s
+              AND ur.user_account_pk = %s
+              AND ur.is_active = TRUE
+            """,
+            (str(user_role_pk), str(user_account_pk)),
+        )
+        if cur.fetchone() is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Active role assignment not found for this user.",
+            )
+
+        actor = user.actor_pk
+
+        # Soft-revoke user_role
+        cur.execute(
+            """
+            UPDATE nss.user_role
+            SET is_active = FALSE,
+                revoked_at = %s,
+                deleted_at = %s,
+                updated_at = NOW()
+            WHERE user_role_pk = %s
+            """,
+            (now, now, str(user_role_pk)),
+        )
+        log_audit(cur, action="DELETE", table_name="user_role", record_pk=str(user_role_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary="Revoked role assignment")
+
+        # Soft-deactivate admin_scope
+        cur.execute(
+            """
+            UPDATE nss.admin_scope
+            SET is_active = FALSE,
+                deleted_at = %s,
+                updated_at = NOW()
+            WHERE user_role_pk = %s
+              AND is_active = TRUE
+            """,
+            (now, str(user_role_pk)),
+        )
+
+    return MessageResponse(message="Role assignment revoked.")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Organization Management
+# ══════════════════════════════════════════════════════════════════════════
+
+
+# ── GET /organizations ────────────────────────────────────────────────────
+
+# Sortable columns for the Organizations list.
+_ORG_SORT_COLUMNS: dict[str, str | list[str]] = {
+    "organization_code": natural_sort_key("o.organization_code"),
+    "organization_name": "o.organization_name",
+    "short_code": "o.short_code",
+    "type_name": "ot.value_name",
+    "city_village_name": "cv.city_village_name",
+    "district_name": "dt.district_name",
+    "state_name": "st.state_name",
+}
+
+
+@router.get("/organizations")
+def list_organizations_admin(
+    type_code: str | None = Query(None, description="Filter by organization type code"),
+    search: str | None = Query(None, description="Search by name or code"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    sort_by: str | None = Query(None, description="Column to sort by"),
+    sort_dir: str | None = Query(None, description="Sort direction: asc or desc"),
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_VIEW", "ADMIN_USER_MANAGE", "MEMBERSHIP_APPROVE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    List organizations with short_code for admin management.
+
+    Requires: ADMIN_USER_VIEW or ADMIN_USER_MANAGE permission.
+
+    Sorted in SQL because the list is paginated.
+    """
+    offset = (page - 1) * page_size
+    order_by = build_order_by(
+        sort_by, sort_dir, _ORG_SORT_COLUMNS, "o.organization_code"
+    )
+    conditions = ["o.is_active = TRUE"]
+    params: list = []
+
+    if type_code:
+        conditions.append("ot.value_code = %s")
+        params.append(type_code)
+
+    if search:
+        conditions.append(
+            "(o.organization_name ILIKE %s OR o.organization_code ILIKE %s OR o.short_code ILIKE %s)"
+        )
+        like = f"%{search}%"
+        params.extend([like, like, like])
+
+    with conn.cursor() as cur:
+        # ── Scope filter (ADMIN-BR-076, subtree-aware) ──
+        # Global authority sees all orgs; a scoped admin sees only their org
+        # subtree — the same set of orgs they may edit via update_organization.
+        allowed = _actor_scope_org_pks(cur, user)
+        if allowed is not None:
+            if not allowed:
+                return {
+                    "total": 0, "page": page, "page_size": page_size,
+                    "organizations": [],
+                }
+            placeholders = ",".join(["%s"] * len(allowed))
+            conditions.append(f"o.organization_pk IN ({placeholders})")
+            params.extend(list(allowed))
+
+        where = " AND ".join(conditions)
+
+        # Count
+        cur.execute(
+            f"""
+            SELECT COUNT(*)
+            FROM nss.organization o
+            JOIN nss.master_data ot ON ot.master_data_pk = o.organization_type_master_data_pk
+            JOIN nss.master_category mc ON mc.master_category_pk = ot.master_category_pk
+            WHERE mc.category_code = 'ORGANIZATION_TYPE' AND {where}
+            """,
+            params,
+        )
+        total = cur.fetchone()[0]
+
+        # Data
+        cur.execute(
+            f"""
+            SELECT o.organization_pk,
+                   o.organization_code,
+                   o.organization_name,
+                   o.short_code,
+                   ot.value_code AS type_code,
+                   ot.value_name AS type_name,
+                   o.address_line_1,
+                   pc.postal_code,
+                   o.phone_number,
+                   o.mobile_number,
+                   o.org_email,
+                   o.org_website_url,
+                   o.org_youtube_channel_url,
+                   o.country_pk,
+                   co.country_name,
+                   o.state_pk,
+                   st.state_name,
+                   o.district_pk,
+                   dt.district_name,
+                   o.city_village_pk,
+                   cv.city_village_name,
+                   o.postal_code_pk
+            FROM nss.organization o
+            JOIN nss.master_data ot ON ot.master_data_pk = o.organization_type_master_data_pk
+            JOIN nss.master_category mc ON mc.master_category_pk = ot.master_category_pk
+            LEFT JOIN nss.postal_code pc ON pc.postal_code_pk = o.postal_code_pk
+            LEFT JOIN nss.country co ON co.country_pk = o.country_pk
+            LEFT JOIN nss.state st ON st.state_pk = o.state_pk
+            LEFT JOIN nss.district dt ON dt.district_pk = o.district_pk
+            LEFT JOIN nss.city_village cv ON cv.city_village_pk = o.city_village_pk
+            WHERE mc.category_code = 'ORGANIZATION_TYPE' AND {where}
+            ORDER BY {order_by}
+            LIMIT %s OFFSET %s
+            """,
+            params + [page_size, offset],
+        )
+        rows = cur.fetchall()
+
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "organizations": [
+            {
+                "organization_pk": str(r[0]),
+                "organization_code": r[1],
+                "organization_name": r[2],
+                "short_code": r[3],
+                "type_code": r[4],
+                "type_name": r[5],
+                "address_line_1": r[6],
+                "postal_code": r[7],
+                "phone_number": r[8],
+                "mobile_number": r[9],
+                "org_email": r[10],
+                "org_website_url": r[11],
+                "org_youtube_channel_url": r[12],
+                "country_pk": str(r[13]) if r[13] else None,
+                "country_name": r[14],
+                "state_pk": str(r[15]) if r[15] else None,
+                "state_name": r[16],
+                "district_pk": str(r[17]) if r[17] else None,
+                "district_name": r[18],
+                "city_village_pk": str(r[19]) if r[19] else None,
+                "city_village_name": r[20],
+                "postal_code_pk": str(r[21]) if r[21] else None,
+            }
+            for r in rows
+        ],
+    }
+
+
+# ── GET /organizations/kumari-sevak-sakha-options ──────────────────────────
+
+@router.get("/organizations/kumari-sevak-sakha-options")
+def get_kumari_sevak_sakha_options(
+    type_code: str = Query(..., description="KUMARI_SANGHA or SEVAK_SANGHA"),
+    # Bug fix: NSS_ERP_SAKHA_ADMIN only holds PERSON_MANAGE (see seed
+    # database/seed/00_bootstrap/03_role_permission.sql), not
+    # ADMIN_USER_MANAGE. Gating on ADMIN_USER_MANAGE alone made the
+    # Sakha-admin branch below (and the identical gate on
+    # create_organization) unreachable by any seeded role, contradicting
+    # ORG-BR-101's documented "NSS admin or the Sakha's own admin" rule.
+    # Matches the require_any_permission gate already used by the
+    # ORG-BR-103 sibling endpoints (create_sangha_sevi, sakha-scope-options).
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Parent-Sakha selection data for the Kumari/Sevak Sangha create/update
+    form (ORG-BR-101/102).
+
+    Returns the Sakha list the caller may choose from, plus an
+    auto_select_pk hint when the choice isn't ambiguous:
+      - NSS_ERP_ADMIN: every active Sakha, mode "choose" (no auto-select).
+      - NSS_ERP_SAKHA_ADMIN scoped to exactly one Sakha: that Sakha only,
+        mode "locked", auto_select_pk set.
+      - NSS_ERP_SAKHA_ADMIN scoped to more than one Sakha: if exactly one
+        of their Sakhas lacks an active org of this type, mode "locked"
+        with that Sakha auto-selected; otherwise mode "choose" over just
+        their own scoped Sakhas.
+
+    This mirrors resolve_kumari_sevak_parent_sakha's authority/selection
+    logic but never raises on ambiguity — it always returns a pickable
+    list, since the point of this endpoint is to render that choice.
+    """
+    if type_code not in ("KUMARI_SANGHA", "SEVAK_SANGHA"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="type_code must be KUMARI_SANGHA or SEVAK_SANGHA.",
+        )
+
+    is_nss_admin = any(s.role_code == "NSS_ERP_ADMIN" for s in user.scopes)
+    scoped_sakha_pks = sorted({
+        str(s.organization_pk)
+        for s in user.scopes
+        if s.role_code == "NSS_ERP_SAKHA_ADMIN" and s.organization_pk
+    })
+
+    if not is_nss_admin and not scoped_sakha_pks:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Only NSS_ERP_ADMIN or a Sakha's own NSS_ERP_SAKHA_ADMIN may "
+                "create or update a Kumari/Sevak Sangha (ORG-BR-101)."
+            ),
+        )
+
+    with conn.cursor() as cur:
+        if is_nss_admin:
+            cur.execute(
+                """
+                SELECT o.organization_pk, o.organization_name, o.organization_code
+                FROM nss.organization o
+                JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+                WHERE md.value_code = 'SAKHA_SANGHA' AND o.is_active = TRUE
+                ORDER BY o.organization_name
+                """
+            )
+            sakhas = [
+                {"organization_pk": str(r[0]), "organization_name": r[1], "organization_code": r[2]}
+                for r in cur.fetchall()
+            ]
+            return {"mode": "choose", "auto_select_pk": None, "sakhas": sakhas}
+
+        cur.execute(
+            """
+            SELECT o.organization_pk, o.organization_name, o.organization_code
+            FROM nss.organization o
+            WHERE o.organization_pk = ANY(%s::uuid[]) AND o.is_active = TRUE
+            ORDER BY o.organization_name
+            """,
+            (scoped_sakha_pks,),
+        )
+        sakhas = [
+            {"organization_pk": str(r[0]), "organization_name": r[1], "organization_code": r[2]}
+            for r in cur.fetchall()
+        ]
+
+        if len(scoped_sakha_pks) == 1:
+            return {"mode": "locked", "auto_select_pk": scoped_sakha_pks[0], "sakhas": sakhas}
+
+        cur.execute(
+            """
+            SELECT o.parent_organization_pk
+            FROM nss.organization o
+            JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+            WHERE o.parent_organization_pk = ANY(%s::uuid[])
+              AND md.value_code = %s
+              AND o.is_active = TRUE
+            """,
+            (scoped_sakha_pks, type_code),
+        )
+        already_has = {str(r[0]) for r in cur.fetchall()}
+        lacking = [pk for pk in scoped_sakha_pks if pk not in already_has]
+
+        if len(lacking) == 1:
+            return {"mode": "locked", "auto_select_pk": lacking[0], "sakhas": sakhas}
+
+        return {"mode": "choose", "auto_select_pk": None, "sakhas": sakhas}
+
+
+@router.get("/sakha-scope-options")
+def get_sakha_scope_options(
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Sakha-selection data for member-attach forms (Create Sangha Sevi, Create
+    User with membership). The member-attach analogue of
+    /organizations/kumari-sevak-sakha-options — same auto-select/lock shape,
+    but with no one-per-Sakha cardinality (a Sakha holds many members):
+
+      - NSS-wide admin: every active Sakha, mode "choose" (no auto-select).
+      - Admin scoped to exactly one Sakha: that Sakha only, mode "locked",
+        auto_select_pk set.
+      - Admin scoped to more than one Sakha: their own Sakhas, mode "choose".
+
+    Never raises on ambiguity — it always returns a pickable list, mirroring
+    resolve_scoped_sakha's authorization (exact-match SAKHA scopes).
+
+    Returns { mode, auto_select_pk, sakhas: [{organization_pk,
+    organization_name, organization_code}] }.
+    """
+    with conn.cursor() as cur:
+        if user.is_nss_wide():
+            cur.execute(
+                """
+                SELECT o.organization_pk, o.organization_name, o.organization_code
+                FROM nss.organization o
+                JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+                WHERE md.value_code = 'SAKHA_SANGHA' AND o.is_active = TRUE
+                ORDER BY o.organization_name
+                """
+            )
+            sakhas = [
+                {"organization_pk": str(r[0]), "organization_name": r[1], "organization_code": r[2]}
+                for r in cur.fetchall()
+            ]
+            return {"mode": "choose", "auto_select_pk": None, "sakhas": sakhas}
+
+        scoped_sakha_pks = sorted({
+            str(s.organization_pk)
+            for s in user.scopes
+            if s.scope_level == "SAKHA" and s.organization_pk
+        })
+        if not scoped_sakha_pks:
+            return {"mode": "choose", "auto_select_pk": None, "sakhas": []}
+
+        cur.execute(
+            """
+            SELECT o.organization_pk, o.organization_name, o.organization_code
+            FROM nss.organization o
+            WHERE o.organization_pk = ANY(%s::uuid[]) AND o.is_active = TRUE
+            ORDER BY o.organization_name
+            """,
+            (scoped_sakha_pks,),
+        )
+        sakhas = [
+            {"organization_pk": str(r[0]), "organization_name": r[1], "organization_code": r[2]}
+            for r in cur.fetchall()
+        ]
+
+        if len(scoped_sakha_pks) == 1:
+            return {"mode": "locked", "auto_select_pk": scoped_sakha_pks[0], "sakhas": sakhas}
+
+        return {"mode": "choose", "auto_select_pk": None, "sakhas": sakhas}
+
+
+# ── GET /organizations/code-availability ───────────────────────────────────
+
+@router.get("/organizations/code-availability")
+def check_organization_code_availability(
+    field: str = Query(..., description="organization_code or short_code"),
+    value: str = Query(..., description="The value being typed"),
+    exclude_pk: str | None = Query(
+        None, description="Organization to exclude (the row being edited)"
+    ),
+    # Bug fix (sibling of the kumari-sevak-sakha-options / create_organization
+    # gate fix): this backs the live short_code/organization_code duplicate
+    # check the Create-Org form and inline short-code editor call while
+    # typing. A Sakha admin creating a KUMARI_SANGHA/SEVAK_SANGHA (ORG-BR-101,
+    # now reachable) or editing an in-scope org's short code would otherwise
+    # get 403 on every keystroke despite being authorized for the underlying
+    # create/save action.
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Live duplicate check for organization_code / short_code as the user
+    types. Reports whether the value is already taken and, if so, which
+    organization holds it.
+
+    Checks against ALL rows regardless of is_active, because the DB
+    uniqueness constraints (uq_organization_code; the partial unique
+    index uq_organization_short_code WHERE short_code IS NOT NULL) are
+    NOT scoped to active rows — a soft-deleted org still owns the value
+    and an INSERT/UPDATE reusing it would still be rejected. The
+    conflicting org's is_active flag is returned so the UI can label an
+    inactive holder.
+    """
+    if field not in ("organization_code", "short_code"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="field must be 'organization_code' or 'short_code'.",
+        )
+
+    normalized = value.strip()
+    # short_code is stored uppercase (chk_organization_short_code); compare
+    # case-insensitively so the preview matches what will actually be stored.
+    if field == "short_code":
+        normalized = normalized.upper()
+
+    if not normalized:
+        return {"field": field, "value": value, "available": True, "conflict": None}
+
+    # Column name is from a fixed whitelist above — safe to interpolate.
+    conditions = [f"o.{field} = %s"]
+    params: list = [normalized]
+    if exclude_pk:
+        conditions.append("o.organization_pk <> %s")
+        params.append(exclude_pk)
+    where = " AND ".join(conditions)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT o.organization_pk, o.organization_name, o.organization_code,
+                   o.short_code, o.is_active, md.value_name AS type_name
+            FROM nss.organization o
+            JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+            WHERE {where}
+            LIMIT 1
+            """,
+            params,
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        return {"field": field, "value": normalized, "available": True, "conflict": None}
+
+    return {
+        "field": field,
+        "value": normalized,
+        "available": False,
+        "conflict": {
+            "organization_pk": str(row[0]),
+            "organization_name": row[1],
+            "organization_code": row[2],
+            "short_code": row[3],
+            "is_active": row[4],
+            "type_name": row[5],
+        },
+    }
+
+
+# ── PATCH /organizations/{pk}/short-code ──────────────────────────────────
+
+@router.patch("/organizations/{organization_pk}/short-code")
+def update_short_code(
+    organization_pk: UUID,
+    body: dict,
+    user: UserContext = Depends(require_permission("ADMIN_USER_MANAGE")),
+    conn=Depends(get_write_connection),
+):
+    """
+    Set or update the short_code for an organization.
+
+    Body: { "short_code": "EKM" }  (3-5 uppercase alphanumeric, or null to clear)
+
+    Requires: ADMIN_USER_MANAGE permission, bounded to the actor's scope
+    (ADMIN-BR-076) — only the global authority may edit any organization.
+    """
+    import re as _re
+
+    short_code = body.get("short_code")
+
+    # Validate format
+    if short_code is not None:
+        short_code = short_code.strip().upper()
+        if not _re.match(r'^[A-Z0-9]{3,5}$', short_code):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="short_code must be 3-5 uppercase alphanumeric characters.",
+            )
+
+    with conn.cursor() as cur:
+        # Check org exists
+        cur.execute(
+            "SELECT organization_name FROM nss.organization WHERE organization_pk = %s AND is_active = TRUE",
+            (str(organization_pk),),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found.",
+            )
+        org_name = row[0]
+
+        # ADMIN-BR-076: bound short-code edits to the actor's scope subtree.
+        _require_org_in_scope(cur, user, organization_pk, "edit organizations")
+
+        # Check uniqueness (the DB constraint handles this too, but nicer error)
+        if short_code is not None:
+            cur.execute(
+                """
+                SELECT organization_pk, organization_name FROM nss.organization
+                WHERE short_code = %s AND organization_pk != %s AND is_active = TRUE
+                """,
+                (short_code, str(organization_pk)),
+            )
+            conflict = cur.fetchone()
+            if conflict:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"short_code '{short_code}' is already assigned to {conflict[1]}.",
+                )
+
+        actor = user.actor_pk
+        cur.execute(
+            """
+            UPDATE nss.organization
+            SET short_code = %s, updated_at = NOW()
+            WHERE organization_pk = %s
+            """,
+            (short_code, str(organization_pk)),
+        )
+        log_audit(cur, action="UPDATE", table_name="organization", record_pk=str(organization_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary=f"Updated short_code to {short_code}")
+
+    action = f"set to '{short_code}'" if short_code else "cleared"
+    return {"message": f"Short code for {org_name} {action}.", "short_code": short_code}
+
+
+# ── PATCH /organizations/{pk} ────────────────────────────────────────────
+
+class UpdateOrganizationRequest(BaseModel):
+    """PATCH /api/v1/admin/organizations/{organization_pk}"""
+    organization_name: str | None = Field(None, max_length=200)
+    address_line_1: str | None = Field(None, max_length=200)
+    address_line_2: str | None = Field(None, max_length=200)
+    phone_number: str | None = Field(None, max_length=20)
+    mobile_number: str | None = Field(None, max_length=20)
+    org_email: str | None = Field(None, max_length=254)
+    org_website_url: str | None = Field(None, max_length=500)
+    org_youtube_channel_url: str | None = Field(None, max_length=500)
+    # Location FK fields
+    country_pk: str | None = Field(None)
+    state_pk: str | None = Field(None)
+    district_pk: str | None = Field(None)
+    city_village_pk: str | None = Field(None)
+    postal_code_pk: str | None = Field(None)
+    # Postal code as text (lookup/create against Foundation table)
+    postal_code_value: str | None = Field(
+        None, max_length=20,
+        description="PIN code as text — lookup/create against Foundation table",
+    )
+    # City/Village as text (lookup/create against Foundation table)
+    city_village_name: str | None = Field(None, max_length=200)
+
+
+@router.patch("/organizations/{organization_pk}")
+def update_organization(
+    organization_pk: UUID,
+    body: UpdateOrganizationRequest,
+    user: UserContext = Depends(
+        require_any_permission("ORGANIZATION_MANAGE", "ORGANIZATION_VIEW")
+    ),
+    conn=Depends(get_write_connection),
+):
+    """
+    Update editable fields of an organization.
+
+    Access rules (ADMIN-BR-076/077 — subtree-aware):
+      - NSS_ERP_ADMIN / NSS-WIDE: the sole blanket authority — edits any org.
+      - Any scoped admin (KENDRA/ANCHALIKA/ZILLA/SAKHA), regardless of whether
+        they hold ORGANIZATION_MANAGE or only ORGANIZATION_VIEW, edits only
+        organizations inside their scope subtree (their org + descendants).
+        Permission alone never confers global reach.
+
+    Editable fields: organization_name, address_line_1, address_line_2,
+    phone_number, mobile_number, org_email, org_website_url,
+    org_youtube_channel_url.
+    """
+
+    # ── Scope check (subtree-aware; global only for NSS_ERP_ADMIN) ──
+    with conn.cursor() as cur:
+        _require_org_in_scope(cur, user, organization_pk, "edit organizations")
+
+    # Build dynamic SET clause from provided fields
+    updates = {}
+    if body.organization_name is not None:
+        updates["organization_name"] = body.organization_name.strip()
+    if body.address_line_1 is not None:
+        updates["address_line_1"] = body.address_line_1.strip() or None
+    if body.address_line_2 is not None:
+        updates["address_line_2"] = body.address_line_2.strip() or None
+    if body.phone_number is not None:
+        updates["phone_number"] = body.phone_number.strip() or None
+    if body.mobile_number is not None:
+        updates["mobile_number"] = body.mobile_number.strip() or None
+    if body.org_email is not None:
+        updates["org_email"] = body.org_email.strip() or None
+    if body.org_website_url is not None:
+        updates["org_website_url"] = body.org_website_url.strip() or None
+    if body.org_youtube_channel_url is not None:
+        updates["org_youtube_channel_url"] = body.org_youtube_channel_url.strip() or None
+
+    # Location FK fields — empty string means clear (set to NULL)
+    for fk_field in ("country_pk", "state_pk", "district_pk", "city_village_pk", "postal_code_pk"):
+        val = getattr(body, fk_field, None)
+        if val is not None:
+            updates[fk_field] = val.strip() if val.strip() else None
+
+    # City/Village text — lookup/create against nss.city_village
+    # Resolves to city_village_pk for storage in organization
+    city_village_name_val = None
+    if body.city_village_name is not None:
+        city_village_name_val = body.city_village_name.strip() or None
+
+    if not updates and city_village_name_val is None and body.city_village_name is None and body.postal_code_value is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No fields provided to update.",
+        )
+
+    with conn.cursor() as cur:
+        # Check org exists
+        cur.execute(
+            "SELECT organization_name FROM nss.organization WHERE organization_pk = %s AND is_active = TRUE",
+            (str(organization_pk),),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Organization not found.",
+            )
+
+        actor = user.actor_pk
+
+        # ── City/Village text → lookup/create → city_village_pk ────────
+        if body.city_village_name is not None:
+            if city_village_name_val is None:
+                # Empty string → clear city_village_pk
+                updates["city_village_pk"] = None
+            else:
+                # Need district_pk to look up / create
+                district_for_cv = updates.get("district_pk")
+                if not district_for_cv:
+                    # Fetch current district from organization
+                    cur.execute(
+                        "SELECT district_pk FROM nss.organization WHERE organization_pk = %s",
+                        (str(organization_pk),),
+                    )
+                    org_row = cur.fetchone()
+                    district_for_cv = str(org_row[0]) if org_row and org_row[0] else None
+
+                if not district_for_cv:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail="District is required to set City/Village.",
+                    )
+
+                # Lookup/create city_village by name + district
+                updates["city_village_pk"] = resolve_or_create_city_village(
+                    cur, city_village_name_val, district_for_cv, actor_pk=actor,
+                )
+
+        # ── Postal code text → lookup/create → postal_code_pk ────────
+        if body.postal_code_value is not None:
+            pc_val = body.postal_code_value.strip() if body.postal_code_value else None
+            if not pc_val:
+                # Empty string → clear postal_code_pk
+                updates["postal_code_pk"] = None
+            else:
+                # Need state_pk and country_pk
+                state_for_pc = updates.get("state_pk")
+                country_for_pc = updates.get("country_pk")
+                if not state_for_pc or not country_for_pc:
+                    cur.execute(
+                        "SELECT state_pk, country_pk FROM nss.organization WHERE organization_pk = %s",
+                        (str(organization_pk),),
+                    )
+                    org_loc = cur.fetchone()
+                    if not state_for_pc:
+                        state_for_pc = str(org_loc[0]) if org_loc and org_loc[0] else None
+                    if not country_for_pc:
+                        country_for_pc = str(org_loc[1]) if org_loc and org_loc[1] else None
+
+                if not state_for_pc or not country_for_pc:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                        detail="State and Country are required to set PIN Code.",
+                    )
+
+                updates["postal_code_pk"] = resolve_or_create_postal_code(
+                    cur, pc_val, state_for_pc, country_for_pc, actor_pk=actor,
+                )
+
+        if not updates:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="No fields provided to update.",
+            )
+
+        # Build SET clause
+        set_parts = ["updated_at = NOW()"]
+        params: list = []
+        for col, val in updates.items():
+            set_parts.append(f"{col} = %s")
+            params.append(val)
+        params.append(str(organization_pk))
+
+        cur.execute(
+            f"UPDATE nss.organization SET {', '.join(set_parts)} WHERE organization_pk = %s",
+            params,
+        )
+        log_audit(cur, action="UPDATE", table_name="organization", record_pk=str(organization_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary="Updated organization details")
+
+    return {
+        "message": f"Organization updated successfully.",
+        "updated_fields": list(updates.keys()),
+    }
+
+
+# ── POST /organizations ────────────────────────────────────────────────────
+
+# ── Organization-type → id_sequence_master mapping ────────────────────────
+# Multi-instance org types each draw their system business ID
+# (organization.organization_id) from a type-specific id_sequence_master
+# row. Unique apex types (KENDRA, NILACHALA_KUTIRA, SMRUTI_MANDIRA) are not
+# listed — they are singletons and carry no sequence-based ID. Module-level
+# so both create_organization (which mints via next_id) and the read-only
+# next-code preview endpoint (which peeks via peek_next_id) share one map.
+_TYPE_TO_SEQUENCE = {
+    "ANCHALIKA_SANGHA": "ANCHALIKA",
+    "ZILLA_SANGHA": "ZILLA",
+    "SAKHA_SANGHA": "SAKHA",
+    "SAKHA_ASANA": "SAKHA_ASANA",
+    "PATHA_CHAKRA": "PATHA_CHAKRA",
+    "PARIBARIK_ASANA": "PARIBARIK_ASANA",
+    "PARIBARIK_SANGHA": "PARIBARIK_SANGHA",
+    "KUMARI_SANGHA": "KUMARI_SANGHA",
+    "SEVAK_SANGHA": "SEVAK_SANGHA",
+    "MAHILA_SANGHA": "MAHILA_SANGHA",
+}
+
+
+class CreateOrganizationRequest(BaseModel):
+    """POST /api/v1/admin/organizations"""
+    organization_name: str = Field(..., min_length=1, max_length=200)
+    organization_type_code: str = Field(
+        ..., description="value_code from master_data (ORGANIZATION_TYPE category)"
+    )
+    parent_organization_pk: str | None = Field(
+        None, description="UUID of parent organization"
+    )
+    organization_code: str | None = Field(None, max_length=20)
+    short_code: str | None = Field(None, max_length=10)
+    address_line_1: str | None = Field(None, max_length=200)
+    country_pk: str | None = Field(None)
+    state_pk: str | None = Field(None)
+    district_pk: str | None = Field(None)
+    city_village_name: str | None = Field(
+        None, max_length=200,
+        description="City/village name — lookup/create against Foundation table",
+    )
+    postal_code_pk: str | None = Field(None)
+    postal_code_value: str | None = Field(
+        None, max_length=20,
+        description="PIN code as text — lookup/create against Foundation table",
+    )
+    phone_number: str | None = Field(None, max_length=20)
+    mobile_number: str | None = Field(None, max_length=20)
+    org_email: str | None = Field(None, max_length=254)
+    org_website_url: str | None = Field(None, max_length=500)
+    org_youtube_channel_url: str | None = Field(None, max_length=500)
+    has_own_premises: bool = Field(
+        False,
+        description="ORG-BR-098: only meaningful for SAKHA_SANGHA. FALSE is the "
+                     "day-to-day 'Sakha Asana' case — never a distinct stored type.",
+    )
+
+
+@router.post("/organizations", status_code=201)
+def create_organization(
+    body: CreateOrganizationRequest,
+    # Bug fix: gating on ADMIN_USER_MANAGE alone made this endpoint's own
+    # Sakha-admin exception (below, for KUMARI_SANGHA/SEVAK_SANGHA per
+    # ORG-BR-101) unreachable, since NSS_ERP_SAKHA_ADMIN only holds
+    # PERSON_MANAGE (see database/seed/00_bootstrap/03_role_permission.sql).
+    # Matches the require_any_permission gate on the ORG-BR-103 sibling
+    # endpoint create_sangha_sevi. The is_nss_admin / _SAKHA_GATED_TYPES
+    # check below still enforces NSS_ERP_ADMIN-only for every other type.
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+):
+    """
+    Create a new organization.
+
+    Requires: ADMIN_USER_MANAGE permission + NSS_ERP_ADMIN role for most
+    types; KUMARI_SANGHA/SEVAK_SANGHA may also be created by the target
+    Sakha's own NSS_ERP_SAKHA_ADMIN (PERSON_MANAGE), per ORG-BR-101/102.
+    Resolves organization_type_code → master_data_pk.
+    Handles city_village_name lookup/create.
+    Auto-generates organization_code if not provided. KUMARI_SANGHA/
+    SEVAK_SANGHA instead inherit all location/contact detail from their
+    parent Sakha and carry no organization_code / short_code of their own
+    (see the wing block below).
+    """
+
+    # ── NSS_ERP_ADMIN gate ──────────────────────────────────────────
+    # KUMARI_SANGHA/SEVAK_SANGHA are the one exception (ORG-BR-101): the
+    # Sakha's own NSS_ERP_SAKHA_ADMIN may also create these two types for
+    # a Sakha within their own admin_scope. resolve_kumari_sevak_parent_sakha
+    # (called below, inside the cursor block) enforces that authority and
+    # resolves/locks the parent Sakha; every other type stays NSS_ERP_ADMIN-only.
+    is_nss_admin = user.is_super_admin()
+    _SAKHA_GATED_TYPES = {"KUMARI_SANGHA", "SEVAK_SANGHA"}
+    if not is_nss_admin and body.organization_type_code not in _SAKHA_GATED_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only NSS_ERP_ADMIN can create organizations.",
+        )
+
+    with conn.cursor() as cur:
+
+        # ── Creatable-type whitelist (ORG-BR-096/097/101) ───────────
+        # Through the standard Create Organization flow, only these
+        # four types may be created directly by NSS_ERP_ADMIN.
+        # PARIBARIK_SANGHA is additionally gated to NSS_ERP_KENDRA_ADMIN
+        # (ORG-BR-097). KUMARI_SANGHA/SEVAK_SANGHA are creatable by
+        # NSS_ERP_ADMIN *or* the target Sakha's own NSS_ERP_SAKHA_ADMIN
+        # (ORG-BR-101) — handled separately below via
+        # resolve_kumari_sevak_parent_sakha, which also resolves/locks
+        # the parent Sakha (ORG-BR-102).
+        # Everything else (SAKHA_ASANA, MAHILA_SANGHA, PARIBARIK_ASANA,
+        # and the 3 unique apex types) is never created through this
+        # endpoint — auto-created or a pre-existing singleton.
+        _STANDARD_CREATABLE_TYPES = {
+            "ANCHALIKA_SANGHA", "ZILLA_SANGHA", "PATHA_CHAKRA", "SAKHA_SANGHA",
+        }
+        if body.organization_type_code == "PARIBARIK_SANGHA":
+            is_kendra_admin = any(
+                s.role_code == "NSS_ERP_KENDRA_ADMIN" for s in user.scopes
+            )
+            if not is_kendra_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only NSS_ERP_KENDRA_ADMIN can create a Paribarik Sangha.",
+                )
+        elif body.organization_type_code in _SAKHA_GATED_TYPES:
+            # Resolves/locks parent_organization_pk per ORG-BR-101/102 and
+            # enforces that a Sakha admin only acts within their own scope.
+            body.parent_organization_pk = resolve_kumari_sevak_parent_sakha(
+                cur,
+                user=user,
+                organization_type_code=body.organization_type_code,
+                requested_parent_pk=body.parent_organization_pk,
+            )
+        elif body.organization_type_code not in _STANDARD_CREATABLE_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"'{body.organization_type_code}' is not creatable through the "
+                    f"standard Create Organization flow (ORG-BR-096)."
+                ),
+            )
+
+        # ── Block unique types that already exist ──────────────────
+        _UNIQUE_TYPES = {"KENDRA", "NILACHALA_KUTIRA", "SMRUTI_MANDIRA"}
+        if body.organization_type_code in _UNIQUE_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Organization type '{body.organization_type_code}' is unique and already exists. Cannot create another.",
+            )
+
+        # ── Address prohibited for non-physical types (ORG-BR-099) ──
+        # Clean 422 mirror of trg_enforce_organization_address_restriction.
+        _NO_ADDRESS_TYPES = {"ANCHALIKA_SANGHA", "ZILLA_SANGHA", "PATHA_CHAKRA"}
+        if body.organization_type_code in _NO_ADDRESS_TYPES and any([
+            body.address_line_1, body.country_pk, body.state_pk, body.district_pk,
+            body.city_village_name, body.postal_code_pk, body.postal_code_value,
+        ]):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"'{body.organization_type_code}' may never carry a physical "
+                    f"address (ORG-BR-099)."
+                ),
+            )
+
+        # ── Hierarchical parent validation ─────────────────────────
+        # Each org type can only have specific parent types — the
+        # frozen NSS Bye-Law hierarchy (ORG-BR-087 onward,
+        # docs/03_Solution/modules/organization/04_organization_business_rules.md):
+        #   KENDRA is parent to ANCHALIKA_SANGHA/ZILLA_SANGHA/PATHA_CHAKRA/
+        #     PARIBARIK_SANGHA directly (and to MAHILA_SANGHA — see below).
+        #   ANCHALIKA_SANGHA/ZILLA_SANGHA are siblings under KENDRA only,
+        #     never nested under each other.
+        #   SAKHA_SANGHA/SAKHA_ASANA sit only under ANCHALIKA_SANGHA/ZILLA_SANGHA.
+        #   KUMARI_SANGHA/SEVAK_SANGHA sit only under SAKHA_SANGHA.
+        #   MAHILA_SANGHA is two-tier by parent, not by a separate type code:
+        #     parent=KENDRA is the single Kendra/Central Mahila Sangha;
+        #     parent=SAKHA_SANGHA is a local, per-Sakha Mahila Sangha. The
+        #     Bye-Law's central-supervises-branches relationship is a
+        #     governance relationship, deliberately NOT encoded here.
+        #   PARIBARIK_ASANA (Gruhasana) is conceptually attached to a
+        #     sangha_sevi, not to an org — parent=SAKHA_SANGHA is a proxy
+        #     for "that sangha_sevi's current Sakha", not a literal org edge.
+        _ALLOWED_PARENT_TYPES = {
+            "ANCHALIKA_SANGHA": {"KENDRA"},
+            "ZILLA_SANGHA": {"KENDRA"},
+            "PATHA_CHAKRA": {"KENDRA"},
+            "PARIBARIK_SANGHA": {"KENDRA"},
+            "SAKHA_SANGHA": {"ANCHALIKA_SANGHA", "ZILLA_SANGHA"},
+            "SAKHA_ASANA": {"ANCHALIKA_SANGHA", "ZILLA_SANGHA"},
+            "KUMARI_SANGHA": {"SAKHA_SANGHA"},
+            "SEVAK_SANGHA": {"SAKHA_SANGHA"},
+            "MAHILA_SANGHA": {"KENDRA", "SAKHA_SANGHA"},
+            "PARIBARIK_ASANA": {"SAKHA_SANGHA"},
+        }
+        # ── Parent org instance auto-resolution (ORG-BR-100) ─────────
+        # ANCHALIKA_SANGHA/ZILLA_SANGHA/PATHA_CHAKRA have exactly one
+        # legal parent TYPE (KENDRA) and, today, exactly one legal
+        # parent INSTANCE (the single Kendra row) — so if the client
+        # didn't supply parent_organization_pk, resolve and lock it
+        # here rather than making the user pick from a one-item list.
+        # Does NOT extend to KUMARI_SANGHA/SEVAK_SANGHA: their parent
+        # type (SAKHA_SANGHA) is singular but multiple Sakha instances
+        # exist, so the admin must still pick which Sakha manually.
+        _AUTO_RESOLVE_SINGLE_INSTANCE_PARENT_TYPES = {
+            "ANCHALIKA_SANGHA", "ZILLA_SANGHA", "PATHA_CHAKRA",
+        }
+        if (
+            body.organization_type_code in _AUTO_RESOLVE_SINGLE_INSTANCE_PARENT_TYPES
+            and not body.parent_organization_pk
+        ):
+            cur.execute(
+                """
+                SELECT o.organization_pk
+                FROM nss.organization o
+                JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+                WHERE md.value_code = 'KENDRA' AND o.is_active = TRUE
+                LIMIT 1
+                """
+            )
+            kendra_row = cur.fetchone()
+            if kendra_row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "Cannot auto-resolve parent Kendra: no active KENDRA "
+                        "organization exists (ORG-BR-100)."
+                    ),
+                )
+            body.parent_organization_pk = kendra_row[0]
+
+        allowed_parents = _ALLOWED_PARENT_TYPES.get(body.organization_type_code)
+
+        if allowed_parents and body.parent_organization_pk:
+            # Validate parent org type
+            cur.execute(
+                """
+                SELECT md.value_code
+                FROM nss.organization o
+                JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+                WHERE o.organization_pk = %s AND o.is_active = TRUE
+                """,
+                (body.parent_organization_pk,),
+            )
+            parent_type_row = cur.fetchone()
+            if parent_type_row and parent_type_row[0] not in allowed_parents:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        f"'{body.organization_type_code}' can only have parent of type "
+                        f"{', '.join(sorted(allowed_parents))}. Got '{parent_type_row[0]}'."
+                    ),
+                )
+        elif allowed_parents and not body.parent_organization_pk:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"'{body.organization_type_code}' requires a parent organization of type "
+                    f"{', '.join(sorted(allowed_parents))}."
+                ),
+            )
+
+        # ── Resolve organization_type_code → master_data_pk ─────────
+        cur.execute(
+            """
+            SELECT md.master_data_pk
+            FROM nss.master_data md
+            JOIN nss.master_category mc ON mc.master_category_pk = md.master_category_pk
+            WHERE mc.category_code = 'ORGANIZATION_TYPE'
+              AND md.value_code = %s
+              AND md.is_active = TRUE
+            LIMIT 1
+            """,
+            (body.organization_type_code,),
+        )
+        type_row = cur.fetchone()
+        if type_row is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Unknown organization type: {body.organization_type_code}",
+            )
+        org_type_pk = str(type_row[0])
+
+        # ── Resolve ACTIVE status master_data_pk ────────────────────
+        active_status_pk = get_active_status_pk(cur)
+
+        # ── Validate parent org if provided ─────────────────────────
+        if body.parent_organization_pk:
+            cur.execute(
+                "SELECT organization_pk FROM nss.organization WHERE organization_pk = %s AND is_active = TRUE",
+                (body.parent_organization_pk,),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Parent organization not found.",
+                )
+
+        # ── Kumari/Sevak wings inherit identity + detail from parent ─
+        # A KUMARI_SANGHA/SEVAK_SANGHA is not an independently-located
+        # body: it operates from its parent Sakha's premises and shares
+        # the Sakha's identity (ORG-BR-092/104, and the wing-membership-
+        # shares-the-Sakha's-IDs convention, MBR-046). So its location/
+        # contact detail is inherited wholesale from the parent Sakha, and
+        # it carries NO organization_code / short_code of its own (the
+        # parent Sakha already holds those). Any client-supplied code or
+        # detail for these two types is ignored — org_code and short_code
+        # are forced NULL below, and the detail is taken from the parent.
+        wing_inherit = None
+        if body.organization_type_code in _SAKHA_GATED_TYPES:
+            cur.execute(
+                """
+                SELECT organization_code, address_line_1, country_pk, state_pk,
+                       district_pk, city_village_pk, postal_code_pk, phone_number,
+                       mobile_number, org_email, org_website_url,
+                       org_youtube_channel_url
+                FROM nss.organization
+                WHERE organization_pk = %s AND is_active = TRUE
+                """,
+                (body.parent_organization_pk,),
+            )
+            wing_inherit = cur.fetchone()
+            if wing_inherit is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Parent Sakha not found.",
+                )
+
+        # ── organization_id / organization_code ─────────────────────
+        # ORG-BR-105: the org-type sequence (id_sequence_master, keyed via
+        # module-level _TYPE_TO_SEQUENCE) materialises as the visible
+        # organization_code — this is the "org code" the operator sees, and
+        # matches the established data convention (e.g. SAKHA → SKH1, SKH2…).
+        # organization_id is a legacy identifier not minted through this
+        # flow; it is left NULL (the dominant existing convention). Wings
+        # (KUMARI/SEVAK) mint nothing here — they carry no code of their own
+        # and share the parent Sakha's identity (ORG-BR-104).
+        seq_code = _TYPE_TO_SEQUENCE.get(body.organization_type_code)
+        actor = user.actor_pk
+        org_id = None
+
+        # ── organization_code ───────────────────────────────────────
+        if wing_inherit is not None:
+            # Wings (KUMARI_SANGHA/SEVAK_SANGHA, and the local per-Sakha
+            # MAHILA_SANGHA once it becomes creatable) carry NO
+            # organization_code and NO short_code of their own. They are part
+            # of a Sakha Sangha, which already holds those identifiers, and a
+            # wing shares the Sakha's identity rather than minting a separate
+            # one (MBR-046, ORG-BR-104). Both are left NULL — the nullable
+            # organization_code column and the partial short_code unique index
+            # (WHERE short_code IS NOT NULL) both permit this.
+            org_code = None
+        elif body.organization_code:
+            # Explicit override (API/admin). Honoured and uniqueness-checked;
+            # the standard UI does not send this — it shows the auto-generated
+            # sequence code as a read-only preview instead (ORG-BR-105).
+            org_code = body.organization_code.strip().upper()
+            cur.execute(
+                "SELECT organization_pk FROM nss.organization WHERE organization_code = %s AND is_active = TRUE",
+                (org_code,),
+            )
+            if cur.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Organization code '{org_code}' already exists.",
+                )
+        else:
+            # ORG-BR-105: auto-generate the org code from the org-type
+            # sequence (atomic next_id — the authoritative counterpart to the
+            # form's non-consuming next-code preview). Materialising it here,
+            # on submit, is the only point the sequence is actually consumed.
+            org_code = next_id(cur, seq_code, actor_pk=actor) if seq_code else None
+
+        # ── Short code uniqueness ────────────────────────────────────
+        # Wings leave short_code unset (see wing note above).
+        short_code = None
+        if wing_inherit is None and body.short_code:
+            short_code = body.short_code.strip().upper()
+            cur.execute(
+                "SELECT organization_pk FROM nss.organization WHERE short_code = %s AND is_active = TRUE",
+                (short_code,),
+            )
+            if cur.fetchone():
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Short code '{short_code}' already exists.",
+                )
+
+        # ── Resolve inheritable location/contact insert values ──────
+        # Wings take these wholesale from the parent Sakha (fetched into
+        # wing_inherit above); every other type resolves them from the
+        # request body (free-text city/village + postal are looked up or
+        # created against the Foundation tables).
+        if wing_inherit is not None:
+            (_parent_code, ins_address_line_1, ins_country_pk, ins_state_pk,
+             ins_district_pk, ins_city_village_pk, ins_postal_code_pk,
+             ins_phone_number, ins_mobile_number, ins_org_email,
+             ins_org_website_url, ins_org_youtube_channel_url) = wing_inherit
+        else:
+            # ── Resolve city_village_name → city_village_pk ─────────
+            city_village_pk = None
+            if body.city_village_name and body.district_pk:
+                cv_name = body.city_village_name.strip()
+                if cv_name:
+                    city_village_pk = resolve_or_create_city_village(
+                        cur, cv_name, body.district_pk, actor_pk=actor,
+                    )
+
+            # ── Resolve postal_code_value → postal_code_pk ──────────
+            resolved_postal_code_pk = body.postal_code_pk or None
+            if body.postal_code_value and body.state_pk and body.country_pk:
+                pc_val = body.postal_code_value.strip()
+                if pc_val:
+                    resolved_postal_code_pk = resolve_or_create_postal_code(
+                        cur, pc_val, body.state_pk, body.country_pk, actor_pk=actor,
+                    )
+
+            ins_address_line_1 = body.address_line_1.strip() if body.address_line_1 else None
+            ins_country_pk = body.country_pk or None
+            ins_state_pk = body.state_pk or None
+            ins_district_pk = body.district_pk or None
+            ins_city_village_pk = city_village_pk
+            ins_postal_code_pk = resolved_postal_code_pk
+            ins_phone_number = body.phone_number.strip() if body.phone_number else None
+            ins_mobile_number = body.mobile_number.strip() if body.mobile_number else None
+            ins_org_email = body.org_email.strip() if body.org_email else None
+            ins_org_website_url = body.org_website_url.strip() if body.org_website_url else None
+            ins_org_youtube_channel_url = body.org_youtube_channel_url.strip() if body.org_youtube_channel_url else None
+
+        # ── INSERT organization ──────────────────────────────────────
+        cur.execute(
+            """
+            INSERT INTO nss.organization (
+                organization_id,
+                organization_name,
+                organization_type_master_data_pk,
+                status_master_data_pk,
+                parent_organization_pk,
+                organization_code,
+                short_code,
+                address_line_1,
+                country_pk,
+                state_pk,
+                district_pk,
+                city_village_pk,
+                postal_code_pk,
+                has_own_premises,
+                phone_number,
+                mobile_number,
+                org_email,
+                org_website_url,
+                org_youtube_channel_url
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            RETURNING organization_pk
+            """,
+            (
+                org_id,
+                body.organization_name.strip(),
+                org_type_pk,
+                active_status_pk,
+                body.parent_organization_pk or None,
+                org_code,
+                short_code,
+                ins_address_line_1,
+                ins_country_pk,
+                ins_state_pk,
+                ins_district_pk,
+                ins_city_village_pk,
+                ins_postal_code_pk,
+                # ORG-BR-098: only meaningful for SAKHA_SANGHA; harmless
+                # (ignored) FALSE default for every other org type.
+                bool(body.has_own_premises),
+                ins_phone_number,
+                ins_mobile_number,
+                ins_org_email,
+                ins_org_website_url,
+                ins_org_youtube_channel_url,
+            ),
+        )
+        new_org_pk = cur.fetchone()[0]
+        log_audit(cur, action="CREATE", table_name="organization", record_pk=str(new_org_pk),
+                  actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+                  module="admin", summary=f"Created organization {body.organization_name}")
+
+    return {
+        "organization_pk": str(new_org_pk),
+        "organization_id": org_id,
+        "organization_code": org_code,
+        "organization_name": body.organization_name.strip(),
+        "message": f"Organization '{body.organization_name.strip()}' created successfully.",
+    }
+
+
+# ── GET /organizations/next-code ──────────────────────────────────────────
+
+@router.get("/organizations/next-code")
+def preview_next_organization_code(
+    organization_type_code: str = Query(
+        ..., description="value_code from master_data (ORGANIZATION_TYPE category)"
+    ),
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Preview the organization_code that create_organization WOULD mint for
+    *organization_type_code*, without consuming the sequence (ORG-BR-105).
+
+    The Create Organization form calls this when a non-wing type is selected
+    to show the auto-generated code live ("this is what the code will be if
+    you submit"). The value is advisory only — it is peeked, never minted, so
+    it does not burn a number and a concurrent create may shift the real value.
+    The authoritative code is assigned solely on POST /organizations.
+
+    Returns ``next_code = null`` for:
+      • wing types (KUMARI_SANGHA/SEVAK_SANGHA) — they carry no code of their
+        own, inheriting the parent Sakha's identity (ORG-BR-104); and
+      • any type with no id_sequence_master sequence.
+    """
+    _SAKHA_GATED_TYPES = {"KUMARI_SANGHA", "SEVAK_SANGHA"}
+    if organization_type_code in _SAKHA_GATED_TYPES:
+        return {
+            "organization_type_code": organization_type_code,
+            "sequence_code": None,
+            "next_code": None,
+        }
+    seq_code = _TYPE_TO_SEQUENCE.get(organization_type_code)
+    next_code = None
+    if seq_code:
+        with conn.cursor() as cur:
+            next_code = peek_next_id(cur, seq_code)
+    return {
+        "organization_type_code": organization_type_code,
+        "sequence_code": seq_code,
+        "next_code": next_code,
+    }
+
+
+# ── GET /dashboard-stats ──────────────────────────────────────────────────
+
+@router.get("/dashboard-stats")
+def dashboard_stats(
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_VIEW", "ADMIN_USER_MANAGE", "MEMBERSHIP_APPROVE")
+    ),
+    conn=Depends(get_connection),
+):
+    """
+    Aggregate stats for the admin dashboard cards.
+
+    Returns per-role stats scoped to the admin's organization(s).
+    NSS-WIDE admins see totals across all orgs; org-scoped admins
+    see only their scoped orgs.
+    """
+    with conn.cursor() as cur:
+        # Determine scoped org PKs (None = all orgs / NSS-WIDE), subtree-aware.
+        allowed = _actor_scope_org_pks(cur, user)
+        is_nss_wide = allowed is None
+        if not is_nss_wide and not allowed:
+            return {"members": 0, "families": 0, "renewals_due": 0, "attendance_pct": None}
+        scoped_org_pks = None if is_nss_wide else list(allowed)
+
+        # Pre-compute placeholders for scoped queries
+        placeholders = (
+            ",".join(["%s"] * len(scoped_org_pks))
+            if scoped_org_pks else ""
+        )
+
+        # ── Active members count ──
+        # Count active membership_sakha_affiliation records in scope
+        if is_nss_wide:
+            cur.execute("""
+                SELECT COUNT(DISTINCT msa.sangha_sevi_pk)
+                FROM nss.membership_sakha_affiliation msa
+                WHERE msa.affiliation_status IN ('ACTIVE', 'REACTIVATED')
+                  AND msa.effective_to IS NULL
+            """)
+        else:
+            cur.execute(f"""
+                SELECT COUNT(DISTINCT msa.sangha_sevi_pk)
+                FROM nss.membership_sakha_affiliation msa
+                WHERE msa.affiliation_status IN ('ACTIVE', 'REACTIVATED')
+                  AND msa.effective_to IS NULL
+                  AND msa.organization_pk IN ({placeholders})
+            """, scoped_org_pks)
+        members = cur.fetchone()[0]
+
+        # ── Families count ──
+        # Count active family_group records scoped by sakha_organization_pk
+        if is_nss_wide:
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM nss.family_group fg
+                WHERE fg.is_active = TRUE
+            """)
+        else:
+            cur.execute(f"""
+                SELECT COUNT(*)
+                FROM nss.family_group fg
+                WHERE fg.is_active = TRUE
+                  AND fg.sakha_organization_pk IN ({placeholders})
+            """, scoped_org_pks)
+        families = cur.fetchone()[0]
+
+        # ── Renewals due (placeholder — no renewal module yet) ──
+        renewals_due = 0
+
+        # ── Attendance % (placeholder — no attendance module yet) ──
+        attendance_pct = None
+
+    return {
+        "members": members,
+        "families": families,
+        "renewals_due": renewals_due,
+        "attendance_pct": attendance_pct,
+    }

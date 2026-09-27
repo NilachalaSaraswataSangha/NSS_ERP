@@ -1,8 +1,8 @@
 """
-Pydantic response models for the Family API (Tier 4).
+Pydantic models for the Family API (Tier 4 read + Tier 5 write).
 
-All models exclude audit columns (created_at, updated_at, deleted_at)
-per the project's API convention established in Tier 0.
+All response models exclude audit columns (created_at, updated_at,
+deleted_at) per the project's API convention established in Tier 0.
 
 Raw psycopg2 returns dictionaries — no ORM objects — so
 ConfigDict(from_attributes=True) is unnecessary.
@@ -11,7 +11,7 @@ ConfigDict(from_attributes=True) is unnecessary.
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class FamilyGroupResponse(BaseModel):
@@ -78,6 +78,10 @@ class FamilyGraphMemberResponse(BaseModel):
     not stored statically.  Generation is computed from the path.
     spouse_person_pk links to the person's spouse (if any) within
     the family graph.
+
+    ``is_departed`` is True when the person left this family for
+    another one.  ``departed_family_*`` fields identify the new
+    family so the UI can render a cross-family ghost node.
     """
 
     person_pk: UUID
@@ -91,6 +95,13 @@ class FamilyGraphMemberResponse(BaseModel):
     is_head: bool
     spouse_person_pk: UUID | None = None
     parent_person_pks: list[str] = []
+
+    # Cross-family departed member info
+    is_departed: bool = False
+    departed_family_group_pk: UUID | None = None
+    departed_family_id: str | None = None
+    departed_family_name: str | None = None
+    departed_sakha_name: str | None = None
 
 
 class PersonMembershipSummaryResponse(BaseModel):
@@ -197,3 +208,153 @@ class FamilySakhaAlignmentResponse(BaseModel):
 
     affiliations: list[SakhaAffiliationCount] = []
     members: list[MemberSakhaInfo] = []
+
+
+# ── Write request models (Tier 5 — add/remove member) ──────────────
+
+class AddFamilyMemberRequest(BaseModel):
+    """
+    Request to add a person to an existing family group.
+
+    The requester must be that family's head or a family admin (or hold
+    FAMILY_MANAGE). Being merely a member of the family is NOT sufficient.
+    relationship_type_code must be a valid RELATIONSHIP_TYPE value_code
+    from master_data (e.g. FATHER, MOTHER, SON, DAUGHTER, SPOUSE).
+    """
+
+    person_pk: UUID = Field(
+        ..., description="PK of the person to add to the family"
+    )
+    relationship_type_code: str = Field(
+        ..., min_length=1, max_length=30,
+        description="RELATIONSHIP_TYPE value_code from master_data"
+    )
+    link_type: str | None = Field(
+        None,
+        description=(
+            "Optional graph edge to create. Must be PARENT_OF or SPOUSE_OF. "
+            "link_target_person_pk is required when this is set."
+        ),
+    )
+    link_target_person_pk: UUID | None = Field(
+        None,
+        description=(
+            "The other person in the link edge. "
+            "For PARENT_OF: this person is the child (new member is parent) "
+            "or vice-versa. For SPOUSE_OF: the existing spouse."
+        ),
+    )
+    remarks: str | None = Field(None, max_length=500)
+
+
+class RemoveFamilyMemberRequest(BaseModel):
+    """
+    Request to remove (soft-delete) a member from a family.
+
+    The requester must be that family's head or a family admin (or hold
+    FAMILY_MANAGE) — FAM-048.
+    Sets is_current=FALSE and effective_to=today on the relationship
+    and all associated family_link rows.
+    """
+
+    person_pk: UUID = Field(
+        ..., description="PK of the person to remove from the family"
+    )
+    remarks: str | None = Field(None, max_length=500)
+
+
+class CreateFamilyLinkRequest(BaseModel):
+    """
+    Request to create an additional family_link edge in a family group.
+
+    Used for auto-inferred links (e.g., adding a Father also creates
+    SPOUSE_OF link with existing Mother, or PARENT_OF links to siblings).
+
+    Both persons must be current members of the family.
+    """
+
+    person_a_pk: UUID = Field(
+        ..., description="First person in the link. For PARENT_OF: this is the parent."
+    )
+    person_b_pk: UUID = Field(
+        ..., description="Second person in the link. For PARENT_OF: this is the child."
+    )
+    link_type: str = Field(
+        ..., description="PARENT_OF or SPOUSE_OF"
+    )
+
+
+class CreateFamilyRequest(BaseModel):
+    """
+    Request to create a new family group with the authenticated user
+    as the founding member and head.
+
+    The user may optionally be leaving an existing family
+    (transition_type = NEW_FAMILY_FORMATION).
+    """
+
+    family_name: str = Field(
+        ..., min_length=1, max_length=200,
+        description="Name of the new family (e.g. 'Panda Paribara')"
+    )
+    sakha_organization_pk: UUID = Field(
+        ..., description="PK of the Sakha this family is registered under"
+    )
+    formed_date: date | None = Field(
+        None, description="Date the family was formed (defaults to today)"
+    )
+    remarks: str | None = Field(None, max_length=500)
+
+
+# ── Family Admin models (FAM-045–FAM-052) ─────────────────────────────
+
+class FamilyAdminResponse(BaseModel):
+    """Family admin assignment with resolved person context."""
+
+    family_admin_pk: UUID
+    family_group_pk: UUID
+    person_pk: UUID
+    person_id: str
+    first_name: str
+    middle_name: str | None
+    last_name: str | None
+    effective_from: date
+    effective_to: date | None
+    appointed_by_person_pk: UUID
+    remarks: str | None
+
+
+class AssignFamilyAdminRequest(BaseModel):
+    """
+    Request to assign a person as Family Admin.
+    Only the current Family Head can assign admins (FAM-046).
+    """
+
+    person_pk: UUID = Field(
+        ..., description="PK of the person to assign as admin"
+    )
+    remarks: str | None = Field(None, max_length=500)
+
+
+class RevokeFamilyAdminRequest(BaseModel):
+    """
+    Request to revoke a Family Admin role.
+    Only the current Family Head can revoke admins (FAM-046).
+    """
+
+    person_pk: UUID = Field(
+        ..., description="PK of the person whose admin role to revoke"
+    )
+    remarks: str | None = Field(None, max_length=500)
+
+
+class TransferHeadRequest(BaseModel):
+    """
+    Request to transfer Family Head role to another member.
+    Only the current Head can transfer headship (FAM-049).
+    """
+
+    person_pk: UUID = Field(
+        ..., description="PK of the person to become the new head"
+    )
+    remarks: str | None = Field(None, max_length=500)

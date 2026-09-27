@@ -85,9 +85,17 @@ PATH_LABELS: dict[tuple[Step, ...], tuple[str, str]] = {
     (Step.UP, Step.UP):
         ("Grandfather", "Grandmother"),
 
+    # Grandparent's spouse (step-grandparent)
+    (Step.UP, Step.UP, Step.SPOUSE):
+        ("Grandfather", "Grandmother"),
+
     # Spouse's grandparent
     (Step.SPOUSE, Step.UP, Step.UP):
         ("Grandfather-in-Law", "Grandmother-in-Law"),
+
+    # Step-parent's parent
+    (Step.UP, Step.SPOUSE, Step.UP):
+        ("Step-Grandfather", "Step-Grandmother"),
 
     # ── Generation +1 (children) ──
     (Step.DOWN,):
@@ -101,9 +109,21 @@ PATH_LABELS: dict[tuple[Step, ...], tuple[str, str]] = {
     (Step.DOWN, Step.SPOUSE):
         ("Son-in-Law", "Daughter-in-Law"),
 
+    # Spouse's child's spouse (step-child-in-law)
+    (Step.SPOUSE, Step.DOWN, Step.SPOUSE):
+        ("Son-in-Law", "Daughter-in-Law"),
+
     # ── Generation +2 (grandchildren) ──
     (Step.DOWN, Step.DOWN):
         ("Grandson", "Granddaughter"),
+
+    # Grandchild's spouse
+    (Step.DOWN, Step.DOWN, Step.SPOUSE):
+        ("Grandson-in-Law", "Granddaughter-in-Law"),
+
+    # Child's spouse's child (step-grandchild via in-law)
+    (Step.DOWN, Step.SPOUSE, Step.DOWN):
+        ("Step-Grandson", "Step-Granddaughter"),
 
     # ── Extended family ──
 
@@ -119,17 +139,41 @@ PATH_LABELS: dict[tuple[Step, ...], tuple[str, str]] = {
     (Step.SPOUSE, Step.UP, Step.UP, Step.DOWN):
         ("Uncle-in-Law", "Aunt-in-Law"),
 
+    # Spouse's uncle/aunt's spouse
+    (Step.SPOUSE, Step.UP, Step.UP, Step.DOWN, Step.SPOUSE):
+        ("Uncle-in-Law", "Aunt-in-Law"),
+
     # Nephew / Niece: sibling's child
     (Step.UP, Step.DOWN, Step.DOWN):
         ("Nephew", "Niece"),
+
+    # Nephew/Niece's spouse
+    (Step.UP, Step.DOWN, Step.DOWN, Step.SPOUSE):
+        ("Nephew-in-Law", "Niece-in-Law"),
 
     # Spouse's sibling's child
     (Step.SPOUSE, Step.UP, Step.DOWN, Step.DOWN):
         ("Nephew", "Niece"),
 
+    # Sibling's spouse's child (step-nephew/niece)
+    (Step.UP, Step.DOWN, Step.SPOUSE, Step.DOWN):
+        ("Nephew", "Niece"),
+
     # Cousin: parent's sibling's child
     (Step.UP, Step.UP, Step.DOWN, Step.DOWN):
         ("Cousin", "Cousin"),
+
+    # Cousin's spouse
+    (Step.UP, Step.UP, Step.DOWN, Step.DOWN, Step.SPOUSE):
+        ("Cousin-in-Law", "Cousin-in-Law"),
+
+    # Spouse's cousin
+    (Step.SPOUSE, Step.UP, Step.UP, Step.DOWN, Step.DOWN):
+        ("Cousin-in-Law", "Cousin-in-Law"),
+
+    # Co-parent-in-law (Samdhi/Samdhin): child's spouse's parent
+    (Step.DOWN, Step.SPOUSE, Step.UP):
+        ("Samdhi", "Samdhin"),
 
     # Great-grandparent
     (Step.UP, Step.UP, Step.UP):
@@ -139,13 +183,21 @@ PATH_LABELS: dict[tuple[Step, ...], tuple[str, str]] = {
     (Step.DOWN, Step.DOWN, Step.DOWN):
         ("Great-Grandson", "Great-Granddaughter"),
 
-    # Grandchild's spouse
-    (Step.DOWN, Step.DOWN, Step.SPOUSE):
-        ("Grandson-in-Law", "Granddaughter-in-Law"),
+    # Great-grandchild's spouse
+    (Step.DOWN, Step.DOWN, Step.DOWN, Step.SPOUSE):
+        ("Great-Grandson-in-Law", "Great-Granddaughter-in-Law"),
 
     # Sibling's grandchild
     (Step.UP, Step.DOWN, Step.DOWN, Step.DOWN):
         ("Grand-Nephew", "Grand-Niece"),
+
+    # Grand-uncle/aunt: grandparent's sibling
+    (Step.UP, Step.UP, Step.UP, Step.DOWN):
+        ("Grand-Uncle", "Grand-Aunt"),
+
+    # Grand-uncle/aunt's spouse
+    (Step.UP, Step.UP, Step.UP, Step.DOWN, Step.SPOUSE):
+        ("Grand-Uncle", "Grand-Aunt"),
 }
 
 
