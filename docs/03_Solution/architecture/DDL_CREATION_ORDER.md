@@ -1,11 +1,12 @@
 # NSS ERP — DDL Creation Order
 
 **Document ID:** SOL-ARCH-010
-**Version:** 1.2.0
+**Version:** 1.3.0
 **Status:** FROZEN
-**Date:** 2026-08-31
+**Date:** 2026-09-16
 **Amendment:** PIN Code Geographic Model (§11 added)
 **Amendment:** membership_sakha_affiliation added to Depth 5 (MEM-PENDING-001)
+**Amendment:** admin_scope moved from Depth 4 to Depth 5 — FK changed to user_role_pk (Tier 5 DDL)
 **Parent Documents:**
 - SOL-ARCH-009 — Physical FK Dependency Graph
 - SOL-ARCH-008 — Implementation Dependency Order
@@ -145,7 +146,7 @@ an immediate ALTER TABLE within this depth.
 
 ---
 
-## Depth 4 — Depends on Depth 0–3 (12)
+## Depth 4 — Depends on Depth 0–3 (11)
 
 ```text
 35. sangha_sevi                    Membership        ← person, master_data, organization
@@ -153,13 +154,12 @@ an immediate ALTER TABLE within this depth.
 37. weekly_sangha_puja             Attendance        ← organization
 38. body_master                    Governance        ← body_type_master, organization
 39. correspondence                 Administration    ← person, organization, master_data
-40. admin_scope                    Administration    ← role_master, user_account, organization
-41. user_role                      Administration    ← role_master, user_account
-42. password_history               Authentication    ← user_account
-43. custodianship                  Assets & Property ← property, asset, organization
-44. financial_scope                Finance           ← organization
-45. kumari_sangha                  Kumari            ← organization
-46. kishor_event                   Kishor            ← organization
+40. user_role                      Administration    ← role_master, user_account
+41. password_history               Authentication    ← user_account
+42. custodianship                  Assets & Property ← property, asset, organization
+43. financial_scope                Finance           ← organization
+44. kumari_sangha                  Kumari            ← organization
+45. kishor_event                   Kishor            ← organization
 ```
 
 **Critical milestone:** `sangha_sevi` (table #35) is created here.
@@ -168,9 +168,10 @@ and is required before the deferred audit-actor FK pass.
 
 ---
 
-## Depth 5 — Depends on Depth 0–4 (24)
+## Depth 5 — Depends on Depth 0–4 (25)
 
 ```text
+46. admin_scope                    Administration    ← user_role, organization
 47. membership_status_history      Membership        ← sangha_sevi, master_data
 48. membership_renewal_request     Membership        ← sangha_sevi
 49. membership_renewal_history     Membership        ← sangha_sevi
@@ -221,6 +222,7 @@ and is required before the deferred audit-actor FK pass.
 82. kumari_membership_transition   Kumari            ← kumari_membership, sangha_sevi
 83. sevak_sakha_association        Sevak             ← sevak_participation, organization
 84. sevak_status_history           Sevak             ← sevak_participation
+```
 ```
 
 ---
@@ -460,10 +462,10 @@ DOCUMENT ID:
 SOL-ARCH-010
 
 VERSION:
-1.2.0
+1.3.0
 
 AMENDMENT:
-PIN Code Geographic Model; membership_sakha_affiliation
+PIN Code Geographic Model; membership_sakha_affiliation; admin_scope depth correction
 
 FROZEN TABLES IN SEQUENCE:
 89

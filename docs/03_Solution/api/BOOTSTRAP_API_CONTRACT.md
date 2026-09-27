@@ -272,7 +272,8 @@ api/
 tests/
   test_bootstrap.py            <- Integration tests
 frontend/
-  index.html                   <- Bootstrap Verification UI
+  admin.html                   <- Bootstrap RBAC UI: System Settings tab
+                                  (replaces the retired index.html)
 docs/
   03_Solution/code_explanations/
       API_CODE_EXPLANATIONS.md       <- Code walkthrough

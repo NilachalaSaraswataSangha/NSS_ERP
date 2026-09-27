@@ -38,7 +38,7 @@ Administration — both reflected in the rows below.
 | Module | Design status | Implementation reality |
 |---|---|---|
 | `organization/` | v1.1.0, GOVERNANCE ALIGNED — type-to-type parent matrix explicitly OPEN | `database/ddl/02_organization/` implemented, 3 tables |
-| `person/` | v2.0.0, FROZEN — **2 tables** (`person`, `person_address` — `document_master` reassigned to Foundation, `DOC-ARCH-001`), 5 files | `database/ddl/03_person/02_person.sql` (28 columns) + `03_person_address.sql` implemented; API (`api/routers/person.py`, 4 endpoints), Verification UI (`frontend/person.html`), and 56 tests (`tests/test_person.py`) all implemented — `01_person_master_tables.sql` remains a superseded prototype file, not run |
+| `person/` | v2.0.0, FROZEN — **2 tables** (`person`, `person_address` — `document_master` reassigned to Foundation, `DOC-ARCH-001`), 5 files | `database/ddl/03_person/02_person.sql` (28 columns) + `03_person_address.sql` implemented; API (`api/routers/person.py`, 4 endpoints), Verification UI (originally `frontend/person.html`, retired — now `frontend/admin.html`'s Person Directory tab), and 56 tests (`tests/test_person.py`) all implemented — `01_person_master_tables.sql` remains a superseded prototype file, not run |
 | `membership/` | v1.0.0, DRAFT — 5-file, ~10 tables designed | no implementation |
 | `family/` | v1.0.0, DRAFT — 5-file (includes lifecycle doc SOL-FAM-005), frozen 4-table design | no implementation |
 | `attendance/` | v1.0.0, DRAFT — 6-file (includes lifecycle doc SOL-ATT-006; Review Workflow FROZEN) + `DARSHAK_BUSINESS_RULE.md` | no implementation |

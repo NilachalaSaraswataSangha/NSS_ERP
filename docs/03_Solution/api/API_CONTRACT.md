@@ -47,6 +47,17 @@ All list endpoints support:
 - `offset=-1` → `422`
 - `offset` beyond total rows → empty list `[]`, not error
 
+**Envelope exception — Person and Membership list/search:** `GET /person/persons`,
+`GET /person/search`, `GET /membership/members`, and `GET /membership/search`
+do **not** return a bare array. They return `{persons|members: [...], total: N}`.
+`total` is the true row count matching the filters, independent of the
+`limit`/MAX_LIMIT cap on the array — the array alone cannot reveal whether more
+rows exist beyond the page returned. Callers must compare `total` to
+`len(persons|members)` to detect truncation. `/person/search` and
+`/membership/search` additionally accept `limit`/`offset` like the list
+endpoints (default 50, max 500) — previously they had a hardcoded `LIMIT 50`
+with no way to page past it and no `total`.
+
 ## 2.2 Error Responses
 
 | Status | Meaning |
@@ -141,10 +152,10 @@ table; see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` §3.2.4 for the f
 
 | # | Method | Path | Filters | Description | Response Model |
 |---|---|---|---|---|---|
-| 28 | GET | `/persons` | `gender_code`, `marital_status_code`, `blood_group_code`, `limit`, `offset` | List persons (summary) | `list[PersonSummaryResponse]` |
+| 28 | GET | `/persons` | `gender_code`, `marital_status_code`, `blood_group_code`, `limit`, `offset` | List persons (summary) | `PersonListResponse` (`{persons, total}`, see §2.1) |
 | 29 | GET | `/persons/{pk}` | — | Person detail (with aadhaar_last4) | `PersonDetailResponse` |
 | 30 | GET | `/persons/{pk}/addresses` | — | Person addresses | `list[PersonAddressResponse]` |
-| 31 | GET | `/search?q=` | `q` (min 2 chars, required) | Trigram + prefix search across name + ID + contact | `list[PersonSummaryResponse]` (max 50) |
+| 31 | GET | `/search?q=` | `q` (min 2 chars, required), `limit` (default 50), `offset` | Trigram + prefix search across name + ID + contact | `PersonListResponse` (`{persons, total}`, see §2.1) |
 
 **Security notes:**
 
@@ -199,9 +210,9 @@ renumbering earlier endpoints.
 
 | # | Method | Path | Filters | Description | Response Model |
 |---|---|---|---|---|---|
-| 36 | GET | `/members` | `type_code`, `status_code`, `org_code`, `limit`, `offset` | List members | `list[MemberResponse]` |
+| 36 | GET | `/members` | `type_code`, `status_code`, `org_code`, `org_type_code`, `limit`, `offset` | List members | `MemberListResponse` (`{members, total}`, see §2.1) |
 | 37 | GET | `/members/{pk}` | — | Member detail | `MemberResponse` |
-| 38 | GET | `/search?q=` | `q` (min 2 chars, required) | Trigram + prefix search across all 3 identity tiers + name + contact | `list[MemberResponse]` (max 50) |
+| 38 | GET | `/search?q=` | `q` (min 2 chars, required), `limit` (default 50), `offset` | Trigram + prefix search across all 3 identity tiers + name + contact | `MemberListResponse` (`{members, total}`, see §2.1) |
 | 39 | GET | `/members/{pk}/affiliations` | — | Sakha affiliation history | `list[SakhaAffiliationResponse]` |
 | 40 | GET | `/members/{pk}/parichaya-patra` | — | Parichaya Patra records | `list[ParichayaPatraResponse]` |
 | 41 | GET | `/members/{pk}/anumati-patra` | — | Anumati Patra records | `list[AnumatiPatraResponse]` |
@@ -257,14 +268,20 @@ Tier 3: document_number       — on ParichayaPatraResponse (Kendra Number)
 
 | Path | Description | HTML File |
 |---|---|---|
-| `/` | Bootstrap Verification UI | `index.html` |
-| `/foundation` | Foundation Verification UI | `foundation.html` |
-| `/organization` | Organization Verification UI | `organization.html` |
-| `/person` | Person Verification UI | `person.html` |
-| `/family` | Family Verification UI | `family.html` |
-| `/membership` | Membership Verification UI | `membership.html` |
+| `/` | 302 redirect to `/login` | -- |
+| `/login` | Login page | `login.html` |
+| `/register` | Self-registration page | `register.html` |
+| `/dashboard` | Member Dashboard (Personal, Family, Membership, Attendance, Governance, Documents tabs) | `dashboard.html` |
+| `/admin` | Administration Dashboard (Users, Organizations, Registration Approvals, Person Directory, Member Directory, Organization Hierarchy, Reference Data, Geography, System Settings tabs) | `admin.html` |
 | `/docs` | Swagger UI (OpenAPI) | auto-generated |
 | `/redoc` | ReDoc | auto-generated |
+
+The six original Tier 0-4 verification-page routes (`/` → `index.html`, `/foundation`,
+`/organization`, `/person`, `/family`, `/membership`) were retired along with their HTML/JS
+files; each tier's UI now lives in a tab of `admin.html` or `dashboard.html` — Bootstrap RBAC →
+System Settings, Foundation → Reference Data + Geography, Organization → Organizations +
+Organization Hierarchy, Person → Person Directory, Family → `dashboard.html`'s Family tab,
+Membership → `dashboard.html`'s Membership tab plus `admin.html`'s Member Directory tab.
 
 Frontend routes are excluded from OpenAPI schema (`include_in_schema=False`).
 

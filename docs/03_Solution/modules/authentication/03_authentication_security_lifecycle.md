@@ -314,6 +314,13 @@ When a Person's death is recorded (Person Module event):
 The Authentication Module does not independently record death — it may
 respond to Person lifecycle events through authorized administrative action.
 
+**Authority:** the Person-death event and its downstream consequences are
+defined by `docs/03_Solution/standards/lifecycle/PERSON_LIFECYCLE_RULES.md`
+(`SOL-LIFE-002`); the participation-side consequences (Sevak/Mahila/Kumari)
+are defined by `PARTICIPATION_LIFECYCLE_RULES.md` (`SOL-LIFE-001`). This
+section is the Authentication-layer response to those triggers and does not
+redefine them.
+
 ---
 
 # 17. Account and RBAC Lifecycle Boundary

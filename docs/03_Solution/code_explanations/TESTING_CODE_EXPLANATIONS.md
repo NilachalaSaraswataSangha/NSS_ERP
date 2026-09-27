@@ -3,9 +3,22 @@
 | Field       | Value                                    |
 |-------------|-------------------------------------------|
 | Document    | TESTING_CODE_EXPLANATIONS                 |
-| Version     | 1.7                                       |
-| Scope       | All pytest integration tests under `tests/` |
-| Status      | Complete (updated: `test_family.py` rewritten dynamic-seed-discovery style, +2 classes for org-admin filtering and FAM-036 Sakha alignment; documented known test gap for `/graph` and `/person/{pk}/membership-summary`) |
+| Version     | 1.8                                       |
+| Scope       | The flat `tests/*.py` pytest integration suite as of Tier 4 |
+| Status      | Superseded in part — the UI smoke-test sections below assert against the six deleted Tier 0-4 verification pages, and `tests/` has since been reorganized into `tests/api/`, `tests/ui/`, `tests/db/` and `tests/security/`; retained pending a rewrite |
+
+---
+
+> **⚠ Retired pages.** Wherever a section below describes a UI smoke test asserting on
+> `index.html`, `foundation.html`, `organization.html`, `person.html`, `family.html` or
+> `membership.html` — or on their `<script>` tags (`app.js`, `foundation.js`, `organization.js`,
+> `person.js`, `family.js`, `membership.js`), their `x-data="...App()"` bindings, or their nav
+> links — **those pages and JS files have been deleted from `frontend/`**, and no test in the
+> current suite references them. The functionality they covered now lives in tabs of
+> `admin.html` (Bootstrap RBAC → System Settings, Foundation → Reference Data + Geography,
+> Organization → Organizations + Organization Hierarchy, Person → Person Directory, Membership →
+> Member Directory) and `dashboard.html` (Family, Membership); the current UI tests live under
+> `tests/ui/`. See `tests/README.md` for the current per-file breakdown.
 
 ---
 

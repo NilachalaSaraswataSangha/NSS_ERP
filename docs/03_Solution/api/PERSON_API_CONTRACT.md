@@ -487,8 +487,10 @@ database/
 tests/
   test_person.py                    <- 61 integration tests
 frontend/
-  person.html                       <- Person Verification UI (2 tabs)
-  assets/js/person.js               <- Alpine.js data component
+  admin.html                        <- Person UI: Person Directory tab
+                                       (replaces the retired person.html)
+  assets/js/admin.js                <- Alpine.js data component
+                                       (replaces the retired person.js)
 docs/
   03_Solution/modules/03_person/
     01_person_design.md             <- Module design (FROZEN v2.0.0)

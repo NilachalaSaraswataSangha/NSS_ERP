@@ -9,8 +9,8 @@
 | Document Name | Family Business Rules |
 | Document ID | SOL-FAM-003 |
 | Domain | Family |
-| Repository Path | docs/03_Solution/modules/family/03_family_business_rules.md |
-| Version | 1.0.0 |
+| Repository Path | docs/03_Solution/modules/family/04_family_business_rules.md |
+| Version | 1.1.0 |
 | Status | DRAFT |
 | Parent Document | 01_family_module_overview.md |
 
@@ -19,6 +19,16 @@
 # 1. Purpose
 
 This document defines the business rules governing the NSS ERP Family Module.
+
+## Revision Note — 1.1.0
+
+Added section 22 (FAM-053 … FAM-057), the Family Authorization Model. These
+rules were not previously written down; the implementation in
+`api/routers/family.py` is gated on them, and the ownership path is covered by
+`tests/api/test_family_ownership.py`.
+
+The Repository Path above was also corrected — it read
+`03_family_business_rules.md`, which is the lifecycle document's slot.
 
 ---
 
@@ -573,4 +583,227 @@ Where an authoritative source does not define an implementation detail, the proj
 
 ---
 
-# End of Document
+# 21. Family Admin Rules
+
+## FAM-045 — Family Admin Role
+
+A Family may have one or more designated Family Admins.
+
+Family Admin is a distinct concept from Family Head.  A person may
+be both Head and Admin, but the two roles are independent.
+
+```text
+Head ≠ Admin
+Head may also be Admin
+Admin may not be Head (unless separately designated)
+```
+
+---
+
+## FAM-046 — Family Admin Appointment
+
+Only the current Family Head may appoint or remove Family Admins.
+
+The "Assign Admin" and "Revoke Admin" actions shall be visible
+only to the current Family Head in the Family dashboard.
+
+---
+
+## FAM-047 — Family Admin Self-Assignment
+
+The Family Head may assign themselves as Family Admin.
+
+---
+
+## FAM-048 — Family Admin Privileges
+
+Family Admin may perform the following actions that regular
+family members cannot:
+
+```text
+Edit family details (family name, remarks)
+Add members to the family
+Remove members from the family
+View family financial records
+```
+
+> **Implementation note (as of the Tier 5 branch, uncommitted):** the shipped
+> `api/routers/family.py` does not yet match this rule exactly. `DELETE
+> /families/{pk}/members` (`remove_family_member`) correctly restricts to Head-or-Admin,
+> per FAM-048. But `POST /families/{pk}/members` (`add_family_member`) only checks that the
+> requester is a *current member* of the family — any member can add members today, not just
+> Head/Admin, contradicting the "Add members" bullet above. There is also no `PATCH
+> /families/{pk}` endpoint at all yet, so "Edit family details" and "View family financial
+> records" are entirely unimplemented (no financial-records table/endpoint exists in this
+> module either). Flagging rather than resolving — whether to tighten `add_family_member`'s
+> authorization or loosen this rule is a product decision, not a docs fix.
+
+---
+
+## FAM-049 — Family Head Transfer
+
+The current Family Head may transfer headship to another
+family member using the "Make Head" action.
+
+On transfer:
+1. The current head's `family_head_history` record is closed
+   (effective_to = today)
+2. A new `family_head_history` record is created for the
+   new head (effective_from = today)
+3. The previous head does NOT automatically lose Admin role
+   (if they had one)
+
+---
+
+## FAM-050 — Family Head Exclusive Actions
+
+Only the Family Head may perform:
+
+```text
+Make Head (transfer headship)
+Assign Admin
+Revoke Admin
+```
+
+Family Admins cannot perform these actions unless they are also
+the Head.
+
+---
+
+## FAM-051 — One Head per Family
+
+A family shall have exactly one current Head at any time.
+
+This is enforced by the partial unique index on
+`family_head_history(family_group_pk) WHERE effective_to IS NULL`.
+
+---
+
+## FAM-052 — Family Admin History
+
+Family Admin assignments shall be historically recorded.
+Revoked admin records shall retain effective_from and
+effective_to for audit traceability.
+
+---
+
+# 22. Family Authorization Model
+
+## FAM-053 — Family Authority Derives from Relationship, Not Permission
+
+Authority over a family shall derive from a person's **relationship** to that
+family — Head, Family Admin, or Member — and not from a system-wide RBAC
+permission.
+
+Rationale, and why this rule is stated explicitly:
+
+An ordinary Sangha Sevi holds **no role**. The nine seeded roles
+(`database/seed/00_bootstrap/02_role_master.sql`) are all administrative:
+three SYSTEM roles and six ORGANIZATIONAL roles. Registration creates a
+`user_account` in `PENDING_APPROVAL` with no role; claim approval creates the
+`sangha_sevi` row and affiliation and flips the account to `ACTIVE` — still
+with no role. The only place the API inserts into `nss.user_role` is manual
+assignment by an administrator.
+
+Therefore an ordinary member's permission set is **empty**. Gating the family
+endpoints on `FAMILY_VIEW` / `FAMILY_MANAGE` alone would lock every ordinary
+member out of their own family tree. Ownership is the only mechanism that can
+admit them.
+
+---
+
+## FAM-054 — FAMILY_VIEW / FAMILY_MANAGE Are the Organisational Override
+
+`FAMILY_VIEW` and `FAMILY_MANAGE` shall not be the primary gate on
+family-scoped operations. They shall act as the **organisational override**
+that allows an administrator to reach families they do not belong to — the
+org-level family browser.
+
+`FAMILY_MANAGE` shall additionally satisfy the Head-only rules (FAM-046,
+FAM-050) so that a family whose Head is lost — deceased, departed, account
+disabled — is not permanently unable to appoint a successor.
+
+---
+
+## FAM-055 — Authorization Matrix
+
+| Operation | Required authority |
+|---|---|
+| View one family — detail, members, head history, graph, admin list, Sakha alignment | Current **member** of that family, or `FAMILY_VIEW` |
+| View a person's family list / membership summary | **Self**, a current **relative** (shares a current family), or `FAMILY_VIEW` |
+| Browse **all** families (org-level browser) | `FAMILY_VIEW` only — "all families" is nobody's own family |
+| Create a family | Any authenticated member (self-service; see FAM-056) |
+| Add member, remove member, create family link | That family's **Head or Family Admin**, or `FAMILY_MANAGE` |
+| Appoint / revoke a Family Admin, transfer headship | That family's **Head** only, or `FAMILY_MANAGE` |
+
+Two consequences are deliberate and must not be softened:
+
+* Being **merely a member** is not sufficient to change membership. A member
+  can see their family; they cannot alter who is in it.
+* A **Family Admin cannot appoint further admins or transfer headship.** Those
+  remain Head-exclusive (FAM-046, FAM-050), so admin authority cannot be used
+  to escalate itself.
+
+The relative case in row 2 is required, not a convenience: the member
+dashboard fetches a membership summary for every person in the viewer's own
+family tree. A self-only check would break the tree panel.
+
+---
+
+## FAM-056 — Family Creation Is Self-Service
+
+Creating a family shall require authentication only. It shall not require
+`FAMILY_MANAGE`.
+
+There is no existing family for an ownership check to consult at the moment of
+creation — the caller becomes the founding member and the first Head by the
+act of creating it. Requiring an administrative permission here would mean no
+member could ever form their own family unit, which FAM-011 and FAM-014
+(marriage resulting in the formation of a new Family Group) require the system
+to support.
+
+---
+
+## FAM-057 — Caller-Supplied Identifiers Are Never the Authorization Subject
+
+Where an endpoint accepts a person identifier as input — for example the
+`viewer_person_pk` query parameter on the family graph endpoint, which selects
+whose perspective kinship labels are computed from — that identifier shall
+serve presentation only. Authorization shall always be evaluated against the
+authenticated identity carried by the token.
+
+---
+
+# 23. Frozen Family Admin Principles
+
+```text
+Head and Admin are independent roles
+
+Head may also be Admin
+
+One Head per family at any time
+
+Multiple Admins per family allowed
+
+Only Head can appoint/remove Admins
+
+Only Head can transfer headship
+
+Admin can edit family, add/remove members, view financials
+
+Head transfer does not revoke previous head's Admin role
+
+Admin history preserved (never physically deleted)
+
+Authority comes from relationship, not from RBAC permission
+
+An ordinary member holds no role and no permission
+
+A member may view their own family but not change its membership
+
+FAMILY_VIEW / FAMILY_MANAGE are the organisational override only
+
+Family creation requires authentication only
+```
+
+---

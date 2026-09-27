@@ -5,16 +5,23 @@ UI/UX design documentation (screen specs, wireframes) per the UI Roadmap in
 
 ## Relationship to the implemented `frontend/`
 
-`frontend/` (repo root) is a real, already-implemented frontend — six Verification UIs (Tier 0
+`frontend/` (repo root) is a real, already-implemented frontend. It consists of four
+authenticated pages — `login.html` (`/login`, which `/` redirects to), `register.html`
+(`/register`), `dashboard.html` (`/dashboard` — the role-aware Member Dashboard) and `admin.html`
+(`/admin` — the Administration Dashboard) — see root `CLAUDE.md` → Frontend and
+`frontend/README.md`. It originally consisted instead of six Verification UIs (Tier 0
 Bootstrap, Tier 1 Foundation, Tier 2 Organization, Tier 3 Person, Tier 4 Family, Tier 4
-Membership), served by FastAPI at `/`, `/foundation`, `/organization`, `/person`, `/family`, and
-`/membership` respectively (see root `CLAUDE.md` → Frontend and `frontend/README.md`). It shares
-the same tech stack as the mockups below (Tailwind CSS + DaisyUI via CDN, Alpine.js, no build
-step) but is a distinct, functional artifact: each page calls its tier's real `/api/v1/*`
-endpoints and verifies DB connectivity/seed data, whereas the mockups in `mockups/` are static,
+Membership) served at `/`, `/foundation`, `/organization`, `/person`, `/family` and
+`/membership`; those six pages have been **retired and deleted**, and each one's functionality
+now lives in a tab of `admin.html` (Bootstrap RBAC → System Settings, Foundation → Reference Data
++ Geography, Organization → Organizations + Organization Hierarchy, Person → Person Directory,
+Membership → Member Directory) or `dashboard.html` (Family, Membership). It shares
+the same tech stack as the mockups below (Tailwind CSS + DaisyUI, Alpine.js, no build
+step) but is a distinct, functional artifact: it calls the real `/api/v1/*`
+endpoints, whereas the mockups in `mockups/` are static,
 non-functional visual targets for the future admin-dashboard UI (Phase 4) with sample/placeholder
-data only. None of the 13 mockups below is one of these six Verification UIs, and the
-Verification UIs do not supersede or implement any of them — they cover different,
+data only. None of the 13 mockups below is one of the implemented pages, and the implemented
+pages do not supersede or implement any of them — they cover different,
 non-overlapping screens.
 
 ## Contents

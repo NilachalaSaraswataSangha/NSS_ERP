@@ -70,7 +70,10 @@ in `test_bootstrap.py`/`test_foundation.py` check headers or throttling at all.
 - `api/main.py`'s router registration, lifespan handler, and frontend-serving routes are
   explained in `API_CODE_EXPLANATIONS.md` §2.3; only its middleware-registration block is walked
   through here.
-- `frontend/index.html` and `frontend/foundation.html`'s CDN `<head>` tags are explained in full
+- The CDN `<head>` tags described here originated in `frontend/index.html` and
+  `frontend/foundation.html` (both since deleted, along with the other four Tier 0-4 verification
+  pages) and are carried unchanged by the four current pages — `login.html`, `register.html`,
+  `dashboard.html`, `admin.html`. The retired pages' markup is explained in full
   in `UI_CODE_EXPLANATIONS.md`; this document summarizes just the security rationale for the
   pinning and points there for the literal markup.
 - `tests/test_security.py` — the test file that verifies everything in this document — is
@@ -148,6 +151,12 @@ and a `call_next` callable that invokes the rest of the middleware chain plus th
       Permissions-Policy: camera=(), microphone=(), geolocation=()
         Denies access to device APIs the app doesn't use.
 
+      Content-Security-Policy
+        See build_csp(). Emitted as Content-Security-Policy-Report-Only
+        when CSP_REPORT_ONLY is set, so a tightened policy can be trialled
+        against a live deployment before it starts blocking. Suppressed
+        entirely by CSP_ENABLED=false, and skipped for CSP_EXEMPT_PATHS.
+
     Headers added to API responses only (/api/* paths):
       Cache-Control: no-store
         Prevents caching of API responses so they always reflect
@@ -162,23 +171,72 @@ and a `call_next` callable that invokes the rest of the middleware chain plus th
       X-XSS-Protection — obsolete in modern browsers; superseded by CSP.
       Strict-Transport-Security (HSTS) — Render adds this automatically
         on custom domains with TLS.
-      Content-Security-Policy (CSP) — deferred until all inline styles
-        are audited; Tailwind CSS is now pre-built (no CDN).
     """
 ```
 
 This extended docstring enumerates exactly which headers are added unconditionally
-(`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`), which two
+(`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`,
+`Content-Security-Policy`), which two
 are added conditionally by path (`Cache-Control: no-store` on `/api/*`; `Cache-Control: public,
 max-age=86400, must-revalidate` on `/assets/*` — new, currently uncommitted on `develop`, part of
 the Tailwind CDN→CLI migration, see Architecture in `PROJECT_DOCUMENTATION.md`), and which
 headers were
-deliberately *not* added and why: `X-XSS-Protection` (obsolete, superseded by CSP),
+deliberately *not* added and why: `X-XSS-Protection` (obsolete, superseded by CSP) and
 `Strict-Transport-Security` (Render adds this automatically on custom domains with TLS — setting
-it here without controlling TLS termination would be misleading), and `Content-Security-Policy`
-(still deferred — the original blocker, Tailwind's Play CDN injecting inline `<style>` tags at
-runtime, no longer applies now that Tailwind is pre-built, but a full audit of any *remaining*
-inline styles, e.g. Alpine.js's `x-cloak` pattern, hasn't happened yet).
+it here without controlling TLS termination would be misleading).
+
+### Content-Security-Policy — `build_csp()`
+
+CSP was deferred through Tiers 0–4 and delivered in Tier 5 (24/09/2026). The interesting part is
+that the policy was **derived by measuring the frontend, not by copying a template** — every
+allowance exists because something provably needs it:
+
+| Directive | Value | Why exactly this |
+|---|---|---|
+| `default-src` | `'self'` | Baseline: anything not named below is same-origin only. |
+| `script-src` | `'self' 'unsafe-eval' https://cdn.jsdelivr.net` | Alpine.js 3.14.8 is CDN-hosted with an SRI hash on all 10 pages, and Alpine 3's default build compiles directive expressions (`x-data`, `@click`) with `new Function()`. **`'unsafe-inline'` is deliberately absent.** |
+| `style-src` | `'self' 'unsafe-inline'` | ~639 inline `style=` attributes plus one inline `<style>` block. Nonces cannot cover style *attributes*, so this is the only way to allow them short of migrating all of them to classes. |
+| `img-src` | `'self' data:` | `tailwind.min.css` embeds form-control icons as `data:image/svg+xml`. |
+| `connect-src` | `'self'` | Every `fetch()` in the frontend is a same-origin relative `/api/...` call. |
+| `font-src` | `'self'` | No `@font-face` rules exist at all. |
+| `object-src` | `'none'` | No plugin content. |
+| `base-uri` | `'self'` | Blocks `<base>` injection redirecting relative URLs. |
+| `form-action` | `'self'` | There are no `<form>` elements; submission is JS-driven. |
+| `frame-ancestors` | `'none'` | Matches the existing `X-Frame-Options: DENY`. |
+
+Earlier audit notes assumed CSP would need a **nonce strategy for inline scripts**. It didn't —
+because the inline scripts were *removed* instead. There were 0 inline `<script>` blocks already,
+and the 7 inline event handlers that existed were all cosmetic (hover/focus effects, plus one
+`onclick="NSSAuth.logout()"` emitted from a JS HTML-string template). They were replaced by CSS
+state selectors in `nss-layout.css` (`.nss-search-input:focus`, `.nss-hover-fade`,
+`.nss-pill-btn-*`, `.nss-icon-btn-danger`, `.nss-row-selectable`) and, for logout, a single
+delegated `data-nss-action` listener at the bottom of `nss-layout.js`. That is what buys
+`script-src` without `'unsafe-inline'`: an injected `onerror=` attribute or `<script>` tag cannot
+execute even if it reaches the DOM.
+
+Two details worth knowing when editing these pages:
+
+- The `.nss-pill-btn-*` classes carry their **base** `background` in CSS, not inline. A `:hover`
+  rule loses to an inline `style=` declaration, so leaving the base colour inline would have
+  silently broken the hover state.
+- `.nss-row-selectable:hover` intentionally has no "am I selected?" guard. Alpine's `:style`
+  binding sets an inline background on the selected row, and inline styles outrank the stylesheet
+  — so the selection highlight survives hover for free, replacing the old
+  `if(!this.style.background.includes('eef2ff'))` handler logic.
+
+`/docs`, `/redoc` and `/openapi.json` are exempt (`CSP_EXEMPT_PATHS`) because FastAPI's generated
+Swagger UI does embed an inline `<script>`; those routes are disabled outright in production by
+`DISABLE_DOCS`. Two residual weaknesses are tracked rather than hidden: `'unsafe-eval'` (needs the
+`@alpinejs/csp` build plus rewriting every inline expression as a named method) and
+`style-src 'unsafe-inline'`. Both are recorded in `TIER5_SECURITY_AUDIT.md` §2.2 A2.
+
+Enforcement is env-controlled so a deployment can roll it out safely: `CSP_ENABLED` (default
+true), `CSP_REPORT_ONLY` (report violations without blocking), and
+`CSP_SCRIPT_SRC_EXTRA`/`CSP_STYLE_SRC_EXTRA` so adding a CDN is a config change rather than a code
+change. Beyond the 11 header tests, `tests/api/test_security.py` adds three **source guards**
+(`TestNoInlineEventHandlers`) that fail the suite if anyone reintroduces an inline handler or
+inline `<script>` — without them, a new handler would simply be dead in the browser with no test
+failure to explain why.
 
 > **Tier 2/3 note:** The Organization and Person endpoints (`/api/v1/organization/*`,
 > `/api/v1/person/*`) pass through the exact same middleware stack as Bootstrap and Foundation —
@@ -465,17 +523,19 @@ Tailwind migration.
 
 **What changed to get here:** the previous unpinned `<script src="https://cdn.tailwindcss.com">`
 (Tailwind Play CDN) and pinned DaisyUI CDN `<link>` (`@4.12.14` with an SRI hash) were both
-replaced with the single same-origin `tailwind.min.css` `<link>` above, across all six HTML
-files, as part of the currently-uncommitted CDN→CLI migration.
+replaced with the single same-origin `tailwind.min.css` `<link>` above, across every HTML
+file, as part of the currently-uncommitted CDN→CLI migration.
 
-> **Tier 3 note:** `frontend/person.html` uses the identical dependency `<head>` block — same
-> versions. No new CDN dependencies were introduced in Tier 3.
+> **Tier 3 note:** `frontend/person.html` used the identical dependency `<head>` block — same
+> versions. No new CDN dependencies were introduced in Tier 3. (That page has since been deleted;
+> its functionality is now `admin.html`'s Person Directory tab, which carries the same block.)
 
 > **Tier 4 note:** `frontend/assets/css/badges.css` and `frontend/assets/js/nss-config.js`
-> (added in the Tier 4 shared-config extraction, loaded by all six pages' `<head>` — see
+> (added in the Tier 4 shared-config extraction, loaded by every page's `<head>` — see
 > `UI_CODE_EXPLANATIONS.md` §2.14–§2.15 and `frontend/README.md`) are **not** CDN resources —
 > both are served same-origin from this app's own `/assets/*` static mount (`api/main.py`), the
-> same trust boundary as `style.css` and `app.js`/`foundation.js`/etc. Subresource Integrity
+> same trust boundary as `style.css` and the page JS (`admin.js`/`dashboard.js`/etc.).
+> Subresource Integrity
 > exists specifically to protect against a *third-party* origin serving different bytes than
 > expected; a same-origin file carries no such cross-origin trust gap (if an attacker could
 > alter it, they could already alter every other file this server serves, SRI or not), so
@@ -490,9 +550,9 @@ files, as part of the currently-uncommitted CDN→CLI migration.
   file-by-file walkthrough of `api/config.py` and `api/main.py`, of which this document covers
   only the security-relevant slices.
 - **`docs/03_Solution/code_explanations/UI_CODE_EXPLANATIONS.md`** — the full
-  markup-level walkthrough of `frontend/index.html`, `frontend/foundation.html`, and
+  markup-level walkthrough of the retired `frontend/index.html`, `frontend/foundation.html`, and
   `frontend/organization.html`, including every CDN `<script>`/`<link>` tag this document only
-  summarizes.
+  summarizes; for the current pages see `frontend/README.md`.
 - **`docs/03_Solution/code_explanations/TESTING_CODE_EXPLANATIONS.md`** —
   `tests/test_security.py`'s per-test walkthrough and `tests/test_organization.py`'s
   `TestOrganizationSecurity` class; those files are the executable verification of everything

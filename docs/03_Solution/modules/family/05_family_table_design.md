@@ -30,6 +30,10 @@ family_head_history
 family_relationship
 
 family_transition_history
+
+family_link
+
+family_admin
 ```
 
 ---
@@ -41,9 +45,13 @@ family_group
 family_head_history
 family_relationship
 family_transition_history
+family_link
+family_admin
 ```
 
 The fourth table, family_transition_history, was added as part of the frozen Marriage and Family Transition decision.
+The fifth table, family_link, was added for graph-based relationship model (FAM-039).
+The sixth table, family_admin, was added for the Family Admin role feature (FAM-045–FAM-052).
 
 ---
 
@@ -518,6 +526,59 @@ family_head_history
 family_relationship
 
 family_transition_history
+
+family_link
+
+family_admin
+```
+
+---
+
+# 23.1. family_admin
+
+## Purpose
+
+Tracks Family Admin role assignments. Multiple admins per family
+allowed. Head and Admin are independent roles — a person may
+hold both. Only the Family Head can assign or revoke Admin.
+
+## Main Columns
+
+```text
+family_admin_pk            UUID PK  DEFAULT gen_random_uuid()
+family_group_pk            FK → family_group  NOT NULL
+person_pk                  FK → person  NOT NULL
+effective_from             DATE  NOT NULL
+effective_to               DATE  NULL  (NULL = currently active)
+appointed_by_person_pk     FK → person  NOT NULL  (must be Head at time)
+remarks                    TEXT  NULL
+created_at                 TIMESTAMPTZ  NOT NULL
+created_by_sangha_sevi_pk  UUID  NULL
+updated_at                 TIMESTAMPTZ  NULL
+updated_by_sangha_sevi_pk  UUID  NULL
+```
+
+## Key Rules
+
+```text
+FAM-045: Head ≠ Admin; both roles independent
+FAM-046: Only Head appoints/revokes Admin
+FAM-047: Head may self-assign as Admin
+FAM-048: Admin can edit family, add/remove members, view financials
+FAM-049: Head transfer does not revoke previous head's Admin
+FAM-050: Make Head / Assign Admin / Revoke Admin — Head-only actions
+FAM-051: One Head per family at any time
+FAM-052: Admin history preserved (never physically deleted)
+```
+
+## Constraints
+
+```text
+-- One active admin per person per family at a time
+UNIQUE(family_group_pk, person_pk) WHERE effective_to IS NULL
+
+-- Effective date range consistency
+CHECK(effective_to IS NULL OR effective_to >= effective_from)
 ```
 
 ---

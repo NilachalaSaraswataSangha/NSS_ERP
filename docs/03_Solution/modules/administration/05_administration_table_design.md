@@ -1,12 +1,16 @@
 # NSS ERP — Administration Table Design
 
 **Document ID:** SOL-ADMIN-004
-**Version:** 1.2.0
+**Version:** 1.3.0
 **Status:** DRAFT — SOURCE ALIGNED
 **Amendment:** §8.7–8.10 — Frozen Role Catalogue, Role ≠ Position, Permission Matrix Status;
 §8.11 (v1.2.0) — Parallel Administrative Role Model: the six organizational/system admin roles
 are parallel, not inherited; per-role eligibility criteria (incl. Parichay Patra eligibility for
-`NSS_ERP_ADMIN`, independent of Governing Body membership); multi-role-assignment example
+`NSS_ERP_ADMIN`, independent of Governing Body membership); multi-role-assignment example;
+§8.7/§8.8/§8.11 (v1.3.0) — added a 9th frozen role, `NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN`,
+scoped to the single Kendra Mahila Sangha organization, per an explicit governance decision
+(2026-09-25) — see Organization business rules §28 (ORG-BR-087–095) for the underlying
+type-to-type parent hierarchy this role's scope depends on
 **Module:** Administration
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -269,7 +273,7 @@ Historical role assignments must remain interpretable.
 
 ## 8.7 Frozen Role Catalogue
 
-The following eight RBAC roles are frozen:
+The following nine RBAC roles are frozen:
 
 | Role Code | Role Class | Scope | Intended Responsibility |
 |-----------|-----------|-------|------------------------|
@@ -279,12 +283,14 @@ The following eight RBAC roles are frozen:
 | `NSS_ERP_ZILLA_ADMIN` | Organizational administration | Zilla | Administrative operations within assigned Zilla scope |
 | `NSS_ERP_SAKHA_ADMIN` | Organizational administration | Sakha | Administrative operations within assigned Sakha scope |
 | `NSS_ERP_PATHA_CHAKRA_ADMIN` | Organizational administration | Patha Chakra | Administrative operations within assigned Patha Chakra scope |
+| `NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN` | Organizational administration | Kendra Mahila Sangha | Administrative operations within the Kendra Mahila Sangha scope |
 | `NSS_ERP_AUDITOR` | Oversight / read | NSS-wide | Audit and review access |
 | `NSS_ERP_REPORT_VIEWER` | Reporting / read | NSS-wide | Reporting and read-oriented access |
 
-All six organizational/system administrative roles (`NSS_ERP_ADMIN`,
+All seven organizational/system administrative roles (`NSS_ERP_ADMIN`,
 `NSS_ERP_KENDRA_ADMIN`, `NSS_ERP_ANCHALIKA_ADMIN`, `NSS_ERP_ZILLA_ADMIN`,
-`NSS_ERP_SAKHA_ADMIN`, `NSS_ERP_PATHA_CHAKRA_ADMIN`) share the same
+`NSS_ERP_SAKHA_ADMIN`, `NSS_ERP_PATHA_CHAKRA_ADMIN`,
+`NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN`) share the same
 administrative permission set initially. The only distinction between
 them is **scope**, not capability: `NSS_ERP_ADMIN` is system-wide,
 each other administrative role is scoped to its named organizational
@@ -296,7 +302,13 @@ authorities**: `NSS_ERP_ADMIN` is granted on system-wide authorization
 to any eligible member (Parichay Patra basis), while
 `NSS_ERP_KENDRA_ADMIN` is granted through Kendra's own Governing Body
 administration path — see §8.11 for the full parallel-role model and
-eligibility rules.
+eligibility rules. `NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN` is likewise a
+singleton-scoped role: the Kendra Mahila Sangha is a single
+organization (see `docs/03_Solution/modules/organization/
+04_organization_business_rules.md` §28, ORG-BR-091) — the organization
+`MAHILA_SANGHA` row whose parent is `KENDRA` — not a per-Sakha role;
+local per-Sakha Mahila Sanghas fall under their Sakha's own
+`NSS_ERP_SAKHA_ADMIN` scope, not a distinct role.
 
 Role assignment is independent of governance position. A Kendra Governing
 Body member does not automatically receive `NSS_ERP_KENDRA_ADMIN`; an
@@ -324,6 +336,7 @@ NSS_ERP_ZILLA_ADMIN              Assistant Secretary
 NSS_ERP_SAKHA_ADMIN              Treasurer
 NSS_ERP_AUDITOR                  Governing Body Member
 NSS_ERP_REPORT_VIEWER
+NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN
 ```
 
 These are **independent concepts**. A President does not automatically
@@ -376,9 +389,9 @@ recorded independently via `admin_scope`.
      NSS_ERP_ADMIN              Organizational Admin
      System-wide                       │
                                        │
-                 ┌─────────────┬───────┼──────────────┐
-                 │             │       │              │
-              KENDRA       ANCHALIKA  ZILLA         SAKHA
+                 ┌─────────────┬───────┼──────────────┬──────────────────┐
+                 │             │       │              │                  │
+              KENDRA       ANCHALIKA  ZILLA         SAKHA      KENDRA MAHILA SANGHA
                  │             │       │              │
                  └─────────────┴───────┴──────────────┘
                               │
@@ -395,6 +408,7 @@ recorded independently via `admin_scope`.
 | `NSS_ERP_ZILLA_ADMIN` | Zilla Governing Body members, or another authorized individual. |
 | `NSS_ERP_SAKHA_ADMIN` | Sakha Governing Body members, or another authorized individual. |
 | `NSS_ERP_PATHA_CHAKRA_ADMIN` | Authorized Governing Body/organizational individual for that Patha Chakra. |
+| `NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN` | Kendra Mahila Sangha Governing Body members, or another individual authorized to administer the Kendra Mahila Sangha. Scoped to the single Kendra Mahila Sangha organization only — not to local, per-Sakha Mahila Sanghas (see Organization business rules §28, ORG-BR-091). |
 | `NSS_ERP_AUDITOR` | Authorized auditor. |
 | `NSS_ERP_REPORT_VIEWER` | Authorized report user. |
 

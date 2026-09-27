@@ -88,7 +88,9 @@ Design Complete · ERD Complete (ERD does not yet cover `document_master`, `fiel
 **SQL Implementation Complete** (12 tables + seed data — see Note above) ·
 **API/UI Implementation Complete for 11 of the 12 tables** — `api/routers/foundation.py`
 exposes 17 read-only endpoints (everything except `field_change_log`, deliberately deferred to
-Tier 5 for auth), consumed by `frontend/foundation.html`'s 4-tab verification UI and verified by
+Tier 5 for auth), consumed by `frontend/admin.html`'s Reference Data and Geography tabs
+(originally the 4-tab `frontend/foundation.html` verification UI, since retired and deleted) and
+verified by
 59 pytest integration tests (`tests/test_foundation.py`); see
 `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` and
 `docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`. The Django prototype that

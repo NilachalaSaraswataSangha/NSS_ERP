@@ -441,9 +441,11 @@ For each **direct** child of the given organization, recursively walks every des
 Sakha (`SAKHA_SANGHA`-typed organization, at any depth) and returns aggregate
 family/member/person counts rolled up to that direct child. New on top of Tier 4 Family +
 Membership. The router docstring states this is "used by the org admin sidebar to display
-inline counts on each drill-down card" — **as of this contract version, no frontend code
-(`frontend/organization.html`, `frontend/assets/js/organization.js`) calls this endpoint
-yet; the UI consumer described in the docstring does not exist in code.**
+inline counts on each drill-down card" — **as of this contract version, no frontend code calls
+this endpoint. The original `frontend/organization.html`/`frontend/assets/js/organization.js`
+never did, and neither does their successor, `frontend/admin.html`'s Organization Hierarchy tab
+(`frontend/assets/js/admin.js`); the UI consumer described in the docstring does not exist in
+code.**
 
 **Path Parameters:**
 
@@ -713,7 +715,9 @@ database/
 tests/
   test_organization.py          <- Integration tests, incl. TestChildrenStats
 frontend/
-  organization.html             <- Organization Verification UI (no children-stats UI wiring yet)
+  admin.html                    <- Organization UI: Organizations + Organization Hierarchy
+                                   tabs (replaces the retired organization.html; still no
+                                   children-stats UI wiring)
 docs/
   03_Solution/code_explanations/
       API_CODE_EXPLANATIONS.md        <- Code walkthrough (SS2.9-2.10)

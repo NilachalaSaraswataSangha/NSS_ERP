@@ -1,9 +1,9 @@
 # NSS ERP — Physical FK Dependency Graph
 
 **Document ID:** SOL-ARCH-009
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Status:** FROZEN
-**Date:** 2026-08-31
+**Date:** 2026-09-16
 **Parent Documents:**
 - IMPLEMENTATION_DEPENDENCY_ORDER.md (SOL-ARCH-008)
 - MODULE_DEPENDENCY_MAP.md
@@ -176,7 +176,7 @@ Note: Heritage's `spiritual_literature` uses `publication_type_pk` and
 | 2 | `permission_master` | — | — |
 | 3 | `role_permission` | role_master_pk → role_master, permission_master_pk → permission_master | — |
 | 4 | `user_role` | role_master_pk → role_master | user_account_pk → user_account (Authentication) |
-| 5 | `admin_scope` | role_master_pk → role_master | user_account_pk → user_account (Authentication), organization_pk → organization (Organization) |
+| 5 | `admin_scope` | user_role_pk → user_role | organization_pk → organization (Organization) |
 | 6 | `correspondence` | — | sender_person_pk → person (Person), sender_organization_pk → organization (Organization), recipient_person_pk → person (Person), recipient_organization_pk → organization (Organization), responsible_person_pk → person (Person), responsible_organization_pk → organization (Organization), medium_master_data_pk → master_data (Foundation), status_master_data_pk → master_data (Foundation) |
 | 7 | `correspondence_document` | correspondence_pk → correspondence | document_master_pk → document_master (Foundation) |
 | 8 | `correspondence_finance_reference` | correspondence_pk → correspondence | financial_transaction_pk → financial_transaction (Finance) |
@@ -435,7 +435,6 @@ PHASE 4 — Depends on Membership (sangha_sevi)
     permission_master
     role_permission              (← role_master, permission_master)
     user_role                    (← role_master, user_account)
-    admin_scope                  (← role_master, user_account, organization)
 
   Administration (Correspondence):
     correspondence               (← person, organization, master_data)
@@ -469,6 +468,9 @@ PHASE 4 — Depends on Membership (sangha_sevi)
 
 PHASE 5 — Depends on Phase 4 (Membership + Organization + Person)
 ──────────────────────────────────────────────────────────────────────
+  Administration (Scope — depends on user_role from Phase 4):
+    admin_scope                  (← user_role, organization)
+
   Finance:
     financial_year
     financial_scope              (← organization)
@@ -631,8 +633,8 @@ The following creation depths were produced by Kahn's algorithm. All
 | 1 | 8 | asset_document, founder, maintenance_record, master_data, property_document, property_statutory_record, role_permission, state |
 | 2 | 6 | district, founder_gallery, founder_timeline, person, publication, spiritual_literature |
 | 3 | 3 | city_village, organization, user_account |
-| 4 | 12 | admin_scope, body_master, correspondence, custodianship, family_group, financial_scope, kishor_event, kumari_sangha, password_history, sangha_sevi, user_role, weekly_sangha_puja |
-| 5 | 24 | acting_position_assignment, anumati_patra, attendance_exception, attendance_review, body_member_assignment, correspondence_document, election, family_head_history, family_relationship, family_transition_history, fund_master, kishor_participant, kumari_activity, kumari_membership, membership_journey_event, membership_renewal_history, membership_renewal_request, membership_sakha_affiliation, membership_status_history, membership_transfer_history, parichaya_patra, probationary_member_review, sevak_participation, weekly_sangha_puja_attendance |
+| 4 | 11 | body_master, correspondence, custodianship, family_group, financial_scope, kishor_event, kumari_sangha, password_history, sangha_sevi, user_role, weekly_sangha_puja |
+| 5 | 25 | acting_position_assignment, admin_scope, anumati_patra, attendance_exception, attendance_review, body_member_assignment, correspondence_document, election, family_head_history, family_relationship, family_transition_history, fund_master, kishor_participant, kumari_activity, kumari_membership, membership_journey_event, membership_renewal_history, membership_renewal_request, membership_sakha_affiliation, membership_status_history, membership_transfer_history, parichaya_patra, probationary_member_review, sevak_participation, weekly_sangha_puja_attendance |
 | 6 | 14 | anumati_patra_history, election_nomination, election_result, election_vote, financial_transaction, financial_transfer, kishor_event_registration, kishor_guardian_history, kishor_transition, kumari_activity_participant, kumari_membership_transition, parichaya_patra_history, sevak_sakha_association, sevak_status_history |
 | 7 | 3 | financial_payment, financial_receipt, sevak_reactivation_review |
 
@@ -647,7 +649,7 @@ DOCUMENT STATUS:
 FROZEN
 
 VERSION:
-1.1.0
+1.2.0
 
 FROZEN TABLES:
 87

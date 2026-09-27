@@ -715,6 +715,10 @@ PERSON
           |         +-- Local Sakha ERP ID (per period)
           |         +-- Affiliation status / effective dates
           |
+          +-- DARSHAK_ATTENDANCE_REGISTRATION
+          |         +-- Darshak local number (per attending Sakha)
+          |         +-- Three-step approval workflow
+          |
           +-- MEMBERSHIP_JOURNEY_EVENT
           |
           +-- PROBATIONARY_MEMBER_REVIEW
@@ -906,12 +910,54 @@ anumati_patra_history
 parichaya_patra
 
 parichaya_patra_history
+
+darshak_attendance_registration
 ```
 
 This table set reflects the Membership architecture developed during
 the NSS V2 database discussions, including the later addition of
 probationary_member_review, the first-class identity-document entities,
-and `membership_sakha_affiliation` (accepted per
-MEM-PENDING-001 — see §27.1).
+`membership_sakha_affiliation` (accepted per MEM-PENDING-001 — see
+§27.1), and `darshak_attendance_registration` (SOL-MEM-006 — see §28.1).
+
+---
+
+# 28.1 darshak_attendance_registration — Cross-Sakha Darshak Attendance (SOL-MEM-006)
+
+## Purpose
+
+Stores cross-Sakha Darshak attendance registrations with a three-step
+approval workflow (Home Sakha → Parichalak → Target Sakha President)
+and the local tracking number assigned by the attending Sakha.
+
+Separate from `membership_sakha_affiliation` — this is NOT a membership
+affiliation. The member's Parichaya Patra stays at their home Sakha.
+
+Full design: `06_darshak_attendance_registration.md`
+DDL: `database/ddl/05_membership/13_darshak_attendance_registration.sql`
+
+## Key Rules
+
+- One active Darshak attendance per person at a time (DAR-002)
+- Three-step approval required (DAR-001)
+- Darshak local number is a simple number assigned by attending Sakha (DAR-003)
+- Number is persistent per person per Sakha — never reassigned (DAR-004)
+- Does not affect `membership_sakha_affiliation` (DAR-005)
+- Cannot be Darshak at own home Sakha (DAR-006)
+- No governance rights at attending Sakha (DAR-007)
+
+## Relationship Diagram
+
+```text
+PERSON
+   |
+   +-- SANGHA_SEVI
+          |
+          +-- MEMBERSHIP_SAKHA_AFFILIATION
+          |         (home Sakha — Local Sakha ERP ID)
+          |
+          +-- DARSHAK_ATTENDANCE_REGISTRATION
+                    (attending Sakha — Darshak local number)
+```
 
 ---

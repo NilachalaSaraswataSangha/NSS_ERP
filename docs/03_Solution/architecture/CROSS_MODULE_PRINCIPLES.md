@@ -461,7 +461,7 @@ The same one-owner-per-table principle applies to future modules.
 | Correspondence is a reusable cross-module platform capability (CORR-ARCH-002) | FROZEN |
 | Organization short code (3–5 letter, UNIQUE) for Sakha-level identity/correspondence (ORG-PENDING-001) | FROZEN |
 | Local Sakha ERP ID conceptual rules + format (MEM-PENDING-001) | FROZEN — physical model ACCEPTED (`membership_sakha_affiliation`) |
-| Visitor vs. Approved Darshak threshold (ATT-PENDING-001) | PENDING — DDL phase; Darshak local-number issuance SUPERSEDED |
+| Visitor vs. Approved Darshak threshold (ATT-PENDING-001) | FROZEN — Darshak local-number issuance RESOLVED (SOL-MEM-006) |
 
 ---
 
@@ -641,6 +641,11 @@ zero-padded, and increments per Sakha independently.
      Local Sakha ERP ID**; they continue to be identified by the Local
      Sakha ERP ID of their base/recognized Sakha. The attendance
      record's organizational context identifies the receiving Sakha.
+     However, the attending Sakha may assign a **Darshak local number**
+     — a simple tracking number for its attendance register. This is
+     operationally distinct from the Local Sakha ERP ID and is stored
+     in `darshak_attendance_registration` (see SOL-MEM-006), not in
+     `membership_sakha_affiliation`.
 
    ```text
                         DARSHAK
@@ -724,12 +729,12 @@ for genuinely new members.
 
 ### Issuance Rules
 
-| Scenario | Local ERP ID issued? |
-|----------|:---:|
-| Home Sakha member (new or returning) | Yes |
-| Probationary Member / operational Darshak (new to NSS, no Parichaya Patra elsewhere) | Yes — from enrolling Sakha |
-| Approved Darshak (existing member of another Sangha, with approval) | No — uses base-Sakha ID |
-| Visitor (≤4 consecutive Sundays, no approval) | No |
+| Scenario | Local ERP ID issued? | Darshak local number issued? |
+|----------|:---:|:---:|
+| Home Sakha member (new or returning) | Yes | N/A |
+| Probationary Member / operational Darshak (new to NSS, no Parichaya Patra elsewhere) | Yes — from enrolling Sakha | N/A |
+| Approved Darshak (existing member of another Sangha, with approval) | No — uses base-Sakha ID | Yes — by attending Sakha (SOL-MEM-006) |
+| Visitor (≤4 consecutive Sundays, no approval) | No | No |
 
 ### Key Properties
 
@@ -851,14 +856,26 @@ and receive a Local Sakha ERP ID per MEM-PENDING-001 rule 5.
 ### Approved Darshak (with approval)
 
 ```text
-- Approval required from visited Sakha
+- Three-step approval required:
+    1. Home Sakha (Secretary or President)
+    2. Parichalak (Kendra level)
+    3. Target Sakha President
 - Existing member of another Sangha (holds Parichaya Patra elsewhere)
-- No local Sakha number issued by receiving Sakha
-  (SUPERSEDED — see MEM-PENDING-001 rule 5)
-- Darshak uses base-Sakha Local ERP ID for identification
+- No Local Sakha ERP ID issued by receiving Sakha
+  (membership_sakha_affiliation unchanged)
+- Attending Sakha assigns a Darshak local number — a simple tracking
+  number for the Sakha's attendance register (SOL-MEM-006)
+- Darshak local number is persistent per person per Sakha
+  (never reassigned to another person)
+- One active Darshak attendance per person at a time
+- Darshak uses base-Sakha Local ERP ID for membership identification
 - Attendance recorded with receiving Sakha as organizational context
 - Parichaya Patra stays at home Sakha
+- No governance rights at attending Sakha
 ```
+
+Physical table: `darshak_attendance_registration` (SOL-MEM-006,
+DDL: `05_membership/13_darshak_attendance_registration.sql`)
 
 **Important distinction (MEM-PENDING-001 rule 5):** "Darshak" is an
 operational term that applies to both new Probationary Members and
@@ -897,4 +914,4 @@ approval, the system shall enforce either:
 |----|-------|-----------------|:---------:|
 | ORG-PENDING-001 | Organization Short Code | Org, Mem, Admin | FROZEN — CORR-EXT-001 unblocked |
 | MEM-PENDING-001 | Local Sakha ERP ID — Conceptual Rules + Format | Mem, Org | Rules + format FROZEN; physical model ACCEPTED — `membership_sakha_affiliation` table |
-| ATT-PENDING-001 | Visitor vs. Approved Darshak Threshold | Att, Mem | No (Attendance DDL can proceed without); Darshak local-number issuance SUPERSEDED by MEM-PENDING-001 |
+| ATT-PENDING-001 | Visitor vs. Approved Darshak Threshold | Att, Mem | Threshold rules FROZEN (§20.3); Darshak local-number issuance RESOLVED — `darshak_attendance_registration` table (SOL-MEM-006) |

@@ -1,8 +1,29 @@
 # NSS ERP — Organization Business Rules
 
 **Document ID:** SOL-ORG-004  
-**Version:** 1.1.0  
+**Version:** 1.8.0  
 **Status:** DRAFT — GOVERNANCE ALIGNED  
+**Amendment:** §28 (v1.2.0) — Type-to-Type Parent Hierarchy frozen (ORG-BR-087–095): resolves
+the previously-OPEN parent compatibility matrix per an explicit governance decision
+(2026-09-25), including the Mahila Sangha two-tier-by-parent convention and the Paribarik
+Asana sangha_sevi-proxy note.  
+**Amendment:** §29/§30 (v1.4.0) — ORG-BR-098 (Sakha premises attribute), ORG-BR-099
+(address prohibited for ANCHALIKA_SANGHA/ZILLA_SANGHA/PATHA_CHAKRA), ORG-BR-100 (parent
+organization instance auto-resolution), per governance decision (2026-09-26).  
+**Amendment:** §31 (v1.5.0) — ORG-BR-101 (Kumari/Sevak Sangha creation authority extended to
+NSS-wide administrators), ORG-BR-102 (parent-Sakha auto-selection/dropdown rules for scoped
+Sakha admins), per governance decision (2026-09-26).  
+**Amendment:** §32 (v1.6.0) — ORG-BR-103 (Sakha auto-select/lock pattern generalised to
+member-attach creation/update flows: Sangha Sevi and user-membership creation), per
+governance decision (2026-09-26).  
+**Amendment:** §33 (v1.7.0) — ORG-BR-104 (KUMARI_SANGHA/SEVAK_SANGHA, and the future local
+MAHILA_SANGHA, carry no organization_code/short_code of their own and inherit all location/contact
+detail from the parent Sakha — a wing shares the Sakha's identity), per governance decision
+(2026-09-27).  
+**Amendment:** §34 (v1.8.0) — ORG-BR-105 (organization_code for non-wing creatable types is the
+org-type id_sequence_master value, auto-generated on submit and shown as a non-consuming live
+preview via GET /admin/organizations/next-code; organization_id is no longer minted by this flow;
+resolves the ORG-BR-104 organization_id OPEN item), per governance decision (2026-09-27).  
 **Module:** Organization  
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -1013,7 +1034,6 @@ The following are intentionally NOT frozen by this document unless supported
 by a later authoritative source or governance decision:
 
 ```text
-Exact type-to-type parent compatibility matrix
 Exact hierarchical-level storage mechanism
 Complete lifecycle transition matrix
 Automatic status transitions
@@ -1021,6 +1041,9 @@ Automatic organizational closure rules
 Multiple address history
 Additional statutory organization levels
 ```
+
+Note: "Exact type-to-type parent compatibility matrix" is now FROZEN — see §28
+(ORG-BR-087–095).
 
 Note: "Exact organization type master values" is now FROZEN — see
 ORG-BR-064 for the authoritative 8-type list.
@@ -1104,7 +1127,7 @@ implemented as frozen rules:
 | --------------------------------------------- | -------------------- |
 | Exact organization type values                | OPEN                 |
 | Hierarchical level physical representation    | OPEN                 |
-| Type-to-type hierarchy matrix                 | OPEN                 |
+| Type-to-type hierarchy matrix                 | FROZEN — §28          |
 | Complete lifecycle transition matrix          | OPEN                 |
 | Automatic lifecycle transitions               | NOT FROZEN           |
 | Address history                               | OUT OF CURRENT SCOPE |
@@ -1191,16 +1214,374 @@ Governance controlled
 
 ---
 
-# 28. Status
+# 28. Type-to-Type Parent Hierarchy (Frozen)
+
+This section resolves the "Exact type-to-type parent compatibility matrix" item that
+§22/§24 previously left OPEN. It is now FROZEN, sourced from an explicit governance
+decision (2026-09-25) rather than derived from prior sections.
+
+## ORG-BR-087 — Apex-Level Peers Are Outside the Parent-Child Tree
+
+`KENDRA`, `NILACHALA_KUTIRA`, and `SMRUTI_MANDIRA` are each unique (`parent_organization_pk
+IS NULL`). `NILACHALA_KUTIRA` and `SMRUTI_MANDIRA` are not a parent to any organization, and
+are never each other's parent or child.
+
+This does not contradict the single-apex/single-root rules in §23: `KENDRA` is the sole apex
+of the parent-child hierarchy tree. `NILACHALA_KUTIRA` and `SMRUTI_MANDIRA` are unique
+standalone institutions recognized by the Bye-Law that do not participate in that tree at
+all — consistent with ORG-BR-064's existing note that these two "don't participate in the
+parent hierarchy."
+
+## ORG-BR-088 — Kendra's Direct Children
+
+`KENDRA` is a valid parent only for: `ANCHALIKA_SANGHA`, `ZILLA_SANGHA`, `PATHA_CHAKRA`,
+`PARIBARIK_SANGHA`, and the single Kendra/Central instance of `MAHILA_SANGHA` (ORG-BR-091).
+
+## ORG-BR-089 — Anchalika and Zilla Are Siblings, Never Nested
+
+`ANCHALIKA_SANGHA` and `ZILLA_SANGHA` may only be parented by `KENDRA`. Neither may be the
+parent of the other.
+
+## ORG-BR-090 — Sakha-Level Parenting
+
+`SAKHA_SANGHA` and `SAKHA_ASANA` may only be parented by `ANCHALIKA_SANGHA` or
+`ZILLA_SANGHA`.
+
+## ORG-BR-091 — Mahila Sangha: One Type, Two Tiers Distinguished by Parent
+
+`MAHILA_SANGHA` is a single organization type used at two tiers of the hierarchy, per the
+NSS Mahila Sangha Bye-Law's central/branch structure — no separate type code exists for
+either tier:
+
+```text
+parent = KENDRA        → the Kendra / Central Mahila Sangha (exactly one such row)
+parent = SAKHA_SANGHA   → a local, per-Sakha Mahila Sangha
+```
+
+The Bye-Law's central-body-supervises-branches relationship (the central Mahila Parichalana
+Mandali overseeing branch Mahila Sanghas) is a **governance relationship**, not an
+organizational-hierarchy parent-child relationship, and is deliberately **not** encoded via
+`parent_organization_pk`. A local Mahila Sangha's org-tree parent is its own Sakha Sangha,
+full stop — the central body's oversight is out of scope for this table's hierarchy column.
+
+This tier distinction is an **implementation convention**, not a database-enforced rule:
+no CHECK constraint requires "exactly one `MAHILA_SANGHA` row has `parent = KENDRA`" — that
+is left to administrative discipline, matching this document's existing position (§10/§22)
+that only the parent-*type* compatibility, not every finer-grained cardinality rule, is
+frozen here.
+
+## ORG-BR-092 — Kumari Sangha and Sevak Sangha Parenting
+
+`KUMARI_SANGHA` and `SEVAK_SANGHA` may only be parented by `SAKHA_SANGHA`.
+
+## ORG-BR-093 — Paribarik Sangha Parenting
+
+`PARIBARIK_SANGHA` ("Paribarik Sangha", the family organisation attached to Kendra — Bye-Law
+Preamble) may only be parented by `KENDRA`. It is an organization-level entity, not tied to
+an individual `sangha_sevi` — contrast with ORG-BR-094.
+
+## ORG-BR-094 — Paribarik Asana (Gruhasana) Attachment Is a Proxy, Not an Org Edge
+
+`PARIBARIK_ASANA` ("Gruhasana") is conceptually attached to a `sangha_sevi` (a person's
+membership record), not to another organization — that `sangha_sevi` in turn belongs to
+exactly one `SAKHA_SANGHA`.
+
+`nss.organization` has no column linking to `nss.sangha_sevi` today. Pending that design
+(deferred to Membership/Parichaya Patra linkage work), `PARIBARIK_ASANA`'s
+`parent_organization_pk` is set to the attached `sangha_sevi`'s current Sakha Sangha as an
+**implementation proxy** — this is a technical workaround, not a frozen claim that
+`PARIBARIK_ASANA` is truly "under" that Sakha Sangha org. `SAKHA_SANGHA` is the only
+type-compatible parent allowed for `PARIBARIK_ASANA` regardless.
+
+**Addendum (governance decision, 2026-09-26):** a `PARIBARIK_ASANA` organization's
+existence tracks its attached `sangha_sevi`'s Parichaya Patra lifecycle. It comes into
+being when that member's household/Gruhasana status is established alongside Parichaya
+Patra issuance (MBR-014), and its own status follows that credential's status changes
+rather than being independently created, activated, or archived through a separate
+organizational lifecycle action.
+
+## ORG-BR-095 — Admin-Scope Levels Reflect This Hierarchy
+
+`nss.admin_scope`/`nss.role_master`'s `scope_level` enum (`NSS-WIDE`, `KENDRA`, `ANCHALIKA`,
+`ZILLA`, `SAKHA`, `PATHA_CHAKRA`, `KENDRA_MAHILA_SANGHA`) is the set of organizational levels
+that may hold a delegated administrative scope. It intentionally does not include
+`SAKHA_ASANA`, `KUMARI_SANGHA`, `SEVAK_SANGHA`, `PARIBARIK_SANGHA`, or `PARIBARIK_ASANA` — no
+role is scoped to those levels today. `KENDRA_MAHILA_SANGHA` refers to the single
+`MAHILA_SANGHA` row whose parent is `KENDRA` (ORG-BR-091), not to `MAHILA_SANGHA` as a whole
+— local, per-Sakha Mahila Sanghas fall under their own Sakha's `SAKHA` scope for
+administrative purposes, not a distinct scope level of their own.
+
+---
+
+# 29. Organization Creation Authority (Frozen — governance decision, 2026-09-26)
+
+## ORG-BR-096 — User-Creatable Organization Types
+
+Through the standard Create Organization flow, only `ANCHALIKA_SANGHA`, `ZILLA_SANGHA`,
+`PATHA_CHAKRA`, and `SAKHA_SANGHA` may be created directly by a user. Apex peers (`KENDRA`,
+`NILACHALA_KUTIRA`, `SMRUTI_MANDIRA`) are pre-existing singletons (ORG-BR-087) and are never
+created. `SAKHA_ASANA` is a recognized bylaw type (ORG-BR-090) but is not offered as a
+separate creation option: in current practice the term has fallen out of operational use —
+once Kendra approves a new Sakha it is called `SAKHA_SANGHA` regardless of whether it has
+yet secured permanent premises. A new Sakha is therefore created directly as
+`SAKHA_SANGHA`; "no permanent premises yet" is a status/address attribute on that row, not a
+distinct organization type a user selects.
+
+**Type transition.** Where a `SAKHA_ASANA`-typed row exists (historical or seed data),
+promotion to `SAKHA_SANGHA` on securing permanent premises is a same-row `organization_type`
+change — identity-preserving, consistent with ORG-BR-052/ORG-BR-053's treatment of name and
+address changes. It does not archive the row or create a new organization; all credentials,
+affiliations, and the Local Sakha ERP Number sequence anchored to that organization carry
+forward unchanged.
+
+**Auto-created, not user-created.** The local wing body `MAHILA_SANGHA` whose parent is a
+`SAKHA_SANGHA` (ORG-BR-091) is not created through this flow and is never independently
+selectable in the Organization Type field. It is auto-created by the system as a direct
+consequence of creating its parent `SAKHA_SANGHA`, governed by that same Sakha's leadership.
+Creation is not itself membership-triggered, but affiliation is: the moment any female
+member's Sakha affiliation is recorded, she is automatically also affiliated to that Sakha's
+Mahila Sangha, which is understood as part of the Kendra Mahila Sangha (the non-hierarchical
+wing-level relationship ORG-BR-091 already describes, distinct from `parent_organization_pk`).
+
+**Optional, Sakha-gated creation.** Local `KUMARI_SANGHA` and `SEVAK_SANGHA` (ORG-BR-092) are
+optional per Sakha — some Sakhas establish them, others do not — and are neither
+auto-created nor available in the standard Create Organization dropdown. Creation authority
+rests with that Sakha's own governing body: a user holding `NSS_ERP_SAKHA_ADMIN`, whose
+`admin_scope.organization_pk` matches that specific Sakha, may create one for their own Sakha
+only. This resolves the "org row vs. no org row" question raised by MBR-046: the local
+Mahila/Kumari/Sevak Sangha organization genuinely exists once established, but a member's
+affiliation to it never creates a separate identity — the org row is either auto-provisioned
+infrastructure (Mahila Sangha) or a deliberate, narrowly-scoped Sakha decision (Kumari/Sevak
+Sangha), never something an operator builds through the general flow.
+
+## ORG-BR-097 — Paribarik Sangha Creation Is Restricted to Kendra Governing-Body Administrators
+
+Creation of a `PARIBARIK_SANGHA` organization (parent `KENDRA`, ORG-BR-093) is disabled by
+default in the Create Organization flow. It may be created only by a user holding the
+`NSS_ERP_KENDRA_ADMIN` role.
+
+---
+
+## ORG-BR-098 — Sakha Premises Is an Attribute, Never a Distinct Stored Type
+
+A `SAKHA_SANGHA` organization records whether it has secured its own permanent premises via a
+dedicated `has_own_premises` boolean attribute on the organization row — never by storing a
+different `organization_type`. Every Sakha created through the standard Create Organization
+flow (ORG-BR-096) is typed `SAKHA_SANGHA` regardless of the premises answer given at creation.
+
+"Sakha Asana" is a day-to-day operational label for a `SAKHA_SANGHA` row with
+`has_own_premises = FALSE`. It is not a selectable creation option and the standard flow never
+writes `organization_type = SAKHA_ASANA`. A Sakha lacking its own premises is, in every other
+respect, indistinguishable from one that has them: it may hold members (MBR-038A), be
+administered by a scoped Sakha admin (ORG-BR-095), and hold the same organizational authority.
+This confirms, per governance decision (2026-09-26), that `has_own_premises` never gates
+membership or admin-scope eligibility.
+
+**Legacy note.** `SAKHA_ASANA` remains a valid `ORGANIZATION_TYPE` master-data value
+(ORG-BR-090) for any pre-existing seed/historical rows typed that way before this rule. It is
+not removed from the schema — only never written by the standard creation flow going forward.
+Promotion of any such legacy row is the existing same-row `organization_type` change described
+in ORG-BR-096.
+
+---
+
+## ORG-BR-100 — Parent Organization Instance Auto-Resolution
+
+Where a creatable organization type (ORG-BR-096) has exactly one legal parent type
+(ORG-BR-088–090) and exactly one existing instance of that parent type —
+`ANCHALIKA_SANGHA`, `ZILLA_SANGHA`, and `PATHA_CHAKRA`, each parented only by the single
+`KENDRA` row — the Create Organization flow shall resolve and lock that parent automatically;
+the operator does not select it.
+
+Where a legal parent type has more than one instance — `SAKHA_SANGHA`, parented by any
+`ANCHALIKA_SANGHA` or `ZILLA_SANGHA` (ORG-BR-090) — the operator must select the specific
+parent organization; no instance is inferred.
+
+This rule concerns only which specific organization *row* is assigned as parent. It does not
+alter ORG-BR-090's parent-type compatibility, and it does not extend to `KUMARI_SANGHA` /
+`SEVAK_SANGHA` (ORG-BR-092): although their parent type is singular (`SAKHA_SANGHA`), that
+type has many instances, so their Sakha-admin-gated creation path (ORG-BR-096) still requires
+the creator to identify which Sakha explicitly — never auto-resolved.
+
+---
+
+# 30. Sakha Address vs Administrative-Unit Address (Frozen — governance decision, 2026-09-26)
+
+## ORG-BR-099 — Address Prohibited for Non-Physical Organization Types
+
+`SAKHA_SANGHA` represents a physical location and holds a physical address (ORG-BR-064).
+`ANCHALIKA_SANGHA`, `ZILLA_SANGHA`, and `PATHA_CHAKRA` are purely administrative/organizational
+units with no premises of their own. Per governance decision (2026-09-26), this is elevated
+from ORG-BR-064's permissive reading ("need not have a physical building") to a hard
+prohibition: an organization of type `ANCHALIKA_SANGHA`, `ZILLA_SANGHA`, or `PATHA_CHAKRA`
+shall never carry a physical address. All address-bearing columns on `nss.organization`
+(`address_line_1`, `address_line_2`, `district_pk`, `state_pk`, `country_pk`, `city_village_pk`,
+`postal_code_pk`, `latitude`, `longitude`) must remain `NULL` for these three types, enforced at
+database level.
+
+This does not apply to `KENDRA`, `NILACHALA_KUTIRA`, or `SMRUTI_MANDIRA` (unique apex
+institutions, out of scope of this rule) nor to `SAKHA_SANGHA` (ORG-BR-064, ORG-BR-098).
+
+**Deferred — OPEN, not decided.** Because `PATHA_CHAKRA` can never itself hold an address, any
+future requirement to display contact/location information for a Patha Chakra must source it
+from its current office-holder (e.g. its president) at display time, not store it on the
+organization row. This depends on Governance-module office-holder data not yet linked to
+Organization and is explicitly deferred.
+
+---
+
+# 31. Kumari Sangha / Sevak Sangha Creation Authority and Parent-Sakha Selection (Frozen — governance decision, 2026-09-26)
+
+## ORG-BR-101 — Kumari Sangha / Sevak Sangha Creation Authority Extended to NSS-Wide Administrators
+
+ORG-BR-096 restricts local `KUMARI_SANGHA`/`SEVAK_SANGHA` creation to that Sakha's own
+`NSS_ERP_SAKHA_ADMIN` (scoped to that specific Sakha). This is widened, not replaced: an
+NSS-wide administrator (`NSS-WIDE` scope) may also create a `KUMARI_SANGHA` or `SEVAK_SANGHA`
+for any active `SAKHA_SANGHA`. A `NSS_ERP_SAKHA_ADMIN` remains restricted to Sakhas covered by
+their own `SAKHA`-level `admin_scope` — they may never create or update one for a Sakha outside
+their scope.
+
+## ORG-BR-102 — Parent-Sakha Selection for Kumari Sangha / Sevak Sangha
+
+Applies uniformly to creation and update of `KUMARI_SANGHA`/`SEVAK_SANGHA` (any UI or API
+surface offering a "select Sakha" step for these two types):
+
+1. **NSS-wide administrator** — every active `SAKHA_SANGHA` is offered; no auto-selection.
+2. **`NSS_ERP_SAKHA_ADMIN` scoped to exactly one Sakha** — that Sakha is auto-selected and
+   locked; no dropdown needed.
+3. **`NSS_ERP_SAKHA_ADMIN` scoped to more than one Sakha** — among their scoped Sakhas, if
+   exactly one currently lacks an active organization of the type being created, that Sakha is
+   auto-selected. If zero or more than one lack it, no auto-selection is made and all of the
+   admin's scoped Sakhas are offered as a filtered dropdown for manual choice.
+
+A Sakha-scoped admin is never offered, nor may select, a Sakha outside their own `admin_scope`
+— enforced server-side, not merely hidden in the UI.
+
+**Cardinality basis (derived, not independently specified).** "Lacks an organization of the
+type being created" in point 3 presumes at most one active `KUMARI_SANGHA` and one active
+`SEVAK_SANGHA` may exist per Sakha at a time — this is the natural reading of "the Sakha which
+doesn't have this" and is enforced as a real constraint (partial unique index on
+`parent_organization_pk` + `organization_type_master_data_pk`, scoped to these two types), not
+just assumed at the API layer.
+
+---
+
+# 32. Sakha Auto-Select / Lock for Member-Attach Flows (Frozen — governance decision, 2026-09-26)
+
+## ORG-BR-103 — Generalised Sakha Selection for Member-Attach Creation / Update
+
+The parent-Sakha selection behaviour of ORG-BR-102 generalises to every creation/update flow
+where an administrator attaches a member-scoped record to a `SAKHA_SANGHA` — currently Sangha
+Sevi creation (`POST /admin/sangha-sevi`) and user creation with an inline membership
+(`POST /admin/users` with `create_sangha_sevi = true`). The same UI/API contract applies:
+
+1. **NSS-wide administrator** — every active `SAKHA_SANGHA` is offered; no auto-selection; a
+   Sakha must be supplied (nothing to infer).
+2. **Administrator scoped to exactly one Sakha** — that Sakha is auto-selected and the dropdown
+   is locked; omitting the Sakha on submit is permitted and resolves to that Sakha server-side.
+3. **Administrator scoped to more than one Sakha** — their own scoped Sakhas are offered; an
+   explicit in-scope choice is required.
+
+**Distinction from ORG-BR-102.** Member-attach flows carry **no one-per-Sakha cardinality** — a
+Sakha holds many members — so the "auto-select the Sakha that lacks one" disambiguation of
+ORG-BR-102 point 3 does **not** apply here; a multi-Sakha admin simply picks.
+
+**Authorisation basis.** Eligibility is exact-match against the caller's `SAKHA`-level
+`admin_scope` (plus every Sakha for an `NSS-WIDE` caller), consistent with
+`UserContext.has_scope_for_org` — scope is **not** hierarchical. A scoped admin may never
+attach to a Sakha outside their own scope; this is enforced server-side, not merely hidden in
+the UI. The MBR-038A Sakha-only membership guard continues to apply on top of this selection.
+
+**Scope of this amendment (stated explicitly, not silently widened).** ORG-BR-103 covers the two
+member-attach flows named above. It deliberately does **not** restate authority for flows that
+already have a distinct, governance-defined authority model — role-scope grants
+(`POST /admin/users/{pk}/roles`), family self-service creation, public self-registration, and
+membership-claim editing — which retain their existing rules and are out of scope for this rule.
+
+---
+
+# 33. Kumari Sangha / Sevak Sangha / Local Mahila Sangha Are Wings of a Sakha (Frozen — governance decision, 2026-09-27)
+
+## ORG-BR-104 — Wing Organizations Carry No Code and Inherit Detail from the Parent Sakha
+
+A local `KUMARI_SANGHA`, `SEVAK_SANGHA`, or the per-Sakha (local) `MAHILA_SANGHA` — the
+`MAHILA_SANGHA` whose parent is a `SAKHA_SANGHA` (ORG-BR-091), **not** the single Kendra/Central
+Mahila Sangha whose parent is `KENDRA` — is a wing of its Sakha, not an independently-identified
+organization. It operates from the Sakha's premises and shares the Sakha's identity (consistent
+with ORG-BR-092's Sakha-only parenting and the wing-membership-shares-the-Sakha's-IDs convention,
+MBR-046). Accordingly, when such a wing is created:
+
+1. **It carries no `organization_code` and no `short_code` of its own — both are `NULL`.** The
+   parent Sakha Sangha already holds those identifiers; a wing does not mint a separate one. Any
+   client-supplied code or short_code for these types is **ignored** (not rejected — simply not
+   persisted). The nullable `organization_code` column and the partial unique index on
+   `short_code` (`WHERE short_code IS NOT NULL`) both permit this.
+2. **Location and contact detail are inherited wholesale from the parent Sakha** — `address_line_1`,
+   `country_pk`, `state_pk`, `district_pk`, `city_village_pk`, `postal_code_pk`, `phone_number`,
+   `mobile_number`, `org_email`, `org_website_url`, and `org_youtube_channel_url` are copied from
+   the resolved parent Sakha row. Any client-supplied values for these fields are likewise ignored
+   for these types (the server substitutes the parent's).
+3. **`parent_organization_pk`** is still resolved/locked exactly as ORG-BR-101/102 specify for
+   `KUMARI_SANGHA`/`SEVAK_SANGHA` (creation authority + Sakha selection). This rule governs only
+   what identity/detail is copied from — or omitted relative to — that resolved parent.
+
+**UI contract.** When the operator selects `KUMARI_SANGHA`/`SEVAK_SANGHA`, the Create Organization
+form hides the code, short-code, address, location, and contact inputs and shows a "part of the
+parent Sakha" notice; only the name, type, and parent-Sakha selection remain, and the frontend does
+not send the hidden fields.
+
+**Implementation scope (2026-09-27).** Points 1–3 are implemented for `KUMARI_SANGHA` and
+`SEVAK_SANGHA` via `POST /admin/organizations`. The local `MAHILA_SANGHA` is **not yet creatable
+through any API** (its `MAHILA_SANGHA` id-sequence is reserved for a future module); this rule is
+stated now so that whenever local-Mahila creation is built it follows the same no-own-code,
+inherit-from-Sakha contract. The previously-OPEN question — whether a wing should also forgo its own
+`organization_id` — is now **resolved by ORG-BR-105**: `POST /admin/organizations` no longer mints an
+`organization_id` for any type (the org-type sequence is materialised as `organization_code`
+instead), so wings carry neither identifier. `organization_id` remains a nullable legacy column.
+
+---
+
+## ORG-BR-105 — Organization Code Is the Org-Type Sequence Value, Previewed Before Submit
+
+For every **non-wing creatable** organization type (`ANCHALIKA_SANGHA`, `ZILLA_SANGHA`,
+`PATHA_CHAKRA`, `SAKHA_SANGHA`), the `organization_code` is **auto-generated from that type's
+`id_sequence_master` sequence** — it is not entered by the operator. The generated value is
+`prefix + next counter value` (e.g. `SAKHA` → `SKH176`), matching the established data convention
+where Sakha codes are `SKH1`, `SKH2`, … This is the visible "org code".
+
+1. **The sequence is the single source.** The old count-of-existing-rows scheme
+   (`<TYPE[:3]><count+1>`) is retired. `organization_code` is now `next_id(<type sequence>)`,
+   minted atomically on submit — the only point the sequence is consumed.
+2. **`organization_id` is not minted by this flow.** The org-type sequence value lands in
+   `organization_code`; the legacy `organization_id` column is left `NULL`. This removes the prior
+   dual-identifier redundancy (a separate sequence-based `organization_id` alongside a count-based
+   `organization_code`).
+3. **Live, non-consuming preview.** `GET /admin/organizations/next-code?organization_type_code=…`
+   returns the code that *would* be minted next, computed as `prefix + (current_value + 1)` **without
+   incrementing** the sequence. The Create Organization form calls it whenever a non-wing type is
+   selected and shows the value in a read-only "Organization Code" field ("auto-generated — assigned
+   on submit"). Because the preview only peeks, opening the form never burns a number; the real code
+   is assigned solely on `POST /admin/organizations` and may differ from a stale preview if another
+   org of the same type is created first. Wing types return `next_code = null` (ORG-BR-104 — no code).
+4. **Explicit override retained for the API.** A client may still POST an explicit
+   `organization_code`; it is honoured and uniqueness-checked. The standard UI does not send one.
+5. **Counter integrity.** Because bulk-loaded organizations were inserted with their codes directly,
+   without advancing `id_sequence_master`, the seed (`01_foundation/03_id_sequence_master.sql`)
+   includes an idempotent, monotonic sync that raises each org-type counter to at least the highest
+   existing code suffix of that type, so `next_id`/preview never collide with pre-existing codes.
+
+**Scope.** Applies to the four standard creatable types. Wings (`KUMARI_SANGHA`/`SEVAK_SANGHA`,
+future local `MAHILA_SANGHA`) carry no code at all (ORG-BR-104). Unique apex types (`KENDRA`,
+`NILACHALA_KUTIRA`, `SMRUTI_MANDIRA`) are singletons, not created through this flow.
+
+---
+
+# 35. Status
 
 ```text
 DOCUMENT STATUS:
 DRAFT — GOVERNANCE ALIGNED
 
 VERSION:
-1.1.0
+1.8.0
 ```
-
----
-
-# End of Document

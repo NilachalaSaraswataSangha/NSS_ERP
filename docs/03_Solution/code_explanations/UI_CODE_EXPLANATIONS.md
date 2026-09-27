@@ -3,17 +3,45 @@
 | Field       | Value                                                                  |
 |-------------|-------------------------------------------------------------------------|
 | Document    | UI_CODE_EXPLANATIONS                                                   |
-| Version     | 1.7                                                                     |
-| Scope       | All source files under `frontend/`, excluding binary assets (images)    |
-| Status      | Complete (updated: Tailwind CSS + DaisyUI switched from CDN delivery to a same-origin pre-built `/assets/css/tailwind.min.css`, generated via Tailwind CLI — Alpine.js unchanged) |
+| Version     | 1.8                                                                     |
+| Scope       | The six retired Tier 0-4 verification pages and their JS/CSS under `frontend/` (historical); the four current pages (`login.html`, `register.html`, `dashboard.html`, `admin.html`) are not yet covered |
+| Status      | Superseded in part — the six Tier 0-4 verification pages this document walks through have been deleted from `frontend/`; retained as a historical walkthrough pending a rewrite against the current four pages |
+
+---
+
+> **⚠ Files no longer on disk.** Every HTML/JS file walked through in §2 below —
+> `index.html`/`app.js`, `foundation.html`/`foundation.js`,
+> `organization.html`/`organization.js`, `person.html`/`person.js`,
+> `family.html`/`family.js`, `membership.html`/`membership.js` — has been **deleted** from
+> `frontend/`. `frontend/` now contains exactly four pages: `login.html`, `register.html`,
+> `dashboard.html` and `admin.html` (plus `assets/js/login.js`, `register.js`, `dashboard.js`,
+> `admin.js`, `auth.js`, `nss-config.js`, `nss-layout.js`, `nss-datepicker.js`,
+> `nss-dialog.js`, `nss-location.js`). Each retired page's functionality moved into a tab of
+> one of the two authenticated pages:
+>
+> | Retired page | Current home |
+> |---|---|
+> | `index.html` (Bootstrap RBAC) | `admin.html` → System Settings tab |
+> | `foundation.html` | `admin.html` → Reference Data + Geography tabs |
+> | `organization.html` | `admin.html` → Organizations + Organization Hierarchy tabs |
+> | `person.html` | `admin.html` → Person Directory tab |
+> | `family.html` | `dashboard.html` → Family tab |
+> | `membership.html` | `dashboard.html` → Membership tab; `admin.html` → Member Directory tab |
+>
+> The `assets/css/style.css`, `assets/css/badges.css` and `assets/js/nss-config.js` sections
+> below remain current — those files survived the retirement and are loaded by all four current
+> pages. Everything else in §2 is a historical record of where a given piece of
+> `admin.html`/`dashboard.html` logic originally came from. See `frontend/README.md` for the
+> current per-page reference.
 
 ---
 
 ## 1. Purpose of this document
 
-This document is the current, authoritative line-by-line (HTML: section-by-section /
+This document was the current, authoritative line-by-line (HTML: section-by-section /
 directive-by-directive; JS: state-property-by-property / method-by-method; CSS:
-rule-by-rule) reference for every source file in the frontend/UI layer.
+rule-by-rule) reference for every source file in the frontend/UI layer, as of the six Tier 0-4
+verification pages. It has not yet been rewritten against the four pages that replaced them.
 
 It replaces the UI-relevant portions of three retired documents:
 
@@ -25,7 +53,7 @@ Those three documents also covered the database, API, and test layers, and the
 cross-tier security-middleware stack — none of that is repeated here; consult
 `FOUNDATION_API_CONTRACT.md` and the (now-deleted) tier docs' git history for that
 material. This document is organized **file-by-file**, in the order the files are
-listed in §2 (now nine: `index.html`/`app.js`, `foundation.html`/`foundation.js`,
+listed in §2 (nine: `index.html`/`app.js`, `foundation.html`/`foundation.js`,
 `organization.html`/`organization.js`, `person.html`/`person.js`, plus the shared
 `style.css`), rather than tier-by-tier, because a UI file (e.g. `style.css`) is shared
 across tiers and a per-tier split would fragment its explanation.
@@ -38,8 +66,8 @@ intentionally leaves out (README.md is a reference card, this is a walkthrough).
 README table already gives the complete picture (e.g. the state-property table for
 `app.js`), this document restates it briefly for context and then walks the actual code.
 
-All code shown below was read directly from the current working tree; version numbers,
-SRI hashes, and attribute values are transcribed exactly.
+All code shown below was read directly from the working tree at the time of writing; version
+numbers, SRI hashes, and attribute values are transcribed exactly as they were then.
 
 ---
 

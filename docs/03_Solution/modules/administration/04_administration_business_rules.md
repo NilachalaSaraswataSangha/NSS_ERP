@@ -594,14 +594,27 @@ These require separate RBAC/security design.
 
 ## ADMIN-BR-043 — Super Administrator
 
-**Status:** PENDING
+**Status:** FROZEN (user-directed)
 
-A high-level administrative role may exist.
+Exactly one administrative authority holds unrestricted, all-scope access:
 
-However, the current source does not freeze the complete privileges or
-behaviour of a "Super Administrator".
+    NSS_ERP_ADMIN role
+    +
+    NSSADMIN system user
 
-It shall not be treated as unrestricted authority until formally defined.
+This is the sole exception to scope-bounded authority (ADMIN-BR-076,
+ADMIN-BR-077). No other role — including any other `*_ADMIN` role —
+inherits, is granted, or may be configured with blanket organization-wide
+authority.
+
+The complete privileges of this authority are:
+
+    Every permission in the central permission catalogue,
+    exercisable across every organizational scope,
+    without scope restriction.
+
+All other administrators are bounded to their own scope even where they
+hold the same permission (ADMIN-BR-036, ADMIN-BR-037).
 
 ---
 
@@ -907,6 +920,43 @@ their rules require it.
 
 ---
 
+## ADMIN-BR-064A — Membership-Linked Eligibility Is Credential-Based
+
+**Status:** FROZEN (rule) — ENFORCEMENT DEFERRED
+
+Where a business rule gates eligibility on a member's stage, the gate is
+defined by the stage's authoritative **credential document**, not by the
+informal label and not by membership status alone:
+
+| Eligibility gate | Basis |
+|------------------|-------|
+| Darshak / Probationary stage | Probationary membership **and** a valid **Anumati Patra** (MBR-010) |
+| Regular stage | Regular membership **and** a valid **Parichaya Patra** (MBR-014) |
+
+Consequences of this rule:
+
+- The Darshak / Probationary gate is **not** based on a Parichaya Patra. The
+  Parichaya Patra is issued only on transition to Regular Membership; a
+  Darshak does not hold one. Requiring a Parichaya Patra for the Darshak
+  stage would be self-contradictory.
+- An Associate Member is never eligible under the Darshak gate: Associates do
+  not receive an Anumati Patra (MBR-019B).
+- The lifecycle sequence is: Probationary (Anumati Patra) → review / training →
+  Parichaya Patra issued → Regular. The credential is the transition evidence.
+
+This rule does **not** alter ADMIN-BR-064 (membership status is not itself an
+RBAC role) and does **not** alter the `NSS_ERP_ADMIN` eligibility criterion,
+which requires a Parichaya Patra because a system administrator must be a
+Regular Member — that is a correct application of this same mapping.
+
+**Enforcement is deferred.** The Anumati Patra and Parichaya Patra tables are
+not yet implemented, so no guard can verify a credential today. Until those
+tables exist, this rule is frozen as the design intent but is not enforced in
+code. Any interim guard must not silently approximate the credential check with
+`membership_type = PROBATIONARY` alone, as that omits the required credential.
+
+---
+
 # 38. Governance Position vs Authorization
 
 ## ADMIN-BR-065 — Governance Position Does Not Automatically Equal Permission
@@ -1076,6 +1126,78 @@ Different layers shall not implement contradictory authorization rules.
 
 ---
 
+# 48A. Scope-Bounded Authority
+
+## ADMIN-BR-076 — Scope-Bounded Administrative Authority
+
+**Status:** FROZEN (user-directed)
+
+Every administrator may manage only what falls within their own
+organizational scope.
+
+Holding an administrative permission never confers organization-wide reach
+on its own. For every scope-sensitive operation, the actor's effective
+authority is the intersection of:
+
+    the permission, AND
+    the actor's assigned organizational scope (admin_scope).
+
+An administrator with scope over a Sakha administers that Sakha and its
+subordinate units only — not sibling Sakhas, not their parent Anchalika,
+and not any organization outside their scope subtree. The same bounding
+applies at Anchalika, Zilla, Patha-Chakra and Mahila-Sangha scope levels.
+
+This rule is mandatory and applies uniformly to reads and writes across
+UI, API and backend services (ADMIN-BR-072, ADMIN-BR-073, ADMIN-BR-075).
+
+---
+
+## ADMIN-BR-077 — Sole Global Authority Exception
+
+**Status:** FROZEN (user-directed)
+
+Blanket, all-scope authority exists for one authority only:
+
+    NSS_ERP_ADMIN role
+    +
+    NSSADMIN system user
+
+No other role — including NSS_ERP_KENDRA_ADMIN,
+NSS_ERP_ANCHALIKA_ADMIN, ZILLA_ADMIN, SAKHA_ADMIN, PATHA_CHAKRA_ADMIN,
+KENDRA_MAHILA_SANGHA_ADMIN, or any future `*_ADMIN` role — may be
+granted or configured with global access. Every such role is
+scope-bounded per ADMIN-BR-076.
+
+Where an implementation needs an unrestricted branch (a "manage anything"
+path), it shall gate that branch on membership of the NSS_ERP_ADMIN role
+(or the NSSADMIN system user), never on possession of a permission alone.
+
+---
+
+## ADMIN-BR-078 — Scoped Provisioning Authority
+
+**Status:** FROZEN (user-directed)
+
+A scope-bounded administrator MAY, within their own scope, provision:
+
+    Person records
+    User accounts (login credentials)
+    Sangha-Sevi assignments
+
+This resolves the previously-open question of whether account creation is
+reserved to global administrators. It is not: provisioning is a scoped
+operation. A scoped administrator creates people, accounts and Sangha-Sevi
+records for organizations inside their scope subtree, and only there.
+
+High-risk account-lifecycle operations — password reset, account
+status change (enable/disable), and account deletion — remain permitted
+but stay bounded to the actor's scope (ADMIN-BR-076): a scoped
+administrator may perform them only against accounts whose person/scope
+falls inside their subtree. Only the NSS_ERP_ADMIN authority may perform
+them across all scopes (ADMIN-BR-077).
+
+---
+
 # 49. Rule Summary
 
 | Area | Status |
@@ -1098,6 +1220,9 @@ Different layers shall not implement contradictory authorization rules.
 | Membership ≠ Application Role | FROZEN |
 | Central Audit | FROZEN |
 | Least Privilege | SOURCE-ALIGNED |
+| Scope-Bounded Authority | FROZEN |
+| Sole Global Authority (NSS_ERP_ADMIN) | FROZEN |
+| Scoped Provisioning Authority | FROZEN |
 | Role Inheritance | PENDING |
 | Permission Catalogue | PENDING |
 | High-Risk Segregation | PENDING |

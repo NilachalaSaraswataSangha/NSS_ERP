@@ -4199,7 +4199,8 @@ superseded/corrected edge from coexisting alongside its replacement.
 **Requirement**
 
 Seeds one realistic family (`F1`, "Mishra Paribara") with three current members and one head
-assignment, so the Family Verification UI (`/family`) and `tests/test_family.py` have concrete
+assignment, so the Family UI (originally the `/family` Verification UI, now `dashboard.html`'s
+Family tab) and `tests/test_family.py` have concrete
 data to render and assert against — the same verification-data role Organization's/Bootstrap's
 seed files play for their own tiers, and a sharp contrast with Person's own seed file (zero
 rows) referenced above.
@@ -4877,7 +4878,8 @@ condition" rule.
 
 Defines `nss.membership_journey_event` — a free-form, chronological timeline of a member's
 lifecycle events (enrolment, promotion, transfer, status changes, Kumari transition, etc.),
-rendered by `membership.html` as a DaisyUI vertical-steps component.
+rendered as a DaisyUI vertical-steps component (originally by `membership.html`, now by
+`dashboard.html`'s Membership tab).
 
 **Line-by-line explanation**
 

@@ -710,7 +710,8 @@ api/
 tests/
   test_foundation.py       ← Integration tests
 frontend/
-  foundation.html          ← Foundation Verification UI
+  admin.html               ← Foundation UI: Reference Data + Geography tabs
+                             (replaces the retired foundation.html)
 docs/
   03_Solution/architecture/
     code_explanations/

@@ -59,8 +59,10 @@ Implementation" below: only `organization` remains as Organization-specific SQL;
 now Foundation `master_data` rows) ·
 **API/UI Implementation Complete** — `api/routers/organization.py` exposes 6 read-only
 endpoints (`/types`, `/statuses`, `/organizations` list/detail/children, `/hierarchy` via a
-`WITH RECURSIVE` CTE), consumed by `frontend/organization.html`'s 3-tab verification UI
-(Reference Data, Organizations, Hierarchy) and verified by 51 pytest integration tests
+`WITH RECURSIVE` CTE), consumed by `frontend/admin.html`'s Organizations and Organization
+Hierarchy tabs (originally the 3-tab `frontend/organization.html` verification UI — Reference
+Data, Organizations, Hierarchy — since retired and deleted) and verified by 51 pytest integration
+tests
 (`tests/test_organization.py`); see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` and
 `docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`. Merged to `main` and released as
 v0.8.0.

@@ -125,7 +125,7 @@ but not yet implemented. All are scoped to Tier 5+.
 | Authentication (login) | Tier 5 | Current API is read-only verification; no write operations |
 | Authorization (RBAC enforcement) | Tier 5 | No write operations to protect yet |
 | HTTPS / HSTS | Deployment platform | Render/hosting adds TLS automatically |
-| Content-Security-Policy (CSP) | Tier 5 | Tailwind moved from CDN to a pre-built stylesheet (uncommitted, `develop`), removing the original blocker, but a full audit of remaining inline styles (e.g. Alpine.js `x-cloak`) hasn't happened; CSP still needs a nonce strategy |
+| Content-Security-Policy (CSP) | ~~Tier 5~~ — **delivered in Tier 5 (24/09/2026)** | This row's rationale is superseded. It assumed a nonce strategy was the blocker; in the event no nonce was needed. Inline styles were audited and allowed explicitly (`style-src 'unsafe-inline'` — nonces cannot cover `style=` attributes anyway), while inline *scripts* were eliminated rather than nonced, so `script-src` omits `'unsafe-inline'` outright. See `TIER5_SECURITY_AUDIT.md` §2.2 A2 for the enforced policy and the two tracked residuals (`'unsafe-eval'` for Alpine's expression compiler, `style-src 'unsafe-inline'`) |
 | Row-Level Security (RLS) | Tier 5 | No multi-tenant access yet |
 | Session management | Tier 5 | No login sessions exist |
 | MFA | Tier 5 | Requires authentication first |
@@ -153,7 +153,7 @@ endpoints are added.
 |---|---|---|
 | Authentication middleware | JWT or session-based auth for write endpoints | Critical |
 | RBAC enforcement | Per-endpoint permission checks | Critical |
-| CSP headers | Content-Security-Policy with nonce for inline scripts | High |
+| CSP headers | Content-Security-Policy. **Done in Tier 5** — delivered without nonces: inline scripts were removed rather than nonced (see `TIER5_SECURITY_AUDIT.md` §2.2 A2) | High — **closed** |
 | Audit logging | Log who accessed what (after auth exists) | High |
 | Password storage | Argon2 hashing (documented in Auth module specs) | Critical |
 

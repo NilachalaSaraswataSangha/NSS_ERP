@@ -10,8 +10,8 @@
 | Document ID | SOL-MEM-004 |
 | Domain | Membership |
 | Repository Path | docs/03_Solution/modules/membership/04_membership_business_rules.md |
-| Version | 1.0.0 |
-| Status | Draft |
+| Version | 1.1.0 |
+| Status | Draft — Governance Aligned |
 | Authority | NSS ERP Membership Module |
 | Parent Document | 01_membership_module_overview.md |
 | Related Documents | 02_membership_erd.md, 03_membership_lifecycle.md, 05_membership_table_design.md |
@@ -430,6 +430,109 @@ Only Tier 2 (Local Sakha ERP Number) changes on transfer.
 
 ---
 
+## MBR-030C — Local Sakha Numbering Is Namespace-Separated by Membership State
+
+**Status:** FROZEN (format and no-reuse rule) — AUTO-SEQUENCING PENDING
+
+Tier 2 Local Sakha numbering is separated into two namespaces within the same
+Sakha, distinguished by a state marker placed after the Sakha short code:
+
+```text
+Regular / Associate:     <SakhaShortCode><Number>          e.g. ESS000123
+Darshak / Probationary:  <SakhaShortCode><Marker><Number>  e.g. ESSD000045
+```
+
+The marker is a configured value, not a literal embedded in code. It is stored
+as the `MEMBERSHIP_DARSHAK_LOCAL_ID_MARKER` row in `nss.system_setting` and is
+seeded with `D`. Composition must read it from configuration; no module may
+hardcode the marker. Where the marker is absent from configuration, ID
+composition shall fail loudly rather than fall back to a default, because a
+silently empty marker would compose a Darshak identifier inside the Regular
+namespace and collide.
+
+### Why namespaces rather than a type-discriminated counter
+
+Because the marker is part of the identifier string, `ESS000001` and
+`ESSD000001` are already distinct values. The two namespaces therefore coexist
+without any change to the existing uniqueness constraints:
+
+```text
+uq_mem_sakha_aff_local_id   UNIQUE (organization_pk, local_sakha_erp_id)
+uq_dar_att_reg_local_number UNIQUE (attending_organization_pk, darshak_local_number)
+```
+
+Both constraints remain correct and unmodified. The "same number held by a
+Regular and a Darshak" case is expressed as two different identifiers, not as
+one identifier permitted twice.
+
+### Numeric portion
+
+The numeric portion is Sakha-local and independently sequenced per namespace.
+`ESS` and `ESSD` advance on separate counters, so `ESS000004` and `ESSD000004`
+may both exist in the same Sakha and refer to different members.
+
+**PENDING:** per-Sakha, per-namespace counter infrastructure does not yet
+exist — `nss.id_sequence_master` holds global counters, not Sakha-scoped ones.
+Until that is designed, the local number is supplied by the enrolling
+administrator and only the namespace marker is applied automatically. MBR-030's
+"auto-generated" wording describes the target state, not current behaviour.
+
+### Progression and archival
+
+Promotion from Probationary to Regular issues a new Regular-namespace
+identifier and archives the Darshak-namespace one:
+
+```text
+ESSD000045  ──(Parichaya Patra issued)──▶  ESS000123
+   │
+   └── archived (registration_status / affiliation_status = ARCHIVED),
+       never deleted, never reassigned to another person
+```
+
+An archived Darshak identifier shall never be reissued to a different person,
+even after the original holder becomes a Regular Member (MBR-022, ADMIN-BR-066).
+
+### Identity anchoring
+
+The Darshak-namespace identifier is **not** a second permanent identity. It is
+a local Sakha identifier scoped to the Darshak state. The permanent identity
+anchor remains the Sangha Sevi ID (MBR-004), which does not change on
+promotion, transfer, or archival:
+
+```text
+One Person → One Sangha Sevi ID → a lifecycle of local Sakha identifiers
+```
+
+This preserves MBR-003 (One Person One Membership) and MBR-004. No separate
+permanent probationer identity namespace is created at Tier 1.
+
+### Visiting Regular Members
+
+A Regular Member of one Sakha attending another Sakha as a Darshak receives a
+Darshak-namespace identifier from the attending Sakha, recorded on
+`darshak_attendance_registration.darshak_local_number`. The member's home-Sakha
+Regular identifier is unaffected, and both trace to the same Sangha Sevi ID:
+
+```text
+SS00007891 ─┬─ ESS00231   home Sakha, Regular membership identity
+            └─ ESSD000087 attending Sakha, Darshak attendance identity
+```
+
+This makes the attendance context readable from the identifier alone, which is
+the operational distinction MBR-007 requires without storing "Darshak" as a
+membership type.
+
+**PENDING — known nonconformance.** The registration-claim approval path
+currently writes the member's *Sangha Sevi ID* into the Tier 2 column for a
+Darshak attendance affiliation, rather than a Darshak-namespace local
+identifier. It also does so under `ON CONFLICT DO NOTHING`, which silently
+discards the row on collision. Both behaviours predate this rule and are left
+unchanged here because issuing a conforming `ESSD` identifier requires the
+per-Sakha namespace counter recorded as PENDING above. This rule now defines
+the target state; the gap is explicit rather than implied.
+
+---
+
 ## MBR-031 — Transfer History Preservation
 
 Previous Sakha association shall remain historically traceable.
@@ -497,9 +600,54 @@ The Membership record shall identify the Member's current organizational associa
 
 ---
 
+## MBR-038A — Member's Current Organization Must Be a Sakha Sangha
+
+**Status:** FROZEN (governance decision, 2026-09-26)
+
+A Member's current organizational association (MBR-038) shall reference an organization of
+type `SAKHA_SANGHA`. A Member is affiliated to NSS *through a Sakha only* — there is no
+alternative primary affiliation.
+
+**Single exception — the system account.** Exactly one reserved bootstrap identity
+(`sangha_sevi.is_system_account = TRUE`) may be associated directly with the apex `KENDRA`
+organization, representing the NSS-wide global administrator (the seeded `SS1` record). This
+is an identity property of one specific record, **not** a capability: holding the
+`NSS_ERP_ADMIN` role does not confer it, and it is never granted or revoked through the API or
+UI.
+
+**Enforcement.** A `BEFORE INSERT/UPDATE` trigger on both `sangha_sevi.organization_pk` and
+`membership_sakha_affiliation.organization_pk` shall reject any non-`SAKHA_SANGHA`
+organization unless `is_system_account = TRUE`, mirrored by API-layer validation. A partial
+unique index (`... WHERE is_system_account`) shall guarantee at most one system account can
+ever exist.
+
+This supersedes the prior convention-only reading of MBR-038 — the restriction is now a real
+invariant, not a UI convenience.
+
+---
+
 ## MBR-039 — Historical Organization
 
 Previous organizational associations shall remain available through transfer history.
+
+---
+
+## MBR-046 — Wing Sangha Membership Is an Affiliation, Not a Separate Identity
+
+**Status:** FROZEN (governance decision, 2026-09-26)
+
+A Sakha Member may additionally hold membership in a wing body — Mahila Sangha (all female
+members), Kumari Sangha (unmarried girls), or Sevak Sangha (male devotees electing to join).
+Wing membership is an **affiliation layered on the existing Sangha Sevi record**, not a second
+membership.
+
+Consequently a wing member takes **no new identifier**: they retain the same Sangha Sevi ID
+(Tier 1, MBR-004) and the same Local Sakha ERP Number (Tier 2, MBR-030) as their Sakha
+membership. No wing-specific ID sequence exists.
+
+This preserves MBR-003 (One Person, One Membership) — wing membership does not create an
+alternate `organization_pk` a member "belongs to." See ORG-BR-096 for how the underlying
+Mahila/Kumari/Sevak Sangha organization rows are created.
 
 ---
 

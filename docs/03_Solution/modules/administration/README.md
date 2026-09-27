@@ -91,6 +91,11 @@ audit-actor FKs deferred to Pass 2).
 - **Role catalogue — reconciled.** §8.7 updated to 8 roles / 5 scope levels, matching
   the DDL CHECK constraint and seed data. `NSS_ERP_PATHA_CHAKRA_ADMIN` / `PATHA_CHAKRA`
   added to the frozen catalogue.
+- **Role catalogue — extended again (2026-09-25).** §8.7 now lists 9 roles / 6 scope levels:
+  `NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN` / `KENDRA_MAHILA_SANGHA` added, scoped to the single
+  organization Organization's business rules now freeze as the Kendra/Central Mahila Sangha
+  (`docs/03_Solution/modules/organization/04_organization_business_rules.md` §28,
+  ORG-BR-087–095) — the type-to-type parent hierarchy that role's scope depends on.
 - **Correspondence Register (`CORR-DECISION-003`, `CORR-ARCH-001`/`002`, frozen)** —
   Administration owns a generic inward/outward official-communication register (registration,
   reference numbering, sender/recipient, subject, medium, status/follow-up), explicitly *not* a

@@ -18,6 +18,16 @@ All changes were driven by a specific symptom: slow page loading on the
 Family and Membership verification pages after the Tier 4 dynamic Sakha
 computation (FAM-036) was introduced.
 
+> **Note on the frontend files named below.** `frontend/family.html`,
+> `frontend/membership.html` and their JS (`assets/js/family.js`,
+> `assets/js/membership.js`) have since been **retired and deleted**. That functionality now
+> lives in `frontend/dashboard.html`'s Family and Membership tabs (with the administrative
+> member lookup in `frontend/admin.html`'s Member Directory tab), backed by
+> `assets/js/dashboard.js` and `assets/js/admin.js`. The server-side and database tunings in
+> §2-§4 are unaffected and remain current; the frontend patterns in §1, §5 and §7 are recorded
+> against the files they were originally applied to and should be read as applying to their
+> successors.
+
 ---
 
 ## 1. Root Cause Analysis
@@ -219,13 +229,14 @@ Or run the full build script which now includes Phase 8b:
 Static JS assets use `?v=N` query strings to force browser cache
 invalidation after code changes:
 
-| File | Current Version | Updated In |
-|------|----------------|------------|
-| `family.js` | `?v=24` | `frontend/family.html` |
-| `membership.js` | `?v=4.0` | `frontend/membership.html` |
+| File | Version at retirement | Was set in |
+|------|----------------------|------------|
+| `family.js` | `?v=24` | `frontend/family.html` (both deleted) |
+| `membership.js` | `?v=4.0` | `frontend/membership.html` (both deleted) |
 
 Increment the version number whenever the JS file changes. The HTML
-`<script>` tag is the only place this is set — no build tool involved.
+`<script>` tag is the only place this is set — no build tool involved. The same convention
+applies to the current pages (`dashboard.html`/`admin.html` and their JS).
 
 ---
 

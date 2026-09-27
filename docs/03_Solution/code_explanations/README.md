@@ -36,28 +36,35 @@ home, and the same pattern extends cleanly as new layers are added in the future
   `02_person.sql`/`03_person_address.sql` and all of `04_family/` (now 5 tables) and
   `05_membership/` are real, implemented DDL), full column-by-column detail for DDL,
   representative sampling (not verbatim row transcription) for large seed files.
-- **`UI_CODE_EXPLANATIONS.md`** (v1.7, Complete — updated: Tailwind CSS + DaisyUI switched from
-  CDN delivery to a same-origin pre-built `/assets/css/tailwind.min.css` via Tailwind CLI,
-  Alpine.js unchanged) — every
-  file under `frontend/` except binary assets: `index.html`, `foundation.html`,
+- **`UI_CODE_EXPLANATIONS.md`** (v1.8, Superseded in part) — walks the six Tier 0-4 verification
+  pages and their JS: `index.html`, `foundation.html`,
   `organization.html`, `person.html`, `family.html`, `membership.html`, `assets/js/app.js`,
   `assets/js/foundation.js`, `assets/js/organization.js`, `assets/js/person.js`,
-  `assets/js/family.js`, `assets/js/membership.js`, `assets/css/style.css`.
+  `assets/js/family.js`, `assets/js/membership.js`, plus `assets/css/style.css`. **All twelve
+  HTML/JS files have since been deleted from `frontend/`** — their functionality was folded into
+  `admin.html` and `dashboard.html` tabs (see the retirement table at the top of that document).
+  The `style.css`/`badges.css`/`nss-config.js` sections remain current; the four current pages
+  (`login.html`, `register.html`, `dashboard.html`, `admin.html`) and their JS are not yet
+  covered there — see `frontend/README.md` for those.
 - **`SECURITY_CODE_EXPLANATIONS.md`** (v1.2, Complete — updated: Tailwind CDN→CLI migration,
   `/assets/*` Cache-Control) —
   `api/middleware.py` in full, plus the security-relevant slices of `api/config.py`
   (`CORS_ORIGINS`/`RATE_LIMIT`/`DISABLE_DOCS`) and `api/main.py` (the middleware-registration
   block), plus the SRI-pinned CDN assets in `frontend/` — now just Alpine.js, since Tailwind/
-  DaisyUI moved to a same-origin pre-built stylesheet (across all 6 HTML pages). Family's
+  DaisyUI moved to a same-origin pre-built stylesheet. Note: the `frontend/` pages this
+  describes were the six Tier 0-4 verification pages, since deleted — the identical Alpine.js
+  SRI-pinned `<head>` block is now carried by `login.html`/`register.html`/`dashboard.html`/
+  `admin.html`. Family's
   and Membership's router registration and their pages' dependency blocks follow the identical
   pattern already documented here — no Family/Membership-specific update needed in this file.
-- **`TESTING_CODE_EXPLANATIONS.md`** (v1.7, Complete — updated: `test_family.py` dynamic-seed-
-  discovery rewrite, org-admin-filtering/FAM-036 test classes, and flagged 10 tests currently
-  failing on `develop` due to the Tailwind CDN→CLI migration) —
-  every file under `tests/`: `conftest.py`, `test_bootstrap.py`, `test_foundation.py`,
+- **`TESTING_CODE_EXPLANATIONS.md`** (v1.8, Superseded in part) —
+  every file under the flat Tier 4-era `tests/`: `conftest.py`, `test_bootstrap.py`,
+  `test_foundation.py`,
   `test_organization.py`, `test_person.py`, `test_security.py`, `test_family.py`,
-  `test_membership.py` (410 tests total, 1 known-failing pre-existing +10 more currently
-  failing on the uncommitted Tailwind migration — see `tests/README.md`).
+  `test_membership.py` (410 tests total). **Its UI smoke-test sections assert against the six
+  since-deleted Tier 0-4 verification pages, and `tests/` has been reorganized into
+  `tests/api/`/`tests/ui/`/`tests/db/`/`tests/security/`** — see `tests/README.md` for the
+  current breakdown.
 
 Security audit reports for Tiers 0–4 (`TIER0_SECURITY_AUDIT.md` … `TIER4_SECURITY_AUDIT.md`, plus
 the cross-tier `SECURITY_AUDIT_TIER0_4.md`) live at `docs/03_Solution/security/`, not in this

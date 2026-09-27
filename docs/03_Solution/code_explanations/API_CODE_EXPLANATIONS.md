@@ -524,7 +524,8 @@ from fastapi.staticfiles import StaticFiles
 ```
 
 The FastAPI application class, CORS middleware, a response type for serving a single file
-(`index.html`/`foundation.html`), and a mountable static-file server for `frontend/assets/`.
+(at the time `index.html`/`foundation.html`; now `login.html`/`register.html`/`dashboard.html`/
+`admin.html`), and a mountable static-file server for `frontend/assets/`.
 
 Lines 35–38:
 
@@ -677,7 +678,7 @@ app.include_router(membership.router)
 Mounts all 46 endpoints across all six routers onto the app: 4 Bootstrap, 17 Foundation, 7
 Organization, 4 Person, 7 Family, 7 Membership.
 
-Lines 118–169:
+Lines 118–169 (**superseded — see the note after this block**):
 
 ```python
 if _FRONTEND_DIR.is_dir():
@@ -747,6 +748,22 @@ of the OpenAPI schema (it's a UI page, not an API contract). The same
 `/person`, `family.html` at `/family`, and `membership.html` at `/membership` — each gated
 independently on that specific HTML file's existence, so a partial frontend checkout (e.g. only
 some tier pages present) still serves whichever pages do exist.
+
+> **⚠ Superseded.** The six page routes quoted above no longer exist in `api/main.py`. All six
+> Tier 0-4 verification pages (`index.html`, `foundation.html`, `organization.html`,
+> `person.html`, `family.html`, `membership.html`) were deleted from `frontend/`, and their
+> routes were removed with them — see the "Retired standalone verification pages" comment in
+> `api/main.py`. What the file does now, using the same
+> `_x_path = _FRONTEND_DIR / "x.html"; if _x_path.is_file():` pattern: `GET /` is registered
+> unconditionally (whenever `frontend/` is a directory) and returns
+> `RedirectResponse(url="/login", status_code=302)`; then `login.html` at `/login`,
+> `dashboard.html` at `/dashboard`, `admin.html` at `/admin`, `register.html` at `/register`,
+> and a `/forgot-password` route whose target file does not exist, so it never registers. The
+> `app.mount("/assets", ...)` line and the surrounding `if _FRONTEND_DIR.is_dir():` guard are
+> unchanged. The retired pages' functionality now lives in tabs of `admin.html` (Bootstrap RBAC
+> → System Settings, Foundation → Reference Data + Geography, Organization → Organizations +
+> Organization Hierarchy, Person → Person Directory, Membership → Member Directory) and
+> `dashboard.html` (Family, Membership).
 
 ---
 
@@ -2434,9 +2451,10 @@ children), this always returns an empty list for valid parents.
 New in Tier 4, on top of Family + Membership. `GET
 /organizations/{organization_pk}/children-stats` answers "for each direct child of this org,
 how many families/members/persons live under it" — the docstring says it is "used by the org
-admin sidebar to display inline counts on each drill-down card," though as of this diff neither
-`frontend/organization.html` nor `frontend/assets/js/organization.js` actually calls it yet (no
-UI wiring exists — see `UI_CODE_EXPLANATIONS.md`).
+admin sidebar to display inline counts on each drill-down card," though no UI wiring exists:
+neither the original `frontend/organization.html`/`frontend/assets/js/organization.js` (both
+since deleted) nor their successor, `frontend/admin.html`'s Organization Hierarchy tab, calls it
+— see `UI_CODE_EXPLANATIONS.md`.
 
 Same two-cursor shape as `/children`: a first cursor 404s if the parent doesn't exist
 (`is_active = TRUE`), then a second cursor runs `_CHILDREN_STATS_SQL` and maps rows to
@@ -4931,8 +4949,8 @@ event catalogue is application-controlled, not `master_data`-driven — see
 `database/ddl/05_membership/README.md`). The one notable difference from the other three
 sub-resource endpoints: `ORDER BY mje.event_date ASC` (oldest first), not `DESC` — Affiliations,
 Parichaya Patra, and Anumati Patra all sort most-recent-first, but a lifecycle *timeline* reads
-naturally in chronological order, which is also how `membership.html`'s DaisyUI vertical-steps
-component renders it.
+naturally in chronological order, which is also how the DaisyUI vertical-steps component renders
+it (originally in `membership.html`, now in `dashboard.html`'s Membership tab).
 
 ---
 
