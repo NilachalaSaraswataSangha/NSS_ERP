@@ -21,6 +21,8 @@
 #
 # Required env vars (set in Render dashboard):
 #   DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
+#   DB_WRITE_USER, DB_WRITE_PASSWORD (Tier 5 nss_db_writer pool)
+#   JWT_SECRET_KEY (Tier 5 auth)
 #
 # Keep phase order in sync with database/scripts/02_build.sh
 # if it changes.
@@ -119,12 +121,16 @@ run_sql "system_setting (seed)"     "${SEED_BASE}/01_foundation/07_system_settin
 run_sql "postal_code (seed)"        "${SEED_BASE}/01_foundation/08_postal_code.sql"
 
 echo ""
-echo "--- Phase 3: Organization — DDL (1 table; type via ORGANIZATION_TYPE, status via unified STATUS in Foundation master_data) ---"
+echo "--- Phase 3: Organization — DDL (1 table + address-restriction trigger + Kumari/Sevak one-per-Sakha trigger; type via ORGANIZATION_TYPE, status via unified STATUS in Foundation master_data) ---"
 run_sql "organization"               "${DDL_BASE}/02_organization/03_organization.sql"
+run_sql "organization_address_restriction_trigger" "${DDL_BASE}/02_organization/04_organization_address_restriction_trigger.sql"
+run_sql "organization_kumari_sevak_uniqueness_trigger" "${DDL_BASE}/02_organization/05_organization_kumari_sevak_uniqueness_trigger.sql"
 
 echo ""
 echo "--- Phase 4: Organization — Seed ---"
 run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
+run_sql "sakha postal codes (seed)"          "${SEED_BASE}/01_foundation/09_sakha_postal_codes.sql"
+run_sql "sakha branches (seed)"              "${SEED_BASE}/02_organization/05_sakha_branches.sql"
 
 echo ""
 echo "--- Phase 5: Person — DDL (2 tables) ---"
@@ -132,15 +138,17 @@ run_sql "person"         "${DDL_BASE}/03_person/02_person.sql"
 run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
 
 echo ""
-echo "--- Phase 6: Family — DDL (5 tables) ---"
+echo "--- Phase 6: Family — DDL (6 tables + move-transition guard) ---"
 run_sql "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
 run_sql "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
 run_sql "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
 run_sql "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
 run_sql "family_link"               "${DDL_BASE}/04_family/05_family_link.sql"
+run_sql "family_admin"              "${DDL_BASE}/04_family/06_family_admin.sql"
+run_sql "family_move_transition_guard" "${DDL_BASE}/04_family/07_family_move_transition_guard.sql"
 
 echo ""
-echo "--- Phase 7: Membership — DDL (12 tables) ---"
+echo "--- Phase 7: Membership — DDL (13 tables + Sakha-only trigger) ---"
 run_sql "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
 run_sql "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
 run_sql "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
@@ -153,21 +161,11 @@ run_sql "parichaya_patra"                "${DDL_BASE}/05_membership/09_parichaya
 run_sql "parichaya_patra_history"        "${DDL_BASE}/05_membership/10_parichaya_patra_history.sql"
 run_sql "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_patra.sql"
 run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
+run_sql "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
+run_sql "sakha_only_membership_trigger"  "${DDL_BASE}/05_membership/14_sakha_only_membership_trigger.sql"
 
 echo ""
-echo "--- Phase 8: Tier 4 Verification — Seed Data ---"
-run_sql "tier4 organizations (seed)"    "${SEED_BASE}/02_organization/04_tier4_verification_orgs.sql"
-run_sql "tier4 persons (seed)"          "${SEED_BASE}/03_person/02_tier4_verification_persons.sql"
-run_sql "tier4 family (seed)"           "${SEED_BASE}/04_family/01_tier4_verification_family.sql"
-run_sql "tier4 family_link (seed)"      "${SEED_BASE}/04_family/02_tier4_verification_family_links.sql"
-run_sql "tier4 membership (seed)"       "${SEED_BASE}/05_membership/01_tier4_verification_membership.sql"
-
-echo ""
-echo "--- Phase 8b: Performance Indexes (migrations) ---"
-run_sql "performance indexes" "${REPO_ROOT}/database/migrations/add_performance_indexes.sql"
-
-echo ""
-echo "--- Ensuring nss_db_owner and nss_db_backend roles exist ---"
+echo "--- Ensuring nss_db_owner, nss_db_backend, and nss_db_writer roles exist ---"
 # database/scripts/00_create_database.sql normally creates both roles,
 # but that script requires a true Postgres superuser + dblink back to
 # localhost -- meaningless on managed Neon -- so it's never been run
@@ -187,6 +185,9 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'nss_db_backend') THEN
         CREATE ROLE nss_db_backend LOGIN PASSWORD '${DB_PASSWORD}';
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'nss_db_writer') THEN
+        CREATE ROLE nss_db_writer LOGIN PASSWORD '${DB_WRITE_PASSWORD:-${DB_PASSWORD}}';
+    END IF;
 END
 \$do\$;
 SQL
@@ -194,6 +195,31 @@ SQL
 echo ""
 echo "--- Phase 9: Grant nss_db_backend read-only access ---"
 run_sql "grant_backend" "${REPO_ROOT}/database/scripts/04_grant_backend.sql"
+
+echo ""
+echo "--- Phase 10: Authentication — DDL (4 tables) ---"
+run_sql "user_account"           "${DDL_BASE}/06_authentication/01_user_account.sql"
+run_sql "password_history"       "${DDL_BASE}/06_authentication/02_password_history.sql"
+run_sql "registration_claim"     "${DDL_BASE}/06_authentication/03_registration_claim.sql"
+run_sql "password_reset_token"   "${DDL_BASE}/06_authentication/04_password_reset_token.sql"
+
+echo ""
+echo "--- Phase 11: Administration — DDL (2 tables) ---"
+run_sql "user_role"    "${DDL_BASE}/07_administration/01_user_role.sql"
+run_sql "admin_scope"  "${DDL_BASE}/07_administration/02_admin_scope.sql"
+
+echo ""
+echo "--- Phase 12: Grant nss_db_writer write access ---"
+run_sql "create_writer_role" "${REPO_ROOT}/database/scripts/05_create_writer_role.sql"
+
+echo ""
+echo "--- Phase 13: Admin Bootstrap Seed ---"
+python3 "${REPO_ROOT}/scripts/bootstrap_admin.py" || echo "  [WARN] admin_bootstrap (may already exist)"
+
+echo ""
+echo "--- Phase 14: Audit — DDL (1 table + trigger) ---"
+run_sql "system_event_log"  "${DDL_BASE}/01_foundation/14_system_event_log.sql"
+run_sql "audit_trigger"     "${DDL_BASE}/01_foundation/15_audit_trigger.sql"
 
 echo ""
 echo "=== Database bootstrap complete (Neon.dev) ==="

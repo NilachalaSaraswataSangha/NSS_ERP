@@ -9,7 +9,7 @@
 #
 # Authority: SOL-ARCH-010 (DDL Creation Order),
 #            SOL-ARCH-011 (Bootstrap Architecture)
-# Version: 2.1  — idempotent re-run (SKIP on "already exists")
+# Version: 2.4  — add Phase 14 (Audit DDL + trigger)
 #
 # Usage:
 #   ./database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
@@ -24,6 +24,7 @@
 #   - PostgreSQL running and accessible
 #   - Database and roles created (see 00_create_database.sql)
 #   - Extensions installed (see 01_extensions.sql)
+#   - Role passwords set and api/.env generated (see 06_setup_env.sh)
 #   - Run from the repository root directory
 #
 # Implemented phases:
@@ -34,11 +35,16 @@
 #   Phase 3  — Organization DDL (1 table)
 #   Phase 4  — Organization seed data
 #   Phase 5  — Person DDL (2 tables)
-#   Phase 6  — Family DDL (5 tables)
-#   Phase 7  — Membership DDL (12 tables)
-#   Phase 8  — Tier 4 Verification Seed Data
-#   Phase 8b — Performance Indexes (migrations)
+#   Phase 6  — Family DDL (6 tables)
+#   Phase 7  — Membership DDL (13 tables)
+#   Phase 8  — Tier 4 Verification Seed Data (removed — no demo data)
 #   Phase 9  — Grant nss_db_backend read-only access
+#   Phase 10 — Authentication DDL (4 tables: user_account,
+#              password_history, registration_claim, password_reset_token)
+#   Phase 11 — Administration DDL (2 tables)
+#   Phase 12 — Grant nss_db_writer write access (Tier 5)
+#   Phase 13 — Admin bootstrap seed (NSS Admin superuser)
+#   Phase 14 — Audit DDL (system_event_log table + DB trigger)
 #
 # NOT executed:
 #   - database/ddl/03_person/01_person_master_tables.sql (superseded)
@@ -57,6 +63,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DDL_BASE="${REPO_ROOT}/database/ddl"
 SEED_BASE="${REPO_ROOT}/database/seed"
+
+# -------------------------------------------------
+# Install Python dependencies
+# -------------------------------------------------
+echo "=== Installing Python dependencies ==="
+python3 -m pip install -r "${REPO_ROOT}/requirements.txt"
+echo ""
 
 # Prompt for password once; export so all psql calls reuse it.
 if [ -z "${PGPASSWORD:-}" ]; then
@@ -182,8 +195,10 @@ echo ""
 #       organization_status_master are retired —
 #       type/status now use Foundation master_data.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 3] Organization — DDL (1 table)${NC}"
+echo -e "${CYAN}[Phase 3] Organization — DDL (1 table + address-restriction trigger + Kumari/Sevak one-per-Sakha trigger)${NC}"
 run_sql "organization"               "${DDL_BASE}/02_organization/03_organization.sql"
+run_sql "organization_address_restriction_trigger" "${DDL_BASE}/02_organization/04_organization_address_restriction_trigger.sql"
+run_sql "organization_kumari_sevak_uniqueness_trigger" "${DDL_BASE}/02_organization/05_organization_kumari_sevak_uniqueness_trigger.sql"
 echo ""
 
 # -------------------------------------------------
@@ -191,6 +206,8 @@ echo ""
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 4] Organization — Seed Data${NC}"
 run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
+run_sql "sakha postal codes (seed)"          "${SEED_BASE}/01_foundation/09_sakha_postal_codes.sql"
+run_sql "sakha branches (seed)"              "${SEED_BASE}/02_organization/05_sakha_branches.sql"
 echo ""
 
 # -------------------------------------------------
@@ -205,26 +222,28 @@ run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
 echo ""
 
 # -------------------------------------------------
-# Phase 6: Family DDL (5 tables, Depths 2–3)
+# Phase 6: Family DDL (6 tables, Depths 2–3)
 # Note: family_link stores only direct PARENT_OF/
 #       SPOUSE_OF edges; every other relationship
 #       label is computed dynamically (BFS traversal
 #       in api/services/family_graph.py), not stored.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 6] Family — DDL (5 tables)${NC}"
+echo -e "${CYAN}[Phase 6] Family — DDL (6 tables + move-transition guard)${NC}"
 run_sql "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
 run_sql "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
 run_sql "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
 run_sql "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
 run_sql "family_link"               "${DDL_BASE}/04_family/05_family_link.sql"
+run_sql "family_admin"              "${DDL_BASE}/04_family/06_family_admin.sql"
+run_sql "family_move_transition_guard" "${DDL_BASE}/04_family/07_family_move_transition_guard.sql"
 echo ""
 
 # -------------------------------------------------
-# Phase 7: Membership DDL (12 tables, Depths 2–4)
+# Phase 7: Membership DDL (13 tables, Depths 2–4)
 # Note: sangha_sevi must be created first — all
 #       other membership tables depend on it.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 7] Membership — DDL (12 tables)${NC}"
+echo -e "${CYAN}[Phase 7] Membership — DDL (13 tables + Sakha-only trigger)${NC}"
 run_sql "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
 run_sql "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
 run_sql "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
@@ -237,29 +256,16 @@ run_sql "parichaya_patra"                "${DDL_BASE}/05_membership/09_parichaya
 run_sql "parichaya_patra_history"        "${DDL_BASE}/05_membership/10_parichaya_patra_history.sql"
 run_sql "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_patra.sql"
 run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
+run_sql "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
+run_sql "sakha_only_membership_trigger"  "${DDL_BASE}/05_membership/14_sakha_only_membership_trigger.sql"
 echo ""
 
 # -------------------------------------------------
 # Phase 8: Tier 4 Verification Seed Data
 # Order: Organization → Person → Family → Membership
 # (dependency chain respected)
+# Phase 8: (Tier 4 test seeds removed — no demo data)
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 8] Tier 4 Verification — Seed Data${NC}"
-run_sql "tier4 organizations (seed)"    "${SEED_BASE}/02_organization/04_tier4_verification_orgs.sql"
-run_sql "tier4 persons (seed)"          "${SEED_BASE}/03_person/02_tier4_verification_persons.sql"
-run_sql "tier4 family (seed)"           "${SEED_BASE}/04_family/01_tier4_verification_family.sql"
-run_sql "tier4 family_link (seed)"      "${SEED_BASE}/04_family/02_tier4_verification_family_links.sql"
-run_sql "tier4 membership (seed)"       "${SEED_BASE}/05_membership/01_tier4_verification_membership.sql"
-echo ""
-
-# -------------------------------------------------
-# Phase 8b: Performance Indexes (migrations)
-# Composite partial indexes for the family_majority
-# CTE hot path (used by family list + org stats).
-# Must run after DDL phases create the base tables.
-# -------------------------------------------------
-echo -e "${CYAN}[Phase 8b] Performance Indexes${NC}"
-run_sql "performance indexes" "${REPO_ROOT}/database/migrations/add_performance_indexes.sql"
 echo ""
 
 # -------------------------------------------------
@@ -269,6 +275,72 @@ echo ""
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 9] Grant nss_db_backend read-only access${NC}"
 run_sql "grant_backend" "${SCRIPT_DIR}/04_grant_backend.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 10: Authentication DDL (4 tables, Depths 3–5)
+# user_account FK → person (Depth 3)
+# password_history FK → user_account (Depth 4)
+# registration_claim FK → user_account, person, organization, master_data (Depth 5)
+# password_reset_token FK → user_account (Depth 4)
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 10] Authentication — DDL (4 tables)${NC}"
+run_sql "user_account"           "${DDL_BASE}/06_authentication/01_user_account.sql"
+run_sql "password_history"       "${DDL_BASE}/06_authentication/02_password_history.sql"
+run_sql "registration_claim"     "${DDL_BASE}/06_authentication/03_registration_claim.sql"
+run_sql "password_reset_token"   "${DDL_BASE}/06_authentication/04_password_reset_token.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 11: Administration DDL (2 tables, Depths 4–5)
+# user_role FK → user_account + role_master (Depth 4)
+# admin_scope FK → user_role + organization (Depth 5)
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 11] Administration — DDL (2 tables)${NC}"
+run_sql "user_role"    "${DDL_BASE}/07_administration/01_user_role.sql"
+run_sql "admin_scope"  "${DDL_BASE}/07_administration/02_admin_scope.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 12: Grant nss_db_writer write access (Tier 5)
+# Must run AFTER Auth + Admin DDL so the tables exist.
+# Grants SELECT on ALL tables (login lookups) +
+# INSERT/UPDATE on auth + admin tables only.
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 12] Grant nss_db_writer write access${NC}"
+run_sql "create_writer_role" "${SCRIPT_DIR}/05_create_writer_role.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 13: Admin Bootstrap Seed
+# Seeds NSS Admin superuser (P1 / SS1 / NSSAdmin1)
+# with NSS_ERP_ADMIN role and NSS-WIDE scope.
+# Must run AFTER Auth + Admin DDL (Phases 10–11)
+# and AFTER Foundation + Organization seeds.
+#
+# Uses the Python bootstrap script (not psql) because
+# the user_account INSERT requires an Argon2 password
+# hash generated at runtime.
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 13] Admin Bootstrap Seed${NC}"
+total=$((total + 1))
+if output=$(python3 "${REPO_ROOT}/scripts/bootstrap_admin.py" 2>&1); then
+    echo -e "  ${GREEN}[OK]${NC}   admin_bootstrap"
+else
+    echo -e "  ${RED}[FAIL]${NC} admin_bootstrap"
+    echo "  Error: ${output}"
+    failed=$((failed + 1))
+fi
+echo ""
+
+# -------------------------------------------------
+# Phase 14: Audit DDL (system_event_log + DB trigger)
+# Must run AFTER all other DDL so the trigger can
+# attach to every table in the nss schema.
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 14] Audit — DDL (1 table + trigger)${NC}"
+run_sql "system_event_log"  "${DDL_BASE}/01_foundation/14_system_event_log.sql"
+run_sql "audit_trigger"     "${DDL_BASE}/01_foundation/15_audit_trigger.sql"
 echo ""
 
 # -------------------------------------------------
@@ -286,7 +358,6 @@ if [ "$failed" -eq 0 ]; then
     echo -e "  ${GREEN}Database build completed successfully.${NC}"
     echo ""
     echo -e "  ${YELLOW}Not executed (future phases):${NC}"
-    echo "    - Authentication, Administration, remaining modules"
     echo "    - Pass 2 audit-actor FK constraints"
     exit 0
 else

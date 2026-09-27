@@ -139,9 +139,33 @@ END
 $$;
 
 -- -------------------------------------------------
--- 5. Grant nss_db_backend CONNECT on nss_erp
+-- 4b. PostgreSQL role: nss_db_writer (Tier 5 write)
+--     LOGIN, NOSUPERUSER — used by FastAPI for auth +
+--     admin write operations only.
+--     Password must be set separately per environment.
 -- -------------------------------------------------
--- Additional table-level GRANTs for nss_db_backend will be
--- added when the API layer is implemented.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_roles
+        WHERE rolname = 'nss_db_writer'
+    ) THEN
+        CREATE ROLE nss_db_writer
+            LOGIN
+            NOSUPERUSER
+            NOCREATEDB
+            NOCREATEROLE
+            NOINHERIT;
+        RAISE NOTICE 'Role nss_db_writer created (LOGIN, no password — set one before use).';
+    ELSE
+        ALTER ROLE nss_db_writer LOGIN;
+        RAISE NOTICE 'Role nss_db_writer already exists — ensured LOGIN.';
+    END IF;
+END
+$$;
+
+-- -------------------------------------------------
+-- 5. Grant CONNECT on nss_erp to runtime roles
 -- -------------------------------------------------
 GRANT CONNECT ON DATABASE nss_erp TO nss_db_backend;
+GRANT CONNECT ON DATABASE nss_erp TO nss_db_writer;

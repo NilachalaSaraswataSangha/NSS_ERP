@@ -7,7 +7,8 @@
 # run 02_build.ps1 first.
 #
 # Authority: SOL-ARCH-010, SOL-ARCH-011
-# Version: 1.0
+# Version: 1.1 — add Auth (4 tables), Admin (2 tables),
+#                 person address FK columns
 #
 # Usage:
 #   .\database\scripts\03_validate.ps1 [-DbName nss_erp] [-DbUser nss_db_owner] [-DbHost localhost] [-DbPort 5432]
@@ -177,6 +178,71 @@ Check-FkIntegrity "person -> master_data (marital_status)" "SELECT COUNT(*) FROM
 Check-FkIntegrity "person -> master_data (blood_group)" "SELECT COUNT(*) FROM nss.person p LEFT JOIN nss.master_data md ON p.blood_group_master_data_pk = md.master_data_pk WHERE p.blood_group_master_data_pk IS NOT NULL AND md.master_data_pk IS NULL;"
 Check-FkIntegrity "person_address -> person" "SELECT COUNT(*) FROM nss.person_address pa LEFT JOIN nss.person p ON pa.person_pk = p.person_pk WHERE p.person_pk IS NULL;"
 Check-FkIntegrity "person_address -> master_data (address_type)" "SELECT COUNT(*) FROM nss.person_address pa LEFT JOIN nss.master_data md ON pa.address_type_master_data_pk = md.master_data_pk WHERE md.master_data_pk IS NULL;"
+
+Write-Host "  Person address FK columns:"
+Check-ColumnExists "person" "country_pk"
+Check-ColumnExists "person" "state_pk"
+Check-ColumnExists "person" "district_pk"
+Check-ColumnExists "person" "city_village_pk"
+Check-ColumnExists "person" "postal_code_pk"
+Write-Host ""
+
+# Authentication (4 tables)
+Write-Host "--- Authentication ---" -ForegroundColor Cyan
+Write-Host "  Tables:"
+Check-TableExists "user_account"
+Check-TableExists "password_history"
+Check-TableExists "registration_claim"
+Check-TableExists "password_reset_token"
+
+Write-Host "  Row counts:"
+Check-RowCount "user_account" 1
+Check-RowCount "password_history" 0
+
+Write-Host "  Key columns:"
+Check-ColumnExists "user_account" "person_pk"
+Check-ColumnExists "user_account" "password_hash"
+Check-ColumnExists "user_account" "account_status"
+Check-ColumnExists "user_account" "is_active"
+Check-ColumnExists "user_account" "failed_login_attempts"
+Check-ColumnExists "user_account" "locked_until"
+Check-ColumnExists "user_account" "password_expires_at"
+Check-ColumnExists "user_account" "force_password_change"
+Check-ColumnExists "user_account" "last_login_at"
+Check-ColumnExists "password_history" "user_account_pk"
+Check-ColumnExists "password_history" "password_hash"
+
+Write-Host "  Unique constraints:"
+Check-NoDuplicates "user_account" "person_pk"
+
+Write-Host "  FK integrity:"
+Check-FkIntegrity "user_account -> person" "SELECT COUNT(*) FROM nss.user_account ua LEFT JOIN nss.person p ON ua.person_pk = p.person_pk WHERE p.person_pk IS NULL;"
+Check-FkIntegrity "password_history -> user_account" "SELECT COUNT(*) FROM nss.password_history ph LEFT JOIN nss.user_account ua ON ph.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
+Write-Host ""
+
+# Administration (2 tables)
+Write-Host "--- Administration ---" -ForegroundColor Cyan
+Write-Host "  Tables:"
+Check-TableExists "user_role"
+Check-TableExists "admin_scope"
+
+Write-Host "  Row counts:"
+Check-RowCount "user_role" 1
+Check-RowCount "admin_scope" 1
+
+Write-Host "  Key columns:"
+Check-ColumnExists "user_role" "user_account_pk"
+Check-ColumnExists "user_role" "role_master_pk"
+Check-ColumnExists "user_role" "is_active"
+Check-ColumnExists "admin_scope" "user_role_pk"
+Check-ColumnExists "admin_scope" "scope_level"
+Check-ColumnExists "admin_scope" "organization_pk"
+
+Write-Host "  FK integrity:"
+Check-FkIntegrity "user_role -> user_account" "SELECT COUNT(*) FROM nss.user_role ur LEFT JOIN nss.user_account ua ON ur.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
+Check-FkIntegrity "user_role -> role_master" "SELECT COUNT(*) FROM nss.user_role ur LEFT JOIN nss.role_master rm ON ur.role_master_pk = rm.role_master_pk WHERE rm.role_master_pk IS NULL;"
+Check-FkIntegrity "admin_scope -> user_role" "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.user_role ur ON asc2.user_role_pk = ur.user_role_pk WHERE ur.user_role_pk IS NULL;"
+Check-FkIntegrity "admin_scope -> organization" "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.organization o ON asc2.organization_pk = o.organization_pk WHERE asc2.organization_pk IS NOT NULL AND o.organization_pk IS NULL;"
 Write-Host ""
 
 # Summary

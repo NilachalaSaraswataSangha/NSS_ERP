@@ -25,6 +25,9 @@
 #   - Bootstrap RBAC (3 tables)
 #   - Foundation (12 tables)
 #   - Organization (1 table — type/status in Foundation master_data)
+#   - Person (2 tables + address FK columns on person)
+#   - Authentication (4 tables)
+#   - Administration (2 tables)
 #
 # Extend this script when new modules are added.
 # =====================================================
@@ -256,6 +259,81 @@ check_fk_integrity "person_address -> person" \
     "SELECT COUNT(*) FROM nss.person_address pa LEFT JOIN nss.person p ON pa.person_pk = p.person_pk WHERE p.person_pk IS NULL;"
 check_fk_integrity "person_address -> master_data (address_type)" \
     "SELECT COUNT(*) FROM nss.person_address pa LEFT JOIN nss.master_data md ON pa.address_type_master_data_pk = md.master_data_pk WHERE md.master_data_pk IS NULL;"
+
+echo "  Person address FK columns:"
+check_column_exists "person" "country_pk"
+check_column_exists "person" "state_pk"
+check_column_exists "person" "district_pk"
+check_column_exists "person" "city_village_pk"
+check_column_exists "person" "postal_code_pk"
+echo ""
+
+# =====================================================
+# Module 5: Authentication (4 tables)
+# =====================================================
+echo -e "${CYAN}--- Authentication ---${NC}"
+echo "  Tables:"
+check_table_exists "user_account"
+check_table_exists "password_history"
+check_table_exists "registration_claim"
+check_table_exists "password_reset_token"
+
+echo "  Row counts:"
+check_row_count "user_account" 1
+check_row_count "password_history" 0
+
+echo "  Key columns:"
+check_column_exists "user_account" "person_pk"
+check_column_exists "user_account" "password_hash"
+check_column_exists "user_account" "account_status"
+check_column_exists "user_account" "is_active"
+check_column_exists "user_account" "failed_login_attempts"
+check_column_exists "user_account" "locked_until"
+check_column_exists "user_account" "password_expires_at"
+check_column_exists "user_account" "force_password_change"
+check_column_exists "user_account" "last_login_at"
+check_column_exists "password_history" "user_account_pk"
+check_column_exists "password_history" "password_hash"
+
+echo "  Unique constraints:"
+check_no_duplicates "user_account" "person_pk"
+
+echo "  FK integrity:"
+check_fk_integrity "user_account -> person" \
+    "SELECT COUNT(*) FROM nss.user_account ua LEFT JOIN nss.person p ON ua.person_pk = p.person_pk WHERE p.person_pk IS NULL;"
+check_fk_integrity "password_history -> user_account" \
+    "SELECT COUNT(*) FROM nss.password_history ph LEFT JOIN nss.user_account ua ON ph.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
+echo ""
+
+# =====================================================
+# Module 6: Administration (2 tables)
+# =====================================================
+echo -e "${CYAN}--- Administration ---${NC}"
+echo "  Tables:"
+check_table_exists "user_role"
+check_table_exists "admin_scope"
+
+echo "  Row counts:"
+check_row_count "user_role" 1
+check_row_count "admin_scope" 1
+
+echo "  Key columns:"
+check_column_exists "user_role" "user_account_pk"
+check_column_exists "user_role" "role_master_pk"
+check_column_exists "user_role" "is_active"
+check_column_exists "admin_scope" "user_role_pk"
+check_column_exists "admin_scope" "scope_level"
+check_column_exists "admin_scope" "organization_pk"
+
+echo "  FK integrity:"
+check_fk_integrity "user_role -> user_account" \
+    "SELECT COUNT(*) FROM nss.user_role ur LEFT JOIN nss.user_account ua ON ur.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
+check_fk_integrity "user_role -> role_master" \
+    "SELECT COUNT(*) FROM nss.user_role ur LEFT JOIN nss.role_master rm ON ur.role_master_pk = rm.role_master_pk WHERE rm.role_master_pk IS NULL;"
+check_fk_integrity "admin_scope -> user_role" \
+    "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.user_role ur ON asc2.user_role_pk = ur.user_role_pk WHERE ur.user_role_pk IS NULL;"
+check_fk_integrity "admin_scope -> organization" \
+    "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.organization o ON asc2.organization_pk = o.organization_pk WHERE asc2.organization_pk IS NOT NULL AND o.organization_pk IS NULL;"
 echo ""
 
 # =====================================================

@@ -7,7 +7,7 @@
 # modules only.
 #
 # Authority: SOL-ARCH-010, SOL-ARCH-011
-# Version: 2.1  - idempotent re-run (SKIP on "already exists")
+# Version: 2.4  - add Phase 14 (Audit DDL + trigger)
 #
 # Usage:
 #   .\database\scripts\02_build.ps1 [-DbName nss_erp] [-DbUser nss_db_owner] [-DbHost localhost] [-DbPort 5432]
@@ -16,8 +16,32 @@
 #   - PostgreSQL running and accessible
 #   - Database and roles created (see 00_create_database.sql)
 #   - Extensions installed (see 01_extensions.sql)
+#   - Role passwords set and api/.env generated (see 06_setup_env.sh)
 #   - Run from the repository root directory
 #
+# Implemented phases:
+#   Phase 0  - Bootstrap RBAC (3 tables + seed)
+#   Phase 1  - Foundation DDL (12 tables)
+#   Phase 2  - Foundation seed data (incl. ORGANIZATION_TYPE
+#              category and unified STATUS category in master_data)
+#   Phase 3  - Organization DDL (1 table)
+#   Phase 4  - Organization seed data
+#   Phase 5  - Person DDL (2 tables)
+#   Phase 6  - Family DDL (6 tables)
+#   Phase 7  - Membership DDL (13 tables)
+#   Phase 8  - Tier 4 Verification Seed Data (removed - no demo data)
+#   Phase 9  - Grant nss_db_backend read-only access
+#   Phase 10 - Authentication DDL (4 tables: user_account,
+#              password_history, registration_claim, password_reset_token)
+#   Phase 11 - Administration DDL (2 tables)
+#   Phase 12 - Grant nss_db_writer write access (Tier 5)
+#   Phase 13 - Admin bootstrap seed (NSS Admin superuser)
+#   Phase 14 - Audit DDL (system_event_log table + DB trigger)
+#
+# NOT executed:
+#   - database/ddl/03_person/01_person_master_tables.sql (superseded)
+#   - database/seed/03_person/ (superseded - data in Foundation seed)
+#   - Pass 2 audit-actor FK constraints (deferred)
 # =====================================================
 
 param(
@@ -41,6 +65,13 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path "$ScriptDir\..\..").Path
 $DdlBase = "$RepoRoot\database\ddl"
 $SeedBase = "$RepoRoot\database\seed"
+
+# -------------------------------------------------
+# Install Python dependencies
+# -------------------------------------------------
+Write-Host "=== Installing Python dependencies ===" -ForegroundColor Cyan
+& python3 -m pip install -r "$RepoRoot\requirements.txt"
+Write-Host ""
 
 $total = 0
 $failed = 0
@@ -133,13 +164,17 @@ foreach ($entry in $foundationSeed) {
 Write-Host ""
 
 # Phase 3: Organization DDL (1 table — type/status now in Foundation master_data)
-Write-Host "[Phase 3] Organization - DDL (1 table)" -ForegroundColor Cyan
+Write-Host "[Phase 3] Organization - DDL (1 table + address-restriction trigger + Kumari/Sevak one-per-Sakha trigger)" -ForegroundColor Cyan
 Invoke-Sql "organization"               "$DdlBase\02_organization\03_organization.sql"
+Invoke-Sql "organization_address_restriction_trigger" "$DdlBase\02_organization\04_organization_address_restriction_trigger.sql"
+Invoke-Sql "organization_kumari_sevak_uniqueness_trigger" "$DdlBase\02_organization\05_organization_kumari_sevak_uniqueness_trigger.sql"
 Write-Host ""
 
 # Phase 4: Organization Seed
 Write-Host "[Phase 4] Organization - Seed Data" -ForegroundColor Cyan
 Invoke-Sql "organization (seed)"               "$SeedBase\02_organization\03_organization.sql"
+Invoke-Sql "sakha postal codes (seed)"          "$SeedBase\01_foundation\09_sakha_postal_codes.sql"
+Invoke-Sql "sakha branches (seed)"              "$SeedBase\02_organization\05_sakha_branches.sql"
 Write-Host ""
 
 # Phase 5: Person DDL
@@ -151,22 +186,24 @@ Invoke-Sql "person"         "$DdlBase\03_person\02_person.sql"
 Invoke-Sql "person_address" "$DdlBase\03_person\03_person_address.sql"
 Write-Host ""
 
-# Phase 6: Family DDL (5 tables)
+# Phase 6: Family DDL (6 tables)
 # Note: family_link stores only direct PARENT_OF/
 #       SPOUSE_OF edges; all other relationship labels
 #       are computed dynamically via BFS traversal.
-Write-Host "[Phase 6] Family - DDL (5 tables)" -ForegroundColor Cyan
+Write-Host "[Phase 6] Family - DDL (6 tables + move-transition guard)" -ForegroundColor Cyan
 Invoke-Sql "family_group"              "$DdlBase\04_family\01_family_group.sql"
 Invoke-Sql "family_relationship"       "$DdlBase\04_family\02_family_relationship.sql"
 Invoke-Sql "family_head_history"       "$DdlBase\04_family\03_family_head_history.sql"
 Invoke-Sql "family_transition_history" "$DdlBase\04_family\04_family_transition_history.sql"
 Invoke-Sql "family_link"               "$DdlBase\04_family\05_family_link.sql"
+Invoke-Sql "family_admin"              "$DdlBase\04_family\06_family_admin.sql"
+Invoke-Sql "family_move_transition_guard" "$DdlBase\04_family\07_family_move_transition_guard.sql"
 Write-Host ""
 
-# Phase 7: Membership DDL (12 tables)
+# Phase 7: Membership DDL (13 tables)
 # Note: sangha_sevi must be created first - all
 #       other membership tables depend on it.
-Write-Host "[Phase 7] Membership - DDL (12 tables)" -ForegroundColor Cyan
+Write-Host "[Phase 7] Membership - DDL (13 tables + Sakha-only trigger)" -ForegroundColor Cyan
 Invoke-Sql "sangha_sevi"                    "$DdlBase\05_membership\01_sangha_sevi.sql"
 Invoke-Sql "membership_status_history"      "$DdlBase\05_membership\02_membership_status_history.sql"
 Invoke-Sql "membership_renewal_request"     "$DdlBase\05_membership\03_membership_renewal_request.sql"
@@ -179,23 +216,13 @@ Invoke-Sql "parichaya_patra"                "$DdlBase\05_membership\09_parichaya
 Invoke-Sql "parichaya_patra_history"        "$DdlBase\05_membership\10_parichaya_patra_history.sql"
 Invoke-Sql "anumati_patra"                  "$DdlBase\05_membership\11_anumati_patra.sql"
 Invoke-Sql "anumati_patra_history"          "$DdlBase\05_membership\12_anumati_patra_history.sql"
+Invoke-Sql "darshak_attendance_registration" "$DdlBase\05_membership\13_darshak_attendance_registration.sql"
+Invoke-Sql "sakha_only_membership_trigger"  "$DdlBase\05_membership\14_sakha_only_membership_trigger.sql"
 Write-Host ""
 
 # Phase 8: Tier 4 Verification Seed Data
 # Order: Organization -> Person -> Family -> Membership
-Write-Host "[Phase 8] Tier 4 Verification - Seed Data" -ForegroundColor Cyan
-Invoke-Sql "tier4 organizations (seed)"    "$SeedBase\02_organization\04_tier4_verification_orgs.sql"
-Invoke-Sql "tier4 persons (seed)"          "$SeedBase\03_person\02_tier4_verification_persons.sql"
-Invoke-Sql "tier4 family (seed)"           "$SeedBase\04_family\01_tier4_verification_family.sql"
-Invoke-Sql "tier4 family_link (seed)"      "$SeedBase\04_family\02_tier4_verification_family_links.sql"
-Invoke-Sql "tier4 membership (seed)"       "$SeedBase\05_membership\01_tier4_verification_membership.sql"
-Write-Host ""
-
-# Phase 8b: Performance Indexes (migrations)
-# Composite partial indexes for the family_majority
-# CTE hot path (used by family list + org stats).
-Write-Host "[Phase 8b] Performance Indexes" -ForegroundColor Cyan
-Invoke-Sql "performance indexes" "$RepoRoot\database\migrations\add_performance_indexes.sql"
+# Phase 8: (Tier 4 test seeds removed — no demo data)
 Write-Host ""
 
 # Phase 9: Grant nss_db_backend read-only access
@@ -203,7 +230,82 @@ Write-Host "[Phase 9] Grant nss_db_backend read-only access" -ForegroundColor Cy
 Invoke-Sql "grant_backend" "$ScriptDir\04_grant_backend.sql"
 Write-Host ""
 
+# -------------------------------------------------
+# Phase 10: Authentication DDL (4 tables, Depths 3-5)
+# user_account FK -> person (Depth 3)
+# password_history FK -> user_account (Depth 4)
+# registration_claim FK -> user_account, person, organization, master_data (Depth 5)
+# password_reset_token FK -> user_account (Depth 4)
+# -------------------------------------------------
+Write-Host "[Phase 10] Authentication - DDL (4 tables)" -ForegroundColor Cyan
+Invoke-Sql "user_account"           "$DdlBase\06_authentication\01_user_account.sql"
+Invoke-Sql "password_history"       "$DdlBase\06_authentication\02_password_history.sql"
+Invoke-Sql "registration_claim"     "$DdlBase\06_authentication\03_registration_claim.sql"
+Invoke-Sql "password_reset_token"   "$DdlBase\06_authentication\04_password_reset_token.sql"
+Write-Host ""
+
+# -------------------------------------------------
+# Phase 11: Administration DDL (2 tables, Depths 4-5)
+# user_role FK -> user_account + role_master (Depth 4)
+# admin_scope FK -> user_role + organization (Depth 5)
+# -------------------------------------------------
+Write-Host "[Phase 11] Administration - DDL (2 tables)" -ForegroundColor Cyan
+Invoke-Sql "user_role"    "$DdlBase\07_administration\01_user_role.sql"
+Invoke-Sql "admin_scope"  "$DdlBase\07_administration\02_admin_scope.sql"
+Write-Host ""
+
+# -------------------------------------------------
+# Phase 12: Grant nss_db_writer write access (Tier 5)
+# Must run AFTER Auth + Admin DDL so the tables exist.
+# Grants SELECT on ALL tables (login lookups) +
+# INSERT/UPDATE on auth + admin tables only.
+# -------------------------------------------------
+Write-Host "[Phase 12] Grant nss_db_writer write access" -ForegroundColor Cyan
+Invoke-Sql "create_writer_role" "$ScriptDir\05_create_writer_role.sql"
+Write-Host ""
+
+# -------------------------------------------------
+# Phase 13: Admin Bootstrap Seed
+# Seeds NSS Admin superuser (P1 / SS1 / NSSAdmin1)
+# with NSS_ERP_ADMIN role and NSS-WIDE scope.
+# Must run AFTER Auth + Admin DDL (Phases 10-11)
+# and AFTER Foundation + Organization seeds.
+#
+# Uses the Python bootstrap script (not psql) because
+# the user_account INSERT requires an Argon2 password
+# hash generated at runtime.
+# -------------------------------------------------
+Write-Host "[Phase 13] Admin Bootstrap Seed" -ForegroundColor Cyan
+$script:total++
+try {
+    $output = & python3 "$RepoRoot\scripts\bootstrap_admin.py" 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  [OK]   admin_bootstrap" -ForegroundColor Green
+    } else {
+        Write-Host "  [FAIL] admin_bootstrap" -ForegroundColor Red
+        Write-Host "  Error: $output"
+        $script:failed++
+    }
+} catch {
+    Write-Host "  [FAIL] admin_bootstrap" -ForegroundColor Red
+    Write-Host "  Error: $_"
+    $script:failed++
+}
+Write-Host ""
+
+# -------------------------------------------------
+# Phase 14: Audit DDL (system_event_log + DB trigger)
+# Must run AFTER all other DDL so the trigger can
+# attach to every table in the nss schema.
+# -------------------------------------------------
+Write-Host "[Phase 14] Audit - DDL (1 table + trigger)" -ForegroundColor Cyan
+Invoke-Sql "system_event_log"  "$DdlBase\01_foundation\14_system_event_log.sql"
+Invoke-Sql "audit_trigger"     "$DdlBase\01_foundation\15_audit_trigger.sql"
+Write-Host ""
+
+# -------------------------------------------------
 # Summary
+# -------------------------------------------------
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  BUILD SUMMARY" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
@@ -216,8 +318,6 @@ if ($failed -eq 0) {
     Write-Host "  Database build completed successfully." -ForegroundColor Green
     Write-Host ""
     Write-Host "  Not executed (future phases):" -ForegroundColor Yellow
-    Write-Host "    - Person seed (03_person/ is superseded - data in Foundation seed)"
-    Write-Host "    - Authentication, Administration, remaining modules"
     Write-Host "    - Pass 2 audit-actor FK constraints"
     exit 0
 } else {
