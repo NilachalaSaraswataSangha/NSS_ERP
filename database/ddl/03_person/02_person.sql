@@ -49,6 +49,21 @@ CREATE TABLE IF NOT EXISTS nss.person
 
     email VARCHAR(255) NULL,
 
+    -- ── Address (basic location FKs) ───────────────────
+    -- Full structured addresses live in person_address.
+    -- These FKs capture location during registration for
+    -- quick reference without the full address chain.
+
+    country_pk UUID NULL,
+
+    state_pk UUID NULL,
+
+    district_pk UUID NULL,
+
+    city_village_pk UUID NULL,
+
+    postal_code_pk UUID NULL,
+
     -- ── Sensitive Identity (Aadhaar) ────────────────────
     -- All three columns are all-or-nothing: either all
     -- NULL or all populated. Encrypted value stores the
@@ -124,6 +139,26 @@ CREATE TABLE IF NOT EXISTS nss.person
     CONSTRAINT fk_person_emergency_relationship
         FOREIGN KEY (emergency_relationship_master_data_pk)
         REFERENCES nss.master_data (master_data_pk),
+
+    CONSTRAINT fk_person_country
+        FOREIGN KEY (country_pk)
+        REFERENCES nss.country (country_pk),
+
+    CONSTRAINT fk_person_state
+        FOREIGN KEY (state_pk)
+        REFERENCES nss.state (state_pk),
+
+    CONSTRAINT fk_person_district
+        FOREIGN KEY (district_pk)
+        REFERENCES nss.district (district_pk),
+
+    CONSTRAINT fk_person_city_village
+        FOREIGN KEY (city_village_pk)
+        REFERENCES nss.city_village (city_village_pk),
+
+    CONSTRAINT fk_person_postal_code
+        FOREIGN KEY (postal_code_pk)
+        REFERENCES nss.postal_code (postal_code_pk),
 
     CONSTRAINT chk_person_contact_required
         CHECK
@@ -265,3 +300,16 @@ CREATE INDEX IF NOT EXISTS idx_person_first_name_trgm
 CREATE INDEX IF NOT EXISTS idx_person_last_name_trgm
     ON nss.person USING gin (last_name gin_trgm_ops)
     WHERE last_name IS NOT NULL;
+
+-- Address location indexes
+CREATE INDEX IF NOT EXISTS idx_person_country
+    ON nss.person (country_pk)
+    WHERE country_pk IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_person_state
+    ON nss.person (state_pk)
+    WHERE state_pk IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_person_district
+    ON nss.person (district_pk)
+    WHERE district_pk IS NOT NULL;

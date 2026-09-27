@@ -5,10 +5,14 @@
 -- Table: nss.sangha_sevi
 -- Depth: 2 (depends on person, master_data,
 --         organization)
--- Version: 1.0
+-- Version: 1.1
 -- Authority: SOL-MEM-005 §4–§5, SOL-MEM-003
---            MBR-001, MBR-002, MBR-003
+--            MBR-001, MBR-002, MBR-003, MBR-038A
 -- Owner: NSS_ERP_ADMIN
+-- v1.1 (2026-09-26): added is_system_account +
+--       uq_sangha_sevi_system_account partial unique index
+--       (MBR-038A — Sakha-only membership, single system-
+--       account exception).
 -- Note: One Person = One Membership (UNIQUE on
 --       person_pk). Sangha Sevi ID is permanent,
 --       NSS-wide, never reused, never changed.
@@ -66,6 +70,16 @@ CREATE TABLE IF NOT EXISTS nss.sangha_sevi
 
     is_active BOOLEAN NOT NULL
         DEFAULT TRUE,
+
+    -- Reserved bootstrap/system identity flag (MBR-038A).
+    -- TRUE only for the single seeded NSS-wide administrator
+    -- (SS1) — permits organization_pk to reference KENDRA
+    -- directly instead of a SAKHA_SANGHA. Never set via API
+    -- or UI; not a role/permission, an identity property of
+    -- one specific row. At most one row may ever have this
+    -- set to TRUE (see uq_sangha_sevi_system_account below).
+    is_system_account BOOLEAN NOT NULL
+        DEFAULT FALSE,
 
     -- ── Audit ───────────────────────────────────────────
 
@@ -148,3 +162,17 @@ CREATE INDEX IF NOT EXISTS idx_sangha_sevi_joining_date
 CREATE INDEX IF NOT EXISTS idx_sangha_sevi_renewal_due
     ON nss.sangha_sevi (renewal_due_date)
     WHERE renewal_due_date IS NOT NULL;
+
+-- Performance: family_majority CTE filters is_active=TRUE,
+-- joins on person_pk, needs sangha_sevi_pk for next join
+CREATE INDEX IF NOT EXISTS idx_sangha_sevi_active_person
+    ON nss.sangha_sevi (person_pk, sangha_sevi_pk)
+    WHERE is_active = TRUE;
+
+-- Airtight enforcement of MBR-038A: at most one system-account
+-- row can ever exist. Partial unique index rather than a
+-- boolean-uniqueness workaround, since is_system_account is
+-- FALSE for the overwhelming majority of rows.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sangha_sevi_system_account
+    ON nss.sangha_sevi (is_system_account)
+    WHERE is_system_account = TRUE;

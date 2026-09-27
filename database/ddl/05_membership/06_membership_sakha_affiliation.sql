@@ -122,3 +122,9 @@ CREATE INDEX IF NOT EXISTS idx_mem_sakha_aff_status
 CREATE UNIQUE INDEX IF NOT EXISTS uq_mem_sakha_aff_active
     ON nss.membership_sakha_affiliation (sangha_sevi_pk)
     WHERE effective_to IS NULL;
+
+-- Performance: family_majority CTE filters effective_to IS NULL,
+-- joins on sangha_sevi_pk, needs organization_pk for grouping
+CREATE INDEX IF NOT EXISTS idx_mem_sakha_aff_active_covering
+    ON nss.membership_sakha_affiliation (sangha_sevi_pk, organization_pk)
+    WHERE effective_to IS NULL;

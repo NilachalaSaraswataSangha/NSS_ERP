@@ -106,3 +106,9 @@ CREATE INDEX IF NOT EXISTS idx_family_rel_is_current
 CREATE UNIQUE INDEX IF NOT EXISTS uq_family_rel_person_current
     ON nss.family_relationship (family_group_pk, person_pk)
     WHERE is_current = TRUE;
+
+-- Performance: family_majority CTE filters is_current=TRUE,
+-- joins on person_pk, groups by family_group_pk
+CREATE INDEX IF NOT EXISTS idx_family_rel_current_person_family
+    ON nss.family_relationship (person_pk, family_group_pk)
+    WHERE is_current = TRUE;
