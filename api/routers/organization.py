@@ -1,13 +1,15 @@
 """
-Organization API router — Tier 2 read-only endpoints.
+Organization API router — Tier 2 endpoints.
 
-6 GET endpoints across the organization table plus Foundation
-master_data (for type/status). No authentication.
+7 GET endpoints across the organization table plus Foundation
+master_data (for type/status). Gated by require_permission("ORGANIZATION_VIEW")
+on the Tier 5 branch.
 nss_db_backend connects with SELECT-only privileges.
 
 Endpoint groups:
   - Reference:   types, statuses (from master_data)
   - Core:        organizations (list, detail, children)
+  - Aggregation: children-stats (recursive family/member/person counts)
   - Navigation:  hierarchy (recursive CTE tree)
 
 Organization type values are stored in Foundation master_data
@@ -20,7 +22,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.database import get_connection
+from api.dependencies.rbac import require_permission
 from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
+from api.services.rbac_service import UserContext
 from api.schemas.organization import (
     OrgChildStatsResponse,
     OrganizationHierarchyNodeResponse,
@@ -39,6 +43,7 @@ _ORG_SELECT = """
            o.organization_id,
            o.organization_name,
            o.organization_code,
+           o.short_code,
            ot.master_data_pk   AS organization_type_pk,
            ot.value_code       AS organization_type_code,
            ot.value_name       AS organization_type_name,
@@ -98,6 +103,7 @@ _ORG_SELECT = """
 @router.get("/types", response_model=list[OrganizationTypeResponse])
 def list_organization_types(
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("ORGANIZATION_VIEW")),
 ) -> list[OrganizationTypeResponse]:
     """List all active organization types (10 frozen types from master_data)."""
     with conn.cursor() as cur:
@@ -121,6 +127,7 @@ def list_organization_types(
 @router.get("/statuses", response_model=list[StatusResponse])
 def list_statuses(
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("ORGANIZATION_VIEW")),
 ) -> list[StatusResponse]:
     """List active lifecycle statuses applicable to the Organization module."""
     with conn.cursor() as cur:
@@ -155,6 +162,7 @@ def list_organizations(
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows to return"),
     offset: int = Query(0, ge=0, description="Number of rows to skip"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("ORGANIZATION_VIEW")),
 ) -> list[OrganizationResponse]:
     """
     List all active organizations with resolved type, status, and parent.
@@ -188,6 +196,7 @@ def list_organizations(
 def get_organization(
     organization_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("ORGANIZATION_VIEW")),
 ) -> OrganizationResponse:
     """Get a single organization by PK with full resolved context."""
     sql = _ORG_SELECT + " WHERE o.organization_pk = %s AND o.is_active = TRUE"
@@ -207,6 +216,7 @@ def get_organization(
 def list_organization_children(
     organization_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("ORGANIZATION_VIEW")),
 ) -> list[OrganizationResponse]:
     """
     List direct children of a given organization.
@@ -361,6 +371,7 @@ _CHILDREN_STATS_SQL = """
 def list_children_stats(
     organization_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("ORGANIZATION_VIEW")),
 ) -> list[OrgChildStatsResponse]:
     """
     Aggregate statistics for each direct child of an organization.
@@ -398,6 +409,7 @@ def get_organization_hierarchy(
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows to return"),
     offset: int = Query(0, ge=0, description="Number of rows to skip"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("ORGANIZATION_VIEW")),
 ) -> list[OrganizationHierarchyNodeResponse]:
     """
     Return the full organizational hierarchy as a flat list with depth.

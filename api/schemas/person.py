@@ -139,3 +139,18 @@ class PersonAddressResponse(BaseModel):
     is_primary: bool
     remarks: str | None
     is_active: bool
+
+
+class PersonListResponse(BaseModel):
+    """
+    Envelope for /persons and /search list results.
+
+    `total` is the true row count matching the filters — independent
+    of `len(persons)`, which is capped by MAX_LIMIT (or, for /search,
+    the search-specific cap). Callers MUST compare `total` to
+    `len(persons)` to detect truncation; the array alone cannot
+    reveal whether more rows exist.
+    """
+
+    persons: list[PersonSummaryResponse]
+    total: int

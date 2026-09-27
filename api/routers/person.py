@@ -21,9 +21,19 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.database import get_connection
-from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, row_to_model, rows_to_models
+from api.dependencies.rbac import require_permission
+from api.helpers import (
+    DEFAULT_LIMIT,
+    MAX_LIMIT,
+    build_order_by,
+    natural_sort_key,
+    row_to_model,
+    rows_to_models,
+)
+from api.services.rbac_service import UserContext
 from api.schemas.person import (
     PersonAddressResponse,
+    PersonListResponse,
     PersonResponse,
     PersonSummaryResponse,
 )
@@ -104,6 +114,21 @@ _PERSON_SUMMARY_SELECT = """
            ON bg.master_data_pk = p.blood_group_master_data_pk
 """
 
+# Count variant of _PERSON_SUMMARY_SELECT's FROM/JOIN — mirrors it exactly
+# (all LEFT JOINs on nss.master_data, one row per person) so total counts
+# match the summary rows one-for-one. Kept separate rather than derived
+# to match this file's existing DETAIL/SUMMARY duplication style.
+_PERSON_COUNT_SELECT = """
+    SELECT count(*)
+    FROM   nss.person p
+    LEFT JOIN nss.master_data g
+           ON g.master_data_pk = p.gender_master_data_pk
+    LEFT JOIN nss.master_data ms
+           ON ms.master_data_pk = p.marital_status_master_data_pk
+    LEFT JOIN nss.master_data bg
+           ON bg.master_data_pk = p.blood_group_master_data_pk
+"""
+
 # Address SELECT with resolved location context through the
 # city_village_postal_code_map junction → city_village + postal_code
 # + district + state + country geographic chain.
@@ -149,7 +174,31 @@ _ADDRESS_SELECT = """
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-@router.get("/persons", response_model=list[PersonSummaryResponse])
+# Sortable columns for the Person Directory.
+#
+# This is a whitelist, not a convenience: the chosen expression is
+# interpolated into the ORDER BY (a column name cannot be a bound
+# parameter), so nothing outside this dict may ever reach the statement.
+# Keys are the names the frontend sends; values are SQL over the aliases
+# established by _PERSON_SUMMARY_SELECT (p person, g gender, ms marital
+# status, bg blood group).
+_PERSON_SORT_COLUMNS: dict[str, str | list[str]] = {
+    # person_id is "prefix + trailing digits" (P7, P100), so plain text
+    # collation would order P100 before P7. Sort on the split key instead.
+    "person_id": natural_sort_key("p.person_id"),
+    "person_name": "CONCAT_WS(' ', p.first_name, p.middle_name, p.last_name)",
+    "first_name": "p.first_name",
+    "last_name": "p.last_name",
+    "date_of_birth": "p.date_of_birth",
+    "gender_name": "g.value_name",
+    "marital_status_name": "ms.value_name",
+    "blood_group_name": "bg.value_name",
+    "mobile_number": natural_sort_key("p.mobile_number"),
+    "email": "p.email",
+}
+
+
+@router.get("/persons", response_model=PersonListResponse)
 def list_persons(
     gender_code: str | None = Query(
         None, description="Filter by gender value_code (e.g. MALE, FEMALE)"
@@ -162,8 +211,11 @@ def list_persons(
     ),
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="Max rows to return"),
     offset: int = Query(0, ge=0, description="Number of rows to skip"),
+    sort_by: str | None = Query(None, description="Column to sort by"),
+    sort_dir: str | None = Query(None, description="Sort direction: asc or desc"),
     conn=Depends(get_connection),
-) -> list[PersonSummaryResponse]:
+    user: UserContext = Depends(require_permission("PERSON_VIEW")),
+) -> PersonListResponse:
     """
     List all active persons with resolved master-data context.
 
@@ -171,27 +223,43 @@ def list_persons(
     blood_group_code. Returns a compact summary (no Aadhaar,
     emergency, or photo fields). Supports pagination via limit/offset
     (default 100, max 500).
+
+    Sorted in SQL. This matters even though the Person Directory loads
+    one large page: the response is capped at MAX_LIMIT, so ordering in
+    the browser would sort whichever arbitrary 500 rows came back, while
+    ordering here returns the top 500 *of the requested order*.
+
+    Returns an envelope — `{persons, total}` — rather than a bare array.
+    `total` is the true row count matching the filters, independent of
+    the MAX_LIMIT cap on `persons`; callers must compare the two to
+    detect truncation instead of assuming the array is complete.
     """
-    sql = _PERSON_SUMMARY_SELECT + " WHERE p.is_active = TRUE"
+    where = " WHERE p.is_active = TRUE"
     params: list = []
 
     if gender_code is not None:
-        sql += " AND g.value_code = %s"
+        where += " AND g.value_code = %s"
         params.append(gender_code)
     if marital_status_code is not None:
-        sql += " AND ms.value_code = %s"
+        where += " AND ms.value_code = %s"
         params.append(marital_status_code)
     if blood_group_code is not None:
-        sql += " AND bg.value_code = %s"
+        where += " AND bg.value_code = %s"
         params.append(blood_group_code)
 
-    sql += " ORDER BY p.first_name, p.last_name"
-    sql += " LIMIT %s OFFSET %s"
-    params.extend([limit, offset])
+    order_by = build_order_by(
+        sort_by, sort_dir, _PERSON_SORT_COLUMNS, "p.first_name, p.last_name"
+    )
+    sql = _PERSON_SUMMARY_SELECT + where + f" ORDER BY {order_by} LIMIT %s OFFSET %s"
 
     with conn.cursor() as cur:
-        cur.execute(sql, tuple(params))
-        return rows_to_models(cur, PersonSummaryResponse)
+        cur.execute(_PERSON_COUNT_SELECT + where, tuple(params))
+        total = cur.fetchone()[0]
+
+        cur.execute(sql, tuple(params + [limit, offset]))
+        persons = rows_to_models(cur, PersonSummaryResponse)
+
+    return PersonListResponse(persons=persons, total=total)
 
 
 @router.get(
@@ -201,6 +269,7 @@ def list_persons(
 def get_person(
     person_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("PERSON_VIEW")),
 ) -> PersonResponse:
     """
     Get a single person by PK with full resolved context.
@@ -230,6 +299,7 @@ def get_person(
 def list_person_addresses(
     person_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("PERSON_VIEW")),
 ) -> list[PersonAddressResponse]:
     """
     List all active addresses for a given person.
@@ -263,7 +333,7 @@ def list_person_addresses(
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-@router.get("/search", response_model=list[PersonSummaryResponse])
+@router.get("/search", response_model=PersonListResponse)
 def search_persons(
     q: str = Query(
         ...,
@@ -272,8 +342,11 @@ def search_persons(
         description="Search term — matches against first_name (trigram), "
         "last_name (trigram), person_id, mobile_number, or email",
     ),
+    limit: int = Query(50, ge=1, le=MAX_LIMIT, description="Max rows to return (default 50)"),
+    offset: int = Query(0, ge=0, description="Number of rows to skip"),
     conn=Depends(get_connection),
-) -> list[PersonSummaryResponse]:
+    user: UserContext = Depends(require_permission("PERSON_VIEW")),
+) -> PersonListResponse:
     """
     Search active persons by name, person_id, mobile number, or email.
 
@@ -283,15 +356,18 @@ def search_persons(
     separator to avoid false positives (e.g. "aniket.mishra" uses
     "aniket" for name matching, full string for email prefix).
     Also matches exact prefix on person_id, mobile_number, and email.
-    Results ordered by trigram similarity (best match first), limited
-    to 50 results.
+    Results ordered by trigram similarity (best match first).
+
+    Supports pagination via limit/offset (default 50, max 500) — the
+    same convention as /persons, replacing the previous hardcoded
+    LIMIT 50 with no way to see or page past it. Returns an envelope
+    — `{persons, total}` — so callers can tell when a match set is
+    larger than the page returned.
     """
     # For trigram: strip email-like suffix so "aniket.mishra" → "aniket"
     name_q = re.split(r'[.@]', q)[0] if ('.' in q or '@' in q) else q
 
-    sql = (
-        _PERSON_SUMMARY_SELECT
-        + """
+    where = """
         WHERE p.is_active = TRUE
           AND (
               similarity(p.first_name, %s) > 0.45
@@ -300,14 +376,25 @@ def search_persons(
               OR p.mobile_number ILIKE %s
               OR p.email ILIKE %s
           )
+    """
+    sql = (
+        _PERSON_SUMMARY_SELECT
+        + where
+        + """
         ORDER BY similarity(p.first_name, %s) DESC,
                  p.first_name, p.last_name
-        LIMIT 50
+        LIMIT %s OFFSET %s
     """
     )
 
     prefix_pattern = f"{q}%"
+    match_params = (name_q, name_q, prefix_pattern, prefix_pattern, prefix_pattern)
 
     with conn.cursor() as cur:
-        cur.execute(sql, (name_q, name_q, prefix_pattern, prefix_pattern, prefix_pattern, name_q))
-        return rows_to_models(cur, PersonSummaryResponse)
+        cur.execute(_PERSON_COUNT_SELECT + where, match_params)
+        total = cur.fetchone()[0]
+
+        cur.execute(sql, match_params + (name_q, limit, offset))
+        persons = rows_to_models(cur, PersonSummaryResponse)
+
+    return PersonListResponse(persons=persons, total=total)

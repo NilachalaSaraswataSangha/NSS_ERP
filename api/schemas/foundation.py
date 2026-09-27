@@ -10,7 +10,7 @@ ConfigDict(from_attributes=True) is unnecessary.
 
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +48,26 @@ class MasterDataResponse(BaseModel):
     is_active: bool
 
 
+class CreateMasterDataRequest(BaseModel):
+    """POST /api/v1/foundation/master-data — add a value to a category."""
+
+    category_code: str = Field(..., min_length=1, description="Parent category code, e.g. DOCUMENT_TYPE")
+    value_code: str = Field(..., min_length=1, max_length=50, description="Unique code within the category")
+    value_name: str = Field(..., min_length=1, max_length=150)
+    description: str | None = Field(None)
+    display_order: int = Field(0, ge=0)
+    applicable_modules: list[str] | None = Field(None, description="NULL = applies to all modules")
+
+
+class UpdateMasterDataRequest(BaseModel):
+    """PATCH /api/v1/foundation/master-data/{master_data_pk} — edit a value."""
+
+    value_name: str | None = Field(None, min_length=1, max_length=150)
+    description: str | None = Field(None)
+    display_order: int | None = Field(None, ge=0)
+    applicable_modules: list[str] | None = Field(None)
+
+
 # ---------------------------------------------------------------------------
 # System Configuration Subsystem
 # ---------------------------------------------------------------------------
@@ -61,6 +81,22 @@ class SettingResponse(BaseModel):
     description: str | None
     data_type: str
     is_active: bool
+
+
+class UpdateSettingRequest(BaseModel):
+    """PATCH /api/v1/foundation/settings/{setting_key} — edit an existing setting."""
+
+    setting_value: str = Field(..., min_length=1, description="New value; validated against the setting's data_type")
+    description: str | None = Field(None, max_length=500)
+
+
+class CreateSettingRequest(BaseModel):
+    """POST /api/v1/foundation/settings — add a new setting."""
+
+    setting_key: str = Field(..., min_length=1, max_length=100, description="Unique business key, e.g. CURRENT_MEMBERSHIP_YEAR")
+    setting_value: str = Field(..., min_length=1)
+    data_type: str = Field("STRING", description="STRING | INTEGER | BOOLEAN | DATE | JSON")
+    description: str | None = Field(None, max_length=500)
 
 
 class SequenceResponse(BaseModel):
@@ -78,6 +114,25 @@ class SequenceResponse(BaseModel):
     padding_length: int
     description: str | None
     is_active: bool
+
+
+class CreateSequenceRequest(BaseModel):
+    """POST /api/v1/foundation/sequences — add a new ID sequence."""
+
+    sequence_code: str = Field(..., min_length=1, max_length=50, description="Unique code, e.g. SAKHA")
+    sequence_name: str = Field(..., min_length=1, max_length=100, description="Unique display name")
+    prefix: str = Field(..., min_length=1, max_length=20, description="Identifier prefix, e.g. SKH")
+    padding_length: int = Field(8, ge=0, le=12, description="Zero-pad width for the numeric part (0-12)")
+    description: str | None = Field(None)
+
+
+class UpdateSequenceRequest(BaseModel):
+    """PATCH /api/v1/foundation/sequences/{sequence_code} — edit a sequence's config."""
+
+    sequence_name: str | None = Field(None, min_length=1, max_length=100)
+    prefix: str | None = Field(None, min_length=1, max_length=20)
+    padding_length: int | None = Field(None, ge=0, le=12)
+    description: str | None = Field(None)
 
 
 # ---------------------------------------------------------------------------

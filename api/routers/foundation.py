@@ -17,14 +17,22 @@ requires authentication. Deferred to Tier 5.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import json
+from datetime import datetime
 
-from api.database import get_connection
-from api.helpers import row_to_model, rows_to_models
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from api.database import get_connection, get_write_connection
+from api.dependencies.rbac import require_permission
+from api.helpers import log_audit, row_to_model, rows_to_models
+from api.services.rbac_service import UserContext
 from api.schemas.foundation import (
     CategoryResponse,
     CityVillageResponse,
     CountryResponse,
+    CreateMasterDataRequest,
+    CreateSequenceRequest,
+    CreateSettingRequest,
     DistrictResponse,
     DocumentResponse,
     MasterDataResponse,
@@ -33,6 +41,9 @@ from api.schemas.foundation import (
     SequenceResponse,
     SettingResponse,
     StateResponse,
+    UpdateMasterDataRequest,
+    UpdateSequenceRequest,
+    UpdateSettingRequest,
 )
 
 router = APIRouter(prefix="/api/v1/foundation", tags=["foundation"])
@@ -44,7 +55,10 @@ router = APIRouter(prefix="/api/v1/foundation", tags=["foundation"])
 
 
 @router.get("/categories", response_model=list[CategoryResponse])
-def list_categories(conn=Depends(get_connection)) -> list[CategoryResponse]:
+def list_categories(
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[CategoryResponse]:
     """List all active master categories."""
     with conn.cursor() as cur:
         cur.execute("""
@@ -61,6 +75,7 @@ def list_categories(conn=Depends(get_connection)) -> list[CategoryResponse]:
 def get_category(
     master_category_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> CategoryResponse:
     """Get a single master category by PK."""
     with conn.cursor() as cur:
@@ -81,6 +96,7 @@ def list_master_data(
     category_code: str | None = Query(None, description="Filter by category code"),
     category_pk: UUID | None = Query(None, description="Filter by category PK"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[MasterDataResponse]:
     """
     List all active master data values.
@@ -123,6 +139,7 @@ def list_master_data(
 def get_master_data(
     master_data_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> MasterDataResponse:
     """Get a single master data value by PK (with category context)."""
     with conn.cursor() as cur:
@@ -145,13 +162,144 @@ def get_master_data(
         return result
 
 
+_MASTER_DATA_SELECT = """
+    SELECT md.master_data_pk, md.master_category_pk,
+           mc.category_code, mc.category_name,
+           md.value_code, md.value_name,
+           md.description, md.applicable_modules,
+           md.display_order, md.is_active
+    FROM   nss.master_data md
+    JOIN   nss.master_category mc
+           ON mc.master_category_pk = md.master_category_pk
+    WHERE  md.master_data_pk = %s
+"""
+
+
+@router.post("/master-data", response_model=MasterDataResponse, status_code=status.HTTP_201_CREATED)
+def create_master_data(
+    body: CreateMasterDataRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_MANAGE")),
+) -> MasterDataResponse:
+    """
+    Add a new value to an existing master-data category. Requires FOUNDATION_MANAGE.
+
+    value_code must be unique within the category. applicable_modules NULL
+    means the value applies to all modules.
+    """
+    category_code = body.category_code.strip().upper()
+    value_code = body.value_code.strip().upper()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT master_category_pk FROM nss.master_category WHERE category_code = %s AND is_active = TRUE",
+            (category_code,),
+        )
+        cat = cur.fetchone()
+        if cat is None:
+            raise HTTPException(status_code=404, detail=f"Category '{category_code}' not found.")
+        category_pk = cat[0]
+
+        cur.execute(
+            "SELECT 1 FROM nss.master_data WHERE master_category_pk = %s AND value_code = %s",
+            (str(category_pk), value_code),
+        )
+        if cur.fetchone() is not None:
+            raise HTTPException(status_code=409, detail=f"Value '{value_code}' already exists in category '{category_code}'.")
+
+        cur.execute(
+            """
+            INSERT INTO nss.master_data
+                (master_category_pk, value_code, value_name, description,
+                 applicable_modules, display_order)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING master_data_pk
+            """,
+            (
+                str(category_pk), value_code, body.value_name.strip(),
+                (body.description.strip() if body.description else None) or None,
+                body.applicable_modules if body.applicable_modules else None,
+                body.display_order,
+            ),
+        )
+        new_pk = cur.fetchone()[0]
+
+        log_audit(
+            cur, action="CREATE", table_name="master_data", record_pk=str(new_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Created master data {category_code}.{value_code}",
+        )
+
+        cur.execute(_MASTER_DATA_SELECT, (str(new_pk),))
+        return row_to_model(cur, MasterDataResponse)
+
+
+@router.patch("/master-data/{master_data_pk}", response_model=MasterDataResponse)
+def update_master_data(
+    master_data_pk: UUID,
+    body: UpdateMasterDataRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_MANAGE")),
+) -> MasterDataResponse:
+    """
+    Edit an existing master-data value. Requires FOUNDATION_MANAGE.
+
+    value_code and category are immutable (value_code is referenced by other
+    tables). Editable: value_name, description, display_order, applicable_modules.
+    """
+    updates: dict = {}
+    if body.value_name is not None:
+        updates["value_name"] = body.value_name.strip()
+    if body.description is not None:
+        updates["description"] = body.description.strip() or None
+    if body.display_order is not None:
+        updates["display_order"] = body.display_order
+    if body.applicable_modules is not None:
+        updates["applicable_modules"] = body.applicable_modules or None
+
+    if not updates:
+        raise HTTPException(status_code=422, detail="No fields provided to update.")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM nss.master_data WHERE master_data_pk = %s AND is_active = TRUE",
+            (str(master_data_pk),),
+        )
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Master data value not found.")
+
+        set_parts = ["updated_at = NOW()"]
+        params: list = []
+        for col, val in updates.items():
+            set_parts.append(f"{col} = %s")
+            params.append(val)
+        params.append(str(master_data_pk))
+
+        cur.execute(
+            f"UPDATE nss.master_data SET {', '.join(set_parts)} WHERE master_data_pk = %s",
+            params,
+        )
+
+        log_audit(
+            cur, action="UPDATE", table_name="master_data", record_pk=str(master_data_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary="Updated master data value",
+        )
+
+        cur.execute(_MASTER_DATA_SELECT, (str(master_data_pk),))
+        return row_to_model(cur, MasterDataResponse)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. SYSTEM CONFIGURATION SUBSYSTEM
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/settings", response_model=list[SettingResponse])
-def list_settings(conn=Depends(get_connection)) -> list[SettingResponse]:
+def list_settings(
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[SettingResponse]:
     """List all active system settings."""
     with conn.cursor() as cur:
         cur.execute("""
@@ -168,6 +316,7 @@ def list_settings(conn=Depends(get_connection)) -> list[SettingResponse]:
 def get_setting_by_key(
     setting_key: str,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> SettingResponse:
     """
     Get a single system setting by its business key.
@@ -188,8 +337,170 @@ def get_setting_by_key(
         return result
 
 
+_VALID_DATA_TYPES = {"STRING", "INTEGER", "BOOLEAN", "DATE", "JSON"}
+
+
+def _validate_setting_value(value: str, data_type: str) -> str:
+    """
+    Validate `value` against `data_type` and return a normalized string
+    to persist. Raises HTTP 422 on invalid input.
+    """
+    dt = (data_type or "STRING").upper()
+    v = value.strip()
+    if dt == "INTEGER":
+        try:
+            return str(int(v))
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Value must be a whole number for an INTEGER setting.")
+    if dt == "BOOLEAN":
+        low = v.lower()
+        if low in ("true", "1", "yes"):
+            return "true"
+        if low in ("false", "0", "no"):
+            return "false"
+        raise HTTPException(status_code=422, detail="Value must be true or false for a BOOLEAN setting.")
+    if dt == "DATE":
+        for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+            try:
+                datetime.strptime(v, fmt)
+                return v
+            except ValueError:
+                continue
+        raise HTTPException(status_code=422, detail="Value must be a valid date (DD/MM/YYYY) for a DATE setting.")
+    if dt == "JSON":
+        try:
+            json.loads(v)
+            return v
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Value must be valid JSON for a JSON setting.")
+    return v  # STRING
+
+
+@router.patch("/settings/{setting_key}", response_model=SettingResponse)
+def update_setting(
+    setting_key: str,
+    body: UpdateSettingRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_MANAGE")),
+) -> SettingResponse:
+    """
+    Update an existing system setting's value (and optionally its description).
+
+    The setting_key and data_type are immutable — the value is validated
+    against the stored data_type. Requires FOUNDATION_MANAGE.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT system_setting_pk, data_type
+            FROM   nss.system_setting
+            WHERE  setting_key = %s AND is_active = TRUE
+            """,
+            (setting_key,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Setting not found.")
+        setting_pk, data_type = row[0], row[1]
+
+        normalized = _validate_setting_value(body.setting_value, data_type)
+
+        if body.description is not None:
+            cur.execute(
+                """
+                UPDATE nss.system_setting
+                SET    setting_value = %s, description = %s, updated_at = NOW()
+                WHERE  system_setting_pk = %s
+                """,
+                (normalized, body.description.strip() or None, str(setting_pk)),
+            )
+        else:
+            cur.execute(
+                """
+                UPDATE nss.system_setting
+                SET    setting_value = %s, updated_at = NOW()
+                WHERE  system_setting_pk = %s
+                """,
+                (normalized, str(setting_pk)),
+            )
+
+        log_audit(
+            cur, action="UPDATE", table_name="system_setting", record_pk=str(setting_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Updated system setting {setting_key}",
+        )
+
+        cur.execute(
+            """
+            SELECT system_setting_pk, setting_key, setting_value,
+                   description, data_type, is_active
+            FROM   nss.system_setting
+            WHERE  system_setting_pk = %s
+            """,
+            (str(setting_pk),),
+        )
+        return row_to_model(cur, SettingResponse)
+
+
+@router.post("/settings", response_model=SettingResponse, status_code=status.HTTP_201_CREATED)
+def create_setting(
+    body: CreateSettingRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_MANAGE")),
+) -> SettingResponse:
+    """
+    Add a new system setting. Requires FOUNDATION_MANAGE.
+
+    setting_key must be unique; data_type must be one of
+    STRING, INTEGER, BOOLEAN, DATE, JSON; the value is validated against it.
+    """
+    key = body.setting_key.strip().upper()
+    dt = (body.data_type or "STRING").upper()
+    if dt not in _VALID_DATA_TYPES:
+        raise HTTPException(status_code=422, detail=f"data_type must be one of {', '.join(sorted(_VALID_DATA_TYPES))}.")
+    normalized = _validate_setting_value(body.setting_value, dt)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM nss.system_setting WHERE setting_key = %s",
+            (key,),
+        )
+        if cur.fetchone() is not None:
+            raise HTTPException(status_code=409, detail=f"A setting with key '{key}' already exists.")
+
+        cur.execute(
+            """
+            INSERT INTO nss.system_setting (setting_key, setting_value, description, data_type)
+            VALUES (%s, %s, %s, %s)
+            RETURNING system_setting_pk
+            """,
+            (key, normalized, (body.description.strip() if body.description else None) or None, dt),
+        )
+        new_pk = cur.fetchone()[0]
+
+        log_audit(
+            cur, action="CREATE", table_name="system_setting", record_pk=str(new_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Created system setting {key}",
+        )
+
+        cur.execute(
+            """
+            SELECT system_setting_pk, setting_key, setting_value,
+                   description, data_type, is_active
+            FROM   nss.system_setting
+            WHERE  system_setting_pk = %s
+            """,
+            (str(new_pk),),
+        )
+        return row_to_model(cur, SettingResponse)
+
+
 @router.get("/sequences", response_model=list[SequenceResponse])
-def list_sequences(conn=Depends(get_connection)) -> list[SequenceResponse]:
+def list_sequences(
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[SequenceResponse]:
     """
     List all active ID sequence configurations.
 
@@ -208,13 +519,147 @@ def list_sequences(conn=Depends(get_connection)) -> list[SequenceResponse]:
         return rows_to_models(cur, SequenceResponse)
 
 
+_SEQUENCE_SELECT = """
+    SELECT id_sequence_master_pk, sequence_code, sequence_name,
+           prefix, padding_length, description, is_active
+    FROM   nss.id_sequence_master
+    WHERE  id_sequence_master_pk = %s
+"""
+
+
+@router.patch("/sequences/{sequence_code}", response_model=SequenceResponse)
+def update_sequence(
+    sequence_code: str,
+    body: UpdateSequenceRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_MANAGE")),
+) -> SequenceResponse:
+    """
+    Edit an ID sequence's configuration (name, prefix, padding, description).
+
+    Requires FOUNDATION_MANAGE. current_value is never mutated here — it is
+    infrastructure state advanced only by identifier generation, so prefix and
+    padding changes affect only IDs minted from now on; already-issued IDs are
+    unchanged. sequence_code is immutable (it is the lookup key used in code).
+    """
+    code = sequence_code.strip().upper()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id_sequence_master_pk FROM nss.id_sequence_master WHERE sequence_code = %s AND is_active = TRUE",
+            (code,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Sequence not found.")
+        seq_pk = row[0]
+
+        sets: list[str] = []
+        params: list = []
+        if body.sequence_name is not None:
+            sets.append("sequence_name = %s")
+            params.append(body.sequence_name.strip())
+        if body.prefix is not None:
+            sets.append("prefix = %s")
+            params.append(body.prefix.strip().upper())
+        if body.padding_length is not None:
+            sets.append("padding_length = %s")
+            params.append(body.padding_length)
+        if body.description is not None:
+            sets.append("description = %s")
+            params.append(body.description.strip() or None)
+
+        if not sets:
+            raise HTTPException(status_code=422, detail="No fields to update.")
+
+        # Guard uniqueness of sequence_name if it is being changed.
+        if body.sequence_name is not None:
+            cur.execute(
+                "SELECT 1 FROM nss.id_sequence_master WHERE sequence_name = %s AND id_sequence_master_pk <> %s",
+                (body.sequence_name.strip(), str(seq_pk)),
+            )
+            if cur.fetchone() is not None:
+                raise HTTPException(status_code=409, detail="Another sequence already uses that name.")
+
+        sets.append("updated_at = NOW()")
+        params.append(str(seq_pk))
+        cur.execute(
+            f"UPDATE nss.id_sequence_master SET {', '.join(sets)} WHERE id_sequence_master_pk = %s",
+            tuple(params),
+        )
+
+        log_audit(
+            cur, action="UPDATE", table_name="id_sequence_master", record_pk=str(seq_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Updated ID sequence {code}",
+        )
+
+        cur.execute(_SEQUENCE_SELECT, (str(seq_pk),))
+        return row_to_model(cur, SequenceResponse)
+
+
+@router.post("/sequences", response_model=SequenceResponse, status_code=status.HTTP_201_CREATED)
+def create_sequence(
+    body: CreateSequenceRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_MANAGE")),
+) -> SequenceResponse:
+    """
+    Add a new ID sequence. Requires FOUNDATION_MANAGE.
+
+    sequence_code and sequence_name must both be unique. current_value starts
+    at 0 (no identifiers issued yet).
+    """
+    code = body.sequence_code.strip().upper()
+    name = body.sequence_name.strip()
+    prefix = body.prefix.strip().upper()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM nss.id_sequence_master WHERE sequence_code = %s",
+            (code,),
+        )
+        if cur.fetchone() is not None:
+            raise HTTPException(status_code=409, detail=f"A sequence with code '{code}' already exists.")
+        cur.execute(
+            "SELECT 1 FROM nss.id_sequence_master WHERE sequence_name = %s",
+            (name,),
+        )
+        if cur.fetchone() is not None:
+            raise HTTPException(status_code=409, detail=f"A sequence with name '{name}' already exists.")
+
+        cur.execute(
+            """
+            INSERT INTO nss.id_sequence_master
+                   (sequence_code, sequence_name, prefix, padding_length, description, current_value)
+            VALUES (%s, %s, %s, %s, %s, 0)
+            RETURNING id_sequence_master_pk
+            """,
+            (code, name, prefix, body.padding_length,
+             (body.description.strip() if body.description else None) or None),
+        )
+        new_pk = cur.fetchone()[0]
+
+        log_audit(
+            cur, action="CREATE", table_name="id_sequence_master", record_pk=str(new_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Created ID sequence {code}",
+        )
+
+        cur.execute(_SEQUENCE_SELECT, (str(new_pk),))
+        return row_to_model(cur, SequenceResponse)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 # 3. GEOGRAPHIC SUBSYSTEM
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 @router.get("/countries", response_model=list[CountryResponse])
-def list_countries(conn=Depends(get_connection)) -> list[CountryResponse]:
+def list_countries(
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[CountryResponse]:
     """List all active countries."""
     with conn.cursor() as cur:
         cur.execute("""
@@ -231,6 +676,7 @@ def list_countries(conn=Depends(get_connection)) -> list[CountryResponse]:
 def get_country(
     country_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> CountryResponse:
     """Get a single country by PK."""
     with conn.cursor() as cur:
@@ -250,6 +696,7 @@ def get_country(
 def list_states(
     country_pk: UUID | None = Query(None, description="Filter by parent country"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[StateResponse]:
     """
     List all active states/provinces.
@@ -283,6 +730,7 @@ def list_states(
 def get_state(
     state_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> StateResponse:
     """Get a single state by PK (with country context)."""
     with conn.cursor() as cur:
@@ -307,6 +755,7 @@ def get_state(
 def list_districts(
     state_pk: UUID | None = Query(None, description="Filter by parent state"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[DistrictResponse]:
     """
     List all active districts.
@@ -341,6 +790,7 @@ def list_districts(
 def get_district(
     district_pk: UUID,
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> DistrictResponse:
     """Get a single district by PK (with state context)."""
     with conn.cursor() as cur:
@@ -365,6 +815,7 @@ def get_district(
 def list_cities(
     district_pk: UUID | None = Query(None, description="Filter by parent district"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[CityVillageResponse]:
     """
     List all active cities/villages.
@@ -401,6 +852,7 @@ def list_postal_codes(
     state_pk: UUID | None = Query(None, description="Filter by state"),
     country_pk: UUID | None = Query(None, description="Filter by country"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[PostalCodeResponse]:
     """
     List all active postal codes.
@@ -436,6 +888,7 @@ def list_postal_code_mappings(
     city_village_pk: UUID | None = Query(None, description="Filter by city/village"),
     postal_code_pk: UUID | None = Query(None, description="Filter by postal code"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[PostalCodeMappingResponse]:
     """
     List city/village to postal code mappings.
@@ -480,6 +933,7 @@ def list_postal_code_mappings(
 def list_documents(
     document_type_code: str | None = Query(None, description="Filter by document type code"),
     conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[DocumentResponse]:
     """
     List all active documents.

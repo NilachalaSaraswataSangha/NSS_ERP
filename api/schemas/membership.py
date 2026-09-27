@@ -147,3 +147,18 @@ class JourneyEventResponse(BaseModel):
     event_date: date
     event_reference: str | None
     remarks: str | None
+
+
+class MemberListResponse(BaseModel):
+    """
+    Envelope for /members and /search list results.
+
+    `total` is the true row count matching the filters — independent
+    of `len(members)`, which is capped by MAX_LIMIT (or, for /search,
+    the search-specific cap). Callers MUST compare `total` to
+    `len(members)` to detect truncation; the array alone cannot
+    reveal whether more rows exist.
+    """
+
+    members: list[MemberResponse]
+    total: int

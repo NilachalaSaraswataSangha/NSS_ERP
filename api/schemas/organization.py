@@ -56,6 +56,7 @@ class OrganizationResponse(BaseModel):
     organization_id: str | None
     organization_name: str
     organization_code: str | None
+    short_code: str | None
 
     # Classification (resolved from master_data)
     organization_type_pk: UUID
