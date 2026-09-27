@@ -185,6 +185,8 @@ CROSS JOIN (VALUES
     -- Guardian / Ward
     ('GUARDIAN',           'Guardian',                27),
     ('WARD',               'Ward',                    28),
+    -- Self (family founder / head with no relational context)
+    ('SELF',               'Self',                     0),
     -- Other
     ('OTHER',              'Other Relative',          29)
 ) AS v(value_code, value_name, display_order)
@@ -195,7 +197,7 @@ ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
 
 -- -------------------------------------------------
 -- ORGANIZATION_TYPE values
--- (10 types per NSS Bye-Law hierarchy + preamble)
+-- (13 types per NSS Bye-Law hierarchy + preamble)
 -- -------------------------------------------------
 
 INSERT INTO nss.master_data (master_category_pk, value_code, value_name, description, display_order)

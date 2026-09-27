@@ -1,0 +1,258 @@
+-- =====================================================
+-- NSS ERP
+-- Module: Organization
+-- Seed File: 05_sakha_branches.sql
+-- Version: 2.0
+-- Authority: NSS Bye-Law, NSS Branches directory
+-- Owner: NSS_ERP_ADMIN
+-- Note: Seeds 175 Sakha Sangha branches from the
+--       official NSS branch directory document.
+--       All branches are typed SAKHA_SANGHA with ACTIVE
+--       status, parented to Kendra Sangha (KEN).
+--
+--       Anchalika (regional grouping) assignment is not
+--       available in the source data - all branches are
+--       parented directly to Kendra for now.
+--
+--       Organization codes: SKH1-SKH175 (unpadded)
+--       
+--
+--       Postal codes are resolved to postal_code_pk FK
+--       where available (63 of 175 branches). Remaining
+--       branches have NULL postal_code_pk.
+--
+--       Country: IN for Indian, US for America Sangha.
+--       short_code: NULL (admin-assignable via UI).
+--
+--       Depends on: 09_sakha_postal_codes.sql (Foundation)
+--
+--       Idempotent: ON CONFLICT (organization_code) DO UPDATE.
+-- =====================================================
+
+-- CTE for compact bulk insertion with master_data + postal_code joins.
+
+WITH branch_data (org_code, org_name, address_line_1, country_code, pin_code) AS (
+    VALUES
+        ('SKH1', 'Ekamra Saraswata Sangha', 'Sri Sri Nigamananda Asan Mandir, Samantarapur, Bhubaneswar-2, Dist-Khurda', 'IN', ''),
+        ('SKH2', 'Angul Sakha Sangha', 'At-Shimilipada, Po-Angul, Dist-Angul, Pin-759122', 'IN', '759122'),
+        ('SKH3', 'Bikrampur Sakha Sangha', 'At-Hulurisingha, Po-Hulurisingha, Dist-Angul, Pin-759132', 'IN', '759132'),
+        ('SKH4', 'Jagannathpur Sakha Sangha', 'At/Po-Jagannathpur, Dist-Angul, Pin-759131', 'IN', '759131'),
+        ('SKH5', 'Talcher Town Sakha Sangha', 'At/Po-Talcher Town, Dist-Angul, Pin-759107', 'IN', '759107'),
+        ('SKH6', 'Nalconagar Sakha Sangha', 'Kandasar New Colony, Po-Kandasar, Dist-Angul', 'IN', ''),
+        ('SKH7', 'Rankasingha Sakha Sangha', 'Qr. No-B/305, H.W.P. Colony, Po-Bikrampur, Dist-Angul, Pin-759106', 'IN', '759106'),
+        ('SKH8', 'Samal Barrage Sakha Sangha', 'At/Po-Samal Barrage Township, Via-Talcher, Dist-Angul', 'IN', ''),
+        ('SKH9', 'NTPC Sakha Sangha', 'Qr.No.-B/469, P.T.S., NTPC, Kaniha, Po-Dipasikha, Dist-Angul', 'IN', ''),
+        ('SKH10', 'Athamallik Sakha Sangha', 'At-Titigaan, Po-Aiada, Via-Athamallik, Dist-Angul', 'IN', ''),
+        ('SKH11', 'Narsinghpur Sakha Sangha', 'At-Kendupalli, Po-Nukhapada, Dist-Cuttack, Pin-754032', 'IN', '754032'),
+        ('SKH12', 'Gopalpur Sakha Sangha', 'At-Gopalpur, Po-Champeswar, Via-Kanpur, Dist-Cuttack, Pin-754037', 'IN', '754037'),
+        ('SKH13', 'Athagarh Sakha Sangha', 'Sri Sri Thakur Nigamananda Ashram, At/Po-Athagarh, Dist-Cuttack', 'IN', ''),
+        ('SKH14', 'Sukarpada Sakha Sangha', 'At/Po-Sukarpada, Dist-Cuttack, Pin-754203', 'IN', '754203'),
+        ('SKH15', 'Ashureswar Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, Nigampuri, At/Po-Ashureswar, Dist-Cuttack', 'IN', ''),
+        ('SKH16', 'Cuttack Saraswata Sangha', 'Sri Sri Nigamananda Smrutikutira, Cuttack-3', 'IN', ''),
+        ('SKH17', 'Kamarapada Sakha Sangha', 'At-Odapada, Po-Jashapada, Dist-Cuttack', 'IN', ''),
+        ('SKH18', 'Kendupatana Sakha Sangha', 'At/Po-Kendupatana, Dist-Cuttack, Pin-754203', 'IN', '754203'),
+        ('SKH19', 'Khuntuni Sakha Sangha', 'At-Uasadiha, Po-Nadiali, Dist-Dhenkanal', 'IN', ''),
+        ('SKH20', 'Bayalish Mouja Sakha Sangha', 'At/Po-Kalapada, Dist-Cuttack', 'IN', ''),
+        ('SKH21', 'Choudwar Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, Thermal Road, Po-Kapaleswar, Via-Choudwar, Dist-Cuttack, Pin-754025', 'IN', '754025'),
+        ('SKH22', 'Tangi Sakha Sangha', 'At/Po-Rudrapur, Via-Chhatia, Dist-Cuttack', 'IN', ''),
+        ('SKH23', 'Barapada Sakha Sangha (Cuttack)', 'At/Po-Khandasahi, Dist-Cuttack, Pin-754282', 'IN', '754282'),
+        ('SKH24', 'Niali Sakha Sangha', 'At/Po-Niali, Dist-Cuttack, Pin-754004', 'IN', '754004'),
+        ('SKH25', 'Banki Sakha Sangha', 'Near SBI, At/Po-Banki, Dist-Cuttack, Pin-754008', 'IN', '754008'),
+        ('SKH26', 'Badamba Sakha Sangha', 'Sri Sri Nigamananda Ashram, At/Po-Badamba, Dist-Cuttack', 'IN', ''),
+        ('SKH27', 'Khalarda Sakha Sangha', 'Dist-Cuttack', 'IN', ''),
+        ('SKH28', 'Rahama Sakha Sangha (Kendrapara)', 'Nigambihar, At-Raham, Po-Babar, Dist-Kendrapara', 'IN', ''),
+        ('SKH29', 'Endulapur Sakha Sangha', 'At-Endulapur, Po-Kurunti, Via-Rajnagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH30', 'Oupada Sakha Sangha', 'At/Po-Oupada, Via-Alava, Dist-Kendrapara', 'IN', ''),
+        ('SKH31', 'Kayatha Sakha Sangha', 'At-Kayatha, Po-Dera, Via-Rajanagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH32', 'Mandapara Sakha Sangha', 'At-Bachhara, Po/Via-Pattamundai, Dist-Kendrapara', 'IN', ''),
+        ('SKH33', 'Chhachina Sakha Sangha', 'At-Chhachina, Po-Nuahat, Via-Derabish, Dist-Kendrapara', 'IN', ''),
+        ('SKH34', 'Jarimula Sakha Sangha', 'At-Jaduchandrapur, Po-Bhitargada, Via-Rajnagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH35', 'Junapangara Sakha Sangha', 'At-Gahmashikhar, Po-Dera, Via-Rajnagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH36', 'Tulasikshetra Sakha Sangha', 'D.S.Law College, Po-Thakurpatna, Dist-Kendrapara', 'IN', ''),
+        ('SKH37', 'Deulapara Sakha Sangha', 'At-Oliha, Po-Deulapara, Via-Baladebjio, Dist-Kendrapara', 'IN', ''),
+        ('SKH38', 'Nadiabarai Sakha Sangha', 'At-Nadiabarai, Po-Nadiabarai, Via-Karilopatna, Dist-Kendrapara', 'IN', ''),
+        ('SKH39', 'Naukana Sakha Sangha', 'At/Po-Bada Naukana, Via-Rajnagar, Dist-Kendrapara, Pin-754246', 'IN', '754246'),
+        ('SKH40', 'Rajnagar Sakha Sangha', 'At-Tarpada, Po-Rajnagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH41', 'Nuagaan Sakha Sangha', 'At-Nuagaan, Po-Gopalpur, Dist-Kendrapara, Pin-754225', 'IN', '754225'),
+        ('SKH42', 'Matia Sakha Sangha', 'Sri Sri Nigamananda Ashram, At-Matia, Po-Pattamundai, Dist-Kendrapara', 'IN', ''),
+        ('SKH43', 'Basudeipur Sakha Sangha', 'At-Basudeipur, Po-Raychand, Via-Karilopatna, Dist-Kendrapara', 'IN', ''),
+        ('SKH44', 'Maharasahi Sakha Sangha', 'At/Po-Nadiabarai, Via-Karilopatna, Dist-Kendrapara', 'IN', ''),
+        ('SKH45', 'Adhanga Sakha Sangha', 'At-Adhanga, Po-Bhagabanpur, Dist-Kendrapara', 'IN', ''),
+        ('SKH46', 'Bijayanagar Sakha Sangha', 'At/Po-Bijayanagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH47', 'Katana Sakha Sangha', 'At-Daenigiri, Po-Katana, Via-Rajnagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH48', 'Chandiagari Sakha Sangha', 'At-Chandiagari, Po-Malapatana, Via-Pattamundai, Dist-Kendrapara, Pin-754215', 'IN', '754215'),
+        ('SKH49', 'Kurunti Sakha Sangha', 'At/Po-Kurunti, Via-Rajnagar, Dist-Kendrapara', 'IN', ''),
+        ('SKH50', 'Gopei Sakha Sangha', 'At/Po-Gopei, Via-Karilopatna, Dist-Kendrapara, Pin-754223', 'IN', '754223'),
+        ('SKH51', 'Gouda Gan Sakha Sangha', 'At-Goudagan, Po-Jamapada, Dist-Kendrapara, Pin-754244', 'IN', '754244'),
+        ('SKH52', 'Tikhiri Sakha Sangha', 'At/Po-Tikhiri, Via-Kujanga, Dist-Kendrapara', 'IN', ''),
+        ('SKH53', 'Bilikana Sakha Sangha', 'At-Nadhiala, Po-Amber, Via-Pattamundai, Dist-Kendrapara', 'IN', ''),
+        ('SKH54', 'Mahakalapada Sakha Sangha', 'At/Po-Mahakalapada, Dist-Kendrapara, Pin-754224', 'IN', '754224'),
+        ('SKH55', 'Rajakanika Sakha Sangha', 'At-Block Colony, Po/Via-Pattamundai, Dist-Kendrapara', 'IN', ''),
+        ('SKH56', 'Rajpur Sakha Sangha', 'At-Rajpur, Po-Keradagada, Via-Madanpur, Dist-Kendrapara', 'IN', ''),
+        ('SKH57', 'Ramnagar Sakha Sangha', 'At/Po-Ramnagar, Via-Mahakalpada, Dist-Kendrapara', 'IN', ''),
+        ('SKH58', 'Niala Sakha Sangha', 'At/Po-Niala, Via-Aul, Dist-Kendrapara', 'IN', ''),
+        ('SKH59', 'Singhpahar Sakha Sangha', 'At-Singhpahar, Po-Madanpur, Dist-Kendrapara', 'IN', ''),
+        ('SKH60', 'Naraharipur Sakha Sangha', 'Po-Aripada, Via-Karilopatna, Dist-Kendrapara', 'IN', ''),
+        ('SKH61', 'Parlakhemundai Sakha Sangha', 'At-Rani Padmabati Sahi, Parlakhemundai, Dist-Gajapati', 'IN', ''),
+        ('SKH62', 'Nigam Saraswata Sangha, Badamundilo', 'At/Po-Badamundilo, Via-Mandashi, Dist-Jagatsinghpur, Pin-754114', 'IN', '754114'),
+        ('SKH63', 'Jagatsinghpur Sakha Sangha', 'Nigamananda Asan Mandir, At-Chatara, Po-Jagatsinghpur, Dist-Jagatsinghpur', 'IN', ''),
+        ('SKH64', 'Daradapatana Sakha Sangha', 'At-Titira, Po-Titira, Via-Borikina, Dist-Jagatsinghpur, Pin-754110', 'IN', '754110'),
+        ('SKH65', 'Naunga Sakha Sangha', 'At-Mahinsamunda, Po-Nuagnahat, Dist-Jagatsinghpur', 'IN', ''),
+        ('SKH66', 'Paradeep Sakha Sangha', 'Qr No-NB-202, Nua Bazar, Paradwipa, Dist-Jagatsinghpur, Pin-754142', 'IN', '754142'),
+        ('SKH67', 'Rahama Sakha Sangha (Jagatsinghpur)', 'Sri Sri Nigamananda Asan Mandir, At/Po-Rahama, Dist-Jagatsinghpur, Pin-754140', 'IN', '754140'),
+        ('SKH68', 'Bachhasailo Sakha Sangha', 'At-Sanapada, Po-Sithalo, Dist-Cuttack', 'IN', ''),
+        ('SKH69', 'Erasama Sakha Sangha', 'Dist-Jagatsinghpur', 'IN', ''),
+        ('SKH70', 'Jharasuguda Sakha Sangha', 'Industrial Estate, Dist-Jharasuguda', 'IN', ''),
+        ('SKH71', 'Kamakshyanagar Sakha Sangha', 'Nigamananda Asan Mandir, Giridimali, Dist-Dhenkanal, Pin-759021', 'IN', '759021'),
+        ('SKH72', 'Dhenkanal Sakha Sangha', 'At-Gengutia, Po-Gengutia, Dist-Dhenkanal', 'IN', ''),
+        ('SKH73', 'Balikiari Sakha Sangha', 'At-Balikiari, Po-Chhotapada, Via-Rasol, Dist-Dhenkanal, Pin-759021', 'IN', '759021'),
+        ('SKH74', 'Rasol Sakha Sangha', 'At-Rasol, Po-Rasol, Dist-Dhenkanal, Pin-759021', 'IN', '759021'),
+        ('SKH75', 'Kandarsingha Sakha Sangha', 'At/Po-Kantor, Dist-Dhenkanal', 'IN', ''),
+        ('SKH76', 'Indrabati Sakha Sangha', 'Qr No-E/31, Paramabenu Colony, Khatiguda, Dist-Nabarangpur, Pin-764085', 'IN', '764085'),
+        ('SKH77', 'Nayagarh Sakha Sangha', 'At-Godisahi, Po-Parapalli, Dist-Nayagarh', 'IN', ''),
+        ('SKH78', 'Duajhar Sakha Sangha', 'At/Po-Duajhar, Dist-Nuapara, Pin-766118', 'IN', '766118'),
+        ('SKH79', 'Ranimunda Sakha Sangha', 'At/Po-Ranimunda, Dist-Nuapara', 'IN', ''),
+        ('SKH80', 'Phulbani Sakha Sangha', 'Nigamananda Asan Mandir, At-Kendupada, Po-Phulabani, Dist-Kandhamal', 'IN', ''),
+        ('SKH81', 'Baliguda Sakha Sangha', 'Ladies Corner, Near Patkhanda Mandir, At/Po-Baliguda, Dist-Kandhamal', 'IN', ''),
+        ('SKH82', 'Baragarh Sakha Sangha', 'At-B.S.S Nagar, Po-Baragarh, Dist-Baragarh', 'IN', ''),
+        ('SKH83', 'Nimapara Sakha Sangha', 'At-Shyamasundarpur, Po-Nimapara, Dist-Puri', 'IN', ''),
+        ('SKH84', 'Puri Town Sakha Sangha', 'Sri Sri Nigamananda Smruti Mandir, Swargadwar, Dist-Puri', 'IN', ''),
+        ('SKH85', 'Balangir Sakha Sangha', 'Khujenpali High School, Po-Khujenpali, Via-Rajendra College, Dist-Balangir', 'IN', ''),
+        ('SKH86', 'Silanda Sakha Sangha', 'At-Silanda, Po-Parasara, Dist-Balangir, Pin-767035', 'IN', '767035'),
+        ('SKH87', 'Raibania Sakha Sangha', 'At/Po-Raibania, Dist-Balasore', 'IN', ''),
+        ('SKH88', 'Kuagadia Sakha Sangha', 'At-Baduli, Po-Betada, Dist-Balasore', 'IN', ''),
+        ('SKH89', 'Kupari Nigamananda Asan Mandir', 'At-Raipur, Po-Soro, Dist-Balasore', 'IN', ''),
+        ('SKH90', 'Garasanga Sakha Sangha', 'At-Garasanga, Po-Garasanga, Dist-Balasore', 'IN', ''),
+        ('SKH91', 'Nilagiri Sakha Sangha', 'At-Gangupura, Po-Rajnilagiri, Dist-Balasore', 'IN', ''),
+        ('SKH92', 'Antara Sakha Sangha', 'At/Po-Antara, Via-Ada, Dist-Balasore', 'IN', ''),
+        ('SKH93', 'Chittola Sakha Sangha', 'At-Chittol, Po-Anantapur, Dist-Balasore', 'IN', ''),
+        ('SKH94', 'Dantia Sakha Sangha', 'At-Gandibed, Po-Gandibed, Dist-Balasore', 'IN', ''),
+        ('SKH95', 'Gud Sakha Sangha', 'At-Gud, Via-Anantapur, Dist-Balasore, Pin-756046', 'IN', '756046'),
+        ('SKH96', 'Balabhadrapur Sakha Sangha', 'At-Khanabada, Po-Khanabada, Dist-Balasore', 'IN', ''),
+        ('SKH97', 'Nigam Saraswata Sangha, Mahatipur', 'At-Sarugaon, Po-Mahatipur, Dist-Balasore', 'IN', ''),
+        ('SKH98', 'Soro Sakha Sangha', 'In front of SBI, Po/Via-Soro, Dist-Balasore, Pin-756045', 'IN', '756045'),
+        ('SKH99', 'Gopinathpur Sakha Sangha', 'At-Gopinathpur, Po-Soro (Sadar N.A.C.), Dist-Balasore, Pin-756045', 'IN', '756045'),
+        ('SKH100', 'Mahatipur Sakha Sangha', 'At-Harichandanpur, Po-Fatepur, Via-Oupada, Dist-Balasore', 'IN', ''),
+        ('SKH101', 'Mukteswarpur Sakha Sangha', 'At-Pannada, Po-Balanga, Via-Anantapur, Dist-Balasore, Pin-756045', 'IN', '756045'),
+        ('SKH102', 'Fatepur Sakha Sangha', 'At/Po-Fatepur, Via-Khaira, Dist-Balasore, Pin-756048', 'IN', '756048'),
+        ('SKH103', 'Barapada Sakha Sangha (Balasore)', 'At-Ranpur, Po-Haripur, Via-B.T. Pur, Dist-Balasore', 'IN', ''),
+        ('SKH104', 'Dandi Saraswata Sangha', 'Sri Sri Nigamananda Asan Mandir, At/Po-Dandi, Via-Basta, Dist-Balasore', 'IN', ''),
+        ('SKH105', 'Bainanda Sakha Sangha', 'At/Po-Bainanda, Via-Soro, Dist-Balasore', 'IN', ''),
+        ('SKH106', 'Balasore Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, Sardar Ballav Bhai Patel Marg, Rajabagicha, Dist-Balasore', 'IN', ''),
+        ('SKH107', 'Matigada Sakha Sangha', 'At-Bhagabanpur Sasan, Po-Oupada, Dist-Balasore', 'IN', ''),
+        ('SKH108', 'Bachhada Sakha Sangha', 'Dist-Balasore', 'IN', ''),
+        ('SKH109', 'Dhusuli Sakha Sangha', 'Po-Sindhia, Dist-Balasore', 'IN', ''),
+        ('SKH110', 'Jalahari Sakha Sangha', 'At-Jalahari, Po-Bankamunha, Via-Jajpur, Dist-Bhadrak', 'IN', ''),
+        ('SKH111', 'Dhusuri Sakha Sangha', 'At/Po-Dhusuri, Dist-Bhadrak', 'IN', ''),
+        ('SKH112', 'Aradi Sakha Sangha', 'At/Po-Aradi, Dist-Bhadrak', 'IN', ''),
+        ('SKH113', 'Paliabindha Sakha Sangha', 'At-Palia, Po-Paliabindha, Dist-Bhadrak, Pin-757167', 'IN', '757167'),
+        ('SKH114', 'Khadimahara Sakha Sangha', 'At/Po-Khadimahara, Dist-Bhadrak', 'IN', ''),
+        ('SKH115', 'Bhadrak Sakha Sangha', 'Nigamananda Asan Mandir, At/Po-Kuansa, Dist-Bhadrak, Pin-756100', 'IN', '756100'),
+        ('SKH116', 'Basudebpur Sakha Sangha', 'At-Padmapur, Po-Basudebpur, Dist-Bhadrak', 'IN', ''),
+        ('SKH117', 'Betada Sakha Sangha', 'At-Tulamtula, Po-Betada, Dist-Bhadrak', 'IN', ''),
+        ('SKH118', 'Govindapur Sakha Sangha', 'At/Po-Bhadrak, Dist-Bhadrak', 'IN', ''),
+        ('SKH119', 'Banitia Sakha Sangha', 'Dist-Bhadrak', 'IN', ''),
+        ('SKH120', 'Pandupani Sakha Sangha', 'At-Kaymdiha, Po-Pandupani, Via-Tiranga, Dist-Mayurbhanja, Pin-757056', 'IN', '757056'),
+        ('SKH121', 'Baripada Sakha Sangha', 'Ganesh Bazar, At/Po-Baripada, Dist-Mayurbhanja, Pin-757001', 'IN', '757001'),
+        ('SKH122', 'Kundapatana Sakha Sangha', 'At-Kundapatana, Po-Kundapatana, Dist-Jajpur', 'IN', ''),
+        ('SKH123', 'Dharmasala Sakha Sangha', 'At-Naupala, Po-Dharmasala, Dist-Jajpur', 'IN', ''),
+        ('SKH124', 'Jajpur Town Sakha Sangha', 'At-Barunha, Po-Kabirpur, Dist-Jajpur, Pin-755009', 'IN', '755009'),
+        ('SKH125', 'Kabatbandha Sakha Sangha', 'At/Po-Kabatbandha, Via-Jenapur, Dist-Jajpur', 'IN', ''),
+        ('SKH126', 'Kantigadia Sakha Sangha', 'At/Po-Kantigadia, Dist-Jajpur', 'IN', ''),
+        ('SKH127', 'Byasanagar Kanheipur Sakha Sangha', 'At-Chorada, Po-Jajpur Road, Dist-Jajpur, Pin-755019', 'IN', '755019'),
+        ('SKH128', 'Dekudi Sakha Sangha', 'At-Sudhadiha Kateni, Po-Baulapur, Dist-Dhenkanal', 'IN', ''),
+        ('SKH129', 'Sobara Sakha Sangha', 'At-Sobra, Po-Jajpur Road, Via-Jajpur Road, Dist-Jajpur, Pin-755019', 'IN', '755019'),
+        ('SKH130', 'Kalakala Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, At/Po-Kalakala, Via-Bairi, Dist-Jajpur', 'IN', ''),
+        ('SKH131', 'Kuakhia Sakha Sangha', 'At-Baransa, Po-Rasulpur, Via-Kabirpur, Dist-Jajpur', 'IN', ''),
+        ('SKH132', 'Sambalpur Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, Jail Road, Dist-Sambalpur', 'IN', ''),
+        ('SKH133', 'Facimal Sakha Sangha', 'At/Po-Facimal, Via-Jamenkir, Dist-Sambalpur', 'IN', ''),
+        ('SKH134', 'Burla Sakha Sangha', 'At-Basamta Bihar, Po/Via-Burla, Dist-Sambalpur', 'IN', ''),
+        ('SKH135', 'Rourkela Shaktinagar Sakha Sangha', 'Po-Shaktinagar, At-Jagada, Rourkela, Dist-Sundargarh', 'IN', ''),
+        ('SKH136', 'Badagaon Sakha Sangha', 'At/Po-Badagaon, Dist-Sundargarh, Pin-770016', 'IN', '770016'),
+        ('SKH137', 'Rajgangapur Sakha Sangha', 'I.T. Colony, Qr No-D/4, Po-Rajgangapur, Dist-Sundargarh', 'IN', ''),
+        ('SKH138', 'Rourkela Town Sakha Sangha', 'Qr No-MMM-28, Po-Civil Township, Rourkela-4, Dist-Sundargarh', 'IN', ''),
+        ('SKH139', 'Sundargarh Sakha Sangha', 'Dist-Sundargarh', 'IN', ''),
+        ('SKH140', 'Balijodi Sakha Sangha', 'Dist-Sundargarh', 'IN', ''),
+        ('SKH141', 'Kendujhar Sakha Sangha', 'At-Kasipur, Po-Kashipur, Dist-Keonjhar', 'IN', ''),
+        ('SKH142', 'Joda Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, At/Po-Baneikela, Via-Joda, Dist-Keonjhar, Pin-758034', 'IN', '758034'),
+        ('SKH143', 'Atasahi Sakha Sangha', 'At/Po-Atasahi, Via-Ghasipura, Dist-Keonjhar', 'IN', ''),
+        ('SKH144', 'Anandapur Sakha Sangha', 'At/Po-Anandapur, Via-Anandapur, Dist-Keonjhar', 'IN', ''),
+        ('SKH145', 'Salabani Sakha Sangha', 'Via-Anandapur, Dist-Keonjhar', 'IN', ''),
+        ('SKH146', 'Chenapadi Sakha Sangha', 'At-Math, Po-Chenapadi, Dist-Keonjhar', 'IN', ''),
+        ('SKH147', 'Joypur Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, At-Purunagad, Po-Prasad Rao Peta, Dist-Koraput', 'IN', ''),
+        ('SKH148', 'Damanjodi Sakha Sangha', 'Qr No A/164, Sector-1, At/Po-Damanjodi, Dist-Koraput', 'IN', ''),
+        ('SKH149', 'Semiliguda Sakha Sangha', 'Nandapur Road, At/Po-Semiliguda, Dist-Koraput', 'IN', ''),
+        ('SKH150', 'Balimela Sakha Sangha', 'Sri Sri Nigamananda Asan Mandir, Drug Line-3, Po-Balimela, Dist-Malkanagiri, Pin-764051', 'IN', '764051'),
+        ('SKH151', 'Boudha Sakha Sangha', 'Dist-Boudh', 'IN', ''),
+        ('SKH152', 'Kendra Sevak Sangha', 'Satsikhya Mandir, Plot No-A/4, Unit-9, Bhubaneswar-751022, Dist-Khurda', 'IN', '751022'),
+        ('SKH153', 'Rajadhani Saraswata Sangha', 'L.I.G-165, Brit Colony, Nayapali, Bhubaneswar, Dist-Khurda', 'IN', ''),
+        ('SKH154', 'Atri Sakha Sangha', 'At-Atri, Po-Baghamari, Dist-Khurda, Pin-752061', 'IN', '752061'),
+        ('SKH155', 'Banamalipur Sakha Sangha', 'At-Dewani Patna, Po-Banamalipur, Dist-Khurda', 'IN', ''),
+        ('SKH156', 'Begunia Sakha Sangha', 'At/Po-Begunia, Via-Begunia, Dist-Khurda, Pin-752062', 'IN', '752062'),
+        ('SKH157', 'Khurda Sakha Sangha', 'At-Atri, Po-Baghamari, Dist-Khurda, Pin-752061', 'IN', '752061'),
+        ('SKH158', 'Bolagarh Sakha Sangha', 'At/Po-Bolagarh, Via-Bolagarh, Dist-Khurda, Pin-752066', 'IN', '752066'),
+        ('SKH159', 'Sanapadar Sakha Sangha', 'At/Po-Sanapadar, Via-Pichukoli, Dist-Khurda', 'IN', ''),
+        ('SKH160', 'Lanjia Sakha Sangha', 'At-Lanjia, Po-Dakhinapur, Via-Berhampur, Dist-Ganjam', 'IN', ''),
+        ('SKH161', 'Badakheta Sakha Sangha', 'At-Badakheta, Po-Aitipur, Via-Khalikot, Dist-Ganjam, Pin-761029', 'IN', '761029'),
+        ('SKH162', 'Tanarada Sakha Sangha', 'At/Po-Baunsalundi, Via-Jilundi, Dist-Ganjam, Pin-761133', 'IN', '761133'),
+        ('SKH163', 'Berhampur Sakha Sangha', 'Panda Colony, Near Engineering School, At/Po-Berhampur, Dist-Ganjam', 'IN', ''),
+        ('SKH164', 'America Saraswata Sangha', '1040 Jayaguru Lane, Efland, North Carolina-27243, United States of America', 'US', '27243'),
+        ('SKH165', 'Mumbai Sakha Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, Chindran Village, Taloja MIDC, Taluka Panvel, Dist-Raigad, Navi Mumbai, Maharashtra-410206', 'IN', '410206'),
+        ('SKH166', 'Bangalore Saraswata Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, Paramanahalli, Jadigenahalli Hobli, Hosakote Taluk, Bengaluru-562114', 'IN', '562114'),
+        ('SKH167', 'Pune Saraswata Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, Village Kolawadi, Manjari-Theur Road, PO Theur, Dist-Pune-412110', 'IN', '412110'),
+        ('SKH168', 'Delhi Saraswata Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, N 22-25, Hargovind Enclave, Rajpur Extension, PO Maidangarhi, New Delhi-110068', 'IN', '110068'),
+        ('SKH169', 'Chennai Sakha Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, Plot No.13, Phase-I, SH-57, ITI Square, Sriperumbudur, Chennai-600116', 'IN', '600116'),
+        ('SKH170', 'Kolkata Saraswata Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, Ghughupara, Bhattanagar, Liluah, Howrah-711203', 'IN', '711203'),
+        ('SKH171', 'Surat Sakha Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, Plot No. 118-125, Sai Nagar Society, Gaveni Cross Road, Sonari, Surat-394221', 'IN', '394221'),
+        ('SKH172', 'Hyderabad Saraswata Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, Plot No. 24-25, Srivani Nagar, PO Ameenpur, Dist-Medak, Pin-502032', 'IN', '502032'),
+        ('SKH173', 'Jamshedpur Sakha Sangha', 'Sri Sri Thakur Nigamananda Asan Mandir, 25 P.G. Path, Via Ashok Path, Bhatia Basti, Kadma, Jamshedpur-831005', 'IN', '831005'),
+        ('SKH174', 'Rishikesh Ashram', 'Santi Kutira, Sri Sri Thakur Nigamananda Asan Mandir, Opposite Rajasthan Sevashram, Shisham Jhari, Muni Ki Reti, Rishikesh, Pin-249201', 'IN', '249201'),
+        ('SKH175', 'Raipur Sakha Sangha', 'LIG-49, Amleshwar Housing Board, Amleshwar, Raipur, Chhattisgarh-491111', 'IN', '491111')
+),
+resolved AS (
+    SELECT
+        bd.org_code,
+        bd.org_name,
+        ot.master_data_pk   AS type_pk,
+        os.master_data_pk   AS status_pk,
+        kendra.organization_pk AS parent_pk,
+        bd.address_line_1,
+        c.country_pk,
+        pc.postal_code_pk
+    FROM branch_data bd
+    CROSS JOIN nss.master_data ot
+    JOIN nss.master_category mc_type
+         ON mc_type.master_category_pk = ot.master_category_pk
+    CROSS JOIN nss.master_data os
+    JOIN nss.master_category mc_status
+         ON mc_status.master_category_pk = os.master_category_pk
+    CROSS JOIN nss.organization kendra
+    JOIN nss.country c
+         ON c.country_code = bd.country_code
+    LEFT JOIN nss.postal_code pc
+         ON pc.country_pk = c.country_pk
+        AND pc.postal_code = bd.pin_code
+        AND bd.pin_code <> ''
+    WHERE mc_type.category_code   = 'ORGANIZATION_TYPE'
+      AND ot.value_code           = 'SAKHA_SANGHA'
+      AND mc_status.category_code = 'STATUS'
+      AND os.value_code           = 'ACTIVE'
+      AND kendra.organization_code = 'KEN'
+)
+INSERT INTO nss.organization
+    (organization_code, organization_name,
+     organization_type_master_data_pk, status_master_data_pk,
+     parent_organization_pk, address_line_1, country_pk, postal_code_pk)
+SELECT
+    r.org_code, r.org_name,
+    r.type_pk, r.status_pk,
+    r.parent_pk, r.address_line_1, r.country_pk, r.postal_code_pk
+FROM resolved r
+ON CONFLICT (organization_code) DO UPDATE SET
+    organization_name                = EXCLUDED.organization_name,
+    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
+    status_master_data_pk            = EXCLUDED.status_master_data_pk,
+    parent_organization_pk           = EXCLUDED.parent_organization_pk,
+    address_line_1                   = EXCLUDED.address_line_1,
+    country_pk                       = EXCLUDED.country_pk,
+    postal_code_pk                   = EXCLUDED.postal_code_pk;

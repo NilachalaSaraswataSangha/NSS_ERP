@@ -2,7 +2,7 @@
 -- NSS ERP
 -- Module: Bootstrap RBAC
 -- File: 02_role_master.sql (seed)
--- Seed: 8 frozen roles (SOL-ADMIN-004 §8.7)
+-- Seed: 9 frozen roles (SOL-ADMIN-004 §8.7)
 -- Version: 1.1 — INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
 --          so a partial re-run no longer silently skips rows after
 --          the first pre-existing row it hits
@@ -70,7 +70,14 @@ VALUES
      'ORGANIZATIONAL',
      'PATHA_CHAKRA',
      'Administrative authority scoped to a specific Patha Chakra',
-     8)
+     8),
+
+    ('NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN',
+     'Kendra Mahila Sangha Administrator',
+     'ORGANIZATIONAL',
+     'KENDRA_MAHILA_SANGHA',
+     'Administrative authority scoped to the Kendra Mahila Sangha',
+     9)
 ON CONFLICT (role_code) DO UPDATE SET
     role_name     = EXCLUDED.role_name,
     role_class    = EXCLUDED.role_class,

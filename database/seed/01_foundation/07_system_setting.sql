@@ -43,6 +43,16 @@ VALUES
     '5',
     'Maximum consecutive failed login attempts before lockout',
     'INTEGER'
+),
+(
+    'MEMBERSHIP_DARSHAK_LOCAL_ID_MARKER',
+    'D',
+    'Namespace marker inserted between the Sakha short code and the local '
+    'number for Darshak/Probationary local Sakha identifiers, per MBR-030C '
+    '(e.g. ESSD000045 vs the Regular ESS000123). Kept configurable so the '
+    'marker is never hardcoded in application code. Changing it does not '
+    'rewrite identifiers already issued.',
+    'STRING'
 )
 ON CONFLICT (setting_key) DO UPDATE SET
     setting_value = EXCLUDED.setting_value,
