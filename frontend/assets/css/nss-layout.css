@@ -1,0 +1,420 @@
+/*
+ * NSS ERP — Shared authenticated-page layout.
+ * Sidebar, topbar, and user-info styles used by
+ * dashboard.html, admin.html, claim-approval.html, etc.
+ *
+ * Palette:
+ *   Navy:    #1B2A4A   Teal:    #0D7377
+ *   Gold:    #C8960C   Saffron: #DC7831
+ *   Lotus:   #D64A6A
+ */
+* { box-sizing: border-box; }
+body {
+    margin: 0; min-height: 100vh;
+    background: #f3f4f6;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* ── Sidebar ─────────────────────────────────────── */
+.sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 260px;
+    background: #1B2A4A; display: flex; flex-direction: column; z-index: 30;
+    transition: transform 0.25s ease;
+}
+.sidebar-brand {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 1.25rem 1.25rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.sidebar-brand img { width: 36px; height: 36px; object-fit: contain; border-radius: 6px; }
+.sidebar-brand span { font-size: 0.95rem; font-weight: 700; color: #DC7831; letter-spacing: 0.01em; }
+
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 0.75rem 0; }
+.nav-section-label {
+    padding: 0.5rem 1.25rem 0.35rem; font-size: 0.65rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.35); margin-top: 0.5rem;
+}
+.nav-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.6rem 1.25rem; color: rgba(255,255,255,0.65);
+    text-decoration: none; font-size: 0.875rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s ease;
+    border-left: 3px solid transparent; user-select: none;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+.nav-item.active { background: rgba(13,115,119,0.2); color: #ffffff; border-left-color: #0D7377; }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; }
+.nav-item.active svg { opacity: 1; }
+.nav-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 0.5rem 1.25rem; }
+
+.sidebar-footer {
+    padding: 0.75rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; gap: 0.75rem;
+}
+.sidebar-footer .avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: #0D7377; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+}
+.sidebar-footer .user-info { flex: 1; min-width: 0; }
+.sidebar-footer .user-name { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-footer .user-id { font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+.sidebar-footer .logout-btn { background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; padding: 0.3rem; border-radius: 4px; transition: all 0.15s; }
+.sidebar-footer .logout-btn:hover { color: #D64A6A; background: rgba(255,255,255,0.06); }
+
+/* ── Main Content ────────────────────────────────── */
+.main-content { margin-left: 260px; min-height: 100vh; padding: 0; }
+
+/* ── Top bar ─────────────────────────────────────── */
+.topbar {
+    background: #ffffff; border-bottom: 1px solid #e5e7eb;
+    padding: 0.75rem 1.5rem; display: flex; align-items: center;
+    justify-content: space-between; position: sticky; top: 0; z-index: 20;
+}
+.topbar-title { font-size: 1.05rem; font-weight: 600; color: #1B2A4A; }
+.topbar-breadcrumb { font-size: 0.75rem; color: #9ca3af; }
+.mobile-toggle { display: none; background: none; border: none; color: #1B2A4A; cursor: pointer; padding: 0.25rem; }
+
+/* ── Topbar user info ────────────────────────────── */
+.topbar-user-info {
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+.topbar-user-info .user-name {
+    font-size: 0.8rem; font-weight: 600; color: #1B2A4A;
+}
+.topbar-user-info .user-ss-id,
+.topbar-user-info .user-sakha-id {
+    font-size: 0.7rem; color: #6b7280; font-family: ui-monospace, monospace;
+}
+.topbar-user-info .user-sakha-name {
+    font-size: 0.7rem; color: #0D7377;
+}
+.topbar-user-info .role-badge {
+    font-size: 0.65rem; padding: 0.15rem 0.5rem;
+    background: #dbeafe; color: #1e40af; border-radius: 9999px;
+}
+
+/* ── Content area ────────────────────────────────── */
+.content-area { padding: 1.5rem; max-width: 100%; }
+
+/* ── Common components ───────────────────────────── */
+.data-card { background: #ffffff; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 1rem; }
+.data-card-header { padding: 0.85rem 1.25rem; border-bottom: 1px solid #f3f4f6; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+.data-card-title { font-size: 0.9rem; font-weight: 700; color: #1B2A4A; margin: 0; }
+.data-card-body { padding: 1rem 1.25rem; }
+
+.admin-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.admin-table th { text-align: left; padding: 0.6rem 0.75rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
+.admin-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid #f3f4f6; color: #374151; }
+.admin-table tbody tr:hover { background: #f9fafb; cursor: pointer; }
+
+/* ── Sortable table headers ───────────────────────────
+ * A header is only given .sortable when its column is actually
+ * sortable, so the affordance never promises something that does
+ * nothing. The indicator is always rendered (faint when inactive) —
+ * without it there is no way to discover the header is clickable.
+ */
+/* Base affordance — deliberately not scoped to .admin-table, because
+ * sortable headers also appear in the dashboard's inline-styled tables
+ * and in the card-directory sort bars. */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color 0.12s ease, background 0.12s ease;
+}
+.sortable:hover { color: #0D7377; }
+.admin-table th.sortable:hover,
+.nss-dir-header .sortable:hover { background: #f9fafb; }
+
+.sort-ind {
+    display: inline-block;
+    margin-left: 0.25rem;
+    font-size: 0.7rem;
+    opacity: 0.3;
+    transition: opacity 0.12s ease;
+}
+.sortable:hover .sort-ind { opacity: 0.6; }
+
+/* Active sort column — coloured so it is obvious what the list is
+ * ordered by, which matters most on a paginated table where the user
+ * can only see one page of the ordering. */
+.sortable[aria-sort="ascending"],
+.sortable[aria-sort="descending"] { color: #0D7377; }
+.sortable[aria-sort="ascending"] .sort-ind,
+.sortable[aria-sort="descending"] .sort-ind { opacity: 1; color: #0D7377; }
+
+.sortable:focus-visible { outline: 2px solid #0D7377; outline-offset: -2px; }
+
+/* Compact header cell for the dashboard's inline-styled result tables.
+ * Extracted from the repeated inline style so the active-sort colour can
+ * actually take effect — an inline `color` would out-rank it. */
+.nss-mini-th {
+    padding: 0.4rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    color: #64748b;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Same idea, one size up — the dashboard Member Search table. */
+.nss-search-th {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+}
+
+/* ── Sort bar for card-based directories ──────────────────
+ * Person, Member and Organization directories render each record as a
+ * card, not a table row, so there is no header to click. This bar
+ * carries the same field labels the cards use, so "click the column
+ * name" still works there — the words match what the user is reading.
+ */
+.nss-dir-sortbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.85rem;
+    padding: 0.4rem 0.1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+.nss-dir-sortbar .sortbar-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-right: 0.35rem;
+}
+.nss-dir-sortbar .sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #475569;
+    background: #fff;
+    transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.nss-dir-sortbar .sortable:hover { color: #0D7377; border-color: #0D7377; background: #f0fdfa; }
+.nss-dir-sortbar .sortable[aria-sort="ascending"],
+.nss-dir-sortbar .sortable[aria-sort="descending"] {
+    color: #0D7377;
+    border-color: #0D7377;
+    background: #f0fdfa;
+}
+
+
+.btn-action { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.65rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; cursor: pointer; border: 1px solid #e5e7eb; background: #fff; color: #374151; transition: all 0.15s; }
+.btn-action:hover { background: #f3f4f6; border-color: #d1d5db; }
+.btn-action.primary { background: #0D7377; color: #fff; border-color: #0D7377; }
+.btn-action.primary:hover { background: #0a5f62; }
+.btn-action.success { background: #166534; color: #fff; border-color: #166534; }
+.btn-action.success:hover { background: #14532d; }
+.btn-action.danger { color: #D64A6A; border-color: #fecaca; }
+.btn-action.danger:hover { background: #fef2f2; }
+.btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Filter-bar variant — sits in a .search-bar row beside .nss-select controls.
+   Plain .btn-action is sized for table-row actions (0.3rem padding,
+   0.75rem text) and reads as undersized and off-theme next to a
+   full-height dropdown, so this modifier matches .nss-select's box
+   metrics exactly (same padding block, font-size, radius and border)
+   and adopts the teal interactive colour used by the sort bar. */
+.btn-action.btn-filter {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    color: #0D7377;
+    border-color: #0D7377;
+    background: #fff;
+}
+.btn-action.btn-filter:hover { background: #0D7377; color: #fff; border-color: #0D7377; }
+.btn-action.btn-filter:focus-visible { outline: 2px solid #0D7377; outline-offset: 2px; }
+.btn-action.btn-filter:disabled { color: #9ca3af; border-color: #d1d5db; background: #f9fafb; opacity: 1; }
+.btn-action.btn-filter:disabled:hover { background: #f9fafb; color: #9ca3af; border-color: #d1d5db; }
+
+.form-group { margin-bottom: 0.75rem; }
+.form-label { display: block; font-size: 0.8rem; font-weight: 500; color: #374151; margin-bottom: 0.35rem; }
+.form-input, .form-select { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 0.85rem; color: #1f2937; background: #fff; transition: border-color 0.15s; }
+.form-input:focus, .form-select:focus { outline: none; border-color: #0D7377; box-shadow: 0 0 0 3px rgba(13,115,119,0.1); }
+.form-hint { font-size: 0.7rem; color: #9ca3af; margin-top: 0.25rem; }
+
+/* ── Shared form controls ─────────────────────────
+   Single canonical checkbox + select/dropdown style used across
+   admin.html, dashboard.html, register.html, login.html, foundation.html,
+   organization.html, person.html, family.html, membership.html.
+   Replaces: DaisyUI `select select-bordered select-xs/sm`, `form-select`/
+   `form-input` (on <select>), `reg-select`, ad hoc inline-styled <select>,
+   `.form-checkbox-row input[type=checkbox]`, `.remember-label input[type=checkbox]`.
+   (.nss-cal-select in nss-datepicker.css is a separate, already-shared
+   component and is intentionally left untouched.) */
+.nss-checkbox {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #C8960C;
+    cursor: pointer;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+/* Radio buttons share the checkbox's saffron accent so every form
+   control (checkbox, radio, select) reads as one themed family. */
+.nss-radio {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #C8960C;
+    cursor: pointer;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.nss-select {
+    width: 100%;
+    padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #1f2937;
+    background-color: #fff;
+    box-sizing: border-box;
+    cursor: pointer;
+    outline: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%231B2A4A' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 0.65rem auto;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.nss-select:focus {
+    border-color: #0D7377;
+    box-shadow: 0 0 0 2px rgba(13, 115, 119, 0.12);
+}
+.nss-select:disabled {
+    background-color: #f9fafb;
+    color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+.nss-select::-ms-expand { display: none; }
+
+.alert-msg { padding: 0.6rem 1rem; border-radius: 0.5rem; font-size: 0.8rem; margin-bottom: 0.75rem; }
+.alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+.status-badge { display: inline-flex; align-items: center; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+.status-pending  { background: #fef3c7; color: #92400e; }
+.status-approved { background: #dcfce7; color: #166534; }
+.status-rejected { background: #fee2e2; color: #991b1b; }
+.status-active   { background: #dcfce7; color: #166534; }
+.status-locked   { background: #fef3c7; color: #92400e; }
+.status-inactive { background: #f1f5f9; color: #64748b; }
+
+/* ── Inactive row treatment ─────────────────────── */
+tr.row-inactive { opacity: 0.55; }
+tr.row-inactive:hover { opacity: 0.75; }
+
+/* ── Detail grid ─────────────────────────────────── */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-bottom: 1rem; }
+.detail-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.6rem 0.85rem; }
+.detail-item .label { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.2rem; font-weight: 600; }
+.detail-item .value { font-size: 0.88rem; color: #1e293b; font-weight: 500; }
+.detail-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ── Count badge ─────────────────────────────────── */
+.count-badge { background: #C8960C; color: #fff; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 9999px; margin-left: 0.35rem; }
+
+@media (max-width: 768px) {
+    .detail-grid { grid-template-columns: 1fr; }
+    .detail-grid.cols-3 { grid-template-columns: 1fr; }
+}
+
+.spinner { width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: #0D7377; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.spinner-sm { width: 14px; height: 14px; border: 2px solid #e5e7eb; border-top-color: #0D7377; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.version-badge { font-size: 0.6rem; color: rgba(255,255,255,0.25); text-align: center; padding: 0.5rem 0; }
+
+/* ── CSP-safe hover/focus states ─────────────────── */
+/* These classes replace inline onfocus/onblur/onmouseover/onmouseout
+   handlers so the Content-Security-Policy script-src directive does not
+   need 'unsafe-inline'. See docs/03_Solution/security/TIER5_SECURITY_AUDIT.md
+   item A2. Any new interactive styling must use CSS state selectors, never
+   inline event handlers. */
+
+.nss-search-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem 0.5rem 2rem;
+    font-size: 0.8rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.nss-search-input:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+}
+
+/* Fades on hover; no inline opacity is declared, so this rule applies. */
+.nss-hover-fade { transition: opacity 0.15s ease; }
+.nss-hover-fade:hover { opacity: 0.9; }
+
+/* Small pill buttons. The base background lives here (not inline) so the
+   :hover rule is not outranked by an inline style attribute. */
+.nss-pill-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.nss-pill-btn-indigo { color: #4f46e5; background: #eef2ff; border: 1px solid #c7d2fe; }
+.nss-pill-btn-indigo:hover { background: #e0e7ff; }
+.nss-pill-btn-amber { color: #c2410c; background: #fff7ed; border: 1px solid #fed7aa; }
+.nss-pill-btn-amber:hover { background: #ffedd5; }
+
+/* Bare icon button that reddens on hover (destructive affordance). */
+.nss-icon-btn-danger {
+    padding: 0.125rem;
+    border-radius: 0.25rem;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s ease;
+}
+.nss-icon-btn-danger:hover { color: #ef4444; }
+
+/* Clickable result row. When the row is selected, Alpine sets an inline
+   background via :style, which outranks this stylesheet rule — so the
+   selected highlight survives hover without any JS guard. */
+.nss-row-selectable { cursor: pointer; transition: background 0.1s ease; border-bottom: 1px solid #f1f5f9; }
+.nss-row-selectable:hover { background: #f8fafc; }
+
+/* ── Sidebar overlay (mobile) ────────────────────── */
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 25; }
+@media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.open { display: block; }
+    .main-content { margin-left: 0; }
+    .mobile-toggle { display: block; }
+}

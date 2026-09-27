@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
+    <title>Nilachala Saraswata Sangha — Login</title>
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="/assets/css/tailwind.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/nss-layout.css?v=5.9">
+    <script src="/assets/js/nss-config.js?v=5.3"></script>
+    <script src="/assets/js/nss-dialog.js?v=1.1.0"></script>
+    <script src="/assets/js/auth.js?v=0.12.0"></script>
+    <style>
+        /* ── NSS Logo Palette ──────────────────────────────
+         * Navy blue:   #1B2A4A  (logo band)
+         * Teal:        #0D7377  (logo arc)
+         * Gold:        #C8960C  (sun rays)
+         * Saffron:     #DC7831  (warmth)
+         * Lotus pink:  #D64A6A  (accent)
+         * Maroon dots: #8B2E2E
+         * ────────────────────────────────────────────── */
+
+        body.login-bg {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            margin: 0;
+            background: #ffffff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Reserved for future background image */
+        body.login-bg::before {
+            content: none;
+        }
+
+        body.login-bg::after {
+            content: none;
+        }
+
+        .login-card {
+            background: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 24rem;
+            padding: 2rem 1.75rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Gold top accent bar */
+        .login-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 1.5rem;
+            right: 1.5rem;
+            height: 4px;
+            background: linear-gradient(90deg, #C8960C, #DC7831, #C8960C);
+            border-radius: 0 0 4px 4px;
+        }
+
+        .login-card .logo-img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            margin: 0 auto 0.75rem;
+            display: block;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+        }
+
+        .login-card h1 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #1B2A4A;
+            margin: 0 0 0.25rem;
+        }
+
+        .login-card .subtitle {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .login-divider {
+            border: none;
+            border-top: 1px solid #e5e7eb;
+            margin: 1rem 0;
+        }
+
+        .login-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.35rem;
+            display: block;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 0.65rem 0.85rem;
+            border: 1.5px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fff;
+            color: #1f2937;
+            box-sizing: border-box;
+        }
+
+        .login-input:focus {
+            border-color: #C8960C;
+            box-shadow: 0 0 0 3px rgba(200, 150, 12, 0.15);
+        }
+
+        .login-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .login-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .password-wrapper .login-input {
+            padding-right: 2.75rem;
+        }
+
+        .eye-btn {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            line-height: 0;
+            color: #9ca3af;
+        }
+
+        .eye-btn:hover {
+            color: #374151;
+        }
+
+        .eye-btn svg {
+            width: 1.2rem;
+            height: 1.2rem;
+        }
+
+        .row-between {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .remember-label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #4b5563;
+        }
+
+        .forgot-link {
+            font-size: 0.85rem;
+            color: #0D7377;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .forgot-link:hover {
+            text-decoration: underline;
+        }
+
+        .btn-gold {
+            width: 100%;
+            padding: 0.7rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            background: linear-gradient(135deg, #C8960C 0%, #DC7831 100%);
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-gold:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-gold:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-footer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #9ca3af;
+            margin: 0;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .alert-box {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            color: #991b1b;
+            margin-bottom: 0.75rem;
+        }
+
+        .alert-box-success {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            color: #166534;
+        }
+
+        .pw-requirements {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-align: left;
+            margin-top: 0.25rem;
+        }
+
+        /* ── Polish: Entrance animation ──────────────── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-card {
+            /* animation: fadeSlideUp 7s ease-out both; */
+        }
+
+        /* ── Polish: Jayaguru greeting ───────────────── */
+        .jayaguru {
+            text-align: center;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            color: rgba(27, 42, 74, 0.4);
+            font-weight: 500;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        /* ── Polish: Button shimmer on hover ─────────── */
+        .btn-gold {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-gold::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            transition: none;
+            pointer-events: none;
+        }
+
+        .btn-gold:hover::after {
+            animation: shimmer 0.6s ease-out;
+        }
+
+        .btn-gold:disabled::after {
+            animation: none;
+        }
+
+        @keyframes shimmer {
+            from { left: -100%; }
+            to   { left: 150%; }
+        }
+
+        /* ── Polish: Decorative lotus petals (corners) ── */
+        .corner-decor {
+            position: fixed;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.2;
+        }
+
+        .corner-decor.bottom-left {
+            bottom: -20px;
+            left: -20px;
+        }
+
+        .corner-decor.bottom-right {
+            bottom: -20px;
+            right: -20px;
+            transform: scaleX(-1);
+        }
+
+        /* ── Polish: Version badge ───────────────────── */
+        .version-badge {
+            position: fixed;
+            bottom: 0.75rem;
+            right: 1rem;
+            font-size: 0.6rem;
+            color: rgba(27, 42, 74, 0.2);
+            z-index: 10;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Responsive background position ──────────── */
+        /* Reserved for future background image tuning */
+    </style>
+</head>
+<body class="login-bg">
+
+    <!-- Decorative lotus petal — bottom-left corner -->
+    <svg class="corner-decor bottom-left" width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#D64A6A">
+            <ellipse cx="30" cy="160" rx="22" ry="55" transform="rotate(-30 30 160)" />
+            <ellipse cx="60" cy="140" rx="20" ry="50" transform="rotate(-15 60 140)" />
+            <ellipse cx="85" cy="125" rx="18" ry="45" transform="rotate(0 85 125)" />
+            <ellipse cx="105" cy="118" rx="16" ry="40" transform="rotate(15 105 118)" />
+            <ellipse cx="120" cy="115" rx="14" ry="35" transform="rotate(30 120 115)" />
+        </g>
+    </svg>
+
+    <!-- Decorative lotus petal — bottom-right corner -->
+    <svg class="corner-decor bottom-right" width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#D64A6A">
+            <ellipse cx="30" cy="160" rx="22" ry="55" transform="rotate(-30 30 160)" />
+            <ellipse cx="60" cy="140" rx="20" ry="50" transform="rotate(-15 60 140)" />
+            <ellipse cx="85" cy="125" rx="18" ry="45" transform="rotate(0 85 125)" />
+            <ellipse cx="105" cy="118" rx="16" ry="40" transform="rotate(15 105 118)" />
+            <ellipse cx="120" cy="115" rx="14" ry="35" transform="rotate(30 120 115)" />
+        </g>
+    </svg>
+
+    <!-- Version badge -->
+    <span class="version-badge">v0.11.0</span>
+
+    <div x-data="loginApp()" x-init="init()" @keydown.window="handleKeydown($event)">
+
+        <!-- Login Card -->
+        <div class="login-card" x-show="!showChangePassword && !showForgotPassword && !showResetPassword">
+
+            <!-- Logo + Title -->
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1>Nilachala Saraswata Sangha</h1>
+                <p class="subtitle">Sign in to continue</p>
+            </div>
+
+            <hr class="login-divider">
+
+            <!-- Error alert -->
+            <template x-if="error">
+                <div class="alert-box">
+                    <span x-text="error"></span>
+                </div>
+            </template>
+
+            <!-- Login ID -->
+            <div class="form-group">
+                <label class="login-label">Person ID / Sangha Sevi ID</label>
+                <input type="text"
+                       x-model="login_id"
+                       placeholder="e.g. P1 or SS1"
+                       class="login-input"
+                       :disabled="loading"
+                       autocomplete="username"
+                       autofocus>
+            </div>
+
+            <!-- Password -->
+            <div class="form-group">
+                <label class="login-label">Password</label>
+                <div class="password-wrapper">
+                    <input :type="showPassword ? 'text' : 'password'"
+                           x-model="password"
+                           placeholder="Enter your password"
+                           class="login-input"
+                           :disabled="loading"
+                           autocomplete="current-password">
+                    <button type="button" class="eye-btn"
+                            @click="showPassword = !showPassword"
+                            tabindex="-1">
+                        <!-- Eye open -->
+                        <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <!-- Eye slash -->
+                        <svg x-show="showPassword" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Remember me + Forgot password -->
+            <div class="row-between" style="margin-bottom: 1.25rem;">
+                <label class="remember-label">
+                    <input type="checkbox" class="nss-checkbox">
+                    Remember me
+                </label>
+                <a href="#" class="forgot-link" @click.prevent="openForgotPassword()">Forgot Password?</a>
+            </div>
+
+            <!-- Sign In button -->
+            <button class="btn-gold"
+                    @click="login()"
+                    :disabled="loading || !login_id.trim() || !password">
+                <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                <span x-text="loading ? 'Signing in...' : 'Sign In'"></span>
+            </button>
+
+            <hr class="login-divider">
+
+            <p style="text-align: center; font-size: 0.85rem; color: #6b7280; margin: 0 0 0.75rem;">
+                New member? <a href="/register" style="color: #0D7377; font-weight: 600; text-decoration: none;">Register here</a>
+            </p>
+
+            <p class="login-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
+        </div>
+
+        <!-- Force Password Change Card -->
+        <div class="login-card" x-show="showChangePassword" x-cloak>
+
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1 style="font-size: 1.15rem;">Change Your Password</h1>
+                <p class="subtitle">You must set a new password before continuing.</p>
+            </div>
+
+            <hr class="login-divider">
+
+            <!-- Change error -->
+            <template x-if="changeError">
+                <div class="alert-box">
+                    <span x-text="changeError"></span>
+                </div>
+            </template>
+
+            <!-- Change success -->
+            <template x-if="changeSuccess">
+                <div class="alert-box alert-box-success">
+                    <span x-text="changeSuccess"></span>
+                </div>
+            </template>
+
+            <!-- New password -->
+            <div class="form-group">
+                <label class="login-label">New Password</label>
+                <div class="password-wrapper">
+                    <input :type="showChangePw ? 'text' : 'password'"
+                           x-model="newPassword"
+                           placeholder="Min 8 chars, 1 uppercase, 1 digit"
+                           class="login-input"
+                           :disabled="changeLoading"
+                           autocomplete="new-password">
+                    <button type="button" class="eye-btn"
+                            @click="showChangePw = !showChangePw"
+                            tabindex="-1">
+                        <svg x-show="!showChangePw" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <svg x-show="showChangePw" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Confirm password -->
+            <div class="form-group">
+                <label class="login-label">Confirm Password</label>
+                <div class="password-wrapper">
+                    <input :type="showChangeConfirmPw ? 'text' : 'password'"
+                           x-model="confirmPassword"
+                           placeholder="Re-enter new password"
+                           class="login-input"
+                           :disabled="changeLoading"
+                           autocomplete="new-password">
+                    <button type="button" class="eye-btn"
+                            @click="showChangeConfirmPw = !showChangeConfirmPw"
+                            tabindex="-1">
+                        <svg x-show="!showChangeConfirmPw" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <svg x-show="showChangeConfirmPw" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <p class="pw-requirements">
+                Requirements: 8–128 characters, at least 1 uppercase letter, at least 1 digit.
+            </p>
+
+            <!-- Change button -->
+            <button class="btn-gold" style="margin-top: 1rem;"
+                    @click="changePassword()"
+                    :disabled="changeLoading || !newPassword || !confirmPassword">
+                <span x-show="changeLoading" class="loading loading-spinner loading-sm"></span>
+                <span x-text="changeLoading ? 'Changing...' : 'Change Password'"></span>
+            </button>
+
+            <hr class="login-divider">
+            <p class="login-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
+        </div>
+
+        <!-- Forgot Password Card -->
+        <div class="login-card" x-show="showForgotPassword" x-cloak>
+
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1 style="font-size: 1.15rem;">Forgot Password</h1>
+                <p class="subtitle">Enter your ID to receive a reset OTP.</p>
+            </div>
+
+            <hr class="login-divider">
+
+            <!-- Error -->
+            <template x-if="forgotError">
+                <div class="alert-box">
+                    <span x-text="forgotError"></span>
+                </div>
+            </template>
+
+            <!-- Login ID -->
+            <div class="form-group">
+                <label class="login-label">Person ID / Sangha Sevi ID</label>
+                <input type="text"
+                       x-model="forgotLoginId"
+                       placeholder="e.g. P1 or SS1"
+                       class="login-input"
+                       :disabled="forgotLoading"
+                       autocomplete="username">
+            </div>
+
+            <!-- Submit -->
+            <button class="btn-gold" style="margin-top: 0.5rem;"
+                    @click="submitForgotPassword()"
+                    :disabled="forgotLoading || !forgotLoginId.trim()">
+                <span x-show="forgotLoading" class="loading loading-spinner loading-sm"></span>
+                <span x-text="forgotLoading ? 'Requesting...' : 'Send Reset OTP'"></span>
+            </button>
+
+            <hr class="login-divider">
+
+            <p style="text-align: center; margin: 0;">
+                <a href="#" class="forgot-link" @click.prevent="backToLogin()">&larr; Back to Sign In</a>
+            </p>
+        </div>
+
+        <!-- Reset Password Card (OTP + New Password) -->
+        <div class="login-card" x-show="showResetPassword" x-cloak>
+
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1 style="font-size: 1.15rem;">Reset Password</h1>
+                <p class="subtitle">Enter the OTP and your new password.</p>
+            </div>
+
+            <hr class="login-divider">
+
+            <!-- Debug OTP (development only) -->
+            <template x-if="debugOtp">
+                <div class="alert-box alert-box-success" style="text-align: center;">
+                    <span style="font-size: 0.75rem; display: block; color: #6b7280;">Your OTP (dev mode)</span>
+                    <span style="font-size: 1.5rem; font-weight: 700; letter-spacing: 0.3em; color: #166534; font-family: ui-monospace, monospace;" x-text="debugOtp"></span>
+                </div>
+            </template>
+
+            <!-- Masked contact info -->
+            <template x-if="forgotMaskedContact">
+                <p style="font-size: 0.8rem; color: #6b7280; text-align: center; margin: 0 0 0.75rem;">
+                    OTP for account: <strong x-text="forgotMaskedContact"></strong>
+                </p>
+            </template>
+
+            <!-- Error -->
+            <template x-if="resetError">
+                <div class="alert-box">
+                    <span x-text="resetError"></span>
+                </div>
+            </template>
+
+            <!-- Success -->
+            <template x-if="resetSuccess">
+                <div class="alert-box alert-box-success">
+                    <span x-text="resetSuccess"></span>
+                </div>
+            </template>
+
+            <!-- OTP -->
+            <div class="form-group">
+                <label class="login-label">OTP (6 digits)</label>
+                <input type="text"
+                       x-model="resetOtp"
+                       placeholder="Enter 6-digit OTP"
+                       class="login-input"
+                       maxlength="6"
+                       inputmode="numeric"
+                       pattern="\d{6}"
+                       style="text-align: center; letter-spacing: 0.3em; font-size: 1.1rem; font-family: ui-monospace, monospace;"
+                       :disabled="resetLoading"
+                       autocomplete="one-time-code">
+            </div>
+
+            <!-- New Password -->
+            <div class="form-group">
+                <label class="login-label">New Password</label>
+                <div class="password-wrapper">
+                    <input :type="showResetPw ? 'text' : 'password'"
+                           x-model="resetNewPassword"
+                           placeholder="Min 8 chars, 1 uppercase, 1 digit"
+                           class="login-input"
+                           :disabled="resetLoading"
+                           autocomplete="new-password">
+                    <button type="button" class="eye-btn"
+                            @click="showResetPw = !showResetPw"
+                            tabindex="-1">
+                        <svg x-show="!showResetPw" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <svg x-show="showResetPw" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="form-group">
+                <label class="login-label">Confirm New Password</label>
+                <div class="password-wrapper">
+                    <input :type="showResetConfirmPw ? 'text' : 'password'"
+                           x-model="resetConfirmPassword"
+                           placeholder="Re-enter new password"
+                           class="login-input"
+                           :disabled="resetLoading"
+                           autocomplete="new-password">
+                    <button type="button" class="eye-btn"
+                            @click="showResetConfirmPw = !showResetConfirmPw"
+                            tabindex="-1">
+                        <svg x-show="!showResetConfirmPw" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <svg x-show="showResetConfirmPw" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <p class="pw-requirements">
+                Requirements: 8–128 characters, at least 1 uppercase letter, at least 1 digit.
+            </p>
+
+            <!-- Reset button -->
+            <button class="btn-gold" style="margin-top: 0.75rem;"
+                    @click="submitResetPassword()"
+                    :disabled="resetLoading || !resetOtp.trim() || !resetNewPassword || !resetConfirmPassword">
+                <span x-show="resetLoading" class="loading loading-spinner loading-sm"></span>
+                <span x-text="resetLoading ? 'Resetting...' : 'Reset Password'"></span>
+            </button>
+
+            <hr class="login-divider">
+
+            <p style="text-align: center; margin: 0;">
+                <a href="#" class="forgot-link" @click.prevent="backToLogin()">&larr; Back to Sign In</a>
+            </p>
+        </div>
+
+    </div>
+
+    <script src="/assets/js/login.js?v=0.12.1"></script>
+</body>
+</html>

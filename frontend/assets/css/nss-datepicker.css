@@ -1,0 +1,184 @@
+/* ═══════════════════════════════════════════════════════════
+ *  NSS ERP — Shared Date Picker Styles
+ *  Used with nss-datepicker.js (Alpine.js component)
+ *  Indian DD/MM/YYYY format with calendar popup
+ * ═══════════════════════════════════════════════════════════ */
+
+.nss-cal-popup {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 50;
+    background: #fff;
+    border: 1.5px solid #d1d5db;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 0.5rem;
+    width: 16rem;
+    margin-top: 0.25rem;
+}
+.nss-cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.25rem 0.25rem 0.4rem;
+}
+.nss-cal-nav {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #374151;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.25rem;
+    line-height: 1;
+}
+.nss-cal-nav:hover { background: #f3f4f6; }
+.nss-cal-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #1B2A4A;
+}
+.nss-cal-selectors {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+.nss-cal-select {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1B2A4A;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.25rem;
+    padding: 0.15rem 0.2rem;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+    -webkit-appearance: auto;
+    appearance: auto;
+}
+.nss-cal-select:focus {
+    border-color: #C8960C;
+    box-shadow: 0 0 0 2px rgba(200, 150, 12, 0.15);
+}
+.nss-cal-year {
+    width: 4rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #1B2A4A;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.25rem;
+    padding: 0.15rem 0.2rem;
+    background: #fff;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+}
+.nss-cal-year::-webkit-inner-spin-button,
+.nss-cal-year::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.nss-cal-year:focus {
+    border-color: #C8960C;
+    box-shadow: 0 0 0 2px rgba(200, 150, 12, 0.15);
+}
+.nss-cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #9ca3af;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid #f3f4f6;
+    margin-bottom: 0.15rem;
+}
+.nss-cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    gap: 0.1rem;
+}
+.nss-cal-day {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.3rem 0;
+    border-radius: 0.3rem;
+    font-size: 0.75rem;
+    color: #374151;
+    line-height: 1;
+}
+.nss-cal-day:hover { background: #f3f4f6; }
+.nss-cal-today {
+    font-weight: 700;
+    color: #0D7377;
+    outline: 1.5px solid #0D7377;
+    outline-offset: -1px;
+}
+.nss-cal-selected {
+    background: linear-gradient(135deg, #C8960C, #DC7831) !important;
+    color: #fff !important;
+    font-weight: 700;
+}
+.nss-cal-clear {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    color: #dc2626;
+    padding: 0.2rem 0.5rem;
+}
+.nss-cal-clear:hover { text-decoration: underline; }
+.nss-cal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.25rem;
+    border-top: 1px solid #f3f4f6;
+    margin-top: 0.15rem;
+}
+.nss-cal-today-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #0D7377;
+    padding: 0.2rem 0.5rem;
+}
+.nss-cal-today-btn:hover { text-decoration: underline; }
+
+/* Input wrapper */
+.nss-dp-wrap {
+    position: relative;
+}
+.nss-dp-input {
+    width: 100%;
+    padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    outline: none;
+    box-sizing: border-box;
+    background: #fff;
+}
+.nss-dp-input:focus {
+    border-color: #0D7377;
+    box-shadow: 0 0 0 2px rgba(13, 115, 119, 0.12);
+}
+.nss-dp-icon {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0.15rem;
+    line-height: 1;
+}
+.nss-dp-icon:hover { color: #374151; }

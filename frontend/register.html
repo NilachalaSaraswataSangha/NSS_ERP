@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/assets/img/nss-logo.png">
+    <title>Nilachala Saraswata Sangha — Register</title>
+
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="/assets/css/tailwind.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/nss-layout.css?v=5.9">
+    <link rel="stylesheet" href="/assets/css/nss-datepicker.css?v=5.4">
+    <script src="/assets/js/nss-config.js?v=5.3"></script>
+    <script src="/assets/js/nss-location.js?v=5.2"></script>
+    <script src="/assets/js/auth.js?v=5.2"></script>
+    <script src="/assets/js/nss-datepicker.js?v=5.5"></script>
+    <style>
+        /* ── NSS Logo Palette ──────────────────────────────
+         * Navy blue:   #1B2A4A  (logo band)
+         * Teal:        #0D7377  (logo arc)
+         * Gold:        #C8960C  (sun rays)
+         * Saffron:     #DC7831  (warmth)
+         * Lotus pink:  #D64A6A  (accent)
+         * Maroon dots: #8B2E2E
+         * ────────────────────────────────────────────── */
+
+        body.register-bg {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            margin: 0;
+            background: #ffffff;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .register-card {
+            background: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 32rem;
+            padding: 2rem 1.75rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Gold top accent bar */
+        .register-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 1.5rem;
+            right: 1.5rem;
+            height: 4px;
+            background: linear-gradient(90deg, #C8960C, #DC7831, #C8960C);
+            border-radius: 0 0 4px 4px;
+        }
+
+        .register-card .logo-img {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            margin: 0 auto 0.5rem;
+            display: block;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+        }
+
+        .register-card h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1B2A4A;
+            margin: 0 0 0.15rem;
+        }
+
+        .register-card .subtitle {
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        .reg-divider {
+            border: none;
+            border-top: 1px solid #e5e7eb;
+            margin: 1rem 0;
+        }
+
+        .reg-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.3rem;
+            display: block;
+        }
+
+        .reg-input {
+            width: 100%;
+            padding: 0.55rem 0.75rem;
+            border: 1.5px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fff;
+            color: #1f2937;
+            box-sizing: border-box;
+        }
+
+        .reg-input:focus {
+            border-color: #C8960C;
+            box-shadow: 0 0 0 3px rgba(200, 150, 12, 0.15);
+        }
+
+        .reg-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .reg-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .password-wrapper .reg-input {
+            padding-right: 2.75rem;
+        }
+
+        .eye-btn {
+            position: absolute;
+            right: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            line-height: 0;
+            color: #9ca3af;
+        }
+
+        .eye-btn:hover { color: #374151; }
+
+        .eye-btn svg {
+            width: 1.1rem;
+            height: 1.1rem;
+        }
+
+        .form-group {
+            margin-bottom: 0.85rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .form-row-3 {
+            display: grid;
+            grid-template-columns: 5rem 1fr;
+            gap: 0.75rem;
+        }
+
+        .btn-gold {
+            width: 100%;
+            padding: 0.65rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            background: linear-gradient(135deg, #C8960C 0%, #DC7831 100%);
+            transition: opacity 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-gold:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-gold::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+            pointer-events: none;
+        }
+
+        .btn-gold:hover::after { animation: shimmer 0.6s ease-out; }
+        .btn-gold:disabled::after { animation: none; }
+
+        @keyframes shimmer {
+            from { left: -100%; }
+            to   { left: 150%; }
+        }
+
+        .btn-outline {
+            width: 100%;
+            padding: 0.55rem;
+            border: 1.5px solid #C8960C;
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #C8960C;
+            background: transparent;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-outline:hover {
+            background: rgba(200, 150, 12, 0.06);
+        }
+
+        .alert-box {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            color: #991b1b;
+            margin-bottom: 0.75rem;
+        }
+
+        .pw-requirements {
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 0.2rem;
+        }
+
+        .pw-check {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.72rem;
+            margin-top: 0.15rem;
+        }
+
+        .pw-check.pass { color: #16a34a; }
+        .pw-check.fail { color: #9ca3af; }
+
+        .section-heading {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #1B2A4A;
+            margin: 0.5rem 0 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .section-heading .step-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.4rem;
+            height: 1.4rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #C8960C, #DC7831);
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* Stepper dots */
+        .stepper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stepper-dot {
+            width: 0.55rem;
+            height: 0.55rem;
+            border-radius: 50%;
+            background: #d1d5db;
+            transition: background 0.3s, transform 0.3s;
+        }
+
+        .stepper-dot.active {
+            background: #C8960C;
+            transform: scale(1.4);
+        }
+
+        .stepper-dot.done {
+            background: #16a34a;
+        }
+
+        /* Toggle switch */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.85rem;
+            padding: 0.6rem 0.75rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        .toggle-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #374151;
+            flex: 1;
+        }
+
+        .toggle-sublabel {
+            font-size: 0.7rem;
+            color: #6b7280;
+            font-weight: 400;
+        }
+
+        /* Success card */
+        .success-icon {
+            width: 4rem;
+            height: 4rem;
+            margin: 0 auto 1rem;
+            background: #f0fdf4;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-icon svg {
+            width: 2rem;
+            height: 2rem;
+            color: #16a34a;
+        }
+
+        .success-detail {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .success-detail .detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 0.3rem 0;
+        }
+
+        .success-detail .detail-row .label {
+            color: #6b7280;
+        }
+
+        .success-detail .detail-row .value {
+            font-weight: 600;
+            color: #1B2A4A;
+        }
+
+        .register-footer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #9ca3af;
+            margin: 0;
+        }
+
+        .login-link {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-top: 0.75rem;
+        }
+
+        .login-link a {
+            color: #0D7377;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .login-link a:hover { text-decoration: underline; }
+
+        /* Lotus corners (same as login) */
+        .corner-decor {
+            position: fixed;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.2;
+        }
+
+        .corner-decor.bottom-left { bottom: -20px; left: -20px; }
+        .corner-decor.bottom-right { bottom: -20px; right: -20px; transform: scaleX(-1); }
+
+        .version-badge {
+            position: fixed;
+            bottom: 0.75rem;
+            right: 1rem;
+            font-size: 0.6rem;
+            color: rgba(27, 42, 74, 0.2);
+            z-index: 10;
+        }
+
+        @media (max-width: 480px) {
+            .form-row { grid-template-columns: 1fr; }
+            .register-card { padding: 1.5rem 1.25rem; }
+        }
+
+        /* ── Custom Calendar / Date Picker ────────────────── */
+        /* Calendar styles are in /assets/css/nss-datepicker.css */
+        .relative { position: relative; }
+    </style>
+</head>
+<body class="register-bg">
+
+    <!-- Decorative lotus petal — bottom-left corner -->
+    <svg class="corner-decor bottom-left" width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#D64A6A">
+            <ellipse cx="30" cy="160" rx="22" ry="55" transform="rotate(-30 30 160)" />
+            <ellipse cx="60" cy="140" rx="20" ry="50" transform="rotate(-15 60 140)" />
+            <ellipse cx="85" cy="125" rx="18" ry="45" transform="rotate(0 85 125)" />
+            <ellipse cx="105" cy="118" rx="16" ry="40" transform="rotate(15 105 118)" />
+            <ellipse cx="120" cy="115" rx="14" ry="35" transform="rotate(30 120 115)" />
+        </g>
+    </svg>
+
+    <!-- Decorative lotus petal — bottom-right corner -->
+    <svg class="corner-decor bottom-right" width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+        <g fill="#D64A6A">
+            <ellipse cx="30" cy="160" rx="22" ry="55" transform="rotate(-30 30 160)" />
+            <ellipse cx="60" cy="140" rx="20" ry="50" transform="rotate(-15 60 140)" />
+            <ellipse cx="85" cy="125" rx="18" ry="45" transform="rotate(0 85 125)" />
+            <ellipse cx="105" cy="118" rx="16" ry="40" transform="rotate(15 105 118)" />
+            <ellipse cx="120" cy="115" rx="14" ry="35" transform="rotate(30 120 115)" />
+        </g>
+    </svg>
+
+    <!-- Version badge -->
+    <span class="version-badge">v0.11.0</span>
+
+    <div x-data="registerApp()" x-init="init()">
+
+        <!-- ════════════════════════════════════════════════
+             Step 1: Personal Details
+             ════════════════════════════════════════════════ -->
+        <div class="register-card" x-show="step === 1" x-cloak>
+
+            <!-- Logo + Title -->
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1>Nilachala Saraswata Sangha</h1>
+                <p class="subtitle">New Member Registration</p>
+            </div>
+
+            <hr class="reg-divider">
+
+            <!-- Stepper -->
+            <div class="stepper">
+                <div class="stepper-dot active"></div>
+                <div class="stepper-dot"></div>
+                <div class="stepper-dot"></div>
+            </div>
+
+            <!-- Error alert -->
+            <template x-if="error">
+                <div class="alert-box"><span x-text="error"></span></div>
+            </template>
+
+            <div class="section-heading">
+                <span class="step-badge">1</span>
+                Personal Details
+            </div>
+
+            <!-- Name -->
+            <div class="form-row" style="margin-bottom: 0.85rem;">
+                <div>
+                    <label class="reg-label">First Name *</label>
+                    <input type="text" x-model="form.first_name"
+                           @input="onNameInput('first_name')"
+                           placeholder="First name" class="reg-input"
+                           :disabled="loading" autofocus>
+                </div>
+                <div>
+                    <label class="reg-label">Last Name *</label>
+                    <input type="text" x-model="form.last_name"
+                           @input="onNameInput('last_name')"
+                           placeholder="Last name" class="reg-input"
+                           :disabled="loading">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="reg-label">Middle Name</label>
+                <input type="text" x-model="form.middle_name"
+                       @input="onNameInput('middle_name')"
+                       placeholder="Middle name (optional)" class="reg-input"
+                       :disabled="loading">
+            </div>
+
+            <!-- DOB + Gender -->
+            <div class="form-row" style="margin-bottom: 0.85rem;">
+                <div x-data="nssDatePicker('form.date_of_birth', { maxToday: true })" style="position: relative;">
+                    <label class="reg-label">Date of Birth *</label>
+                    <div style="position: relative;">
+                        <input type="text" x-model="display" @click="open = true"
+                               @input="onInput($event)"
+                               placeholder="DD/MM/YYYY" class="reg-input"
+                               :disabled="loading" maxlength="10"
+                               autocomplete="off" style="padding-right: 2.25rem;">
+                        <button type="button" class="eye-btn" @click="open = !open" tabindex="-1"
+                                style="right: 0.5rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem;height:1rem;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div x-show="open" x-cloak class="nss-cal-popup" @click.outside="open = false" x-transition>
+                        <div class="nss-cal-header">
+                            <button type="button" @click="prevMonth()" class="nss-cal-nav">&lsaquo;</button>
+                            <div class="nss-cal-selectors">
+                                <select class="nss-cal-select" :value="viewMonth" @change="onMonthChange($event)">
+                                    <option value="0">Jan</option><option value="1">Feb</option>
+                                    <option value="2">Mar</option><option value="3">Apr</option>
+                                    <option value="4">May</option><option value="5">Jun</option>
+                                    <option value="6">Jul</option><option value="7">Aug</option>
+                                    <option value="8">Sep</option><option value="9">Oct</option>
+                                    <option value="10">Nov</option><option value="11">Dec</option>
+                                </select>
+                                <input type="number" class="nss-cal-year" min="1930" max="2100"
+                                       :value="viewYear" @input="onYearInput($event)">
+                            </div>
+                            <button type="button" @click="nextMonth()" class="nss-cal-nav">&rsaquo;</button>
+                        </div>
+                        <div class="nss-cal-weekdays">
+                            <template x-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']">
+                                <span x-text="d"></span>
+                            </template>
+                        </div>
+                        <div class="nss-cal-days">
+                            <template x-for="b in calBlanks" :key="'b'+b">
+                                <span></span>
+                            </template>
+                            <template x-for="day in calDays" :key="'d'+day">
+                                <button type="button" class="nss-cal-day"
+                                        :class="{ 'nss-cal-today': isToday(day), 'nss-cal-selected': isSelected(day) }"
+                                        @click="selectDay(day)" x-text="day"></button>
+                            </template>
+                        </div>
+                        <div class="nss-cal-footer">
+                            <button type="button" class="nss-cal-today-btn" @click="goToday()">Today</button>
+                            <button type="button" class="nss-cal-clear" @click="clearDate()">Clear</button>
+                        </div>
+                    </div>
+                    <div class="reg-hint" x-show="invalid" x-text="errorMsg" style="color:#b91c1c; margin-top:0.2rem; font-size:0.8rem;"></div>
+                </div>
+                <div>
+                    <label class="reg-label">Gender *</label>
+                    <select x-model="form.gender_master_data_pk" class="nss-select" :disabled="loading">
+                        <option value="">Select...</option>
+                        <template x-for="g in genders" :key="g.master_data_pk">
+                            <option :value="g.master_data_pk" x-text="g.value_name"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Marital Status + Blood Group -->
+            <div class="form-row" style="margin-bottom: 0.85rem;">
+                <div>
+                    <label class="reg-label">Marital Status</label>
+                    <select x-model="form.marital_status_master_data_pk" class="nss-select" :disabled="loading">
+                        <option value="">Select...</option>
+                        <template x-for="m in maritalStatuses" :key="m.master_data_pk">
+                            <option :value="m.master_data_pk" x-text="m.value_name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="reg-label">Blood Group</label>
+                    <select x-model="form.blood_group_master_data_pk" class="nss-select" :disabled="loading">
+                        <option value="">Select...</option>
+                        <template x-for="b in bloodGroups" :key="b.master_data_pk">
+                            <option :value="b.master_data_pk" x-text="b.value_name"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Contact -->
+            <div class="section-heading" style="margin-top: 0.75rem;">
+                <span class="step-badge" style="background: #0D7377;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 0.8rem; height: 0.8rem;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+                    </svg>
+                </span>
+                Contact Information
+            </div>
+
+            <div class="form-row-3" style="margin-bottom: 0.85rem;">
+                <div>
+                    <label class="reg-label">Code</label>
+                    <input type="text" x-model="form.country_phone_code"
+                           placeholder="+91" class="reg-input"
+                           :disabled="loading" maxlength="5">
+                </div>
+                <div>
+                    <label class="reg-label">Mobile Number</label>
+                    <input type="tel" x-model="form.mobile_number"
+                           placeholder="10-digit mobile" class="reg-input"
+                           :disabled="loading" maxlength="15">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="reg-label">Email</label>
+                <input type="email" x-model="form.email"
+                       placeholder="email@example.com" class="reg-input"
+                       :disabled="loading">
+            </div>
+
+            <p class="pw-requirements" style="margin-bottom: 1rem;">
+                * At least one of mobile or email is required.
+            </p>
+
+            <!-- Address -->
+            <div class="section-heading" style="margin-top: 0.75rem;">
+                <span class="step-badge" style="background: #0D7377;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 0.8rem; height: 0.8rem;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                    </svg>
+                </span>
+                Address (Optional)
+            </div>
+
+            <div class="form-row" style="margin-bottom: 0.85rem;">
+                <div>
+                    <label class="reg-label">Country</label>
+                    <select x-model="form.country_pk" @change="onRegCountryChange()" class="nss-select" :disabled="loading">
+                        <option value="">Select...</option>
+                        <template x-for="c in regCountries" :key="c.country_pk">
+                            <option :value="c.country_pk" x-text="c.country_name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="reg-label">State</label>
+                    <select x-model="form.state_pk" @change="onRegStateChange()" class="nss-select"
+                            :disabled="loading || !form.country_pk">
+                        <option value="">Select...</option>
+                        <template x-for="s in regStates" :key="s.state_pk">
+                            <option :value="s.state_pk" x-text="s.state_name"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row" style="margin-bottom: 0.85rem;">
+                <div>
+                    <label class="reg-label">District</label>
+                    <select x-model="form.district_pk" @change="onRegDistrictChange()" class="nss-select"
+                            :disabled="loading || !form.state_pk">
+                        <option value="">Select...</option>
+                        <template x-for="d in regDistricts" :key="d.district_pk">
+                            <option :value="d.district_pk" x-text="d.district_name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="reg-label">City / Village</label>
+                    <input type="text" x-model="form.city_village_name"
+                           placeholder="Type city or village"
+                           class="reg-input"
+                           :disabled="loading || !form.district_pk" maxlength="200">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="reg-label">PIN Code</label>
+                <input type="text" x-model="form.postal_code_value" class="reg-input"
+                       placeholder="e.g. 751024" maxlength="10"
+                       :disabled="loading || !form.state_pk">
+            </div>
+
+            <!-- Next button -->
+            <button class="btn-gold" @click="goStep2()"
+                    :disabled="!form.first_name.trim() || !form.last_name.trim() || !form.date_of_birth || !form.gender_master_data_pk || (!form.mobile_number && !form.email)">
+                Next: Membership Details →
+            </button>
+
+            <div class="login-link">
+                Already a member? <a href="/login">Sign In</a>
+            </div>
+
+            <hr class="reg-divider">
+            <p class="register-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             Step 2: Membership Claim Details
+             ════════════════════════════════════════════════ -->
+        <div class="register-card" x-show="step === 2" x-cloak>
+
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1>Nilachala Saraswata Sangha</h1>
+                <p class="subtitle">New Member Registration</p>
+            </div>
+
+            <hr class="reg-divider">
+
+            <!-- Stepper -->
+            <div class="stepper">
+                <div class="stepper-dot done"></div>
+                <div class="stepper-dot active"></div>
+                <div class="stepper-dot"></div>
+            </div>
+
+            <template x-if="error">
+                <div class="alert-box"><span x-text="error"></span></div>
+            </template>
+
+            <div class="section-heading">
+                <span class="step-badge">2</span>
+                Membership Details
+            </div>
+
+            <!-- Not Applicable toggle -->
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">I have membership credentials</div>
+                    <div class="toggle-sublabel">
+                        Toggle off if you don't have Parichaya Patra / Anumati Patra yet
+                    </div>
+                </div>
+                <input type="checkbox" x-model="form.has_membership"
+                       class="nss-checkbox"
+                       :disabled="loading">
+            </div>
+
+            <template x-if="form.has_membership">
+                <div>
+                    <!-- Membership Type -->
+                    <div class="form-group">
+                        <label class="reg-label">Membership Type *</label>
+                        <select x-model="form.membership_type_master_data_pk"
+                                @change="onMembershipTypeChange()"
+                                class="nss-select" :disabled="loading">
+                            <option value="">Select type...</option>
+                            <template x-for="t in membershipTypes" :key="t.master_data_pk">
+                                <option :value="t.master_data_pk"
+                                        x-text="t.value_code === 'PROBATIONARY' ? 'Darshaka' : t.value_name">
+                                </option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Sakha Selection -->
+                    <div class="form-group">
+                        <label class="reg-label">Sakha Sangha *</label>
+                        <select x-model="form.organization_pk"
+                                class="nss-select" :disabled="loading">
+                            <option value="">Select Sakha...</option>
+                            <template x-for="s in sakhas" :key="s.organization_pk">
+                                <option :value="s.organization_pk" x-text="s.organization_name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- Local Sakha Number — shown AFTER Sakha is selected (AUTH-BR-085) -->
+                    <template x-if="form.organization_pk">
+                        <div class="form-group">
+                            <label class="reg-label">
+                                Local Sakha Number
+                                <span x-show="!isDarshaka()">*</span>
+                            </label>
+                            <input type="text" x-model="form.claimed_local_sakha_number"
+                                   placeholder="Your local number in this Sakha"
+                                   class="reg-input"
+                                   :disabled="loading"
+                                   maxlength="20">
+                            <p class="pw-requirements" style="margin-top: 0.25rem;">
+                                <template x-if="isDarshaka()">
+                                    <span>Optional — enter if your Sakha has assigned you a local number.</span>
+                                </template>
+                                <template x-if="!isDarshaka()">
+                                    <span>Enter the number from your Parichaya Patra. Your Sakha admin will verify this.</span>
+                                </template>
+                            </p>
+                        </div>
+                    </template>
+
+                    <!-- Joining Date -->
+                    <div class="form-group" x-data="nssDatePicker('form.joining_date')" style="position:relative;">
+                        <label class="reg-label">Joining Date</label>
+                        <div style="position: relative;">
+                            <input type="text" x-model="display" @click="open = true"
+                                   @input="onInput($event)"
+                                   placeholder="DD/MM/YYYY" class="reg-input"
+                                   :disabled="loading" maxlength="10"
+                                   autocomplete="off" style="padding-right: 2.25rem;">
+                            <button type="button" class="eye-btn" @click="open = !open" tabindex="-1"
+                                    style="right: 0.5rem;">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem;height:1rem;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div x-show="open" x-cloak class="nss-cal-popup" @click.outside="open = false" x-transition>
+                            <div class="nss-cal-header">
+                                <button type="button" @click="prevMonth()" class="nss-cal-nav">&lsaquo;</button>
+                                <div class="nss-cal-selectors">
+                                    <select class="nss-cal-select" :value="viewMonth" @change="onMonthChange($event)">
+                                        <option value="0">Jan</option><option value="1">Feb</option>
+                                        <option value="2">Mar</option><option value="3">Apr</option>
+                                        <option value="4">May</option><option value="5">Jun</option>
+                                        <option value="6">Jul</option><option value="7">Aug</option>
+                                        <option value="8">Sep</option><option value="9">Oct</option>
+                                        <option value="10">Nov</option><option value="11">Dec</option>
+                                    </select>
+                                    <input type="number" class="nss-cal-year" min="1930" max="2100"
+                                           :value="viewYear" @input="onYearInput($event)">
+                                </div>
+                                <button type="button" @click="nextMonth()" class="nss-cal-nav">&rsaquo;</button>
+                            </div>
+                            <div class="nss-cal-weekdays">
+                                <template x-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']">
+                                    <span x-text="d"></span>
+                                </template>
+                            </div>
+                            <div class="nss-cal-days">
+                                <template x-for="b in calBlanks" :key="'b'+b">
+                                    <span></span>
+                                </template>
+                                <template x-for="day in calDays" :key="'d'+day">
+                                    <button type="button" class="nss-cal-day"
+                                            :class="{ 'nss-cal-today': isToday(day), 'nss-cal-selected': isSelected(day) }"
+                                            @click="selectDay(day)" x-text="day"></button>
+                                </template>
+                            </div>
+                            <div class="nss-cal-footer">
+                                <button type="button" class="nss-cal-today-btn" @click="goToday()">Today</button>
+                                <button type="button" class="nss-cal-clear" @click="clearDate()">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── Darshak Attendance ── -->
+                    <div class="toggle-row" style="margin-top: 0.5rem;">
+                        <div>
+                            <div class="toggle-label">Attending another Sangha as Darshak?</div>
+                            <div class="toggle-sublabel">
+                                If you visit a different Sakha as a Darshak (probationer)
+                            </div>
+                        </div>
+                        <input type="checkbox" x-model="form.is_attending_as_darshak"
+                               class="nss-checkbox"
+                               :disabled="loading">
+                    </div>
+
+                    <template x-if="form.is_attending_as_darshak">
+                        <div class="form-group">
+                            <label class="reg-label">Darshak Sakha *</label>
+                            <select x-model="form.darshak_organization_pk"
+                                    class="nss-select" :disabled="loading">
+                                <option value="">Select Sakha you attend as Darshak...</option>
+                                <template x-for="s in sakhas" :key="'dk_'+s.organization_pk">
+                                    <option :value="s.organization_pk" x-text="s.organization_name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="!form.has_membership">
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.85rem;">
+                    <p style="font-size: 0.8rem; color: #92400e; margin: 0;">
+                        You can register without membership credentials. An admin can assign your Sangha Sevi membership later.
+                    </p>
+                </div>
+            </template>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                <button class="btn-outline" @click="step = 1" style="flex: 1;">
+                    ← Back
+                </button>
+                <button class="btn-gold" @click="goStep3()" style="flex: 1;"
+                        :disabled="form.has_membership && (!form.membership_type_master_data_pk || !form.organization_pk)">
+                    Next: Password →
+                </button>
+            </div>
+
+            <hr class="reg-divider">
+            <p class="register-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             Step 3: Password Creation
+             ════════════════════════════════════════════════ -->
+        <div class="register-card" x-show="step === 3" x-cloak>
+
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1>Nilachala Saraswata Sangha</h1>
+                <p class="subtitle">New Member Registration</p>
+            </div>
+
+            <hr class="reg-divider">
+
+            <!-- Stepper -->
+            <div class="stepper">
+                <div class="stepper-dot done"></div>
+                <div class="stepper-dot done"></div>
+                <div class="stepper-dot active"></div>
+            </div>
+
+            <template x-if="error">
+                <div class="alert-box"><span x-text="error"></span></div>
+            </template>
+
+            <div class="section-heading">
+                <span class="step-badge">3</span>
+                Create Password
+            </div>
+
+            <!-- Password -->
+            <div class="form-group">
+                <label class="reg-label">Password *</label>
+                <div class="password-wrapper">
+                    <input :type="showPassword ? 'text' : 'password'"
+                           x-model="form.password"
+                           placeholder="Min 8 chars, 1 uppercase, 1 digit"
+                           class="reg-input"
+                           :disabled="loading"
+                           autocomplete="new-password">
+                    <button type="button" class="eye-btn"
+                            @click="showPassword = !showPassword" tabindex="-1">
+                        <svg x-show="!showPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        </svg>
+                        <svg x-show="showPassword" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Live validation -->
+                <div style="margin-top: 0.35rem;">
+                    <div class="pw-check" :class="form.password.length >= 8 ? 'pass' : 'fail'">
+                        <span x-text="form.password.length >= 8 ? '✓' : '○'"></span>
+                        At least 8 characters
+                    </div>
+                    <div class="pw-check" :class="/[A-Z]/.test(form.password) ? 'pass' : 'fail'">
+                        <span x-text="/[A-Z]/.test(form.password) ? '✓' : '○'"></span>
+                        At least 1 uppercase letter
+                    </div>
+                    <div class="pw-check" :class="/\d/.test(form.password) ? 'pass' : 'fail'">
+                        <span x-text="/\d/.test(form.password) ? '✓' : '○'"></span>
+                        At least 1 digit
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="form-group">
+                <label class="reg-label">Confirm Password *</label>
+                <input type="password"
+                       x-model="confirmPassword"
+                       placeholder="Re-enter password"
+                       class="reg-input"
+                       :disabled="loading"
+                       autocomplete="new-password">
+                <template x-if="confirmPassword && confirmPassword !== form.password">
+                    <p style="font-size: 0.72rem; color: #dc2626; margin-top: 0.2rem;">
+                        Passwords do not match.
+                    </p>
+                </template>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                <button class="btn-outline" @click="step = 2" style="flex: 1;">
+                    ← Back
+                </button>
+                <button class="btn-gold" @click="register()" style="flex: 1;"
+                        :disabled="loading || !isPasswordValid()">
+                    <span x-show="loading" class="loading loading-spinner loading-sm"></span>
+                    <span x-text="loading ? 'Registering...' : 'Register'"></span>
+                </button>
+            </div>
+
+            <hr class="reg-divider">
+            <p class="register-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             Step 4: Success — Pending Approval
+             ════════════════════════════════════════════════ -->
+        <div class="register-card" x-show="step === 4" x-cloak>
+
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1>Nilachala Saraswata Sangha</h1>
+            </div>
+
+            <hr class="reg-divider">
+
+            <div class="success-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 1rem;">
+                <h2 style="font-size: 1.15rem; font-weight: 700; color: #16a34a; margin: 0 0 0.25rem;">
+                    Registration Submitted
+                </h2>
+                <p style="font-size: 0.8rem; color: #6b7280; margin: 0;">
+                    Welcome, <span x-text="result.person_name" style="font-weight: 600;"></span>
+                </p>
+            </div>
+
+            <div class="success-detail">
+                <div class="detail-row">
+                    <span class="label">Person ID</span>
+                    <span class="value" x-text="result.person_id"></span>
+                </div>
+                <div class="detail-row">
+                    <span class="label">Name</span>
+                    <span class="value" x-text="result.person_name"></span>
+                </div>
+            </div>
+
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem;">
+                <p style="font-size: 0.8rem; color: #92400e; margin: 0; text-align: center;">
+                    <strong>Pending Approval</strong><br>
+                    Your registration is awaiting approval by your Sakha administrator.
+                    You will be able to log in once approved.
+                </p>
+            </div>
+
+            <p style="font-size: 0.75rem; color: #6b7280; text-align: center; margin-bottom: 1rem;">
+                Please note your Person ID for reference.
+            </p>
+
+            <button class="btn-outline" @click="window.location.href = '/login'">
+                Go to Login Page
+            </button>
+
+            <hr class="reg-divider">
+            <p class="register-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
+        </div>
+
+    </div>
+
+    <script src="/assets/js/register.js?v=0.12.5"></script>
+</body>
+</html>
