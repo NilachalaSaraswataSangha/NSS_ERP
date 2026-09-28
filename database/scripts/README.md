@@ -87,6 +87,9 @@ statuses). The standalone `organization_type_master` and
 | Step | File | Seeds |
 |-----:|------|-------|
 | Seed | `seed/02_organization/03_organization.sql` | 3 organizations (resolves type/status via master_data) |
+| Seed | `seed/01_foundation/09_sakha_postal_codes.sql` | Postal codes for the 175 Sakha branches below |
+| Seed | `seed/02_organization/05_sakha_branches.sql` | 175 real Sakha Sangha branches |
+| Seed | `seed/02_organization/06_id_sequence_org_sync.sql` | Advances `id_sequence_master` counters to match seeded `organization_code`s (must run after Organization DDL + seed, not in Phase 2 — see file header) |
 
 ### Phase 5 — Person DDL (2 tables, Depths 2–3)
 

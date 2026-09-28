@@ -175,6 +175,7 @@ Write-Host "[Phase 4] Organization - Seed Data" -ForegroundColor Cyan
 Invoke-Sql "organization (seed)"               "$SeedBase\02_organization\03_organization.sql"
 Invoke-Sql "sakha postal codes (seed)"          "$SeedBase\01_foundation\09_sakha_postal_codes.sql"
 Invoke-Sql "sakha branches (seed)"              "$SeedBase\02_organization\05_sakha_branches.sql"
+Invoke-Sql "id_sequence_master (org sync)"      "$SeedBase\02_organization\06_id_sequence_org_sync.sql"
 Write-Host ""
 
 # Phase 5: Person DDL

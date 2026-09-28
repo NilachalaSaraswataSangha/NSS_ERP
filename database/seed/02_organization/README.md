@@ -16,6 +16,7 @@ Execute AFTER:
 |--:|------|-----------|-----------|
 | 03 | `03_organization.sql` | `organization` | Foundation `master_category`/`master_data` seed, Foundation `country`/`postal_code` seed, Organization DDL complete |
 | 05 | `05_sakha_branches.sql` | `organization` | `03_organization.sql` (needs `KEN` as parent); Foundation `master_data` seed |
+| 06 | `06_id_sequence_org_sync.sql` | `id_sequence_master` | `03_organization.sql` + `05_sakha_branches.sql` (reads seeded `organization_code`s) |
 
 > **Moved:** The former `01_organization_type_master.sql` and
 > `02_organization_status_master.sql` seed files are gone. Type and status
@@ -78,6 +79,17 @@ Features:
 - Country: `IN` for Indian branches, `US` for America Saraswata Sangha
 - CTE-based bulk INSERT with master_data + postal_code JOINs
 - Idempotent via `ON CONFLICT (organization_code) DO UPDATE`
+
+### 06_id_sequence_org_sync.sql
+
+Advances each org-type `id_sequence_master.current_value` counter to at least the largest
+numeric suffix of an existing `organization_code` of that type (e.g. after `05_sakha_branches.sql`
+seeds `SKH1`-`SKH175`, `SAKHA`'s counter is synced to `175`), so `next_id()`/`peek_next_id()`
+never mints a duplicate code. Idempotent and monotonic (`GREATEST()` never lowers a counter).
+Was previously the tail end of `database/seed/01_foundation/03_id_sequence_master.sql` (Phase 2)
+— moved here because it queries `nss.organization`, which doesn't exist until Phase 3
+(Organization DDL); running it in Phase 2 fails a clean build with
+`relation "nss.organization" does not exist`.
 
 ---
 

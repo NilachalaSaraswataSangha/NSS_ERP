@@ -131,6 +131,7 @@ echo "--- Phase 4: Organization — Seed ---"
 run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
 run_sql "sakha postal codes (seed)"          "${SEED_BASE}/01_foundation/09_sakha_postal_codes.sql"
 run_sql "sakha branches (seed)"              "${SEED_BASE}/02_organization/05_sakha_branches.sql"
+run_sql "id_sequence_master (org sync)"      "${SEED_BASE}/02_organization/06_id_sequence_org_sync.sql"
 
 echo ""
 echo "--- Phase 5: Person — DDL (2 tables) ---"
