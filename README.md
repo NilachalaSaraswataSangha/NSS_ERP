@@ -103,7 +103,7 @@ design philosophy, ensuring that business rules are frozen before implementation
   organization/Sangha-Sevi management, 23 endpoints), and a new Audit API
   (`api/routers/audit.py` — `GET /change-log` over `nss.field_change_log`, gated by `AUDIT_VIEW`)
   — none of these are released or merged to `develop`/
-  `main` yet — **89 endpoints across 11 routers in total**. See `CLAUDE.md` and `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5") for
+  `main` yet — **100 endpoints across 11 routers in total**. See `CLAUDE.md` and `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5") for
   the current, code-verified detail.
   `docs/PROJECT_DOCUMENTATION.md` → Architecture,
   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`, and `docs/03_Solution/api/API_CONTRACT.md`.

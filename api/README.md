@@ -445,7 +445,7 @@ coverage:**
 
 Full contract: `docs/03_Solution/api/API_CONTRACT.md` (documents the original 46 endpoints
 across Tiers 0-4; now 61 with Family's 9 Tier 5 writes and Foundation's 6, plus 28 more across
-the 5 Tier 5-only routers — 89 endpoints total, see `CLAUDE.md`'s Running the FastAPI API
+the 5 Tier 5-only routers — 100 endpoints total, see `CLAUDE.md`'s Running the FastAPI API
 section for the current per-router breakdown).
 Verified by 94 pytest integration tests (`tests/api/test_membership.py`; some of the original 99
 were extracted into `tests/security/`).

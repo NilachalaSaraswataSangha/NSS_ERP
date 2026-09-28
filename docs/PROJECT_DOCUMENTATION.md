@@ -43,7 +43,7 @@ ownership-based auth model on every Family route** (uncommitted, on
 `api/routers/bootstrap.py`'s 4 Tier 0 endpoints remain unauthenticated. On top of that, Tier 5
 (uncommitted, same branch) adds 5 more routers with a further 39 endpoints —
 `auth.py` (8), `admin.py` (23), `registration.py` (2), `claim_approval.py` (5), `audit.py`
-(1) — for **11 routers / 89 endpoints total** (no ORM, raw `psycopg2` against `nss.*`) behind a
+(1) — for **11 routers / 100 endpoints total** (no ORM, raw `psycopg2` against `nss.*`) behind a
 cross-tier security middleware stack (security headers, opt-in CORS, rate limiting, and now a
 Content-Security-Policy — see Architecture below), a growing raw-SQL PostgreSQL schema
 (Bootstrap RBAC: 3 tables; Foundation: 13 tables incl. `system_event_log`; Organization: 1
@@ -169,7 +169,7 @@ security headers
   uncommitted — `api/routers/auth.py` (`/api/v1/auth`), `api/routers/admin.py`
   (`/api/v1/admin`), `api/routers/registration.py` (`/api/v1/register`),
   `api/routers/claim_approval.py` (`/api/v1/admin/claims`), and `api/routers/audit.py`
-  (`/api/v1/audit`) — **89 endpoints total** (see the per-router breakdown in the Overview
+  (`/api/v1/audit`) — **100 endpoints total** (see the per-router breakdown in the Overview
   above). `family.py`'s `/graph` endpoint delegates its BFS relationship computation to
   a new `api/services/` layer (`api/services/family_graph.py`, `build_family_graph()` +
   `FamilyGraph.compute_relationships()`) — joined on the Tier 5 branch by
