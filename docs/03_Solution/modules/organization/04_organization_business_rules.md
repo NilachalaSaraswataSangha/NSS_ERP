@@ -1,7 +1,7 @@
 # NSS ERP — Organization Business Rules
 
 **Document ID:** SOL-ORG-004  
-**Version:** 1.8.0  
+**Version:** 1.9.0  
 **Status:** DRAFT — GOVERNANCE ALIGNED  
 **Amendment:** §28 (v1.2.0) — Type-to-Type Parent Hierarchy frozen (ORG-BR-087–095): resolves
 the previously-OPEN parent compatibility matrix per an explicit governance decision
@@ -24,6 +24,12 @@ detail from the parent Sakha — a wing shares the Sakha's identity), per govern
 org-type id_sequence_master value, auto-generated on submit and shown as a non-consuming live
 preview via GET /admin/organizations/next-code; organization_id is no longer minted by this flow;
 resolves the ORG-BR-104 organization_id OPEN item), per governance decision (2026-09-27).  
+**Amendment:** §30 (v1.9.0) — ORG-BR-099 narrowed: country_pk/state_pk/district_pk carved back
+out of the address prohibition for ANCHALIKA_SANGHA/ZILLA_SANGHA/PATHA_CHAKRA — these are
+administrative jurisdiction, not a physical premises, and are now allowed/displayed for every
+organization type; only premises-specific columns (address_line_1/2, city_village_pk,
+postal_code_pk, latitude, longitude) remain prohibited for these three types, per governance
+decision (2026-09-28).  
 **Module:** Organization  
 **Parent System:** Nilachala Saraswata Sangha ERP
 
@@ -1405,28 +1411,37 @@ the creator to identify which Sakha explicitly — never auto-resolved.
 
 ---
 
-# 30. Sakha Address vs Administrative-Unit Address (Frozen — governance decision, 2026-09-26)
+# 30. Sakha Address vs Administrative-Unit Address (Frozen — governance decision, 2026-09-26; narrowed 2026-09-28)
 
-## ORG-BR-099 — Address Prohibited for Non-Physical Organization Types
+## ORG-BR-099 — Physical Premises Address Prohibited for Non-Physical Organization Types
 
 `SAKHA_SANGHA` represents a physical location and holds a physical address (ORG-BR-064).
 `ANCHALIKA_SANGHA`, `ZILLA_SANGHA`, and `PATHA_CHAKRA` are purely administrative/organizational
 units with no premises of their own. Per governance decision (2026-09-26), this is elevated
 from ORG-BR-064's permissive reading ("need not have a physical building") to a hard
 prohibition: an organization of type `ANCHALIKA_SANGHA`, `ZILLA_SANGHA`, or `PATHA_CHAKRA`
-shall never carry a physical address. All address-bearing columns on `nss.organization`
-(`address_line_1`, `address_line_2`, `district_pk`, `state_pk`, `country_pk`, `city_village_pk`,
-`postal_code_pk`, `latitude`, `longitude`) must remain `NULL` for these three types, enforced at
-database level.
+shall never carry a physical premises address. The premises-address columns on
+`nss.organization` (`address_line_1`, `address_line_2`, `city_village_pk`, `postal_code_pk`,
+`latitude`, `longitude`) must remain `NULL` for these three types, enforced at database level.
+
+**Amendment (2026-09-28):** `country_pk`/`state_pk`/`district_pk` are carved back out of this
+prohibition. These three types do correspond to a real administrative jurisdiction — which
+state/district a given Anchalika Sangha, Zilla Sangha, or Patha Chakra covers — even though they
+hold no premises of their own; conflating "has no building" with "cannot record which
+state/district it administers" was too broad. Country/state/district are now allowed (and
+displayed) for every organization type, including these three; only the premises-specific
+columns above remain prohibited.
 
 This does not apply to `KENDRA`, `NILACHALA_KUTIRA`, or `SMRUTI_MANDIRA` (unique apex
 institutions, out of scope of this rule) nor to `SAKHA_SANGHA` (ORG-BR-064, ORG-BR-098).
 
-**Deferred — OPEN, not decided.** Because `PATHA_CHAKRA` can never itself hold an address, any
-future requirement to display contact/location information for a Patha Chakra must source it
-from its current office-holder (e.g. its president) at display time, not store it on the
-organization row. This depends on Governance-module office-holder data not yet linked to
-Organization and is explicitly deferred.
+**Deferred — OPEN, not decided.** Because `PATHA_CHAKRA` (and `ANCHALIKA_SANGHA`/`ZILLA_SANGHA`)
+can never hold a premises address, any future requirement to display a full street
+address/contact detail for one must source it from its current office-holder (e.g. its
+president) at display time, not store it on the organization row — jurisdiction
+(country/state/district) is now available directly on the row per the amendment above, but a
+literal building address is not. This depends on Governance-module office-holder data not yet
+linked to Organization and is explicitly deferred.
 
 ---
 

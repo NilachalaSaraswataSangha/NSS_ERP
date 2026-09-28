@@ -1466,6 +1466,12 @@ function adminApp() {
         // ── Create-Org type-driven form behaviour (ORG-BR-098/099/100) ──
         // Shared by both the create form and the org-detail edit form so
         // the two stay consistent with the DB trigger (ORG-BR-099).
+        // ORG-BR-099 was narrowed (2026-09-28): these 3 types may still
+        // never carry a physical PREMISES address (address_line_1,
+        // city_village_pk, postal_code_pk, latitude, longitude), but
+        // country/state/district are administrative JURISDICTION, not a
+        // premises, and are now allowed for every type — see the separate,
+        // unconditional Country/State/District block in both forms.
         addressProhibitedForType(typeCode) {
             return ["ANCHALIKA_SANGHA", "ZILLA_SANGHA", "PATHA_CHAKRA"].includes(typeCode);
         },
@@ -1473,7 +1479,8 @@ function adminApp() {
         get orgTypeHasPremises() {
             return this.createOrgForm.organization_type_code === "SAKHA_SANGHA";
         },
-        // ORG-BR-099: address-bearing columns must stay NULL for these types.
+        // ORG-BR-099: premises-address columns (not country/state/district)
+        // must stay NULL for these types.
         get orgTypeProhibitsAddress() {
             return this.addressProhibitedForType(this.createOrgForm.organization_type_code);
         },
@@ -1789,6 +1796,12 @@ function adminApp() {
 
                 // Refresh the organizations list reference data
                 this.fetchOrganizations();
+                // The Organization Hierarchy tab caches its tree for the whole
+                // session (orgTreeLoaded guard) — invalidate it so a newly
+                // created org shows up next time that tab is viewed, instead
+                // of requiring a full page reload.
+                this.orgTreeLoaded = false;
+                this.orgTree = [];
             } catch (err) {
                 this.createOrgError = err.message || "Failed to create organization.";
             } finally {
@@ -1803,20 +1816,15 @@ function adminApp() {
                 if (this.editOrgForm.organization_name !== (org.organization_name || ""))
                     body.organization_name = this.editOrgForm.organization_name;
 
-                // ORG-BR-099: never send address/location fields for a type
-                // the DB trigger prohibits from carrying one — the fields
-                // are hidden in the UI for these types, but guard here too
-                // in case editOrgForm still holds stale values from before
-                // the row was opened.
+                // ORG-BR-099 (narrowed): address_line_1/city_village/postal_code
+                // are premises-only and still prohibited for these types — the
+                // DB trigger rejects them, and the fields are hidden in the UI,
+                // but guard here too in case editOrgForm still holds stale
+                // values from before the row was opened. Country/state/district
+                // are jurisdiction fields, not premises, so they're always sent.
                 if (!this.addressProhibitedForType(org.organization_type_code)) {
                     if (this.editOrgForm.address_line_1 !== (org.address_line_1 || ""))
                         body.address_line_1 = this.editOrgForm.address_line_1;
-
-                    // Location FK fields (except city_village and postal_code — sent as text)
-                    for (const fk of ["country_pk", "state_pk", "district_pk"]) {
-                        if (this.editOrgForm[fk] !== (org[fk] || ""))
-                            body[fk] = this.editOrgForm[fk];
-                    }
 
                     // City/Village — text name, lookup/create on backend
                     if (this.editOrgForm.city_village_name !== (org.city_village_name || ""))
@@ -1825,6 +1833,12 @@ function adminApp() {
                     // PIN Code — text value, lookup/create on backend
                     if (this.editOrgForm.postal_code_value !== (org.postal_code || ""))
                         body.postal_code_value = this.editOrgForm.postal_code_value;
+                }
+
+                // Location FK fields (except city_village and postal_code — sent as text)
+                for (const fk of ["country_pk", "state_pk", "district_pk"]) {
+                    if (this.editOrgForm[fk] !== (org[fk] || ""))
+                        body[fk] = this.editOrgForm[fk];
                 }
 
                 if (this.editOrgForm.phone_number !== (org.phone_number || ""))

@@ -2337,9 +2337,14 @@ def update_organization(
         )
 
     with conn.cursor() as cur:
-        # Check org exists
+        # Check org exists (fetch type code too, for the ORG-BR-099 guard below)
         cur.execute(
-            "SELECT organization_name FROM nss.organization WHERE organization_pk = %s AND is_active = TRUE",
+            """
+            SELECT o.organization_name, md.value_code
+            FROM nss.organization o
+            JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+            WHERE o.organization_pk = %s AND o.is_active = TRUE
+            """,
             (str(organization_pk),),
         )
         row = cur.fetchone()
@@ -2347,6 +2352,22 @@ def update_organization(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Organization not found.",
+            )
+        org_type_code = row[1]
+
+        # ── Physical premises address prohibited for non-physical types
+        # (ORG-BR-099, narrowed 2026-09-28) — clean 422 mirror of
+        # trg_enforce_organization_address_restriction. country_pk/
+        # state_pk/district_pk are jurisdiction, not premises, and stay
+        # allowed for every type (handled via the FK-fields loop above).
+        _NO_ADDRESS_TYPES = {"ANCHALIKA_SANGHA", "ZILLA_SANGHA", "PATHA_CHAKRA"}
+        if org_type_code in _NO_ADDRESS_TYPES and (
+            updates.get("address_line_1") or updates.get("address_line_2")
+            or body.city_village_name or body.postal_code_value
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"'{org_type_code}' may never carry a physical premises address (ORG-BR-099).",
             )
 
         actor = user.actor_pk
@@ -2592,18 +2613,21 @@ def create_organization(
                 detail=f"Organization type '{body.organization_type_code}' is unique and already exists. Cannot create another.",
             )
 
-        # ── Address prohibited for non-physical types (ORG-BR-099) ──
+        # ── Physical premises address prohibited for non-physical types
+        # (ORG-BR-099, narrowed 2026-09-28) ──────────────────────────
         # Clean 422 mirror of trg_enforce_organization_address_restriction.
+        # country_pk/state_pk/district_pk are administrative jurisdiction,
+        # not a physical premises, and are allowed for every type.
         _NO_ADDRESS_TYPES = {"ANCHALIKA_SANGHA", "ZILLA_SANGHA", "PATHA_CHAKRA"}
         if body.organization_type_code in _NO_ADDRESS_TYPES and any([
-            body.address_line_1, body.country_pk, body.state_pk, body.district_pk,
-            body.city_village_name, body.postal_code_pk, body.postal_code_value,
+            body.address_line_1, body.city_village_name,
+            body.postal_code_pk, body.postal_code_value,
         ]):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"'{body.organization_type_code}' may never carry a physical "
-                    f"address (ORG-BR-099)."
+                    f"premises address (ORG-BR-099)."
                 ),
             )
 
