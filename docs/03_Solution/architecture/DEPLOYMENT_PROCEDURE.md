@@ -1,8 +1,8 @@
 # NSS ERP — Deployment Procedure
 
 **Document Type:** Operations / Deployment Guide
-**Version:** 1.2
-**Date:** 2026-09-16
+**Version:** 1.3
+**Date:** 2026-09-30
 **Status:** Active
 **Audience:** Project maintainer
 
@@ -20,6 +20,12 @@ NSS ERP is deployed on two managed services:
 Public URL (after deployment): `https://nss-erp.onrender.com/`
 
 See `TECH_STACK_DECISIONS.md` §6 for architectural rationale.
+
+> **Status:** not yet run in production. The last tagged release (`v0.10.4`) is Tier 4; Tier 5
+> (Authentication + Administration) is in progress, uncommitted, on
+> `feature/tier5-authentication-administration`, and `render_build.sh`/`render.yaml` already
+> carry its changes (writer role, JWT secret, admin bootstrap, audit trigger). This guide
+> describes the build as it exists on that branch.
 
 ---
 
@@ -78,7 +84,7 @@ PostGIS and dblink are **not used** in current DDL and are not required.
    - **Plan:** Free
    - **Python version:** 3.12.4
 
-**⚠️ Unverified risk (new, uncommitted as of this writing):** `render.yaml` declares
+**⚠️ Unverified risk (uncommitted Tier 5 branch):** `render.yaml` declares
 `runtime: python`, but `render_build.sh` now runs `npm install` and `npx tailwindcss` as its
 first step (Tailwind CDN → CLI migration). Render's native Python runtime environment is not
 confirmed to include Node.js/npm — this has **not been tested against an actual Render deploy
@@ -94,7 +100,8 @@ Render deploy after this change.
 
 ## Step 3: Set Environment Variables
 
-In Render dashboard → **Environment** tab, add the 6 variables from Neon:
+In Render dashboard → **Environment** tab, add the 6 variables from Neon plus the 3 Tier 5
+variables below (all declared `sync: false` in `render.yaml`, so they must be set by hand):
 
 | Key | Value | Notes |
 |-----|-------|-------|
@@ -105,7 +112,11 @@ In Render dashboard → **Environment** tab, add the 6 variables from Neon:
 | `DB_PORT` | (from Neon) | Usually `5432` |
 | `DATABASE_URL` | (from Neon) | Full connection string with `?sslmode=require` |
 
-These are referenced by both `render_build.sh` (for `psql` bootstrap) and `api/main.py` (for FastAPI database connections).
+| `DB_WRITE_USER` | `nss_db_writer` | Tier 5 — write-capable pool (`api/database.py::get_write_connection`) |
+| `DB_WRITE_PASSWORD` | (choose a secret) | Tier 5 — `render_build.sh` uses it when creating the `nss_db_writer` role (falls back to `DB_PASSWORD` if unset) |
+| `JWT_SECRET_KEY` | (random 64-char hex) | Tier 5 — required by `Settings.validate_auth()`; generate with `python3 -c "import secrets; print(secrets.token_hex(32))"` |
+
+These are referenced by both `render_build.sh` (for `psql` bootstrap and `scripts/bootstrap_admin.py`) and `api/main.py` (for FastAPI database connections). Optional tuning variables (`CORS_ORIGINS`, `RATE_LIMIT`, `DISABLE_DOCS`, `DB_READ_POOL_MIN/MAX`, `DB_WRITE_POOL_MIN/MAX`, `CSP_*`) are documented in `CLAUDE.md` → Setup; never set `DEBUG_MODE` in production.
 
 ---
 
@@ -117,17 +128,27 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap) and `api/m
      frontend/assets/css/tailwind.min.css --minify`) — uncommitted as of this writing, see
      `TECH_STACK_DECISIONS.md` §3
    - Installs Python dependencies (`pip install -r requirements.txt`)
-   - Checks if `nss.role_master` exists on Neon
-   - If **fresh database**: creates `nss` schema, installs extensions, runs all DDL + seed in order:
-     - Phase 0: Bootstrap RBAC (3 tables + seed)
-     - Phase 1: Foundation (12 tables + seed)
-     - Phase 2: Organization (3 tables + seed)
-     - Phase 6: Family (5 tables)
-     - Phase 7: Membership (12 tables)
-     - Phase 8: Tier 4 Verification Seed Data
-     - Phase 8b: Performance Indexes (4 composite partial indexes)
-     - Phase 9: Grant nss_db_backend read-only access
-   - If **already bootstrapped**: skips DDL/seed (idempotent)
+   - Creates the `nss` schema and extensions (`pgcrypto`, `pg_trgm`, `btree_gin` — best-effort)
+   - Runs **every** DDL + seed phase on **every** deploy, in the same order as
+     `database/scripts/02_build.sh`. Each `run_sql` call treats "already exists"/duplicate-key
+     errors as `[SKIP]`, so a redeploy against an already-bootstrapped database is safe and
+     picks up any newly added phase automatically:
+     - Phase 0: Bootstrap RBAC (3 tables + seed: roles, permissions, role-permission mappings)
+     - Phase 1-2: Foundation (12 tables + seed)
+     - Phase 3-4: Organization (1 table + address-restriction and Kumari/Sevak uniqueness
+       triggers; seed incl. 175 Sakha branches and the ID-sequence sync)
+     - Phase 5: Person (2 tables)
+     - Phase 6: Family (6 tables + move-transition guard)
+     - Phase 7: Membership (14 tables + Sakha-only trigger)
+     - *(inline)* ensures `nss_db_owner`/`nss_db_backend`/`nss_db_writer` roles exist
+     - Phase 9: Grant `nss_db_backend` read-only access
+     - Phase 10: Authentication (4 tables)
+     - Phase 11: Administration (2 tables)
+     - Phase 12: Grant `nss_db_writer` write access (auth + admin tables only)
+     - Phase 13: Admin bootstrap (`python3 scripts/bootstrap_admin.py` — seeds the `SS1`/`P1`
+       superuser, default password `Admin@123`; change it immediately after first login)
+     - Phase 14: Audit (`system_event_log` + `fn_audit_trigger()` on every `nss.*` table)
+   - There is no demo data: Phase 8 (Tier 4 verification seeds) was removed.
 3. Uvicorn starts serving FastAPI.
 
 ---
@@ -138,8 +159,9 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap) and `api/m
 |-------|-----|----------|
 | Health endpoint | `https://nss-erp.onrender.com/api/v1/bootstrap/health` | `{"status": "ok", ...}` |
 | Swagger UI | `https://nss-erp.onrender.com/docs` | Interactive API docs |
-| Bootstrap Verification UI | `https://nss-erp.onrender.com/` | Roles/Permissions/Role Permissions grid |
-| Roles API | `https://nss-erp.onrender.com/api/v1/bootstrap/roles` | 8 frozen roles JSON |
+| Login page | `https://nss-erp.onrender.com/` | Redirects to `/login` (the standalone Bootstrap Verification UI was retired) |
+| Roles API | `https://nss-erp.onrender.com/api/v1/bootstrap/roles` | 9 frozen roles JSON |
+| Admin login | `https://nss-erp.onrender.com/login` | `SS1` / `Admin@123` (seeded by Phase 13), then `/admin` |
 
 ---
 
@@ -154,15 +176,18 @@ feature/* → develop (personal remote)
          → Render auto-deploys
 ```
 
-Since `render_build.sh` is idempotent, subsequent deploys only install dependencies and restart Uvicorn — the database is not re-bootstrapped.
+`render_build.sh` is idempotent and re-runs every phase on each deploy (existing objects are skipped), so subsequent deploys rebuild CSS, reinstall dependencies, re-apply any new DDL/seed and restart Uvicorn.
 
 ### Adding new tiers to the database
 
-When a new tier's DDL + seed are committed (e.g. Tier 3 Person):
+When a new tier's DDL + seed are committed:
 
-1. Add the new DDL + seed `run_sql` calls to `render_build.sh` (in the `else` branch).
-2. **Manually run** the new DDL against Neon using `psql` or the Neon SQL Editor, since the bootstrap check (`role_master` exists?) will skip DDL on an already-bootstrapped database.
-3. Alternatively, reset the Neon branch to force a full re-bootstrap on next deploy.
+1. Add the new DDL + seed `run_sql` calls to `render_build.sh` in the same position as in
+   `database/scripts/02_build.sh` (keep the two in sync).
+2. Deploy — new files are applied automatically. Only `CREATE ... IF NOT EXISTS`/upsert-style
+   files are safe to re-run; a DDL *change* to an existing table (new column, altered
+   constraint) is **not** applied by `IF NOT EXISTS` and must be run manually against Neon
+   (`psql` or the Neon SQL Editor), or the Neon branch reset to force a full re-bootstrap.
 
 ---
 
@@ -198,7 +223,7 @@ Render free tier spins down after 15 minutes of inactivity. First request after 
 - Database credentials are **never** committed to the repository.
 - `DB_PASSWORD` and `DATABASE_URL` are set only in Render's environment (masked).
 - The `.env` file (local development) is in `.gitignore`.
-- The FastAPI backend connects as `nss_db_backend` (SELECT-only role for Tier 0).
+- The FastAPI backend is designed to connect as `nss_db_backend` (SELECT-only) for reads and `nss_db_writer` (auth/admin write tables only) for writes. On Render today, `DB_USER` is the Neon-provided owner role that also runs the build, so least-privilege separation for the read pool is not yet enforced in that deployment (see the comment in `render_build.sh`).
 - Production database requires SSL (`PGSSLMODE=require`).
 
 ---

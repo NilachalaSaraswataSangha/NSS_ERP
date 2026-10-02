@@ -7,10 +7,24 @@ Overall solution architecture documentation (cross-module, above the per-module 
 
 - **`GETTING_STARTED.md`** — Step-by-step local setup guide: prerequisites, database bootstrap
   (create DB/roles, extensions, `02_build.sh`/`.ps1`, validate, grant backend), API setup
-  (`.env`, `pip install`, `uvicorn`), running tests, and a full clean-rebuild procedure with
-  troubleshooting. Overlaps in scope with the root `README.md`'s "Getting Started" section and
-  `CLAUDE.md`'s "Setup"/"Database" sections — this is the most detailed and most recently
-  updated of the three (covers Tier 4 Family/Membership build phases and frontend routes).
+  (`.env`, `06_setup_env.sh`, `pip install`, `uvicorn`), running the 791-test suite, and a full
+  clean-rebuild procedure with the Phase 0-14 build table and troubleshooting. Overlaps in scope
+  with the root `README.md`'s "Getting Started" section and `CLAUDE.md`'s "Setup"/"Database"
+  sections — this is the most detailed of the three (covers the Tier 5 writer role, JWT secret,
+  admin bootstrap and audit-trigger phases).
+- **`DEPLOYMENT_PROCEDURE.md`** (v1.3) — Render.com + Neon.dev deployment guide: env vars
+  (incl. the Tier 5 `DB_WRITE_USER`/`DB_WRITE_PASSWORD`/`JWT_SECRET_KEY`), what
+  `render_build.sh` runs on every deploy (idempotent re-run of all phases 0-14, admin
+  bootstrap, audit trigger), verification, troubleshooting, and the unverified Node.js-on-Render
+  risk. Not yet run in production.
+- **`MEMBER_DASHBOARD.md`** (`ARCH-DASHBOARD-001`, living document) — architecture and data flow
+  of `frontend/dashboard.html`/`dashboard.js`: per-tab API sources, ownership-based endpoint
+  gating, family-tree rendering, add/remove family member flow, the embedded Org Dashboard, and
+  automatic asset cache-busting.
+- **`PERFORMANCE_TUNING.md`** (v1.0) — performance changes behind v0.10.4 (connection pools,
+  composite partial indexes for the FAM-036 CTE, multi-worker Uvicorn, non-blocking frontend
+  fetches) plus scaling guidance; its frontend file names predate the retirement of the
+  standalone verification pages (see its own note).
 - **`TECH_STACK_DECISIONS.md`** (v1.3) — Approved technology decision record: database
   (PostgreSQL on Neon.dev), backend (FastAPI 0.136.3 on Render.com/Uvicorn — sole framework, no
   ORM, raw psycopg2; Django was implemented as an early prototype and removed in v1.3's
@@ -102,29 +116,29 @@ Overall solution architecture documentation (cross-module, above the per-module 
 - `code_explanations/` moved to `docs/03_Solution/code_explanations/` (see that folder's own
   README).
 
-This is now largely the **current code**, not just an approved target — the Django-to-FastAPI
-migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django prototype under `backend/` was
-fully archived and removed, and FastAPI is the sole, implemented API layer (`api/` — Tier 0
-read-only bootstrap-RBAC endpoints, Tier 1 read-only Foundation endpoints, Tier 2 read-only
-Organization endpoints, and Tier 3 read-only Person endpoints, no auth, no ORM, behind a
-cross-tier security middleware stack — security headers, opt-in CORS, rate limiting; see
-`docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`) serving a
-Tailwind/DaisyUI/Alpine.js frontend (`frontend/`'s
-Tier 0 Bootstrap, Tier 1 Foundation, Tier 2 Organization, and Tier 3 Person Verification UIs) as
-static files, backed by a 208-test pytest integration suite (`tests/`, `pytest.ini`). Deployment
-infrastructure (`render.yaml`, `render_build.sh`, targeting Render.com + Neon.dev) exists but has
-not yet run in production. Bootstrap RBAC (3 tables, `SOL-ARCH-011`), Foundation (12 tables),
-Organization (3 tables), and Person (2 tables — `person`, `person_address`; its
-`01_person_master_tables.sql` remains a superseded prototype file, not run) are all implemented
-and committed against `SOL-ARCH-009`/`010`'s DDL
-sequence; Bootstrap RBAC's seed data remains partial (`role_master`
-seeded, `permission_master`/`role_permission` empty pending the permission catalogue).
+## Current state vs. these decisions
+
+The Django-to-FastAPI migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django
+prototype was fully removed and FastAPI is the sole API layer (`api/`: 108 endpoints across 11
+routers, raw psycopg2, no ORM). Released through `v0.10.4` (Tier 4 Family + Membership) on
+`main`; **Tier 5 (Authentication + Administration) is in progress, uncommitted, on
+`feature/tier5-authentication-administration`** — JWT/RBAC, a second write-capable
+`nss_db_writer` pool, registration + claim approval, admin/audit routers, a DB-level audit
+trigger, a CSP, and a login/register/dashboard/admin frontend (Tailwind/DaisyUI pre-built via
+Tailwind CLI, Alpine.js from CDN) that replaced the six standalone Tier 0-4 verification pages.
+Implemented SQL covers 45 tables across Bootstrap RBAC (3), Foundation (13), Organization (1),
+Person (2), Family (6), Membership (14), Authentication (4) and Administration (2); a fresh
+build seeds no demo Person/Family/Membership data (only 175 real Sakha branches and one admin
+superuser). The pytest suite is 791 tests across `tests/api/`, `tests/db/`, `tests/security/`
+and a Playwright `tests/ui/` layer. Deployment infrastructure (`render.yaml`,
+`render_build.sh`) exists but has not yet run in production.
+
 `PROGRAMME_EVENT_DOMAIN_MODEL.md` and `EVENT_ENTITY_RECONCILIATION.md` remain PROPOSED/DRAFT;
-`MODULE_DEPENDENCY_MAP.md` (`SOL-ARCH-007`) remains DRAFT overall. `IMPLEMENTATION_DEPENDENCY_
-ORDER.md` (`SOL-ARCH-008`), `FK_DEPENDENCY_GRAPH.md` (`SOL-ARCH-009`), `DDL_CREATION_ORDER.md`
-(`SOL-ARCH-010`), `BOOTSTRAP_ARCHITECTURE.md` (`SOL-ARCH-011`), `CROSS_MODULE_PRINCIPLES.md`
-(`ARCH-CROSS-001`, except its 3 PENDING notes), `PROGRAMMES_EVENTS_CROSS_MODULE_REVIEW.md`
-(`SOL-EVT-006`), and `PROGRAMMES_EVENTS_RECONCILIATION_DECISIONS.md` (`SOL-EVT-007`) are all
-FROZEN, alongside the already-Approved `TECH_STACK_DECISIONS.md`. See
-`docs/PROJECT_DOCUMENTATION.md` → Architecture for the current code-verified state and how it
-differs from these decisions.
+`MODULE_DEPENDENCY_MAP.md` (`SOL-ARCH-007`) remains DRAFT overall.
+`IMPLEMENTATION_DEPENDENCY_ORDER.md` (`SOL-ARCH-008`), `FK_DEPENDENCY_GRAPH.md`
+(`SOL-ARCH-009`), `DDL_CREATION_ORDER.md` (`SOL-ARCH-010`), `BOOTSTRAP_ARCHITECTURE.md`
+(`SOL-ARCH-011`), `CROSS_MODULE_PRINCIPLES.md` (`ARCH-CROSS-001`, except its 3 PENDING notes),
+`PROGRAMMES_EVENTS_CROSS_MODULE_REVIEW.md` (`SOL-EVT-006`), and
+`PROGRAMMES_EVENTS_RECONCILIATION_DECISIONS.md` (`SOL-EVT-007`) are FROZEN, alongside the
+already-Approved `TECH_STACK_DECISIONS.md`. See `docs/PROJECT_DOCUMENTATION.md` →
+Architecture for the current code-verified state and how it differs from these decisions.

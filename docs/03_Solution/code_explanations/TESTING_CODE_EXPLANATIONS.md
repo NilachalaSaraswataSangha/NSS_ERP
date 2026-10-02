@@ -639,14 +639,16 @@ def test_list_has_required_fields(self, client):
     if len(data) > 0:
         required = {
             "postal_code_pk", "country_pk", "state_pk",
-            "state_name", "postal_code", "post_office_name", "is_active",
+            "state_name", "postal_code", "is_active",
         }
         for pc in data:
             assert required.issubset(pc.keys())
 ```
 
 Written defensively — the field-shape check only runs `if len(data) > 0:`, since postal codes
-may or may not be seeded.
+may or may not be seeded. The required set is the full `PostalCodeResponse` shape under the
+Simplified Geography Model (2026-10-02): no `post_office_name` and no `office_count`, and
+`country_pk` is the value re-derived from the parent `state.country_pk`.
 
 ```python
 def test_filter_by_country_pk(self, client):

@@ -1,7 +1,7 @@
 # NSS ERP — Foundation Table Design
 
 **Document ID:** SOL-FND-004
-**Version:** 1.1.0
+**Version:** 1.2.0
 **Status:** DRAFT — SOURCE ALIGNED
 **Module:** Foundation
 **Parent System:** Nilachala Saraswata Sangha ERP
@@ -21,8 +21,9 @@ The Foundation Module provides:
 - Geographic Reference Data
 
 The current frozen Foundation schema contains exactly eight original tables,
-two shared-infrastructure tables added by architectural decisions, and two
-PIN code geographic tables added by the SOL-ARCH-010 amendment:
+two shared-infrastructure tables added by architectural decisions, two
+PIN code geographic tables added by the SOL-ARCH-010 amendment, and two
+festival reference-calendar tables added by the SOL-ARCH-013 amendment:
 
     master_category
     master_data
@@ -36,6 +37,8 @@ PIN code geographic tables added by the SOL-ARCH-010 amendment:
     field_change_log               (Data Change Architecture — shared change log)
     postal_code                    (PIN Code Geographic Model)
     city_village_postal_code_map   (PIN Code Geographic Model)
+    festival_master                (SOL-ARCH-013 — festival identity reference)
+    festival_calendar_date         (SOL-ARCH-013 — per-year authoritative observed date)
 
 ---
 
@@ -75,6 +78,8 @@ The database build plan identifies the implementation sequence as:
 | 10 | `field_change_log` | Shared field-change tracking (Data Change Architecture) |
 | 11 | `postal_code` | PIN code / postal code master (PIN Code Geographic Model) |
 | 12 | `city_village_postal_code_map` | M:N mapping between city_village and postal_code (PIN Code Geographic Model) |
+| 13 | `festival_master` | Festival identity master (e.g. Dola Purnima) — SOL-ARCH-013 |
+| 14 | `festival_calendar_date` | Per-year authoritative observed date for a festival — SOL-ARCH-013 |
 
 ---
 
@@ -1065,6 +1070,8 @@ rather than create an equivalent category.
 | `field_change_log`             | Shared field-change tracking       |
 | `postal_code`                  | PIN code / postal code reference   |
 | `city_village_postal_code_map` | City/village ↔ postal code mapping |
+| `festival_master`              | Festival identity reference (SOL-ARCH-013) |
+| `festival_calendar_date`       | Per-year authoritative observed festival date, admin-maintained only — NSS_ERP_ADMIN (SOL-ARCH-013) |
 
 ---
 
@@ -1217,6 +1224,13 @@ SHARED INFRASTRUCTURE
 
 document_master     (shared document registry — DOC-ARCH-001)
 field_change_log    (shared field-change tracking — Data Change Architecture)
+
+
+FESTIVAL REFERENCE CALENDAR (SOL-ARCH-013)
+
+festival_master
+      │
+      └──< festival_calendar_date
 ```
 
 ---
@@ -1226,7 +1240,7 @@ field_change_log    (shared field-change tracking — Data Change Architecture)
 Current count:
 
 ```
-12 tables
+14 tables
 ```
 
 ```text
@@ -1242,6 +1256,8 @@ Current count:
 10. field_change_log            (Data Change Architecture)
 11. postal_code                 (PIN Code Geographic Model)
 12. city_village_postal_code_map (PIN Code Geographic Model)
+13. festival_master              (SOL-ARCH-013)
+14. festival_calendar_date       (SOL-ARCH-013)
 ```
 
 ---

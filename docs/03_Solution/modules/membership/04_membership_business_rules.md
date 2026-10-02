@@ -151,13 +151,77 @@ Anumati Patra record shall be preserved with `EXPIRED` status. The
 historical Anumati Patra remains visible in the member's credential
 history alongside any subsequent Parichaya Patra.
 
+CROSS-REFERENCE (SOL-ARCH-013 FC-DECISION-01, 2026-10-01): the Anumati
+Patra's `valid_from`/`valid_to` are Dola-Purnima-based (the membership
+year runs Dola Purnima to the following Dola Purnima), resolved via
+`next_festival_date_on_or_after()` in `issue_membership_credential()`
+(`api/helpers.py`) — not the financial year used for `document_number`.
+
 ---
 
 ## MBR-011 — Probationary Duration
 
 The normal progression to Regular Membership requires the prescribed Probationary period.
 
-The Bye-Law specifies at least one year as a Probationary Member holding a valid Anumati Patra.
+SOURCE-DERIVED (Bye-Law §B(b), REF-002-003) — Regular Membership lists two
+qualifying clauses:
+
+- (i) continued as a Probationary Member of any Sakha Sangha (including Mahila
+  Sanghas) holding a valid Anumati Patra **at least for a period of one year**;
+- (ii) on recommendation of the Sakha, **undergone training for at least one
+  year** under the guidance of the Kendra Sangha.
+
+ARCHITECTURAL INTERPRETATION (confirmed by NSS practice) — clauses (i) and
+(ii) describe **one concurrent year, not two consecutive years.** The training
+under Kendra Sangha guidance is conducted *within* the same Probationary year;
+it is not a second year served after probation ends. The prescribed
+normal-route minimum tenure is therefore **one year in total**, counted from
+Probationary enrollment / Anumati Patra validity start.
+
+The clauses are worded separately in the source and could be read literally as
+a ~2-year cumulative requirement. That literal reading is **rejected**: NSS
+operates it as a single year satisfying both conditions. Any future tenure
+check must use a one-year floor.
+
+Completing the one-year minimum does **not** itself trigger conversion — see
+MBR-011A. The one year is a floor, not a trigger.
+
+---
+
+## MBR-011A — Dola Purnima as the Regular Enrollment Date
+
+Regular enrollment via the normal progression route (MBR-013) does not happen
+continuously as individual Probationary Members complete their one-year
+Probationary-plus-training period (MBR-011). It is batched annually to
+**Dola Purnima** — the same annual
+reference date NSS already uses for the membership renewal deadline (no grace
+period) and for Membership Transfer's effective date (MBR-029).
+
+A Probationary Member who has completed the prescribed period (MBR-011,
+MBR-013) **before** the upcoming Dola Purnima converts to Regular, and
+receives their Parichaya Patra, on that Dola Purnima. A Probationary Member
+who completes the prescribed period **after** a given Dola Purnima has
+passed must wait for the **next** occurrence of Dola Purnima — completing
+the requirement mid-year does not advance or shortcut the conversion date.
+
+This does not apply to Direct Regular Enrollment (MBR-015), which the
+Parichalak may grant at any time, independent of Dola Purnima.
+
+ARCHITECTURAL NOTE: Dola Purnima is a lunar-calendar (Phalguna Purnima)
+festival date that shifts every Gregorian year — it cannot be computed from a
+fixed month/day formula. It is now represented in the schema via
+`nss.festival_master` / `nss.festival_calendar_date`
+(**SOL-ARCH-013**, APPROVED 2026-10-01 —
+`docs/03_Solution/architecture/FESTIVAL_CALENDAR_ARCHITECTURE.md`), with the
+observed date entered and confirmed by an administrator (NSS_ERP_ADMIN only —
+OPEN-FC-03), never computed. The resolver primitives
+`festival_date_for_year()` / `next_festival_date_on_or_after()`
+(`api/helpers.py`) are this rule's date source, along with the renewal
+deadline (MBR-030A-adjacent) and the Membership Transfer effective date
+(MBR-029) — the same two sibling rules named in the prior version of this
+note. Seed dates for 2024–2028 are recorded per FC-DECISION-02; 2027 is
+seeded as provisional (`is_confirmed = FALSE`) pending Kendra Sangha
+confirmation.
 
 ---
 
@@ -176,16 +240,20 @@ The normal progression is:
 ```text
 Probationary
     |
-Required Period
-    |
-Training
+Required Period — one year, with Training conducted within it (MBR-011)
     |
 Sakha Recommendation
     |
-Regular
+Regular  (conversion date = next Dola Purnima — see MBR-011A)
 ```
 
-The Bye-Law specifies at least one year of Probationary Membership and at least one year of training under Kendra Sangha guidance for the normal route.
+The Bye-Law's two Regular-Membership clauses — one year as a Probationary
+Member holding a valid Anumati Patra, and one year of training under Kendra
+Sangha guidance on the Sakha's recommendation — are satisfied **concurrently
+within a single year**, not across two consecutive years (see MBR-011 for the
+source text and the interpretation). Reaching that one-year milestone makes a
+member *eligible*; actual Regular enrollment and Parichaya Patra issuance
+occurs on the next Dola Purnima per MBR-011A, not immediately on eligibility.
 
 ---
 
@@ -198,6 +266,14 @@ ceases on non-renewal of "the Annual Parichaya Patra (Identity Card)
 or Anumati Patra (Admit Card) as the case may be." This applies to
 all membership types that hold a Parichaya Patra — Regular and
 Associate.
+
+CROSS-REFERENCE (SOL-ARCH-013 FC-DECISION-01, 2026-10-01): the Parichaya
+Patra's `valid_from`/`valid_to` are Dola-Purnima-based (the renewal
+deadline this rule's "Annual" cessation clause refers to), resolved via
+`next_festival_date_on_or_after()` in `issue_membership_credential()`
+(`api/helpers.py`) — not the financial year used for `document_number`
+(MBR-030A, unchanged). Gruhasana (Paribarik Asana) inherits this window
+rather than carrying an independent one (ORG-BR-094).
 
 ---
 
@@ -413,6 +489,13 @@ for the member.
 The Kendra Number does not change on Sakha transfer.
 
 Stored on: `parichaya_patra.document_number`
+
+CROSS-REFERENCE (SOL-ARCH-013 FC-DECISION-01, 2026-10-01): this
+financial-year numbering is explicitly UNCHANGED and stays decoupled from
+`valid_from`/`valid_to`, which moved to a Dola-Purnima basis (MBR-014).
+`next_credential_document_number()` (`api/helpers.py`) now returns only
+`document_number`; validity dates come from
+`dola_purnima_credential_validity_window()` instead.
 
 ---
 

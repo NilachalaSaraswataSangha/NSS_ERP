@@ -10,7 +10,7 @@
 | Document ID | SOL-API-001 |
 | Domain | Cross-Module |
 | Repository Path | docs/03_Solution/api/API_CONTRACT.md |
-| Version | 1.0.2 |
+| Version | 1.1.0 |
 | Status | Draft |
 | Authority | NSS ERP Architecture |
 | Effective Date | TBD |
@@ -19,10 +19,30 @@
 
 # 1. Overview
 
-The NSS ERP exposes a **read-only REST API** for data verification.
-All endpoints are `GET` requests. No authentication is enforced (deferred
-to Tier 5). The API connects as `nss_db_backend` with SELECT-only
-privileges on the `nss.*` schema.
+The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **108 endpoints** across 11
+routers. Tiers 0-4 were originally read-only and unauthenticated; the **Tier 5 branch
+(`feature/tier5-authentication-administration`, in progress, uncommitted — not merged or
+released)** added JWT authentication, RBAC, write endpoints, and gated almost everything:
+
+- **Only the 4 Tier 0 `bootstrap.py` endpoints and the 6 `/api/v1/register` endpoints (public
+  self-registration + its reference-data lookups) plus `POST /auth/login|refresh|forgot-password|
+  reset-password` are reachable without a JWT.** Everything else needs
+  `Authorization: Bearer <access token>`.
+- Read endpoints connect as `nss_db_backend` (SELECT-only, `get_connection`); write endpoints
+  connect as `nss_db_writer` (`get_write_connection`, INSERT/UPDATE on auth+admin tables only,
+  SELECT elsewhere).
+- Authorization is one of three models, stated per endpoint below: a blanket
+  `require_permission("X")`/`require_any_permission(...)` gate; an **ownership** check
+  (the caller reaches their own record — `family.py`'s `family_relationship`/`family_admin`
+  rows, or "self or permission" on Person/Membership sub-resources); or plain
+  `get_current_user` (any valid JWT).
+- Every `nss.*` INSERT/UPDATE/DELETE is additionally captured by a DB-level audit trigger into
+  `nss.system_event_log`; `field_change_log` is readable only through `GET /api/v1/audit/change-log`.
+
+Tier 5 endpoints (sections 10-14) are summarized here only at table level — see the routers
+(`api/routers/auth.py`, `admin.py`, `claim_approval.py`, `registration.py`, `audit.py`), their
+module docstrings, and `docs/03_Solution/security/TIER5_SECURITY_AUDIT.md` for request/response
+detail; no standalone Tier 5 contract document exists yet.
 
 **Base URL:** `http://localhost:8001`
 
@@ -36,7 +56,8 @@ privileges on the `nss.*` schema.
 
 ## 2.1 Pagination
 
-All list endpoints support:
+All list endpoints **except Bootstrap's and Foundation's** (which return full, unpaginated
+lists — Foundation's largest table is ~700 rows) support:
 
 | Parameter | Type | Default | Constraint |
 |---|---|---|---|
@@ -62,10 +83,18 @@ with no way to page past it and no `total`.
 
 | Status | Meaning |
 |---|---|
-| 200 | Success |
+| 200 / 201 | Success / created |
+| 400 | Business-rule violation (Tier 5 write endpoints) |
+| 401 | Missing, invalid or expired JWT (Tier 5) |
+| 403 | Authenticated but lacks the required permission/ownership/admin scope (Tier 5) |
 | 404 | Resource not found (valid UUID, no match) |
-| 422 | Validation error (bad UUID, bad parameter) |
+| 409 | Conflict — duplicate/unique violation (Tier 5 write endpoints) |
+| 422 | Validation error (bad UUID, bad parameter) — `api/error_handlers.py` rewrites FastAPI/Pydantic and DB-integrity errors into human-readable messages |
 | 429 | Rate limit exceeded |
+
+**Sorting:** list endpoints on Person, Membership and Admin (users, claims, organizations)
+accept optional `sort_by`/`sort_dir`, validated against a per-endpoint column whitelist
+(`api/helpers.py`); an unknown `sort_by` returns `422`.
 
 ## 2.3 Audit Column Exclusion
 
@@ -98,37 +127,53 @@ All `{pk}` parameters expect a valid UUID v4. Malformed UUIDs return `422`.
 | 3 | GET | `/permissions` | List RBAC permissions | `list[PermissionResponse]` |
 | 4 | GET | `/roles/{role_pk}/permissions` | Permissions assigned to a role (404 if role not found) | `list[PermissionResponse]` |
 
+**Auth:** none — the only fully unauthenticated router. `permission_master`/`role_permission`
+are now seeded, so `/permissions` and `/roles/{pk}/permissions` return real rows.
+
 ---
 
 # 4. Tier 1 — Foundation
 
-**Router prefix:** `/api/v1/foundation`
+**Router prefix:** `/api/v1/foundation` — 23 endpoints: 17 reads (gated by
+`require_permission("FOUNDATION_VIEW")`, `nss_db_backend`) and 6 writes (gated by
+`require_permission("FOUNDATION_MANAGE")`, `nss_db_writer`, each logs via `log_audit()`).
+`field_change_log` is deliberately **not** exposed here (no `/foundation/change-log`).
 
 | # | Method | Path | Filters | Description | Response Model |
 |---|---|---|---|---|---|
 | 5 | GET | `/categories` | — | List master categories | `list[CategoryResponse]` |
 | 6 | GET | `/categories/{pk}` | — | Category detail | `CategoryResponse` |
-| 7 | GET | `/master-data` | `category_code`, `limit`, `offset` | List master data | `list[MasterDataResponse]` |
+| 7 | GET | `/master-data` | `category_code`, `category_pk` | List master data | `list[MasterDataResponse]` |
 | 8 | GET | `/master-data/{pk}` | — | Master data detail | `MasterDataResponse` |
 | 9 | GET | `/settings` | — | List system settings | `list[SettingResponse]` |
 | 10 | GET | `/settings/{key}` | — | Setting by key | `SettingResponse` |
 | 11 | GET | `/sequences` | — | List ID sequences | `list[SequenceResponse]` |
 | 12 | GET | `/countries` | — | List countries | `list[CountryResponse]` |
 | 13 | GET | `/countries/{pk}` | — | Country detail | `CountryResponse` |
-| 14 | GET | `/states` | `country_pk`, `limit`, `offset` | List states | `list[StateResponse]` |
+| 14 | GET | `/states` | `country_pk` | List states | `list[StateResponse]` |
 | 15 | GET | `/states/{pk}` | — | State detail | `StateResponse` |
-| 16 | GET | `/districts` | `state_pk`, `limit`, `offset` | List districts | `list[DistrictResponse]` |
+| 16 | GET | `/districts` | `state_pk` | List districts | `list[DistrictResponse]` |
 | 17 | GET | `/districts/{pk}` | — | District detail | `DistrictResponse` |
-| 18 | GET | `/cities` | `district_pk`, `limit`, `offset` | List cities/villages | `list[CityVillageResponse]` |
-| 19 | GET | `/postal-codes` | `district_pk`, `limit`, `offset` | List postal codes | `list[PostalCodeResponse]` |
-| 20 | GET | `/postal-code-mappings` | `postal_code_pk`, `city_village_pk`, `limit`, `offset` | List postal code mappings | `list[PostalCodeMappingResponse]` |
-| 21 | GET | `/documents` | `category_code`, `limit`, `offset` | List document masters | `list[DocumentResponse]` |
+| 18 | GET | `/cities` | `district_pk` | List cities/villages | `list[CityVillageResponse]` |
+| 19 | GET | `/postal-codes` | `state_pk`, `country_pk` | List postal codes | `list[PostalCodeResponse]` |
+| 20 | GET | `/postal-code-mappings` | `postal_code_pk`, `city_village_pk` | List postal code mappings | `list[PostalCodeMappingResponse]` |
+| 21 | GET | `/documents` | `document_type_code` | List document masters | `list[DocumentResponse]` |
+| 47 | POST | `/master-data` | — | Add a master-data value (`FOUNDATION_MANAGE`, 201) | `MasterDataResponse` |
+| 48 | PATCH | `/master-data/{pk}` | — | Edit a master-data value (`FOUNDATION_MANAGE`) | `MasterDataResponse` |
+| 49 | POST | `/settings` | — | Add a system setting (`FOUNDATION_MANAGE`, 201) | `SettingResponse` |
+| 50 | PATCH | `/settings/{key}` | — | Edit a system setting (`FOUNDATION_MANAGE`) | `SettingResponse` |
+| 51 | POST | `/sequences` | — | Add an ID sequence (`FOUNDATION_MANAGE`, 201) | `SequenceResponse` |
+| 52 | PATCH | `/sequences/{sequence_code}` | — | Edit an ID sequence (`FOUNDATION_MANAGE`) | `SequenceResponse` |
+
+Endpoints 47-52 are numbered out of sequence (after the Tier 4 numbering) for the same reason as
+`/children-stats` below. See `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` §3.4.
 
 ---
 
 # 5. Tier 2 — Organization
 
-**Router prefix:** `/api/v1/organization`
+**Router prefix:** `/api/v1/organization` — all 8 endpoints gated by
+`require_permission("ORGANIZATION_VIEW")`.
 
 | # | Method | Path | Filters | Description | Response Model |
 |---|---|---|---|---|---|
@@ -139,6 +184,7 @@ All `{pk}` parameters expect a valid UUID v4. Malformed UUIDs return `422`.
 | 26 | GET | `/organizations/{pk}/children` | — | Direct children of org | `list[OrganizationResponse]` |
 | 27 | GET | `/hierarchy` | `limit`, `offset` | Recursive org tree | `list[OrganizationHierarchyNodeResponse]` |
 | 43 | GET | `/organizations/{pk}/children-stats` | — | Per-direct-child family/member/person counts (dynamic Sakha majority rule, FAM-036) | `list[OrgChildStatsResponse]` |
+| 53 | GET | `/organizations/{pk}/stats` | — | Whole-subtree totals for the org itself (`member_count`, `family_count`, `sakha_sanghas`, `mahila_sanghas`, `renewals_due`; member/family counts use the same FAM-036 majority rule as `/children-stats`); 403 if the org is outside the caller's admin scope (ADMIN-BR-076); backs the Org Dashboard | `OrgStatsResponse` |
 
 **Note:** `/children-stats` (Tier 4, added on top of Family + Membership) is numbered out of
 the original 22–27 sequence to avoid renumbering every endpoint added after Tier 2 in this
@@ -157,6 +203,11 @@ table; see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` §3.2.4 for the f
 | 30 | GET | `/persons/{pk}/addresses` | — | Person addresses | `list[PersonAddressResponse]` |
 | 31 | GET | `/search?q=` | `q` (min 2 chars, required), `limit` (default 50), `offset` | Trigram + prefix search across name + ID + contact | `PersonListResponse` (`{persons, total}`, see §2.1) |
 
+**Auth:** list (#28) and search (#31) require `require_permission("PERSON_VIEW")`; detail (#29)
+and addresses (#30) use `get_current_user` plus an ownership check — the person themself or a
+holder of `PERSON_VIEW`. A separate `PERSON_VIEW_SENSITIVE` permission is seeded but not wired to
+any endpoint (Aadhaar masking is unconditional).
+
 **Security notes:**
 
 - Summary endpoints exclude `aadhaar_last4`, `aadhaar_encrypted`, `aadhaar_hash`
@@ -167,7 +218,12 @@ table; see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` §3.2.4 for the f
 
 # 7. Tier 4 — Family
 
-**Router prefix:** `/api/v1/family`
+**Router prefix:** `/api/v1/family` — 16 endpoints (7 original reads, 1 new read, 8 Tier 5
+writes). **All use `get_current_user` plus an ownership model**, not a blanket permission: a
+person reaches their own family through their `family_relationship`/`family_admin` row
+(`_require_family_view`/`_require_family_manage`/`_require_family_head`), with
+`FAMILY_VIEW`/`FAMILY_MANAGE` as the admin override for families the caller doesn't belong to;
+`GET /families` (browse-all) requires `FAMILY_VIEW` outright. Writes use `get_write_connection`.
 
 | # | Method | Path | Filters | Description | Response Model |
 |---|---|---|---|---|---|
@@ -177,7 +233,21 @@ table; see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` §3.2.4 for the f
 | 35 | GET | `/families/{pk}/head-history` | — | Family head history | `list[FamilyHeadHistoryResponse]` |
 | 44 | GET | `/families/{pk}/graph` | `viewer_person_pk` (required) | Dynamic per-viewer relationship labels via BFS graph traversal over `family_link` (PARENT_OF/SPOUSE_OF edges) | `list[FamilyGraphMemberResponse]` |
 | 45 | GET | `/families/{pk}/sakha-alignment` | — | FAM-036 majority-rule "effective Sakha" for the family, per-Sakha member counts, per-member mismatch flags | `FamilySakhaAlignmentResponse` |
-| 46 | GET | `/person/{person_pk}/membership-summary` | — | Lightweight membership snapshot for a person (sangha_sevi_id, type/status, current Sakha, latest Parichaya/Anumati Patra); bridges family context to membership context | `PersonMembershipSummaryResponse` |
+| 46 | GET | `/person/{person_pk}/membership-summary` | — | Lightweight membership snapshot for a person (sangha_sevi_id, type/status, current Sakha, latest Parichaya/Anumati Patra); bridges family context to membership context; access: the person, a current relative, or `FAMILY_VIEW` | `PersonMembershipSummaryResponse` |
+
+Tier 5 additions (numbered 55-63, see the continuation table at the end of this section):
+
+| # | Method | Path | Rule | Description |
+|---|---|---|---|---|
+| 55 | GET | `/person/{person_pk}/families` | the person, a current relative, or `FAMILY_VIEW` | Families a person belongs to |
+| 56 | POST | `/families` | any authenticated user | Create a family; caller becomes founding member + head (`SELF` relationship), `family_id` auto-generated |
+| 57 | POST | `/families/{pk}/members` | head / family admin / `FAMILY_MANAGE` | Add a member |
+| 58 | DELETE | `/families/{pk}/members` | head / family admin / `FAMILY_MANAGE` | Remove a member (FAM-048) |
+| 59 | POST | `/families/{pk}/links` | head / family admin / `FAMILY_MANAGE` | Create `family_link` graph edges |
+| 60 | GET | `/families/{pk}/admins` | family view rule | List `family_admin` rows |
+| 61 | POST | `/families/{pk}/admins` | current head / `FAMILY_MANAGE` | Assign a Family Admin (FAM-046) |
+| 62 | DELETE | `/families/{pk}/admins` | current head / `FAMILY_MANAGE` | Revoke a Family Admin (FAM-050) |
+| 63 | POST | `/families/{pk}/transfer-head` | current head only | Transfer the head role |
 
 **Note:** `/graph`, `/sakha-alignment`, and `/person/{pk}/membership-summary` are numbered
 out of the original 32–35 sequence, following the same out-of-sequence numbering convention
@@ -206,7 +276,11 @@ renumbering earlier endpoints.
 
 # 8. Tier 4 — Membership
 
-**Router prefix:** `/api/v1/membership`
+**Router prefix:** `/api/v1/membership` — 8 endpoints. List (#36), search (#38) and
+`darshak-summary` (#54) require `require_permission("MEMBERSHIP_VIEW")`; member detail (#37) and
+the four per-member sub-resources (#39-#42) use `get_current_user` with a "self or
+`MEMBERSHIP_VIEW`" ownership check (`require_self_or_permission()`), so a member can read their
+own Member Dashboard data.
 
 | # | Method | Path | Filters | Description | Response Model |
 |---|---|---|---|---|---|
@@ -217,6 +291,7 @@ renumbering earlier endpoints.
 | 40 | GET | `/members/{pk}/parichaya-patra` | — | Parichaya Patra records | `list[ParichayaPatraResponse]` |
 | 41 | GET | `/members/{pk}/anumati-patra` | — | Anumati Patra records | `list[AnumatiPatraResponse]` |
 | 42 | GET | `/members/{pk}/journey` | — | Journey events (chronological) | `list[JourneyEventResponse]` |
+| 54 | GET | `/organizations/{org_pk}/darshak-summary` | — | Two counts for an org's Darshak card: `home_probationary_count` (active Probationary members whose home Sakha is the org) and `attending_from_other_sakha_count` (cross-Sakha Darshak attendance affiliations, SOL-MEM-006) | `OrgDarshakSummaryResponse` |
 
 **Search fields (endpoint #31 — Person):**
 
@@ -264,15 +339,117 @@ Tier 3: document_number       — on ParichayaPatraResponse (Kendra Number)
 
 ---
 
-# 9. Frontend Routes
+# 9. Tier 5 — Authentication
+
+**Router prefix:** `/api/v1/auth` — 8 endpoints. Stateless JWT (no server-side revocation on
+logout); Argon2 password hashing; 5-attempt/30-second login lockout.
+
+| # | Method | Path | Auth | Description |
+|---|---|---|---|---|
+| 64 | POST | `/login` | none | Login with Sangha Sevi ID or Person ID (case-insensitive) → access + refresh JWT |
+| 65 | POST | `/refresh` | refresh token | Issue a new access token |
+| 66 | POST | `/logout` | JWT | Stateless logout acknowledgement |
+| 67 | POST | `/change-password` | JWT | Change own password (history-checked) |
+| 68 | POST | `/forgot-password` | none | Issue a 6-digit OTP; rate-limited 3/hour, anti-enumeration generic response; `otp_debug` echoed only if `DEBUG_MODE=true` |
+| 69 | POST | `/reset-password` | OTP | Reset password with the OTP |
+| 70 | GET | `/me` | JWT | Current user, roles, permissions, admin scope |
+| 71 | PATCH | `/profile` | JWT | Update own profile fields |
+
+---
+
+# 10. Tier 5 — Registration (public)
+
+**Router prefix:** `/api/v1/register` — 6 endpoints, all deliberately unauthenticated (the
+registration page has no JWT yet). Creates `person` + `user_account(PENDING_APPROVAL)` + optional
+`registration_claim`; **no `sangha_sevi` is created until an admin approves the claim.**
+
+| # | Method | Path | Description |
+|---|---|---|---|
+| 72 | POST | `` | Self-register |
+| 73 | GET | `/check-duplicate` | Pre-submit contact-uniqueness check |
+| 74 | GET | `/reference-data` | Countries, gender/marital-status/blood-group/membership-type master data and the Sakha list in one call |
+| 75 | GET | `/states` | States for a country |
+| 76 | GET | `/districts` | Districts for a state |
+| 77 | GET | `/postal-codes` | Postal codes for a district |
+
+---
+
+# 11. Tier 5 — Claim Approval
+
+**Router prefix:** `/api/v1/admin/claims` — 5 endpoints, all
+`require_any_permission("MEMBERSHIP_APPROVE", "ADMIN_USER_MANAGE")`; list/detail are scoped to the
+admin's `admin_scope` organizations unless NSS-WIDE.
+
+| # | Method | Path | Description |
+|---|---|---|---|
+| 78 | GET | `` | List claims (status filter, pagination, sorting) |
+| 79 | GET | `/{pk}` | Claim detail |
+| 80 | PATCH | `/{pk}` | Edit claim fields before decision |
+| 81 | POST | `/{pk}/approve` | Approve — creates `sangha_sevi` + `membership_sakha_affiliation`, activates the account |
+| 82 | POST | `/{pk}/reject` | Reject the claim |
+
+---
+
+# 12. Tier 5 — Administration
+
+**Router prefix:** `/api/v1/admin` — 25 endpoints. Permission sets per endpoint are listed in
+the last column (`any of`).
+
+| # | Method | Path | Description | Permission (any of) |
+|---|---|---|---|---|
+| 83 | GET | `/users` | List users (search, sort, pagination) | `ADMIN_USER_VIEW`, `ADMIN_USER_MANAGE`, `MEMBERSHIP_APPROVE` |
+| 84 | POST | `/users` | Create a user account | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 85 | GET | `/users/{pk}` | User detail | view set above |
+| 86 | GET | `/users/check-account/{person_pk}` | Does a person already have a usable/soft-deleted login | `ADMIN_USER_VIEW`, `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 87 | POST | `/users/{pk}/reset-password` | Admin password reset | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 88 | PATCH | `/users/{pk}/status` | Activate / suspend / etc. | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 89 | DELETE | `/users/{pk}` | Soft-delete a user | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 90 | GET | `/users/{pk}/roles` | List role assignments | view set above |
+| 91 | POST | `/users/{pk}/roles` | Assign a role (with scope) | `ADMIN_ROLE_MANAGE` |
+| 92 | DELETE | `/users/{pk}/roles/{user_role_pk}` | Revoke a role assignment | `ADMIN_ROLE_MANAGE` |
+| 93 | POST | `/persons` | Create a person (no account) | `PERSON_MANAGE` |
+| 94 | GET | `/persons/check-contact` | Advisory duplicate-contact lookup | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 95 | POST | `/sangha-sevi` | Provision a Sangha Sevi ID for a person | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 96 | GET | `/sangha-sevi/check/{person_pk}` | Does the person already hold an SS ID | view set above |
+| 97 | POST | `/sangha-sevi/check-batch` | Batch form of the above | view set above |
+| 98 | GET | `/sangha-sevi/without-account` | Paginated list of Sangha Sevis who can't log in yet | view set above |
+| 99 | GET | `/organizations` | Org list for admin screens | view set above |
+| 100 | POST | `/organizations` | Create an organization (ORG-BR-099/101-103 rules) | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 101 | PATCH | `/organizations/{pk}` | Edit an org incl. `parent_organization_pk` re-parenting; subtree-scoped (ADMIN-BR-076/077) | `ORGANIZATION_MANAGE`, `ORGANIZATION_VIEW` |
+| 102 | PATCH | `/organizations/{pk}/short-code` | Edit the org short code; same subtree scoping | `ORGANIZATION_MANAGE`, `ORGANIZATION_VIEW` |
+| 103 | GET | `/organizations/kumari-sevak-sakha-options` | Sakha choices for Kumari/Sevak orgs (ORG-BR-101/102) | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 104 | GET | `/sakha-scope-options` | Sakha scope choices (ORG-BR-103) | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 105 | GET | `/organizations/code-availability` | Is an org code free | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 106 | GET | `/organizations/next-code` | Sequence-driven code preview | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 107 | GET | `/dashboard-stats` | Counts scoped to the viewer's own admin scope | view set above |
+
+Scope rule for both org `PATCH` endpoints: `NSS_ERP_ADMIN`/NSS-WIDE edits any org; any other
+scoped admin edits only organizations inside their own scope subtree, regardless of which
+permission they hold.
+
+---
+
+# 13. Tier 5 — Audit
+
+**Router prefix:** `/api/v1/audit` — 1 endpoint, `require_permission("AUDIT_VIEW")` (seeded to
+`NSS_ERP_ADMIN`, `NSS_ERP_KENDRA_ADMIN`, `NSS_ERP_AUDITOR`), read-only pool.
+
+| # | Method | Path | Filters | Description |
+|---|---|---|---|---|
+| 108 | GET | `/change-log` | `table_name`, `record_pk`, `field_name`, `changed_by_sangha_sevi_pk`, `changed_from`, `changed_to`, `limit`, `offset` | Paginated read of `nss.field_change_log` |
+
+---
+
+# 14. Frontend Routes
 
 | Path | Description | HTML File |
 |---|---|---|
 | `/` | 302 redirect to `/login` | -- |
 | `/login` | Login page | `login.html` |
 | `/register` | Self-registration page | `register.html` |
-| `/dashboard` | Member Dashboard (Personal, Family, Membership, Attendance, Governance, Documents tabs) | `dashboard.html` |
-| `/admin` | Administration Dashboard (Users, Organizations, Registration Approvals, Person Directory, Member Directory, Organization Hierarchy, Reference Data, Geography, System Settings tabs) | `admin.html` |
+| `/dashboard` | Member Dashboard (Personal, Membership, Family, Attendance, Governance, Documents tabs + an Org Dashboard for holders of an admin scope — tabs are built from the caller's role scopes) | `dashboard.html` |
+| `/admin` | Administration console (Users, User Detail, Create User, Create Sangha-Sevi, Password, Create Organization, Organizations, Assign Sakhas, Registration Approvals, Person Directory, Member Directory, Organization Hierarchy, Org Dashboard, Reference Data, Geography, System Settings tabs) | `admin.html` |
+| `/forgot-password` | **No standalone page by design** — the forgot/reset flow is inline on `/login` (`login.html`) | -- |
 | `/docs` | Swagger UI (OpenAPI) | auto-generated |
 | `/redoc` | ReDoc | auto-generated |
 
@@ -283,23 +460,35 @@ System Settings, Foundation → Reference Data + Geography, Organization → Org
 Organization Hierarchy, Person → Person Directory, Family → `dashboard.html`'s Family tab,
 Membership → `dashboard.html`'s Membership tab plus `admin.html`'s Member Directory tab.
 
+Every served page has its `/assets/js/*.js` and `/assets/css/*.css` references rewritten to
+`?v=<content hash>` per request (`api/main.py::_serve_page()`), so the long-cached assets never go
+stale; the HTML itself is `Cache-Control: no-store`.
+
 Frontend routes are excluded from OpenAPI schema (`include_in_schema=False`).
 
 `/docs` and `/redoc` can be disabled via `DISABLE_DOCS=true` environment variable.
 
 ---
 
-# 10. Endpoint Count Summary
+# 15. Endpoint Count Summary
 
 | Tier | Module | Endpoints |
 |---|---|---|
 | 0 | Bootstrap | 4 |
-| 1 | Foundation | 17 |
-| 2 | Organization | 7 |
+| 1 | Foundation | 23 (17 read + 6 write) |
+| 2 | Organization | 8 |
 | 3 | Person | 4 |
-| 4 | Family | 7 |
-| 4 | Membership | 7 |
-| **Total** | | **46** |
+| 4 | Family | 16 (7 original read + 9 Tier 5) |
+| 4 | Membership | 8 |
+| 5 | Authentication | 8 |
+| 5 | Registration | 6 |
+| 5 | Claim Approval | 5 |
+| 5 | Administration | 25 |
+| 5 | Audit | 1 |
+| **Total** | | **108** |
+
+The endpoint numbers in the tables above are stable identifiers, not path order: #1-#46 are the
+original Tier 0-4 set; #47-#108 were appended as Tier 5 endpoints landed.
 
 ---
 

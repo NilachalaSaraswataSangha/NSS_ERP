@@ -757,8 +757,9 @@ some tier pages present) still serves whichever pages do exist.
 > `_x_path = _FRONTEND_DIR / "x.html"; if _x_path.is_file():` pattern: `GET /` is registered
 > unconditionally (whenever `frontend/` is a directory) and returns
 > `RedirectResponse(url="/login", status_code=302)`; then `login.html` at `/login`,
-> `dashboard.html` at `/dashboard`, `admin.html` at `/admin`, `register.html` at `/register`,
-> and a `/forgot-password` route whose target file does not exist, so it never registers. The
+> `dashboard.html` at `/dashboard`, `admin.html` at `/admin`, and `register.html` at
+> `/register`. There is no `/forgot-password` page route — that flow is inline on the Login
+> page. The
 > `app.mount("/assets", ...)` line and the surrounding `if _FRONTEND_DIR.is_dir():` guard are
 > unchanged. The retired pages' functionality now lives in tabs of `admin.html` (Bootstrap RBAC
 > → System Settings, Foundation → Reference Data + Geography, Organization → Organizations +
@@ -1577,9 +1578,9 @@ def list_postal_codes(
     Optionally filter by state or country.
     """
     base_sql = """
-        SELECT pc.postal_code_pk, pc.country_pk, pc.state_pk,
-               s.state_name,
-               pc.postal_code, pc.post_office_name, pc.is_active
+        SELECT pc.postal_code_pk, pc.state_pk,
+               s.state_name, s.country_pk,
+               pc.postal_code, pc.is_active
         FROM   nss.postal_code pc
         JOIN   nss.state s ON s.state_pk = pc.state_pk
         WHERE  pc.is_active = TRUE
@@ -1590,7 +1591,7 @@ def list_postal_codes(
         base_sql += " AND pc.state_pk = %s"
         params.append(str(state_pk))
     elif country_pk is not None:
-        base_sql += " AND pc.country_pk = %s"
+        base_sql += " AND s.country_pk = %s"
         params.append(str(country_pk))
 
     base_sql += " ORDER BY pc.postal_code"
@@ -1603,7 +1604,11 @@ def list_postal_codes(
 `list_postal_codes(state_pk: UUID | None = Query(None, ...), country_pk: UUID | None =
 Query(None, ...), ...)` joined to `nss.state` for `state_name`; if `state_pk` is given it takes
 precedence over `country_pk` (the `elif`) — the two filters are mutually exclusive
-alternatives, not combinable. No detail endpoint.
+alternatives, not combinable. Under the Simplified Geography Model (2026-10-02)
+`nss.postal_code` no longer stores a `country_pk` of its own, so the country filter is applied
+to the joined `s.country_pk` and the returned `country_pk` is re-derived from the parent state.
+Each PIN is a single globally-unique, state-scoped row, so there is no office-level column to
+select. No detail endpoint.
 
 Lines 448–485 — `GET /postal-code-mappings`:
 
@@ -2022,11 +2027,14 @@ class PostalCodeResponse(BaseModel):
     state_pk: UUID
     state_name: str
     postal_code: str
-    post_office_name: str | None
     is_active: bool
 ```
 
-`post_office_name` is nullable — not every postal code has a named post office.
+`country_pk` is still returned for the frontend's country → state → PIN cascade, but it is
+sourced from the joined `state.country_pk` rather than stored on `nss.postal_code`. There are
+no office-level fields: under the Simplified Geography Model (2026-10-02) a PIN is one
+globally-unique, state-scoped row carrying its pre-resolved dominant state, so
+`post_office_name` and `office_count` no longer exist.
 
 Lines 155–167 — `PostalCodeMappingResponse`:
 

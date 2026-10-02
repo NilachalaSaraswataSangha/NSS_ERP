@@ -12,7 +12,15 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 32px; }
   .card { background: #fff; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
   .order { font-size: 11px; color: #9ca3af; font-weight: 600; min-width: 18px; }
-  .badge { padding: 4px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; }
+  
+  .badge { padding: 4px 14px; 
+            border-radius: 999px; 
+            font-size: 13px; 
+            font-weight: 600; 
+            color: #fff; 
+            white-space: nowrap; 
+          }
+  
   .info { flex: 1; }
   .code { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #6b7280; }
   .desc { font-size: 12px; color: #9ca3af; margin-top: 2px; }
@@ -30,6 +38,30 @@
   .badge-DISSOLVED   { background: #78350f; }
   .badge-ARCHIVED    { background: #374151; }
   .badge-EXPIRED     { background: #4b5563; }
+  .badge-RENEWAL_PENDING     { background: #ea580c; }
+  .badge-ON_HOLD             { background: #2563eb; }
+  .badge-DISCIPLINARY_REVIEW { background: #be123c; }
+
+  /* Credential (Parichaya Patra / Anumati Patra) — not master_data;
+     hard-coded CHECK constraints in database/ddl/05_membership/09..12.
+     ACTIVE and EXPIRED reuse the lifecycle swatches above. */
+  .badge-CANCELLED   { background: #dc2626; }
+  .badge-REPLACED    { background: #7c3aed; }
+
+  /* user_account.account_status — its own domain, own prefix */
+  .badge-acct-ACTIVE           { background: #16a34a; }
+  .badge-acct-LOCKED           { background: #d97706; }
+  .badge-acct-INACTIVE         { background: #6b7280; }
+  .badge-acct-PENDING_APPROVAL { background: #2563eb; }
+
+  /* registration_claim.claim_status */
+  .badge-claim-PENDING  { background: #2563eb; }
+  .badge-claim-APPROVED { background: #0d9488; }
+  .badge-claim-REJECTED { background: #dc2626; }
+
+  /* Annotation badge — outline, not solid. See the fill convention note. */
+  .badge-muted { background: transparent; color: #6b7280; font-weight: 500;
+                 box-shadow: inset 0 0 0 1px #d1d5db; }
 
   h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #374151; }
   .size-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -54,7 +86,17 @@
 <body>
 
 <h1>NSS ERP — Unified STATUS Badge Preview</h1>
-<p class="subtitle">16 lifecycle statuses shared across all ERP modules (Organization, Membership, Governance, etc.) — each module now sees only its applicable subset via <code>master_data.applicable_modules</code></p>
+<p class="subtitle">All 16 lifecycle statuses from <code>master_data</code> category <code>STATUS</code>
+(<code>database/seed/01_foundation/02_master_data.sql</code>), shared across all ERP modules
+(Organization, Membership, Governance, etc.) — each module sees only its applicable subset via
+<code>master_data.applicable_modules</code>. The separate credential, account and claim status
+domains follow below.</p>
+<p class="subtitle"><strong>This page is the visual source of truth.</strong> Its geometry and palette
+are mirrored verbatim in <code>frontend/assets/css/badges.css</code>, so the two can be diffed by eye.
+Change both together — never add a page-local badge override.</p>
+<p class="subtitle"><strong>Fill convention:</strong> a SOLID fill with white text means a state the
+record actually holds. An OUTLINE badge (<code>.badge-muted</code>) is metadata — record counts,
+"not implemented" placeholders, data-type hints — so real statuses stay visually dominant.</p>
 
 <div class="grid">
   <div class="card"><span class="order">1</span><span class="badge badge-PROPOSED">Proposed</span><div class="info"><div class="code">PROPOSED</div><div class="desc">Entity proposed, not yet approved</div></div></div>
@@ -70,6 +112,63 @@
   <div class="card"><span class="order">11</span><span class="badge badge-DISSOLVED">Dissolved</span><div class="info"><div class="code">DISSOLVED</div><div class="desc">Organization dissolved</div></div></div>
   <div class="card"><span class="order">12</span><span class="badge badge-ARCHIVED">Archived</span><div class="info"><div class="code">ARCHIVED</div><div class="desc">Retained for history</div></div></div>
   <div class="card"><span class="order">13</span><span class="badge badge-EXPIRED">Expired</span><div class="info"><div class="code">EXPIRED</div><div class="desc">Term has expired</div></div></div>
+  <div class="card"><span class="order">14</span><span class="badge badge-RENEWAL_PENDING">Renewal Pending</span><div class="info"><div class="code">RENEWAL_PENDING</div><div class="desc">Awaiting renewal action</div></div></div>
+  <div class="card"><span class="order">15</span><span class="badge badge-ON_HOLD">On Hold</span><div class="info"><div class="code">ON_HOLD</div><div class="desc">Processing paused</div></div></div>
+  <div class="card"><span class="order">16</span><span class="badge badge-DISCIPLINARY_REVIEW">Disciplinary Review</span><div class="info"><div class="code">DISCIPLINARY_REVIEW</div><div class="desc">Under disciplinary review</div></div></div>
+</div>
+
+<div class="section">
+  <h2>Credential Statuses — Parichaya Patra / Anumati Patra</h2>
+  <p class="subtitle">Not <code>master_data</code>: hard-coded CHECK constraints in
+  <code>database/ddl/05_membership/09_parichaya_patra.sql</code> and siblings 10–12.
+  Rendered with the same <code>badge-status-*</code> family in the app, since these values
+  never collide with the lifecycle set.</p>
+  <div class="dark-row">
+    <span class="badge badge-ACTIVE">Active</span>
+    <span class="badge badge-EXPIRED">Expired</span>
+    <span class="badge badge-CANCELLED">Cancelled</span>
+    <span class="badge badge-REPLACED">Replaced</span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>User Account Statuses — <code>badge-account-*</code></h2>
+  <p class="subtitle">The complete set allowed by <code>chk_user_account_status</code> in
+  <code>database/ddl/06_authentication/01_user_account.sql</code>. A separate domain from the
+  lifecycle STATUS category, so it gets its own class prefix rather than borrowing
+  <code>badge-status-*</code> by coincidence. Note SUSPENDED and DEACTIVATED are <em>not</em>
+  valid account statuses.</p>
+  <div class="dark-row">
+    <span class="badge badge-acct-ACTIVE">ACTIVE</span>
+    <span class="badge badge-acct-LOCKED">LOCKED</span>
+    <span class="badge badge-acct-INACTIVE">INACTIVE</span>
+    <span class="badge badge-acct-PENDING_APPROVAL">PENDING_APPROVAL</span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Registration Claim Statuses — <code>badge-claim-*</code></h2>
+  <p class="subtitle">The complete set allowed by <code>chk_registration_claim_status</code> in
+  <code>database/ddl/06_authentication/03_registration_claim.sql</code>.</p>
+  <div class="dark-row">
+    <span class="badge badge-claim-PENDING">PENDING</span>
+    <span class="badge badge-claim-APPROVED">APPROVED</span>
+    <span class="badge badge-claim-REJECTED">REJECTED</span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Annotation Badge — <code>badge-muted</code></h2>
+  <p class="subtitle">Outline rather than solid, per the fill convention above. Replaces DaisyUI's
+  <code>.badge-ghost</code>, which is unusable in the app because the shared base rule forces
+  white text.</p>
+  <div class="dark-row" style="align-items:center;">
+    <span class="badge badge-muted">12 records</span>
+    <span class="badge badge-muted">Not implemented</span>
+    <span class="badge badge-muted">TEXT</span>
+    <span class="badge badge-ACTIVE">Active</span>
+    <span class="desc" style="margin:0;">&larr; a real status stays dominant beside annotations</span>
+  </div>
 </div>
 
 <div class="section">
@@ -97,6 +196,9 @@
       <span class="badge badge-DISSOLVED">Dissolved</span>
       <span class="badge badge-ARCHIVED">Archived</span>
       <span class="badge badge-EXPIRED">Expired</span>
+      <span class="badge badge-RENEWAL_PENDING">Renewal Pending</span>
+      <span class="badge badge-ON_HOLD">On Hold</span>
+      <span class="badge badge-DISCIPLINARY_REVIEW">Disciplinary Review</span>
     </div>
   </div>
 </div>

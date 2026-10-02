@@ -16,17 +16,22 @@ Membership) served at `/`, `/foundation`, `/organization`, `/person`, `/family` 
 now lives in a tab of `admin.html` (Bootstrap RBAC → System Settings, Foundation → Reference Data
 + Geography, Organization → Organizations + Organization Hierarchy, Person → Person Directory,
 Membership → Member Directory) or `dashboard.html` (Family, Membership). It shares
-the same tech stack as the mockups below (Tailwind CSS + DaisyUI, Alpine.js, no build
-step) but is a distinct, functional artifact: it calls the real `/api/v1/*`
+the same tech stack as the mockups below (Tailwind CSS + DaisyUI, Alpine.js; the
+implemented pages use a pre-built, committed `tailwind.min.css` rather than the mockups' CDN,
+so no Node.js is needed just to run them) but is a distinct, functional artifact: it calls the real `/api/v1/*`
 endpoints, whereas the mockups in `mockups/` are static,
 non-functional visual targets for the future admin-dashboard UI (Phase 4) with sample/placeholder
 data only. None of the 13 mockups below is one of the implemented pages, and the implemented
-pages do not supersede or implement any of them — they cover different,
-non-overlapping screens.
+pages do not supersede them — with one partial exception: the shared Org Dashboard tab
+(`frontend/assets/js/org-dashboard.js`, embedded in `admin.html` and `dashboard.html`) renders
+layouts modelled on `02_kendra_dashboard.html`, `03_sakha_dashboard.html`,
+`05_anchalika_dashboard.html` and `06_zilla_dashboard.html`, with real counts and honest "not
+tracked yet" placeholders for attendance/renewal widgets that have no backing tables.
 
 ## Contents
 
-- **`mockups/`** — 13 static HTML mockups (Tailwind CSS + DaisyUI via CDN, no build step)
+- **`mockups/`** — `README.md`, `status_badge_preview.html` (badge-class reference sheet for
+  `frontend/assets/css/badges.css`) and 13 static HTML mockups (Tailwind CSS + DaisyUI via CDN, no build step)
   covering Login, Kendra/Sakha/Anchalika/Zilla dashboards, Admin, Member Profile, Family
   Dashboard, Member Search, Attendance Marking, Governance Dashboard, and both Mahila Sangha
   dashboards (central Mandali + local Sakha). See `mockups/README.md` for the full file list

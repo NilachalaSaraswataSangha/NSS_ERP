@@ -13,7 +13,7 @@
 ## 1. Purpose
 
 This document defines the API contract for the Tier 3 Person read-only API.
-All endpoints are GET-only. No authentication. `nss_db_backend` connects with
+All endpoints are GET-only. No authentication (*at v0.9.0 — see the Tier 5 note below*). `nss_db_backend` connects with
 SELECT-only privileges.
 
 The Person API exposes individual member/participant records within the NSS
@@ -24,6 +24,16 @@ the last 4 digits returned for masked display.
 
 Write operations (POST/PATCH/DELETE) are deferred to Tier 5 when authenticated
 administration and authorization exist.
+
+> **Tier 5 update (in progress, uncommitted on `feature/tier5-authentication-administration`):**
+> all 4 endpoints now require a JWT. `GET /persons` (list) and `GET /search` require
+> `require_permission("PERSON_VIEW")`; `GET /persons/{pk}` and `GET /persons/{pk}/addresses`
+> use `get_current_user` plus an ownership check (`_require_person_view`) — the person
+> themself, or a holder of `PERSON_VIEW`. List endpoints accept `sort_by`/`sort_dir`
+> (whitelisted, 422 otherwise). Aadhaar masking is unchanged and unconditional
+> (`PERSON_VIEW_SENSITIVE` is seeded but not wired to any endpoint). Person *writes* are not
+> in this router: they live in `api/routers/admin.py` (`POST /api/v1/admin/persons`) and
+> `api/routers/registration.py`. Responses gain 401/403 beyond the statuses listed below.
 
 ---
 

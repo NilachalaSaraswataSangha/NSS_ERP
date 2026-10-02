@@ -8,7 +8,7 @@
 |---|---|
 | Document Name | Getting Started |
 | Repository Path | docs/03_Solution/architecture/GETTING_STARTED.md |
-| Version | 1.7 |
+| Version | 1.8 |
 | Status | Active |
 | Authority | NSS ERP Architecture |
 
@@ -144,7 +144,7 @@ py -m uvicorn api.main:app --reload --port 8001
 | `http://localhost:8001/register` | Self-Registration |
 | `http://localhost:8001/forgot-password` | **Not currently reachable** — the route is registered only `if frontend/forgot-password.html exists` (`api/main.py`), and that file has never been created; `POST /api/v1/auth/forgot-password`/`reset-password` work fine via API, there's just no page |
 | `http://localhost:8001/dashboard` | Member Dashboard (post-login landing page) |
-| `http://localhost:8001/admin` | Admin Panel (Users, Roles, Organizations, Registration Approvals) |
+| `http://localhost:8001/admin` | Admin console (Users, Create User/Sangha-Sevi/Organization, Organizations, Assign Sakhas, Registration Approvals, Person/Member Directory, Organization Hierarchy, Org Dashboard, Reference Data, Geography, System Settings) |
 | `http://localhost:8001/docs` | Swagger UI (OpenAPI) |
 | `http://localhost:8001/api/v1/` | API endpoints |
 
@@ -165,10 +165,11 @@ python3 -m pytest tests/ -v
 py -m pytest tests/ -v
 ```
 
-**733 tests total**, split across four directories: 518 in `tests/api/` (16 files — routers +
-integration coverage), 23 in `tests/db/` (cross-module data integrity), 58 in `tests/security/`
-(auth-gating/401/403/RBAC + CSP/rate-limit/CORS assertions), and 134 in `tests/ui/` (13
-Playwright browser-test files — needs Playwright browsers installed and a running app).
+**791 tests total**, split across four directories: 536 in `tests/api/` (16 files — routers +
+integration coverage), 27 in `tests/db/` (cross-module data integrity + credential-schema
+invariants), 62 in `tests/security/` (auth-gating/401/403/RBAC + CSP/rate-limit/CORS
+assertions), and 166 in `tests/ui/` (15 Playwright browser-test files — needs Playwright
+browsers installed and a running app).
 `test_kumari_transition_has_event` and `TestChildrenStats` gracefully `pytest.skip()` against
 the seed-less database rather than fail. See `tests/README.md` for the full per-file test
 inventory.
@@ -265,20 +266,20 @@ single `02_build.sh` / `02_build.ps1` invocation:
 | Phase | Module | What |
 |------:|--------|------|
 | 0 | Bootstrap RBAC | 3 tables + seed (roles, permissions) |
-| 1 | Foundation DDL | 12 tables |
+| 1 | Foundation DDL | 13 tables, incl. the 5-level geography chain (`country` → `state` → `district` → `city_village` → `postal_code`) and `festival_master`/`festival_calendar_date`; `system_event_log` (14th) is created separately in Phase 14 |
 | 2 | Foundation Seed | Master categories, master data, geography, sequences, settings |
 | 3 | Organization DDL | 1 table (includes short_code column, performance indexes) |
 | 4 | Organization Seed | Base organizations, Sakha postal codes, 175 Sakha branches |
 | 5 | Person DDL | 2 tables |
 | 6 | Family DDL | 6 tables (includes performance indexes) |
-| 7 | Membership DDL | 13 tables (includes performance indexes) |
+| 7 | Membership DDL | 14 tables (includes performance indexes) |
 | 8 | *(reserved — no demo data)* | |
 | 9 | Grant Backend | Read-only access for `nss_db_backend` |
 | 10 | Authentication DDL | 4 tables (`user_account`, `password_history`, `registration_claim`, `password_reset_token`) |
 | 11 | Administration DDL | 2 tables (`user_role`, `admin_scope`) |
 | 12 | Grant Writer | Write access for `nss_db_writer` (auth + admin tables only) |
 | 13 | Admin Bootstrap | Seed NSSAdmin user account (runtime bootstrap via `bootstrap_admin.py`) |
-| 14 | Audit DDL | `system_event_log` table + `fn_audit_trigger()` attached to all tables |
+| 14 | Audit DDL | `system_event_log` table + `fn_audit_trigger()` attached to every `nss.*` table |
 
 ## Troubleshooting
 

@@ -1743,7 +1743,6 @@ Postal Codes panel (lines 468–517), rendered only when a country is selected, 
 <template x-for="pc in postalCodes" :key="pc.postal_code_pk">
     <tr class="hover">
         <td class="font-mono text-xs" x-text="pc.postal_code"></td>
-        <td class="text-xs" x-text="pc.post_office_name || '—'"></td>
         <td class="text-xs" x-text="pc.state_name"></td>
         <td class="text-center">
             <span x-show="pc.is_active" class="text-success">&#10003;</span>
@@ -1752,8 +1751,10 @@ Postal Codes panel (lines 468–517), rendered only when a country is selected, 
     </tr>
 </template>
 ```
-- `postal_code`, `post_office_name || '—'`, `state_name`, and the ✓/✗ active indicator;
-  own independent `postalCodesLoading` gate and an "empty for this country" message.
+- `postal_code`, `state_name`, and the ✓/✗ active indicator; own independent
+  `postalCodesLoading` gate and an "empty for this country" message. Under the Simplified
+  Geography Model (2026-10-02) each PIN is a single row carrying its pre-resolved dominant
+  state, so there is no office-name column to render and no multi-office fan-out to collapse.
 
 **Tab 4 — Runtime Tables (lines 520–585):** a single, narrower Document Master card:
 ```html

@@ -3,7 +3,7 @@
 | Field       | Value                                          |
 |-------------|------------------------------------------------|
 | Document    | BOOTSTRAP_API_CONTRACT                         |
-| Version     | 1.0                                            |
+| Version     | 1.1                                            |
 | Tier        | 0 — Bootstrap (RBAC)                           |
 | Authority   | SOL-ARCH-010, SOL-RBAC-001                     |
 | Status      | DRAFT                                          |
@@ -15,6 +15,15 @@
 This document defines the API contract for the Tier 0 Bootstrap read-only API.
 All endpoints are GET-only. No authentication. `nss_db_backend` connects with
 SELECT-only privileges.
+
+> **Tier 5 update (in progress, uncommitted on `feature/tier5-authentication-administration`):**
+> these 4 endpoints are still the only routes in the whole API that need no JWT. What changed is
+> the *data*: `role_master` now seeds **9** roles, and `permission_master`/`role_permission` are
+> **seeded** (`database/seed/00_bootstrap/01_permission_master.sql`, `03_role_permission.sql`),
+> so `/permissions` and `/roles/{pk}/permissions` return real rows. The "8 roles" / "empty by
+> design" / "always returns empty list" statements in §5-§7 below describe the original Tier 0
+> state and are superseded. Write/management of roles and permissions lives in the
+> Administration router (`/api/v1/admin/users/{pk}/roles`), not here.
 
 Bootstrap exposes the RBAC foundation: roles, permissions, and their mappings.
 These are infrastructure tables — the API serves verification and future
@@ -107,7 +116,7 @@ Returns all active roles from `nss.role_master`.
 ]
 ```
 
-**Tier 0 state:** 8 frozen roles (governance + operational hierarchy).
+**Tier 0 state:** 8 frozen roles at v0.6.0; **9 on the Tier 5 branch** (see the update note in §1).
 
 **SQL Pattern:**
 
@@ -150,8 +159,7 @@ Returns all active permissions from `nss.permission_master`.
 ]
 ```
 
-**Tier 0 state:** Empty by design — permissions are populated progressively
-with each module's vertical-slice implementation.
+**Tier 0 state:** Empty by design at v0.6.0; **populated on the Tier 5 branch** (see the update note in §1).
 
 **SQL Pattern:**
 
@@ -189,8 +197,7 @@ junction table. 404 if the role does not exist.
 | 404    | `role_pk` not found or inactive |
 | 422    | Malformed UUID                 |
 
-**Tier 0 state:** Always returns empty list — no role-permission mappings
-exist yet. The endpoint exists to establish the contract and verify the
+**Tier 0 state:** Returned an empty list at v0.6.0; **returns real mappings on the Tier 5 branch** for roles that have them. The endpoint exists to establish the contract and verify the
 junction-table query path.
 
 **SQL Pattern:**
@@ -285,7 +292,8 @@ docs/
 
 ## 8. Future (Tier 5+)
 
-When Authentication + Administration arrives:
+Role assignment is implemented in the Tier 5 Administration router. Permission-catalogue
+writes via this router remain unbuilt; if added they would look like:
 
 ```
 Authenticated user

@@ -219,7 +219,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 `pgcrypto` provides `gen_random_uuid()`, used as the `DEFAULT` for every UUID surrogate primary
 key across the schema. `pg_trgm` is trigram indexing, used for the `GIN (... gin_trgm_ops)`
 fuzzy/partial-text-search indexes (e.g. `master_data.value_name`, `state.state_name`,
-`district.district_name`, `city_village.city_village_name`, `postal_code.post_office_name`,
+`district.district_name`, `city_village.city_village_name`,
 `organization.organization_name`). `btree_gin` allows GIN indexes over ordinary scalar types
 (not just arrays/tsvector), enabling future composite GIN indexes that mix trigram and scalar
 columns. `postgis` adds geospatial types/functions — not yet consumed by any table
@@ -522,12 +522,18 @@ check_fk_integrity "role_permission -> role_master" \
 1. **Bootstrap RBAC** — 3 tables exist; `role_master` has ≥ 8 rows; no duplicate `role_code`;
    `role_permission → role_master` and `role_permission → permission_master` FK integrity (the
    call above is the actual FK-integrity query used for the first of those two checks).
-2. **Foundation** — 12 tables exist; row-count floors matching the frozen seed
+2. **Foundation** — 11 tables exist; row-count floors matching the frozen seed
    (`master_category` ≥ 13, `master_data` ≥ 82, `id_sequence_master` ≥ 11, `country` ≥ 5,
-   `state` ≥ 112, `district` ≥ 700, `system_setting` ≥ 4, `postal_code` ≥ 2); no duplicate
-   `category_code`/`country_code`/`sequence_code`; FK integrity for `master_data →
-   master_category`, `state → country`, `district → state`, `postal_code → country`,
-   `postal_code → state`; and the two deferred-column existence checks on `document_master`.
+   `state` ≥ 112, `district` ≥ 780, `system_setting` ≥ 4, `postal_code` ≥ 17 800,
+   `city_village` ≥ 673 000); no duplicate
+   `category_code`/`country_code`/`sequence_code`/`postal_code`; FK integrity for `master_data →
+   master_category`, `state → country`, `district → state`, `postal_code → state`,
+   `city_village → postal_code`, `city_village → district`; and the two deferred-column
+   existence checks on `document_master`. Under the Simplified Geography Model (2026-10-02)
+   there is no `postal_code → country` check any more — `postal_code` has no `country_pk`
+   column, so country integrity is covered transitively by `postal_code → state` plus `state →
+   country` — and the `city_village` checks use the `WHERE fk_col IS NOT NULL AND parent.pk IS
+   NULL` form, since both `district_pk` and `postal_code_pk` are nullable there.
    `master_category`'s floor rose from 11 to 13 (added `ORGANIZATION_TYPE` and `BLOOD_GROUP` categories) and
    `master_data`'s from 58 to 82 (new `ORGANIZATION_TYPE` values, expanded `STATUS`
    category replacing the smaller `MEMBERSHIP_STATUS`, plus 8 `BLOOD_GROUP` values); `id_sequence_master`'s floor rose from
@@ -1292,8 +1298,10 @@ and `sequence_code`.
 **Requirement**
 
 Defines `nss.country` — the root of the location hierarchy (`country` → `state` → `district` →
-`city_village`, plus `postal_code`). Depth 0. Without it, `state` (which FKs to it) cannot
+`city_village` → `postal_code`). Depth 0. Without it, `state` (which FKs to it) cannot
 exist, and the entire address/location model for Person, Organization, etc. has no anchor.
+Note that `postal_code` does **not** FK to `country` directly — since the Simplified Geography
+Model (2026-10-02) a PIN's country is reached via `postal_code.state_pk → state.country_pk`.
 
 **Line-by-line explanation**
 
@@ -1915,13 +1923,18 @@ Indexes: `idx_city_village_district (district_pk)`, `idx_city_village_active (is
 
 **Requirement**
 
-Defines `nss.postal_code` — PIN/postal codes, scoped to a country with an explicit state
-association. Depth 2 (depends on `country` and `state` — same depth as `district`, since it
-doesn't depend on `district`). Implements the "PIN Code Geographic Model" amendment: a postal
-code is not tied 1:1 to a single locality — that relationship is deliberately pulled out into
-`city_village_postal_code_map` (M:N) so one PIN can serve multiple villages/towns and vice
-versa. Without this table, `organization` and (in the superseded Person prototype)
-`person_address` have no postal-code entity to reference.
+Defines `nss.postal_code` — PIN/postal codes, scoped to a single state. Depth 1 (depends on
+`state` only). Implements the "PIN Code Geographic Model" amendment as revised by the
+**Simplified Geography Model (2026-10-02)**: a PIN is one globally-unique row carrying a
+pre-resolved *dominant* state (the state holding the most locality rows for that PIN, which
+settles the ~29 PINs that straddle state lines). A postal code is still not tied 1:1 to a
+single locality, but that relationship is now expressed by the nullable
+`city_village.postal_code_pk` FK on the anchor table rather than by an M:N junction. Country is
+no longer stored here — it is reached via `state_pk -> state.country_pk`. District is
+deliberately **not** a column either, because PIN → District is not 1:1 (2,269 PINs legitimately
+span two or more districts); district is reached through `city_village.district_pk`. Without
+this table, `organization` and (in the superseded Person prototype) `person_address` have no
+postal-code entity to reference.
 
 **Line-by-line explanation**
 
@@ -1931,13 +1944,9 @@ CREATE TABLE nss.postal_code
     postal_code_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
 
-    country_pk UUID NOT NULL,
-
     state_pk UUID NOT NULL,
 
     postal_code VARCHAR(20) NOT NULL,
-
-    post_office_name VARCHAR(150) NULL,
 
     created_at TIMESTAMPTZ NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
@@ -1950,24 +1959,19 @@ CREATE TABLE nss.postal_code
         DEFAULT TRUE,
 ```
 
-Columns: `postal_code_pk UUID PRIMARY KEY DEFAULT gen_random_uuid()`; `country_pk UUID NOT
-NULL` (FK); `state_pk UUID NOT NULL` (FK) — the file's header comment explains this is a
-*reference* FK for direct administrative ownership, not part of the uniqueness key;
-`postal_code VARCHAR(20) NOT NULL` — the PIN value itself, stored as text (not numeric) since
-some countries' postal codes contain letters and leading zeros must be preserved;
-`post_office_name VARCHAR(150) NULL` — e.g. `Unit 9 SO`; standard four-column audit block.
+Columns: `postal_code_pk UUID PRIMARY KEY DEFAULT gen_random_uuid()`; `state_pk UUID NOT NULL`
+(FK) — the dominant state for this PIN, and the sole administrative parent, which is also how
+country is re-derived; `postal_code VARCHAR(20) NOT NULL` — the PIN value itself, stored as text
+(not numeric) since some countries' postal codes contain letters and leading zeros must be
+preserved; standard four-column audit block.
 
 ```sql
-    CONSTRAINT fk_postal_code_country
-        FOREIGN KEY (country_pk)
-        REFERENCES nss.country (country_pk),
-
     CONSTRAINT fk_postal_code_state
         FOREIGN KEY (state_pk)
         REFERENCES nss.state (state_pk),
 
-    CONSTRAINT uq_postal_code_country
-        UNIQUE (country_pk, postal_code),
+    CONSTRAINT uq_postal_code_code
+        UNIQUE (postal_code),
 
     CONSTRAINT chk_postal_code_soft_delete
         CHECK
@@ -1978,9 +1982,6 @@ some countries' postal codes contain letters and leading zeros must be preserved
         )
 );
 
-CREATE INDEX idx_postal_code_country
-    ON nss.postal_code (country_pk);
-
 CREATE INDEX idx_postal_code_state
     ON nss.postal_code (state_pk);
 
@@ -1989,23 +1990,16 @@ CREATE INDEX idx_postal_code_code
 
 CREATE INDEX idx_postal_code_active
     ON nss.postal_code (is_active);
-
-CREATE INDEX idx_postal_code_post_office
-    ON nss.postal_code USING gin (post_office_name gin_trgm_ops)
-    WHERE post_office_name IS NOT NULL;
 ```
 
-Constraints: `fk_postal_code_country FOREIGN KEY (country_pk) REFERENCES nss.country
-(country_pk)`; `fk_postal_code_state FOREIGN KEY (state_pk) REFERENCES nss.state (state_pk)`;
-`uq_postal_code_country UNIQUE (country_pk, postal_code)` — a PIN is unique **within a
-country's postal system**, per the header note (`state_pk` is deliberately excluded from this
-unique key, since it's a reference column, not part of what makes a PIN distinct);
-`chk_postal_code_soft_delete` standard invariant.
+Constraints: `fk_postal_code_state FOREIGN KEY (state_pk) REFERENCES nss.state (state_pk)`;
+`uq_postal_code_code UNIQUE (postal_code)` — a PIN is unique **globally**, exactly one row per
+PIN, which is what makes the pre-resolved dominant state unambiguous and lets callers look a
+PIN up without first knowing its country or state; `chk_postal_code_soft_delete` standard
+invariant.
 
-Indexes: `idx_postal_code_country (country_pk)`, `idx_postal_code_state (state_pk)`,
-`idx_postal_code_code (postal_code)`, `idx_postal_code_active (is_active)`, and a **partial**
-trigram index `idx_postal_code_post_office USING gin (post_office_name gin_trgm_ops) WHERE
-post_office_name IS NOT NULL`.
+Indexes: `idx_postal_code_state (state_pk)`, `idx_postal_code_code (postal_code)`, and
+`idx_postal_code_active (is_active)`.
 
 ---
 
@@ -2461,44 +2455,57 @@ not-yet-implemented modules without needing schema changes later.
 
 **Requirement**
 
-Seeds exactly the 2 postal codes needed by the Organization seed data (`03_organization.sql`
-resolves both `751022` and `752001` via subquery). The file's own header is explicit that this
-is a "minimal bootstrap set" — full national postal-code data loading is deferred to a future
-task, not attempted here.
+Seeds the handful of postal codes needed by the Organization seed data (`03_organization.sql`
+resolves `751022` and `752001` via subquery; `753001` backs Tier 4 verification). The file's own
+header is explicit that this is a "minimal bootstrap set" — the full all-India load lives in
+`08b_postal_code_bulk.sql`. Under the Simplified Geography Model (2026-10-02) these same PINs
+are also present in the bulk load, so this file is effectively a no-op safety net, kept so the
+bulk file is not a hard prerequisite.
 
 **Line-by-line explanation**
 
 ```sql
 -- Bhubaneswar — Kendra (Satsikshya Mandir, Unit-9)
-INSERT INTO nss.postal_code (country_pk, state_pk, postal_code, post_office_name)
-SELECT c.country_pk, s.state_pk, '751022', 'Unit 9 SO'
+INSERT INTO nss.postal_code (state_pk, postal_code)
+SELECT s.state_pk, '751022'
 FROM nss.country c
 JOIN nss.state s ON s.country_pk = c.country_pk
 WHERE c.country_code = 'IN'
-  AND s.state_code = 'OD';
+  AND s.state_code = 'OD'
+ON CONFLICT (postal_code) DO UPDATE SET
+    state_pk = EXCLUDED.state_pk;
 
 -- Puri — Nilachala Kutira, Smruti Mandira (Swargadwar area)
-INSERT INTO nss.postal_code (country_pk, state_pk, postal_code, post_office_name)
-SELECT c.country_pk, s.state_pk, '752001', 'Puri HO'
+INSERT INTO nss.postal_code (state_pk, postal_code)
+SELECT s.state_pk, '752001'
 FROM nss.country c
 JOIN nss.state s ON s.country_pk = c.country_pk
 WHERE c.country_code = 'IN'
-  AND s.state_code = 'OD';
+  AND s.state_code = 'OD'
+ON CONFLICT (postal_code) DO UPDATE SET
+    state_pk = EXCLUDED.state_pk;
 ```
 
-Two statements, using an explicit `JOIN` (rather than the `CROSS JOIN`-against-VALUES pattern
-used elsewhere) since each statement inserts a single literal row and needs to resolve both a
-country and a state PK together.
+One statement per PIN, using an explicit `JOIN` (rather than the `CROSS JOIN`-against-VALUES
+pattern used elsewhere) since each statement inserts a single literal row. Note that only
+`state_pk` is inserted — `nss.postal_code` no longer has a `country_pk` or `post_office_name`
+column, so the `nss.country` join survives purely as a *filter* (`country_code = 'IN'`) to
+disambiguate the Odisha state row, not to supply a value. Each statement ends in `ON CONFLICT
+(postal_code) DO UPDATE SET state_pk = EXCLUDED.state_pk` — the global `UNIQUE (postal_code)`
+key makes the upsert idempotent and lets this file run before or after the bulk load in either
+order.
 
-**Row count: 2** (both rows listed):
+**Row count: 3** (all rows listed):
 
-| postal_code | post_office_name | Context |
-|---|---|---|
-| `751022` | Unit 9 SO | Bhubaneswar — Kendra (Satsikshya Mandir, Unit-9) |
-| `752001` | Puri HO | Puri — Nilachala Kutira / Smruti Mandira (Swargadwar area) |
+| postal_code | Context |
+|---|---|
+| `751022` | Bhubaneswar — Kendra (Satsikshya Mandir, Unit-9) |
+| `752001` | Puri — Nilachala Kutira / Smruti Mandira (Swargadwar area) |
+| `753001` | Cuttack — Tier 4 verification (second Sakha location) |
 
-Both rows resolve to `country_code = 'IN'`, `state_code = 'OD'` (Odisha) — every seeded postal
-code today is in Odisha, matching where NSS's three seeded organizations physically are.
+All three rows resolve to `state_code = 'OD'` (Odisha) — every PIN seeded by *this* file is in
+Odisha, matching where NSS's seeded organizations physically are; their country is reached
+through `state.country_pk` rather than stored on the row.
 
 ---
 
@@ -3049,13 +3056,14 @@ JOIN nss.master_category mc_status
      ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
+JOIN nss.state s ON s.state_pk = pc.state_pk
 WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND ot.value_code = 'KENDRA'
   AND mc_status.category_code = 'STATUS'
   AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '751022'
-  AND pc.country_pk = c.country_pk;
+  AND s.country_pk = c.country_pk;
 ```
 
 Rather than the pre-migration four-way `CROSS JOIN` across two dedicated lookup tables plus
@@ -3066,7 +3074,11 @@ shared category (`ORGANIZATION_TYPE` vs `STATUS`) the `value_code` filter applie
 `master_data.value_code` alone is not globally unique across categories). The `ot`/`os` aliases
 for `master_data` and `mc_type`/`mc_status` aliases for `master_category` are still combined
 with `country`/`postal_code` via `CROSS JOIN`, each narrowed to exactly one row by the `WHERE`
-clause, so the `SELECT` resolves to exactly one row of PKs to insert. All three blocks
+clause, so the `SELECT` resolves to exactly one row of PKs to insert. The one non-`CROSS` join
+in the geography half is `JOIN nss.state s ON s.state_pk = pc.state_pk`: since the Simplified
+Geography Model (2026-10-02) dropped `postal_code.country_pk`, the sanity check that the chosen
+PIN really belongs to the chosen country has to hop through the PIN's state, hence `s.country_pk
+= c.country_pk` rather than the former `pc.country_pk = c.country_pk`. All three blocks
 explicitly pass `parent_organization_pk = NULL` — the file's header confirms all three are peers
 (no parent/child relationship among them) and all three are seeded with `value_code = 'ACTIVE'`
 (under the `STATUS` category) from the start. `city_village_pk` is left unset (omitted from the

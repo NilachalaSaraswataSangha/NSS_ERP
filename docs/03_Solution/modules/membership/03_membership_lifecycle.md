@@ -133,20 +133,22 @@ The standard progression is:
 ```text
 PROBATIONARY
       |
-Required Period
-      |
-Training
+Required Period — one year, with Training conducted within it
       |
 Sakha Recommendation
       |
-Regular Enrollment
+Regular Enrollment  (batched to the next Dola Purnima — MBR-011A)
       |
 REGULAR
       |
 Parichaya Patra
 ```
 
-The Bye-Law specifies at least one year as a Probationary Member with a valid Anumati Patra and at least one year of training under Kendra Sangha guidance for the normal Regular Member route.
+The Bye-Law lists two qualifying conditions for the normal Regular Member route: at least one year as a Probationary Member with a valid Anumati Patra, and at least one year of training under Kendra Sangha guidance on the Sakha's recommendation.
+
+These two conditions are satisfied **concurrently within a single year — the minimum is one year in total, not two.** The training is conducted during the same Probationary year and is not an additional consecutive year served after probation ends. Tenure is counted from Probationary enrollment / Anumati Patra validity start. See MBR-011 for the source clauses and the interpretation.
+
+Completing that minimum period makes the member *eligible* for Regular enrollment — it does not itself trigger conversion. Per MBR-011A, actual enrollment (and Parichaya Patra issuance) for the normal route happens only on **Dola Purnima**, the same annual reference date used for the membership renewal deadline (section 14) and the Membership Transfer effective date (section 12). A member who becomes eligible mid-year waits for the next Dola Purnima; eligibility does not advance or shortcut the conversion date.
 
 The ERP shall preserve the progression history.
 

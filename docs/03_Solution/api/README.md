@@ -1,46 +1,56 @@
 # docs/03_Solution/api/
 
-API design documentation: formal request/response contracts for the read-only FastAPI service
-implemented at the root-level `api/` folder (raw psycopg2, no ORM; see `api/README.md` for the
-running code). Each contract is written per-tier, as its vertical slice lands, and stays DRAFT
-until the tier's implementation is frozen.
-
+API design documentation: request/response contracts for the FastAPI service implemented at
+the root-level `api/` folder (raw psycopg2, no ORM; 11 routers — see
+`api/README.md` for the running code). Each contract is written per-tier, as its vertical slice
+lands, and stays DRAFT until the tier's implementation is frozen. The four per-tier contracts
+were written when Tiers 0-3 were read-only and unauthenticated; on the in-progress Tier 5 branch
+(`feature/tier5-authentication-administration`, uncommitted) each now opens with a **Tier 5
+update** note describing the JWT/permission gating, and `API_CONTRACT.md` carries the cross-tier
+Tier 5 catalogue.
 ## Files
 
-- **`BOOTSTRAP_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 0 Bootstrap RBAC read-only contract: 4
+- **`BOOTSTRAP_API_CONTRACT.md`** (v1.1, DRAFT) — Tier 0 Bootstrap RBAC read-only contract: 4
   endpoints (`health`, `roles`, `permissions`, `roles/{pk}/permissions`) over 3 tables
-  (`role_master`, `permission_master`, `role_permission`). No authentication; `nss_db_backend`
-  connects SELECT-only.
-- **`FOUNDATION_API_CONTRACT.md`** (v1.1, DRAFT) — Tier 1 Foundation read-only contract: 17
-  endpoints across 11 tables (master data, system config, geography, runtime document
-  metadata). Carries forward Tier 0's conventions plus new Tier 1 ones (query-param filtering,
-  hierarchical drill-down, no pagination). `nss.field_change_log` is explicitly deferred to
-  Tier 5 (needs auth) — not part of this contract.
-- **`ORGANIZATION_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 2 Organization read-only contract: 6
-  endpoints (`types`, `statuses`, `organizations` list/detail/children, `hierarchy`) over 3
-  tables, exposing the NSS institutional hierarchy (Kendra → Anchalika/Zilla → Sakha → Patha
-  Chakra).
-- **`PERSON_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 3 Person read-only contract: 4 endpoints
+  (`role_master`, `permission_master`, `role_permission`). No authentication (the only fully
+  unauthenticated router); `nss_db_backend` connects SELECT-only. Permissions/mappings are
+  now seeded on the Tier 5 branch, so those endpoints no longer return empty lists.
+- **`FOUNDATION_API_CONTRACT.md`** (v1.2, DRAFT) — Tier 1 Foundation contract: 23 endpoints —
+  17 reads across 11 tables (master data, system config, geography, runtime document metadata;
+  now gated by `FOUNDATION_VIEW`) plus 6 Tier 5 writes (`POST`/`PATCH` master-data, settings,
+  sequences; gated by `FOUNDATION_MANAGE`, §3.5). Carries forward Tier 0's conventions plus new
+  Tier 1 ones (query-param filtering, hierarchical drill-down, no pagination).
+  `nss.field_change_log` is not exposed by this router — `GET /api/v1/audit/change-log`
+  (`AUDIT_VIEW`) serves it.
+- **`ORGANIZATION_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 2 Organization read-only contract: 8
+  endpoints (`types`, `statuses`, `organizations` list/detail/children, `children-stats`,
+  `stats`, `hierarchy`), exposing the NSS institutional hierarchy (Kendra → Anchalika/Zilla →
+  Sakha → Patha Chakra). All gated by `ORGANIZATION_VIEW` on the Tier 5 branch; the body
+  still describes the original 6-7 endpoints, with the update note at the top covering `/stats`.
+- **`PERSON_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 3 Person read-only contract (list/search
+  need `PERSON_VIEW`; detail/addresses are self-or-`PERSON_VIEW` on the Tier 5 branch): 4 endpoints
   (`persons` list/detail, `persons/{pk}/addresses`, trigram `search`) over the `person` and
   `person_address` tables. Master-data FKs (gender, marital status, blood group, emergency
   relationship, address type) are resolved via JOINs; `aadhaar_encrypted`/`aadhaar_hash` are
   never returned — only `aadhaar_last4` for masked display.
-- **`API_CONTRACT.md`** (`SOL-API-001`, v1.0.0, Draft) — a consolidated cross-tier quick
-  reference covering Tiers 0–4 (Bootstrap/Foundation/Organization/Person/Family/Membership) in
-  one document: common conventions (pagination, error responses, audit-column exclusion,
-  sensitive-data rules, UUID path parameters), a condensed endpoint table per tier, frontend
-  routes, and a full endpoint-count summary (42 endpoints total). It does **not** replace the
-  per-tier contract docs above for Tiers 0–3 — those remain the source of full request/response
-  detail, example payloads, and file maps. For Tier 4 (Family, Membership), `API_CONTRACT.md` is
-  currently the **only** contract document — there is no dedicated `FAMILY_API_CONTRACT.md` or
-  `MEMBERSHIP_API_CONTRACT.md`, a deliberate departure from the one-file-per-tier convention used
-  for Tiers 0–3.
+- **`API_CONTRACT.md`** (`SOL-API-001`, v1.1.0, Draft) — a consolidated cross-tier quick
+  reference covering Tiers 0–5 (Bootstrap/Foundation/Organization/Person/Family/Membership plus
+  Authentication/Registration/Claim Approval/Administration/Audit) in one document: common
+  conventions (pagination, sorting, error responses, audit-column exclusion, sensitive-data
+  rules, UUID path parameters, the three authorization models), a condensed endpoint table per
+  router with permission gates, frontend routes, and the full endpoint-count summary. It does **not** replace the per-tier contract docs above for Tiers 0–3 —
+  those remain the source of full request/response detail, example payloads, and file maps. For
+  Tier 4 (Family, Membership) and Tier 5 (Auth/Admin/Registration/Claims/Audit),
+  `API_CONTRACT.md` is currently the **only** contract document — there is no dedicated
+  `FAMILY_API_CONTRACT.md`, `MEMBERSHIP_API_CONTRACT.md` or Tier 5 contract; request/response
+  detail for those lives in the routers' module docstrings and Pydantic schemas.
 
 Each per-tier contract documents conventions, the full endpoint catalogue with example
 requests/responses and SQL patterns, a response-schema summary, error responses, and an
 implementation file map tying the contract back to its router/schema/test/frontend files.
-Write operations (POST/PATCH/DELETE) are deferred to Tier 5 across all four contracts, once
-authenticated administration and authorization exist.
+Write operations (POST/PATCH/DELETE) were deferred to Tier 5; they now exist (in progress,
+uncommitted) — Foundation's six are specified in `FOUNDATION_API_CONTRACT.md` §3.5, everything
+else in `API_CONTRACT.md` §7 and §9-§13.
 
 See `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas for how this folder relates to the
 actual implemented code under `api/`, and `docs/03_Solution/code_explanations/` for line-by-line

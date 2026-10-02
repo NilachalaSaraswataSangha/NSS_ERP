@@ -1,9 +1,9 @@
 # Member Dashboard — Architecture and Data Flow
 
 **Document ID:** ARCH-DASHBOARD-001
-**Version:** 0.18.1
+**Version:** 0.18.2
 **Status:** LIVING DOCUMENT
-**Last Updated:** 2026-09-21 (corrected Sakha Affiliations/Journey/Selected-person-detail endpoint
+**Last Updated:** 2026-09-30 (token storage, admin-tab org stats, add/remove-member authorization and endpoint-gating notes refreshed against the Tier 5 code; earlier 2026-09-21: corrected Sakha Affiliations/Journey/Selected-person-detail endpoint
 paths in §3.2/§3.3 to match `frontend/assets/js/dashboard.js`)
 
 ---
@@ -25,7 +25,7 @@ The Member Dashboard is the primary post-login destination for all NSS ERP users
 | Step | Action | API |
 |------|--------|-----|
 | 1 | User logs in with Sangha Sevi ID or Person ID | `POST /api/v1/auth/login` |
-| 2 | JWT token stored in `sessionStorage` | — |
+| 2 | Access/refresh JWTs stored in `localStorage` via `NSSAuth` (`auth.js`) | — |
 | 3 | Dashboard loads; `init()` reads JWT, extracts `person_pk`, `roles`, `scopes` | — |
 | 4 | Parallel API calls fetch all tab data | See Section 3 |
 
@@ -61,7 +61,7 @@ All data is fetched dynamically on dashboard initialization. No tab contains har
 | Selected person detail | `GET /api/v1/person/persons/{person_pk}` | On-demand when a tree node or member row is clicked |
 | Selected person membership | `GET /api/v1/family/person/{person_pk}/membership-summary` | On-demand, parallel with person detail |
 
-**Tree Visualization:** Recursive renderer (`renderTree()` → `_renderSubtree()` → `_renderCouple()` → `_renderPerson()`) generates HTML via Alpine's `x-html` directive. No external charting library.
+**Tree Visualization:** Recursive renderer (`renderTree()` → `_renderSubtree()` → `_renderCouple()` → `_renderPerson()`) generates HTML via Alpine's `x-html` directive. No external charting library. `_buildCoupleTree(allPersons)` (tree construction) and a shared `_renderGenSubtree(nodes, isRoot, renderCouple, recurse)` (rendering skeleton, in progress/uncommitted) are now reused by both this Family tab and the Family-of-Origin org browser in the Admin tabs below — previously each independently implemented the whole algorithm.
 
 **Viewer Perspective:** Always the logged-in user. No "View As" selector — the graph API is called with the user's own `person_pk` as `viewer_person_pk`.
 
@@ -89,7 +89,7 @@ Sort is driven by the `relationship_label` from the graph API, matched against a
 | Data | Source | Notes |
 |------|--------|-------|
 | Which tabs appear | `user.roles` from JWT token | RBAC-driven; e.g., NSS_ERP_ADMIN sees System Admin, NSS_ERP_KENDRA_ADMIN sees Kendra Management |
-| Org-level stats (Active Members, Families, etc.) | Reporting APIs (pending) | Currently show "—" placeholders |
+| Org-level stats (Active Members, Families, Sakha counts, renewals due) | `GET /api/v1/organization/organizations/{pk}/stats` and `GET /api/v1/membership/organizations/{pk}/darshak-summary` | Rendered by the shared `assets/js/org-dashboard.js` (`orgDashboardTab()`), embedded as the "Org Dashboard" tab of both this page and `admin.html` (in progress, uncommitted); every number is real, while attendance % and renewal-tracking widgets from the mockups show honest "not tracked yet" placeholders |
 
 **Admin tab types:** System Admin, Kendra Management, Anchalika Management, Zilla Management, Sakha Management, Patha Chakra Management, Audit and Compliance, Reports.
 
@@ -116,16 +116,30 @@ Active tab is stored in `sessionStorage` under key `nss_dashboard_tab`. On page 
 
 ### 4.4 Cache Busting
 
-JS includes use query-string versioning: `dashboard.js?v=X.X.X`. Version badge displayed in bottom-right corner.
+**Automatic, in progress/uncommitted — no longer a hand-maintained `?v=X.X.X` string.**
+`api/main.py`'s `_serve_page()`/`_render_html_with_asset_versions()` rewrites every
+`/assets/js/*.js`/`/assets/css/*.css` reference in the served `dashboard.html` to `?v=<10-char
+sha256 prefix of that file's current contents>` at request time (memoized by file mtime); the
+old manual `?v=` query string was removed from `dashboard.html`'s `<script>` tag entirely. The
+`.version-badge` element in the bottom-right corner (`v0.21.0` in the current markup) is a
+separate, unrelated concept — a hardcoded app-release label, not a cache-busting mechanism, and
+is not updated by the new hashing.
 
 ---
 
 ## 5. API Authentication
 
 All API calls use `NSSAuth.apiFetch(url)` which:
-1. Reads JWT from `sessionStorage`
+1. Reads the access JWT from `localStorage`
 2. Attaches `Authorization: Bearer <token>` header
-3. On 401, redirects to login page
+3. On 401, tries one refresh-token cycle (`POST /api/v1/auth/refresh`); if that fails, redirects to the login page
+
+**Endpoint gating (Tier 5 branch, in progress, uncommitted):** the dashboard's own reads are
+authorized by *ownership* rather than a blanket permission — `/person/persons/{pk}` and
+`/addresses` (self or `PERSON_VIEW`), `/membership/members/{pk}` and its four sub-resources
+(self or `MEMBERSHIP_VIEW`), and `/family/person/{pk}/families|membership-summary` plus
+`/family/families/{pk}/*` (self / current relative / family member, with `FAMILY_VIEW` as the
+admin override). Member search (`/membership/search`) requires `MEMBERSHIP_VIEW`.
 
 ---
 
@@ -133,7 +147,7 @@ All API calls use `NSSAuth.apiFetch(url)` which:
 
 ### 6.1 Add Member
 
-Any current family member can add a new person to the family.
+The family head, a family admin, or a holder of `FAMILY_MANAGE` can add a new person to the family.
 
 | Step | UI Action | API |
 |------|-----------|-----|
@@ -146,7 +160,7 @@ Any current family member can add a new person to the family.
 
 **Search fields:** Person ID, Sangha Sevi ID, Local Sakha ERP ID, name (trigram), mobile, email, Kendra Number (Parichaya Patra document_number).
 
-**Authorization:** Requester must be a current member of the family (JWT required).
+**Authorization:** Requester must be the current head or a current family admin (or hold `FAMILY_MANAGE`); merely being a family member is not enough (403). JWT required.
 
 **Validation:**
 - Target person must exist and be active
@@ -155,7 +169,7 @@ Any current family member can add a new person to the family.
 
 ### 6.2 Remove Member
 
-Only the current family head can remove members.
+Only the current family head, a family admin, or a holder of `FAMILY_MANAGE` can remove members (FAM-048).
 
 | Step | UI Action | API |
 |------|-----------|-----|
@@ -163,10 +177,10 @@ Only the current family head can remove members.
 | 2 | Confirm removal via browser dialog | — |
 | 3 | Execute | `DELETE /api/v1/family/families/{pk}/members` |
 
-**Authorization:** Requester must be the current family head (checked via `family_head_history` where `effective_to IS NULL`).
+**Authorization:** same rule as Add Member (`_require_family_manage` — head via `family_head_history` where `effective_to IS NULL`, or a `family_admin` row, or `FAMILY_MANAGE`).
 
 **Constraints:**
-- Head cannot remove themselves
+- The requester cannot remove themselves (400 "You cannot remove yourself from the family")
 - Soft-delete only: sets `is_current=FALSE`, `effective_to=today` on `family_relationship` and all associated `family_link` rows
 
 ---
@@ -175,7 +189,7 @@ Only the current family head can remove members.
 
 | Feature | Status | Dependency |
 |---------|--------|------------|
-| Org-level dashboard stats | Placeholder ("—") | Reporting API endpoints not yet built |
+| Attendance % and renewal-tracking widgets on the Org Dashboard | Placeholder ("not tracked yet") | No attendance/renewal-tracking tables exist yet |
 | Attendance tab | Placeholder content | Attendance module not built |
 | Governance tab | Placeholder content | Governance module not built |
 

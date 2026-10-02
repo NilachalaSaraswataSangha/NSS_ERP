@@ -1306,6 +1306,11 @@ Patra issuance (MBR-014), and its own status follows that credential's status ch
 rather than being independently created, activated, or archived through a separate
 organizational lifecycle action.
 
+**Addendum (SOL-ARCH-013 FC-DECISION-01, 2026-10-01):** since Gruhasana's lifecycle
+already tracks the Parichaya Patra's lifecycle (addendum above), it inherits that
+credential's Dola-Purnima-based `valid_from`/`valid_to` window as-is and needs no
+independent validity calculation of its own.
+
 ## ORG-BR-095 — Admin-Scope Levels Reflect This Hierarchy
 
 `nss.admin_scope`/`nss.role_master`'s `scope_level` enum (`NSS-WIDE`, `KENDRA`, `ANCHALIKA`,

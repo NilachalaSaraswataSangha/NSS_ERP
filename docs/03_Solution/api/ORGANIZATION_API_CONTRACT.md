@@ -31,8 +31,8 @@
 ## 1. Purpose
 
 This document defines the API contract for the Tier 2 Organization read-only API.
-All endpoints are GET-only. No authentication. `nss_db_backend` connects with
-SELECT-only privileges.
+All endpoints are GET-only. No authentication (*at v0.8.0 — see the Tier 5 note below*).
+`nss_db_backend` connects with SELECT-only privileges.
 
 The Organization API exposes the institutional hierarchy of Nilachala Saraswata
 Sangha — from the apex Kendra through Anchalika/Zilla, Sakha, and Patha Chakra
@@ -42,6 +42,19 @@ a recursive hierarchy endpoint for tree navigation.
 Write operations (POST/PATCH/DELETE) are deferred to Tier 5 when authenticated
 administration and authorization exist.
 
+> **Tier 5 update (in progress, uncommitted on `feature/tier5-authentication-administration`):**
+> this router now has **8** endpoints, all gated by `require_permission("ORGANIZATION_VIEW")`
+> (401 without a JWT, 403 without the permission). The 8th is
+> `GET /organizations/{organization_pk}/stats` — whole-subtree `member_count`, `family_count`,
+> `sakha_sanghas`, `mahila_sanghas`, `renewals_due` for the requested org itself (same FAM-036
+> majority-rule counting as `/children-stats`), 403 if the org lies outside the caller's admin
+> scope (ADMIN-BR-076); `OrgStatsResponse`, covered by
+> `tests/security/test_organization_stats_security.py`. `/organizations` is backed by a shared
+> `fetch_organizations()` that `api/routers/registration.py` reuses for the public Sakha
+> dropdown. Organization **writes** live in `api/routers/admin.py` (`POST`/`PATCH
+> /api/v1/admin/organizations...`, scope-gated), not here; ORG-BR-099 was narrowed so
+> Anchalika/Zilla/Patha Chakra may carry country/state/district (still no premises address).
+> The "7 endpoints" counts below predate `/stats`.
 ---
 
 ## 2. Conventions
@@ -184,9 +197,8 @@ NULL`) — **7 statuses**: Proposed, Approved, Active, Inactive, Suspended, Diss
 The unified `STATUS` category itself now holds 16 values total (13 original + `RENEWAL_PENDING`/
 `ON_HOLD`/`DISCIPLINARY_REVIEW`, added for Membership) — Organization no longer sees the
 Membership-only ones (Lapsed, Transferred, Resigned, Expelled, Deceased, Expired, and the 3 new
-Membership statuses). **Known test gap:** `tests/test_organization.py::test_list_returns_13_statuses`
-still asserts the old unfiltered count of 13 and has not been updated for this filter — it will
-fail against the current code.
+Membership statuses). The test gap formerly noted here is closed: `tests/api/test_organization.py`
+now asserts organization-scoped statuses (`test_list_includes_org_statuses`).
 
 **SQL Pattern:**
 
@@ -441,11 +453,10 @@ For each **direct** child of the given organization, recursively walks every des
 Sakha (`SAKHA_SANGHA`-typed organization, at any depth) and returns aggregate
 family/member/person counts rolled up to that direct child. New on top of Tier 4 Family +
 Membership. The router docstring states this is "used by the org admin sidebar to display
-inline counts on each drill-down card" — **as of this contract version, no frontend code calls
-this endpoint. The original `frontend/organization.html`/`frontend/assets/js/organization.js`
-never did, and neither does their successor, `frontend/admin.html`'s Organization Hierarchy tab
-(`frontend/assets/js/admin.js`); the UI consumer described in the docstring does not exist in
-code.**
+inline counts on each drill-down card". **Consumer (updated):** the original
+`organization.html` page never called it, and `admin.html`'s Organization Hierarchy tab still
+doesn't; the real consumer is the org family browser in `frontend/dashboard.html`
+(`frontend/assets/js/dashboard.js::_fetchOrgChildrenStats()`).
 
 **Path Parameters:**
 
@@ -673,7 +684,8 @@ those go in the `org_*` columns. The UI displays both when present.
 | Core Organizations | 3         | organization (list, detail, children)                     |
 | Aggregate Stats    | 1         | organization + family_group/family_relationship/sangha_sevi/membership_sakha_affiliation (children-stats, dynamic FAM-036 rollup) |
 | Navigation         | 1         | organization (recursive CTE)                              |
-| **Total**          | **7**     | **1 table (`organization`) + 4 Family/Membership tables (read-only, for children-stats) + 2 shared Foundation master_data categories** |
+| Subtree Stats (Tier 5) | 1     | organization + family/membership tables (`/stats`)        |
+| **Total**          | **8**     | **1 table (`organization`) + 4 Family/Membership tables (read-only, for children-stats) + 2 shared Foundation master_data categories** |
 
 ---
 
@@ -697,8 +709,8 @@ Carried forward from Tier 0:
 api/
   helpers.py                        <- Shared cursor→Pydantic helpers + pagination constants
   routers/
-    organization.py             <- 7 endpoint handlers + _ORG_SELECT + _CHILDREN_STATS_SQL
-    family.py                   <- family_majority CTE duplicated here (see 3.2.4 note)
+    organization.py             <- 8 endpoint handlers + _ORG_SELECT + _CHILDREN_STATS_SQL + _ORG_STATS_SQL
+    family.py                   <- splices the same shared FAMILY_MAJORITY_CTE_SQL (api/helpers.py)
   schemas/
     organization.py             <- 5 Pydantic response models (incl. OrgChildStatsResponse)
 database/
@@ -713,11 +725,12 @@ database/
     01_master_category.sql           (ORGANIZATION_TYPE, STATUS categories)
     02_master_data.sql               (10 ORGANIZATION_TYPE values, 13 STATUS values)
 tests/
-  test_organization.py          <- Integration tests, incl. TestChildrenStats
+  api/test_organization.py      <- Integration tests, incl. TestChildrenStats
+  security/test_organization_stats_security.py <- /stats gating
 frontend/
   admin.html                    <- Organization UI: Organizations + Organization Hierarchy
-                                   tabs (replaces the retired organization.html; still no
-                                   children-stats UI wiring)
+                                   tabs (replaces the retired organization.html);
+  dashboard.html                <- org family browser consuming /children-stats
 docs/
   03_Solution/code_explanations/
       API_CODE_EXPLANATIONS.md        <- Code walkthrough (SS2.9-2.10)
