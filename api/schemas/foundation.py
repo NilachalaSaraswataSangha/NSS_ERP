@@ -8,6 +8,7 @@ Raw psycopg2 returns dictionaries — no ORM objects — so
 ConfigDict(from_attributes=True) is unnecessary.
 """
 
+from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -66,6 +67,71 @@ class UpdateMasterDataRequest(BaseModel):
     description: str | None = Field(None)
     display_order: int | None = Field(None, ge=0)
     applicable_modules: list[str] | None = Field(None)
+
+
+# ---------------------------------------------------------------------------
+# Festival Reference Calendar Subsystem (SOL-ARCH-013)
+# ---------------------------------------------------------------------------
+
+class FestivalMasterResponse(BaseModel):
+    """A festival/occasion that can carry authoritative calendar dates."""
+
+    festival_master_pk: UUID
+    festival_code: str
+    festival_name: str
+    festival_name_odia: str | None
+    lunar_basis: str | None
+    is_erp_reference_date: bool
+    description: str | None
+    display_order: int
+    is_active: bool
+
+
+class FestivalCalendarDateResponse(BaseModel):
+    """
+    A single festival/year observed-date row, with festival context via
+    JOIN so the admin calendar screen can render without a second call.
+    """
+
+    festival_calendar_date_pk: UUID
+    festival_master_pk: UUID
+    festival_code: str
+    festival_name: str
+    calendar_year: int
+    observed_date: date
+    is_confirmed: bool
+    source_reference: str | None
+    remarks: str | None
+    is_active: bool
+
+
+class CreateFestivalCalendarDateRequest(BaseModel):
+    """
+    POST /api/v1/foundation/festival-calendar-dates — record an observed
+    date for a festival/year. Requires FOUNDATION_CALENDAR_MANAGE.
+
+    observed_date is always administrator-entered data (almanac/panchang,
+    Kendra Sangha circular) — never computed (SOL-ARCH-013 §3).
+    """
+
+    festival_code: str = Field(..., min_length=1, description="e.g. DOLA_PURNIMA")
+    calendar_year: int = Field(..., ge=1900, le=2200)
+    observed_date: date
+    is_confirmed: bool = Field(False, description="TRUE only once confirmed by the Kendra Sangha")
+    source_reference: str | None = Field(None, max_length=200)
+    remarks: str | None = None
+
+
+class UpdateFestivalCalendarDateRequest(BaseModel):
+    """
+    PATCH /api/v1/foundation/festival-calendar-dates/{pk} — correct or
+    confirm an existing row. Requires FOUNDATION_CALENDAR_MANAGE.
+    """
+
+    observed_date: date | None = None
+    is_confirmed: bool | None = None
+    source_reference: str | None = Field(None, max_length=200)
+    remarks: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -187,40 +253,66 @@ class CityVillageResponse(BaseModel):
     """City/village with parent district context."""
 
     city_village_pk: UUID
-    district_pk: UUID
-    district_name: str
+    district_pk: UUID | None
+    district_name: str | None
     city_village_code: str
     city_village_name: str
     city_village_type: str
+    postal_code_pk: UUID | None
+    postal_code: str | None
     display_order: int
     is_active: bool
 
 
 class PostalCodeResponse(BaseModel):
-    """Postal code with parent state context."""
+    """
+    Postal code with parent state context.
+
+    Simplified Geography Model (2026-10-02): nss.post_office is retired.
+    A PIN is now a single globally-unique, state-scoped row — there is
+    no office-level detail (post_office_name / office_count are gone).
+    country_pk is still returned for the frontend's cascade, but it is
+    derived from state.country_pk, not stored on postal_code.
+    """
 
     postal_code_pk: UUID
     country_pk: UUID
     state_pk: UUID
     state_name: str
     postal_code: str
-    post_office_name: str | None
     is_active: bool
 
 
 class PostalCodeMappingResponse(BaseModel):
     """
-    City/village to postal code mapping (M:N junction).
+    City/village to postal code mapping.
 
-    Pure junction table — no is_active, no soft-delete.
-    Includes display fields from both sides via JOIN.
+    SOL-ARCH-010 Amendment (2026-10-01): the former M:N junction
+    table is retired. This now reads the direct
+    nss.city_village.postal_code_pk FK, so each row is simply a
+    city/village that has a resolved PIN (no separate mapping PK).
     """
 
-    city_village_postal_code_map_pk: UUID
     city_village_pk: UUID
     city_village_name: str
     postal_code_pk: UUID
     postal_code: str
+
+
+class SakhaPostalCodeResponse(BaseModel):
+    """
+    Sakha Sangha branch linked to a postal code via
+    organization.postal_code_pk. Surfaces the PIN ↔ Sakha
+    relationship on the Geography page.
+    """
+
+    organization_pk: UUID
+    organization_name: str
+    organization_code: str | None
+    postal_code_pk: UUID
+    postal_code: str
+    state_pk: UUID
+    state_name: str
 
 
 # ---------------------------------------------------------------------------

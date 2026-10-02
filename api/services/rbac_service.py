@@ -10,7 +10,7 @@ Authority: SOL-ADMIN-004, SOL-AUTH-004,
            Tier 5 design decisions (2026-09-15)
 
 RBAC Model (FROZEN):
-  - 8 parallel roles (no hierarchy/inheritance)
+  - 9 parallel roles (no hierarchy/inheritance)
   - Multi-role per user (user_role junction table)
   - Scope-on-assignment (admin_scope per user_role)
   - Composite permissions = union of all active role permissions
@@ -27,7 +27,8 @@ class ScopeInfo:
     """A single scope assignment (from admin_scope)."""
     user_role_pk: UUID
     role_code: str
-    scope_level: str           # NSS-WIDE, KENDRA, ANCHALIKA, ZILLA, SAKHA, PATHA_CHAKRA
+    scope_level: str           # NSS-WIDE, KENDRA, ANCHALIKA, ZILLA, SAKHA,
+                               # PATHA_CHAKRA, KENDRA_MAHILA_SANGHA
     organization_pk: UUID | None  # NULL for NSS-WIDE
 
 

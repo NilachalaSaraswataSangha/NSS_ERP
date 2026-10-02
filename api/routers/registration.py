@@ -2,7 +2,12 @@
 NSS ERP — Self-Registration router.
 
 Tier 5 endpoints:
-  POST /api/v1/register — Self-register (creates person + pending account + claim)
+  POST /api/v1/register                — Self-register (creates person + pending account + claim)
+  GET  /api/v1/register/check-duplicate — Pre-submit duplicate contact check
+  GET  /api/v1/register/reference-data  — Dropdown reference data for the form
+  GET  /api/v1/register/states          — States lookup (cascading geography)
+  GET  /api/v1/register/districts       — Districts lookup (by state)
+  GET  /api/v1/register/postal-codes    — Postal-code lookup (by district)
 
 Flow (POST /register):
   1. Validate input (person details, password policy)
@@ -18,7 +23,9 @@ Business rules (AUTH-BR-081 through AUTH-BR-098):
   - Registration creates person + user_account(PENDING_APPROVAL) only
   - No sangha_sevi or membership_sakha_affiliation created at registration
   - Membership intent stored in nss.registration_claim table
-  - Local Sakha Number: required for non-Darshaka, optional for Darshaka
+  - Local Sakha Number: required for every membership type, incl. Darshaka —
+    Darshak members are enrolled in a separate short_code+marker namespace
+    (MBR-030C) at approval, not exempted from having a number at all.
   - Local Sakha Number is NOT validated at registration (admin verifies)
   - PENDING_APPROVAL accounts cannot login
   - Sakha admin approves claim → creates membership records → activates account
@@ -28,14 +35,19 @@ Authority: SOL-AUTH-001, SOL-AUTH-002, SOL-AUTH-006, SOL-AUTH-007
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from api.config import settings
 from api.database import get_connection, get_write_connection
-from api.helpers import log_audit, next_id, resolve_or_create_city_village, resolve_or_create_postal_code, check_duplicate_contact, record_password_history, require_sakha_organization
+from api.helpers import log_audit, next_id, resolve_or_create_city_village, resolve_or_create_postal_code, check_duplicate_contact, record_password_history, require_sakha_organization, validate_mobile, validate_email
 from api.services.auth_service import hash_password, validate_password_policy
+from api.routers.foundation import fetch_countries, fetch_states, fetch_districts, fetch_cities, fetch_postal_codes, fetch_master_data
+from api.routers.organization import fetch_organizations
+from api.schemas.foundation import CountryResponse, StateResponse, DistrictResponse, CityVillageResponse, PostalCodeResponse, MasterDataResponse
+from api.schemas.organization import OrganizationResponse
 
 router = APIRouter(prefix="/api/v1/register", tags=["registration"])
 
@@ -100,10 +112,19 @@ class RegisterRequest(BaseModel):
     )
     joining_date: Optional["date"] = None
 
-    # Local Sakha Number (shown after sakha selection)
+    # Local Sakha Number (shown after sakha selection) — required for every
+    # membership type, including Darshaka (see module docstring).
     claimed_local_sakha_number: str | None = Field(
         None, max_length=20,
-        description="Local Sakha Number — required for non-Darshaka, optional for Darshaka",
+        description="Local Sakha Number — required for all membership types, including Darshaka",
+    )
+
+    # Existing Parichaya Patra / Anumati Patra document number, for a
+    # registrant who already holds one (legacy member). Optional — omit to
+    # have a new one auto-generated at approval time for the current FY.
+    claimed_credential_document_number: str | None = Field(
+        None, max_length=30,
+        description="Existing Parichaya/Anumati Patra number, if already issued. Omit to auto-generate a new one at approval.",
     )
 
     # Darshak attendance at another Sangha (optional)
@@ -113,6 +134,10 @@ class RegisterRequest(BaseModel):
     )
     darshak_organization_pk: str | None = Field(
         None, description="UUID of Sakha the user is attending as Darshak",
+    )
+    darshak_local_sakha_number: str | None = Field(
+        None, max_length=20,
+        description="Local Sakha Number at the darshak (attending) Sakha — required when is_attending_as_darshak is True",
     )
 
     # Password
@@ -177,6 +202,140 @@ def check_duplicate(
     return result
 
 
+# ── GET /api/v1/register/reference-data ────────────────────────────────
+# Public, no auth (see check_duplicate above for the same pattern) — the
+# person filling out this form has no JWT yet, that's the whole point of
+# self-registration. Foundation's countries/master-data and Organization's
+# Sakha list are otherwise gated behind require_permission() now (Tier 5),
+# which silently broke every dropdown on this page. Reuses the exact same
+# query functions those authenticated endpoints call (fetch_countries()
+# etc., factored out of foundation.py/organization.py for this purpose) —
+# same SQL, same response shape, just a second, unauthenticated door onto
+# it — so there's no duplicated logic to drift out of sync.
+#
+# Bundles every reference list the registration page needs on load into
+# one response instead of 6 separate round trips (countries + 4 master-data
+# categories + Sakhas). States/districts stay separate below since they're
+# cascading and depend on what the operator picks.
+
+class RegisterReferenceDataResponse(BaseModel):
+    countries: list[CountryResponse]
+    genders: list[MasterDataResponse]
+    marital_statuses: list[MasterDataResponse]
+    blood_groups: list[MasterDataResponse]
+    membership_types: list[MasterDataResponse]
+    sakhas: list[OrganizationResponse]
+
+
+@router.get("/reference-data", response_model=RegisterReferenceDataResponse)
+def get_register_reference_data(
+    conn=Depends(get_connection),
+) -> RegisterReferenceDataResponse:
+    """Everything the registration page's dropdowns need, in one call."""
+    with conn.cursor() as cur:
+        countries = fetch_countries(cur)
+        genders = fetch_master_data(cur, category_code="GENDER")
+        marital_statuses = fetch_master_data(cur, category_code="MARITAL_STATUS")
+        blood_groups = fetch_master_data(cur, category_code="BLOOD_GROUP")
+        membership_types = fetch_master_data(cur, category_code="MEMBERSHIP_TYPE")
+        sakhas = fetch_organizations(cur, type_code="SAKHA_SANGHA", limit=500)
+    return RegisterReferenceDataResponse(
+        countries=countries,
+        genders=genders,
+        marital_statuses=marital_statuses,
+        blood_groups=blood_groups,
+        membership_types=membership_types,
+        sakhas=sakhas,
+    )
+
+
+@router.get("/countries", response_model=list[CountryResponse])
+def get_register_countries(
+    conn=Depends(get_connection),
+) -> list[CountryResponse]:
+    """
+    Public countries lookup for location cascades. Unauthenticated like the
+    rest of /register/*, so member-facing authenticated screens that must not
+    require the admin-only FOUNDATION_VIEW permission (e.g. the dashboard's
+    Create-Family Sakha picker) can reuse it instead of /foundation/countries.
+    """
+    with conn.cursor() as cur:
+        return fetch_countries(cur)
+
+
+@router.get("/states", response_model=list[StateResponse])
+def get_register_states(
+    country_pk: UUID | None = Query(None, description="Filter by parent country"),
+    conn=Depends(get_connection),
+) -> list[StateResponse]:
+    """Public states lookup for the registration page's location cascade."""
+    with conn.cursor() as cur:
+        return fetch_states(cur, country_pk)
+
+
+@router.get("/districts", response_model=list[DistrictResponse])
+def get_register_districts(
+    state_pk: UUID | None = Query(None, description="Filter by parent state"),
+    conn=Depends(get_connection),
+) -> list[DistrictResponse]:
+    """Public districts lookup for the registration page's location cascade."""
+    with conn.cursor() as cur:
+        return fetch_districts(cur, state_pk)
+
+
+@router.get("/cities", response_model=list[CityVillageResponse])
+def get_register_cities(
+    district_pk: UUID | None = Query(None, description="Filter by parent district"),
+    conn=Depends(get_connection),
+) -> list[CityVillageResponse]:
+    """
+    Public cities/villages lookup for the registration page's location
+    cascade — offered as suggestions alongside the free-text
+    city_village_name field, not a hard-restricted list: many villages
+    (every state except Odisha, nationwide gap flagged 2026-10-01) have no
+    district association yet, and resolve_or_create_city_village() already
+    creates a new row on the fly for a name typed that isn't on file.
+    """
+    with conn.cursor() as cur:
+        return fetch_cities(cur, district_pk)
+
+
+@router.get("/postal-codes", response_model=list[PostalCodeResponse])
+def get_register_postal_codes(
+    state_pk: UUID | None = Query(None, description="Filter by state"),
+    country_pk: UUID | None = Query(None, description="Filter by country"),
+    conn=Depends(get_connection),
+) -> list[PostalCodeResponse]:
+    """Public postal-codes lookup for the registration page's location cascade."""
+    with conn.cursor() as cur:
+        return fetch_postal_codes(cur, state_pk, country_pk)
+
+
+@router.get("/sakhas", response_model=list[OrganizationResponse])
+def get_register_sakhas(
+    country_pk: UUID | None = Query(None, description="Filter by country"),
+    state_pk: UUID | None = Query(None, description="Filter by state"),
+    district_pk: UUID | None = Query(None, description="Filter by district"),
+    postal_code_pk: UUID | None = Query(None, description="Filter by postal code"),
+    conn=Depends(get_connection),
+) -> list[OrganizationResponse]:
+    """
+    Public "find my Sakha" lookup for the registration page.
+
+    SOL-ARCH-010 Amendment (2026-10-01): narrows the Sakha Sangha list by
+    the same country/state/district/postal-code the registrant already picked
+    for their address cascade (via /register/states, /districts, /postal-codes
+    above), instead of making them scroll an unfiltered list of up to 500
+    Sakhas. Falls back to the full list when no geography is selected yet,
+    same as the existing `sakhas` array returned by /reference-data.
+    """
+    with conn.cursor() as cur:
+        return fetch_organizations(
+            cur, type_code="SAKHA_SANGHA", country_pk=country_pk, state_pk=state_pk,
+            district_pk=district_pk, postal_code_pk=postal_code_pk, limit=500,
+        )
+
+
 # ── POST /api/v1/register ──────────────────────────────────────────────
 
 @router.post("", response_model=RegisterResponse, status_code=201)
@@ -206,6 +365,9 @@ def register(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="At least one of mobile_number or email is required.",
         )
+    # MBR-CONTACT-01/02: country-wise mobile + email format validation.
+    validate_mobile(body.country_phone_code, body.mobile_number)
+    validate_email(body.email)
 
     # ── 3. Validate membership claim fields if has_membership ───────────
     if body.has_membership:
@@ -221,11 +383,17 @@ def register(
             )
 
     # ── 3b. Validate darshak attendance fields ──────────────────────────
-    if body.is_attending_as_darshak and not body.darshak_organization_pk:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="darshak_organization_pk is required when is_attending_as_darshak is True.",
-        )
+    if body.is_attending_as_darshak:
+        if not body.darshak_organization_pk:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="darshak_organization_pk is required when is_attending_as_darshak is True.",
+            )
+        if not body.darshak_local_sakha_number:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="darshak_local_sakha_number is required when is_attending_as_darshak is True.",
+            )
 
     with conn.cursor() as cur:
 
@@ -244,30 +412,14 @@ def register(
         if body.has_membership and body.organization_pk:
             require_sakha_organization(cur, body.organization_pk)
 
-        # ── 5b. Determine if membership type is Darshaka (PROBATIONARY) ─
-        is_darshaka = False
-        if body.has_membership and body.membership_type_master_data_pk:
-            cur.execute(
-                """
-                SELECT md.value_code
-                FROM nss.master_data md
-                WHERE md.master_data_pk = %s
-                """,
-                (body.membership_type_master_data_pk,),
+        # ── 5b. Validate Local Sakha Number requirement (AUTH-BR-086) ────
+        #   Required for every membership type, including Darshaka — see
+        #   module docstring.
+        if body.has_membership and not body.claimed_local_sakha_number:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Local Sakha Number is required.",
             )
-            mtype_row = cur.fetchone()
-            if mtype_row:
-                is_darshaka = mtype_row[0] == 'PROBATIONARY'
-
-        # ── 5c. Validate Local Sakha Number requirement ─────────────────
-        #   Non-Darshaka: required (AUTH-BR-086)
-        #   Darshaka: optional
-        if body.has_membership and not is_darshaka:
-            if not body.claimed_local_sakha_number:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="Local Sakha Number is required for non-Darshaka membership types.",
-                )
 
         # ── 6. Generate person_id ───────────────────────────────────────
         person_id = next_id(cur, "PERSON")
@@ -387,10 +539,12 @@ def register(
                     claimed_organization_pk,
                     claimed_membership_type_master_data_pk,
                     claimed_local_sakha_number,
+                    claimed_credential_document_number,
                     claimed_joining_date,
                     darshak_organization_pk,
+                    darshak_local_sakha_number,
                     claim_status
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, 'PENDING')
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'PENDING')
                 RETURNING registration_claim_pk
                 """,
                 (
@@ -399,8 +553,10 @@ def register(
                     body.organization_pk,
                     body.membership_type_master_data_pk,
                     body.claimed_local_sakha_number,
+                    body.claimed_credential_document_number,
                     body.joining_date,
                     body.darshak_organization_pk if body.is_attending_as_darshak else None,
+                    body.darshak_local_sakha_number if body.is_attending_as_darshak else None,
                 ),
             )
             claim_pk = cur.fetchone()[0]

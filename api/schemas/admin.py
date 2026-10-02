@@ -4,7 +4,7 @@ NSS ERP — Administration Pydantic schemas.
 Request/response models for admin endpoints (Tier 5).
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -46,6 +46,29 @@ class CreateUserRequest(BaseModel):
         None, max_length=30,
         description="Local Sakha register number (raw, e.g. 1192). Backend composes <short_code><number>.",
     )
+    # Mandatory credential (MBR-010/014/019A/B), mirroring
+    # CreateSanghaSeviRequest below — this branch creates a sangha_sevi row
+    # too (when create_sangha_sevi=true), so it owes the member the same
+    # Anumati/Parichaya Patra. Omit credential_document_number to
+    # auto-generate a new FY number; supply it to record an already-issued
+    # legacy credential instead. Ignored when create_sangha_sevi=false.
+    credential_document_number: str | None = Field(
+        None, max_length=30,
+        description="Existing document number for a legacy (already-issued) credential; omit to auto-generate a new one.",
+    )
+    credential_issue_date: str | None = Field(
+        None, description="Deprecated — issue date is now derived from credential_issue_year's Dola Purnima. An explicit ISO (YYYY-MM-DD) date still wins if supplied.",
+    )
+    credential_issue_year: int | None = Field(
+        None, ge=1900, le=2200,
+        description="Membership year; the credential's issue date is that year's Dola Purnima (422 if that date is unknown or still in the future).",
+    )
+    credential_valid_from: str | None = Field(
+        None, description="Legacy credential's validity start (YYYY-MM-DD); defaults to the current FY start when auto-generating.",
+    )
+    credential_valid_to: str | None = Field(
+        None, description="Legacy credential's validity end (YYYY-MM-DD); defaults to the current FY end when auto-generating.",
+    )
 
 
 class ResetPasswordRequest(BaseModel):
@@ -79,8 +102,15 @@ class AssignRoleRequest(BaseModel):
     )
     scope_level: str = Field(
         ...,
-        description="Scope level: NSS-WIDE, KENDRA, ANCHALIKA, ZILLA, SAKHA, PATHA_CHAKRA",
-        pattern="^(NSS-WIDE|KENDRA|ANCHALIKA|ZILLA|SAKHA|PATHA_CHAKRA)$",
+        description=(
+            "Scope level: NSS-WIDE, KENDRA, ANCHALIKA, ZILLA, SAKHA, "
+            "PATHA_CHAKRA, KENDRA_MAHILA_SANGHA"
+        ),
+        # Must stay in step with chk_admin_scope_level in
+        # database/ddl/07_administration/02_admin_scope.sql and with the
+        # scope_level values in 00_bootstrap/02_role_master.sql — one value
+        # per ORGANIZATIONAL role, or that role cannot be assigned at all.
+        pattern="^(NSS-WIDE|KENDRA|ANCHALIKA|ZILLA|SAKHA|PATHA_CHAKRA|KENDRA_MAHILA_SANGHA)$",
     )
     organization_pk: UUID | None = Field(
         default=None,
@@ -128,6 +158,32 @@ class CreateSanghaSeviRequest(BaseModel):
         default=True,
         description="Require password change on first login (only used if create_user_account).",
     )
+    # Mandatory credential (MBR-010/014/019A/B): a PROBATIONARY member must
+    # be issued an Anumati Patra; REGULAR/ASSOCIATE must be issued a
+    # Parichaya Patra. Two paths:
+    #   - Omit credential_document_number: a new number is auto-generated
+    #     for the current financial year (Kendra-wide sequence for
+    #     Parichaya Patra, Sakha-wide for Anumati Patra — MBR-030A).
+    #   - Provide credential_document_number (+ optionally the other
+    #     credential_* fields): records an already-issued legacy
+    #     credential instead of minting a new one.
+    credential_document_number: str | None = Field(
+        None, max_length=30,
+        description="Existing document number for a legacy (already-issued) credential; omit to auto-generate a new one.",
+    )
+    credential_issue_date: str | None = Field(
+        None, description="Deprecated — issue date is now derived from credential_issue_year's Dola Purnima. An explicit ISO (YYYY-MM-DD) date still wins if supplied.",
+    )
+    credential_issue_year: int | None = Field(
+        None, ge=1900, le=2200,
+        description="Membership year; the credential's issue date is that year's Dola Purnima (422 if that date is unknown or still in the future).",
+    )
+    credential_valid_from: str | None = Field(
+        None, description="Legacy credential's validity start (YYYY-MM-DD); defaults to the current FY start when auto-generating.",
+    )
+    credential_valid_to: str | None = Field(
+        None, description="Legacy credential's validity end (YYYY-MM-DD); defaults to the current FY end when auto-generating.",
+    )
 
 
 class UserAccountResponse(BaseModel):
@@ -137,10 +193,18 @@ class UserAccountResponse(BaseModel):
     person_id: str | None = None
     sangha_sevi_id: str | None = None
     sangha_sevi_id_generated: str | None = None  # Set only when SS was just created
+    # Set only when a credential was just issued (create_sangha_sevi=true
+    # branch) — mirrors CreateSanghaSeviResponse's fields.
+    credential_type: str | None = None
+    credential_document_number: str | None = None
     person_name: str | None = None
     organization_name: str | None = None
     local_sakha_erp_id: str | None = None
     darshak_local_number: str | None = None
+    darshak_organization_name: str | None = None
+    # Home-org membership type's value_code (e.g. "PROBATIONARY"), so a
+    # Darshaka member's local_sakha_erp_id isn't mislabeled "Regular".
+    home_membership_type_code: str | None = None
     account_status: str
     force_password_change: bool
     last_login_at: datetime | None = None
@@ -152,6 +216,40 @@ class UserAccountResponse(BaseModel):
 class UserListResponse(BaseModel):
     """GET /api/v1/admin/users — paginated list."""
     users: list[UserAccountResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class AccountlessSanghaSeviResponse(BaseModel):
+    """
+    A Sangha Sevi who holds an SS ID but cannot log in — either no
+    user_account row exists at all, or the only one is soft-deleted.
+
+    Feeds the "Create Account" picker on the User Accounts page. Account
+    provisioning itself keys on person_pk (uq_user_account_person — one
+    account per PERSON, not per membership), which is why person_pk is
+    carried here alongside the SS identifiers the admin actually recognises.
+    """
+    sangha_sevi_pk: UUID
+    sangha_sevi_id: str
+    person_pk: UUID
+    person_id: str | None = None
+    person_name: str | None = None
+    organization_name: str | None = None
+    local_sakha_erp_id: str | None = None
+    membership_type_code: str | None = None
+    membership_status_code: str | None = None
+    joining_date: date | None = None
+    # TRUE when a soft-deleted account occupies the UNIQUE(person_pk) slot.
+    # POST /admin/users reactivates in place for these rather than inserting,
+    # so the UI must say "Restore Access", not "Create Account".
+    has_deleted_account: bool = False
+
+
+class AccountlessSanghaSeviListResponse(BaseModel):
+    """GET /api/v1/admin/sangha-sevi/without-account — paginated list."""
+    members: list[AccountlessSanghaSeviResponse]
     total: int
     page: int
     page_size: int
@@ -179,6 +277,8 @@ class UserDetailResponse(BaseModel):
     organization_name: str | None = None
     local_sakha_erp_id: str | None = None
     darshak_local_number: str | None = None
+    darshak_organization_name: str | None = None
+    home_membership_type_code: str | None = None
     account_status: str
     force_password_change: bool
     last_login_at: datetime | None = None
@@ -199,3 +299,7 @@ class CreateSanghaSeviResponse(BaseModel):
     organization_name: str | None = None
     # Set only when a login account was bundled into this SS creation.
     user_account_pk: UUID | None = None
+    # The mandatory credential issued alongside this Sangha Sevi
+    # (MBR-010/014/019A/B) — "ANUMATI_PATRA" or "PARICHAYA_PATRA".
+    credential_type: str
+    credential_document_number: str

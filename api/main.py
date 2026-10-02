@@ -3,12 +3,14 @@ NSS ERP — FastAPI application entry point.
 
 Tier 0 Bootstrap + Tier 1 Foundation + Tier 2 Organization + Tier 3 Person
 + Tier 4 Family + Membership + Tier 5 Authentication + Administration
++ Self-Registration + Registration Claim Approval + Audit
 API + Frontend:
-  - Read-only endpoints for RBAC, Foundation, Organization, Person,
-    Family, and Membership data verification
+  - Permission-gated read + write endpoints for RBAC, Foundation,
+    Organization, Person, Family, and Membership data
   - Tier 5: Authentication (login, JWT, password management) and
     Administration (user CRUD, role assignment, scope management)
-  - Serves frontend/ static files (Verification UIs)
+  - Serves frontend/ static files (Login, Member Dashboard, Administration,
+    and Registration app pages)
   - No ORM — raw psycopg2 against nss.* schema
   - Read pool (nss_db_backend) for SELECT-only endpoints
   - Write pool (nss_db_writer) for Tier 5 auth + admin endpoints
@@ -42,13 +44,15 @@ URLs:
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+import hashlib
 import logging
+import re
 
 import psycopg2
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -67,6 +71,60 @@ from api.routers import bootstrap, foundation, organization, person, family, mem
 from api.routers import auth, admin, registration, claim_approval, audit
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+# ── Automatic asset cache-busting ────────────────────────────────────────
+# /assets/* is served with Cache-Control: public, max-age=86400 (see
+# middleware.py) so browsers won't even ask the server about a JS/CSS file
+# for a full day. Previously the only defence was a hardcoded ?v=N in each
+# HTML page's <script>/<link> tag that a human had to remember to bump on
+# every edit — easy to forget (and the pages had already drifted: the same
+# shared file carried different ?v= numbers on different pages). Instead,
+# every HTML page response below is rendered through
+# _render_html_with_asset_versions(), which rewrites each /assets/js/*.js
+# and /assets/css/*.css reference's query string to a short content hash
+# of that file, computed fresh per request (cheap — memoized by mtime, so
+# an unchanged file is never re-read/re-hashed). A file's URL only changes
+# when its content changes, so the browser cache is busted exactly when
+# needed and never otherwise. Any ?v=... left in an HTML source is
+# harmless dead weight — the regex below replaces it unconditionally.
+_ASSET_VERSION_CACHE: dict[str, tuple[float, str]] = {}
+_ASSET_REF_RE = re.compile(r'(src|href)="(/assets/(?:js|css)/[^"?]+)(?:\?[^"]*)?"')
+
+
+def _asset_version(asset_path: Path) -> str:
+    """Short content-hash for one /assets/* file, cached by mtime."""
+    try:
+        mtime = asset_path.stat().st_mtime
+    except OSError:
+        return "0"
+    cache_key = str(asset_path)
+    cached = _ASSET_VERSION_CACHE.get(cache_key)
+    if cached is not None and cached[0] == mtime:
+        return cached[1]
+    digest = hashlib.sha256(asset_path.read_bytes()).hexdigest()[:10]
+    _ASSET_VERSION_CACHE[cache_key] = (mtime, digest)
+    return digest
+
+
+def _render_html_with_asset_versions(html_path: Path) -> str:
+    html = html_path.read_text(encoding="utf-8")
+
+    def _replace(match: re.Match) -> str:
+        attr, rel_url = match.group(1), match.group(2)
+        version = _asset_version(_FRONTEND_DIR / rel_url.lstrip("/"))
+        return f'{attr}="{rel_url}?v={version}"'
+
+    return _ASSET_REF_RE.sub(_replace, html)
+
+
+def _serve_page(html_path: Path) -> HTMLResponse:
+    """Serve an HTML page with auto cache-busted asset references. The
+    page itself is never cached (no-store) so it always carries the
+    current hashes."""
+    return HTMLResponse(
+        content=_render_html_with_asset_versions(html_path),
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 # ── Rate limiter ─────────────────────────────────────────────────────────
@@ -124,7 +182,7 @@ app = FastAPI(
     version="0.1.0",
     description=(
         "Nilachala Saraswata Sangha ERP — "
-        "Tier 0–4 read-only verification + "
+        "permission-gated Tier 0–4 data endpoints + "
         "Tier 5 Authentication & Administration API."
     ),
     lifespan=lifespan,
@@ -212,7 +270,7 @@ if _FRONTEND_DIR.is_dir():
         @app.get("/login", include_in_schema=False)
         async def serve_login():
             """Serve the Login page."""
-            return FileResponse(str(_login_path))
+            return _serve_page(_login_path)
 
     _dashboard_path = _FRONTEND_DIR / "dashboard.html"
     if _dashboard_path.is_file():
@@ -220,7 +278,7 @@ if _FRONTEND_DIR.is_dir():
         @app.get("/dashboard", include_in_schema=False)
         async def serve_dashboard():
             """Serve the Member Dashboard."""
-            return FileResponse(str(_dashboard_path))
+            return _serve_page(_dashboard_path)
 
     _admin_path = _FRONTEND_DIR / "admin.html"
     if _admin_path.is_file():
@@ -228,7 +286,7 @@ if _FRONTEND_DIR.is_dir():
         @app.get("/admin", include_in_schema=False)
         async def serve_admin():
             """Serve the Administration Dashboard."""
-            return FileResponse(str(_admin_path))
+            return _serve_page(_admin_path)
 
     _register_path = _FRONTEND_DIR / "register.html"
     if _register_path.is_file():
@@ -236,12 +294,12 @@ if _FRONTEND_DIR.is_dir():
         @app.get("/register", include_in_schema=False)
         async def serve_register():
             """Serve the Registration page."""
-            return FileResponse(str(_register_path))
+            return _serve_page(_register_path)
 
-    _forgot_password_path = _FRONTEND_DIR / "forgot-password.html"
-    if _forgot_password_path.is_file():
+    # Note: there is intentionally no standalone /forgot-password page. The
+    # forgot-password + reset-password flow lives inline on the Login page
+    # (login.html / loginApp(), toggled via showForgotPassword /
+    # showResetPassword) — the "Forgot Password?" link switches Alpine state
+    # rather than navigating. The backend endpoints POST /api/v1/auth/
+    # forgot-password and /reset-password back that inline flow directly.
 
-        @app.get("/forgot-password", include_in_schema=False)
-        async def serve_forgot_password():
-            """Serve the Forgot Password page."""
-            return FileResponse(str(_forgot_password_path))

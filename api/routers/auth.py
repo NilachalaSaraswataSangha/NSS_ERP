@@ -9,6 +9,7 @@ Tier 5 endpoints:
   POST /api/v1/auth/forgot-password  — Request OTP for password reset
   POST /api/v1/auth/reset-password   — Reset password with OTP
   GET  /api/v1/auth/me               — Current user profile + RBAC
+  PATCH /api/v1/auth/profile         — Update own profile fields
 
 Authority: SOL-AUTH-001 through SOL-AUTH-004,
            Tier 5 design decisions (2026-09-15),
@@ -47,7 +48,7 @@ from api.services.auth_service import (
     is_account_locked,
     verify_password,
 )
-from api.helpers import check_duplicate_contact, log_audit, record_password_history, validate_and_hash_password
+from api.helpers import check_duplicate_contact, log_audit, record_password_history, validate_and_hash_password, validate_mobile, validate_email
 from api.services.rbac_service import UserContext
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -821,6 +822,7 @@ def me(
     return MeResponse(
         user_account_pk=user.user_account_pk,
         person_pk=user.person_pk,
+        sangha_sevi_pk=user.sangha_sevi_pk,
         sangha_sevi_id=user.sangha_sevi_id,
         person_name=person_name,
         local_sakha_erp_id=local_sakha_erp_id,
@@ -882,6 +884,22 @@ def update_profile(
         )
 
     with conn.cursor() as cur:
+        # MBR-CONTACT-01/02: validate the EFFECTIVE contact values. A PATCH may
+        # change only the mobile number (keeping the stored country code) or
+        # vice-versa, so merge the incoming changes over the current row before
+        # validating country-wise.
+        if "email" in updates:
+            validate_email(updates["email"])
+        if "mobile_number" in updates or "country_phone_code" in updates:
+            cur.execute(
+                "SELECT country_phone_code, mobile_number FROM nss.person WHERE person_pk = %s",
+                (str(user.person_pk),),
+            )
+            cur_contact = cur.fetchone() or (None, None)
+            eff_code = updates.get("country_phone_code") if "country_phone_code" in updates else cur_contact[0]
+            eff_mobile = updates.get("mobile_number") if "mobile_number" in updates else cur_contact[1]
+            validate_mobile(eff_code, eff_mobile)
+
         # Duplicate contact check
         check_duplicate_contact(
             cur,

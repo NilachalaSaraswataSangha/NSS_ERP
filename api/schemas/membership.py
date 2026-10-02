@@ -62,6 +62,14 @@ class MemberResponse(BaseModel):
     # Current Local Sakha ERP ID (from active affiliation)
     local_sakha_erp_id: str | None
 
+    # Cross-Sakha darshak attendance (SOL-MEM-006) — a second, simultaneous
+    # active membership_sakha_affiliation row at a different org than the
+    # home organization above. None when the member isn't attending
+    # anywhere else as a Darshak.
+    darshak_organization_pk: UUID | None = None
+    darshak_organization_name: str | None = None
+    darshak_local_sakha_number: str | None = None
+
     # Dates
     joining_date: date
     renewal_due_date: date | None
@@ -162,3 +170,15 @@ class MemberListResponse(BaseModel):
 
     members: list[MemberResponse]
     total: int
+
+
+class OrgDarshakSummaryResponse(BaseModel):
+    """
+    Darshak (probationary + cross-Sakha attendance) summary for one
+    organization — used by the Sakha/Kendra "Darshak" dashboard card
+    (docs/03_Solution/ui/mockups/03_sakha_dashboard.html,
+    02_kendra_dashboard.html).
+    """
+
+    home_probationary_count: int
+    attending_from_other_sakha_count: int

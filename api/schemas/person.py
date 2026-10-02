@@ -110,9 +110,11 @@ class PersonAddressResponse(BaseModel):
     """
     Person address with resolved location context.
 
-    Resolves address_type via master_data and location via the
-    city_village_postal_code_map junction → city_village + postal_code
-    + district + state + country chain.
+    SOL-ARCH-010 Amendment (2026-10-01): the former
+    city_village_postal_code_map junction is retired. Location now
+    resolves via two independent, nullable direct FKs
+    (city_village_pk, postal_code_pk) → district + state + country
+    chain, matching the pattern already used by nss.organization.
     """
 
     person_address_pk: UUID
@@ -128,8 +130,9 @@ class PersonAddressResponse(BaseModel):
     address_line_2: str | None
     landmark: str | None
 
-    # Location (resolved through junction and geographic chain)
-    city_village_postal_code_map_pk: UUID
+    # Location (resolved via direct, independently-nullable FKs)
+    city_village_pk: UUID | None
+    postal_code_pk: UUID | None
     city_village_name: str | None
     postal_code: str | None
     district_name: str | None

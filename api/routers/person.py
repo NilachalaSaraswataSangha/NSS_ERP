@@ -1,7 +1,8 @@
 """
-Person API router — Tier 3 read-only endpoints.
+Person API router — Tier 3 read endpoints.
 
-4 GET endpoints across 2 Person tables. No authentication.
+4 GET endpoints across 2 Person tables. Requires authentication
+(require_permission("PERSON_VIEW")).
 nss_db_backend connects with SELECT-only privileges.
 
 Endpoint groups:
@@ -21,6 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.database import get_connection
+from api.dependencies.auth import get_current_user
 from api.dependencies.rbac import require_permission
 from api.helpers import (
     DEFAULT_LIMIT,
@@ -29,6 +31,8 @@ from api.helpers import (
     natural_sort_key,
     row_to_model,
     rows_to_models,
+    PERSON_MASTER_DATA_JOINS_SQL,
+    require_self_or_permission,
 )
 from api.services.rbac_service import UserContext
 from api.schemas.person import (
@@ -41,12 +45,23 @@ from api.schemas.person import (
 router = APIRouter(prefix="/api/v1/person", tags=["person"])
 
 
+def _require_person_view(person_pk, user: UserContext) -> None:
+    """
+    Read access to one person: an administrator holding PERSON_VIEW, or the
+    person themself (e.g. their own Member Dashboard).
+    """
+    require_self_or_permission(
+        person_pk, user.person_pk, "PERSON_VIEW", user,
+        detail="You do not have access to this person.",
+    )
+
+
 # ── Shared SQL fragments ──────────────────────────────────────────────────
 
 # Full person SELECT with resolved master-data names.
 # LEFT JOINs on master_data: gender, marital_status, blood_group,
 # emergency_relationship — all nullable FKs.
-_PERSON_DETAIL_SELECT = """
+_PERSON_DETAIL_SELECT = f"""
     SELECT p.person_pk,
            p.person_id,
            p.first_name,
@@ -76,18 +91,13 @@ _PERSON_DETAIL_SELECT = """
            p.remarks,
            p.is_active
     FROM   nss.person p
-    LEFT JOIN nss.master_data g
-           ON g.master_data_pk = p.gender_master_data_pk
-    LEFT JOIN nss.master_data ms
-           ON ms.master_data_pk = p.marital_status_master_data_pk
-    LEFT JOIN nss.master_data bg
-           ON bg.master_data_pk = p.blood_group_master_data_pk
+    {PERSON_MASTER_DATA_JOINS_SQL}
     LEFT JOIN nss.master_data er
            ON er.master_data_pk = p.emergency_relationship_master_data_pk
 """
 
 # Compact person SELECT for list/search results (no Aadhaar, emergency, photo).
-_PERSON_SUMMARY_SELECT = """
+_PERSON_SUMMARY_SELECT = f"""
     SELECT p.person_pk,
            p.person_id,
            p.first_name,
@@ -106,32 +116,23 @@ _PERSON_SUMMARY_SELECT = """
            p.email,
            p.is_active
     FROM   nss.person p
-    LEFT JOIN nss.master_data g
-           ON g.master_data_pk = p.gender_master_data_pk
-    LEFT JOIN nss.master_data ms
-           ON ms.master_data_pk = p.marital_status_master_data_pk
-    LEFT JOIN nss.master_data bg
-           ON bg.master_data_pk = p.blood_group_master_data_pk
+    {PERSON_MASTER_DATA_JOINS_SQL}
 """
 
-# Count variant of _PERSON_SUMMARY_SELECT's FROM/JOIN — mirrors it exactly
-# (all LEFT JOINs on nss.master_data, one row per person) so total counts
-# match the summary rows one-for-one. Kept separate rather than derived
-# to match this file's existing DETAIL/SUMMARY duplication style.
-_PERSON_COUNT_SELECT = """
+# Count variant of _PERSON_SUMMARY_SELECT's FROM/JOIN — shares the same
+# PERSON_MASTER_DATA_JOINS_SQL fragment so total counts match the summary
+# rows one-for-one; previously a byte-identical standalone copy.
+_PERSON_COUNT_SELECT = f"""
     SELECT count(*)
     FROM   nss.person p
-    LEFT JOIN nss.master_data g
-           ON g.master_data_pk = p.gender_master_data_pk
-    LEFT JOIN nss.master_data ms
-           ON ms.master_data_pk = p.marital_status_master_data_pk
-    LEFT JOIN nss.master_data bg
-           ON bg.master_data_pk = p.blood_group_master_data_pk
+    {PERSON_MASTER_DATA_JOINS_SQL}
 """
 
-# Address SELECT with resolved location context through the
-# city_village_postal_code_map junction → city_village + postal_code
-# + district + state + country geographic chain.
+# Address SELECT with resolved location context via direct, nullable
+# FKs on person_address (city_village_pk, postal_code_pk) → district
+# + state + country geographic chain. SOL-ARCH-010 Amendment
+# (2026-10-01): the former city_village_postal_code_map junction is
+# retired; both FKs are independently optional, so both joins are LEFT.
 _ADDRESS_SELECT = """
     SELECT pa.person_address_pk,
            pa.person_pk,
@@ -141,7 +142,8 @@ _ADDRESS_SELECT = """
            pa.address_line_1,
            pa.address_line_2,
            pa.landmark,
-           pa.city_village_postal_code_map_pk,
+           pa.city_village_pk,
+           pa.postal_code_pk,
            cv.city_village_name,
            pc.postal_code,
            d.district_name,
@@ -153,13 +155,10 @@ _ADDRESS_SELECT = """
     FROM   nss.person_address pa
     JOIN   nss.master_data at
            ON at.master_data_pk = pa.address_type_master_data_pk
-    JOIN   nss.city_village_postal_code_map cvm
-           ON cvm.city_village_postal_code_map_pk
-              = pa.city_village_postal_code_map_pk
     LEFT JOIN nss.city_village cv
-           ON cv.city_village_pk = cvm.city_village_pk
+           ON cv.city_village_pk = pa.city_village_pk
     LEFT JOIN nss.postal_code pc
-           ON pc.postal_code_pk = cvm.postal_code_pk
+           ON pc.postal_code_pk = pa.postal_code_pk
     LEFT JOIN nss.district d
            ON d.district_pk = cv.district_pk
     LEFT JOIN nss.state s
@@ -269,14 +268,18 @@ def list_persons(
 def get_person(
     person_pk: UUID,
     conn=Depends(get_connection),
-    user: UserContext = Depends(require_permission("PERSON_VIEW")),
+    user: UserContext = Depends(get_current_user),
 ) -> PersonResponse:
     """
     Get a single person by PK with full resolved context.
 
     Includes Aadhaar last-4 (masked), emergency contact, and photo
     FK. Never returns aadhaar_encrypted or aadhaar_hash.
+
+    Access: an administrator holding PERSON_VIEW, or the person themself
+    (e.g. their own Member Dashboard).
     """
+    _require_person_view(person_pk, user)
     sql = _PERSON_DETAIL_SELECT + " WHERE p.person_pk = %s AND p.is_active = TRUE"
 
     with conn.cursor() as cur:
@@ -299,7 +302,7 @@ def get_person(
 def list_person_addresses(
     person_pk: UUID,
     conn=Depends(get_connection),
-    user: UserContext = Depends(require_permission("PERSON_VIEW")),
+    user: UserContext = Depends(get_current_user),
 ) -> list[PersonAddressResponse]:
     """
     List all active addresses for a given person.
@@ -307,7 +310,10 @@ def list_person_addresses(
     Resolves address type, city/village, postal code, district,
     state, and country names via JOINs. Returns 404 if the person
     does not exist.
+
+    Access: an administrator holding PERSON_VIEW, or the person themself.
     """
+    _require_person_view(person_pk, user)
     # Verify the person exists
     with conn.cursor() as cur:
         cur.execute("""
@@ -364,6 +370,32 @@ def search_persons(
     — `{persons, total}` — so callers can tell when a match set is
     larger than the page returned.
     """
+    return _run_person_search(conn, q, limit, offset)
+
+
+@router.get("/search-selectable", response_model=PersonListResponse)
+def search_persons_selectable(
+    q: str = Query(..., min_length=2, max_length=100, description="Search term"),
+    limit: int = Query(50, ge=1, le=MAX_LIMIT, description="Max rows to return (default 50)"),
+    offset: int = Query(0, ge=0, description="Number of rows to skip"),
+    conn=Depends(get_connection),
+    user: UserContext = Depends(get_current_user),
+) -> PersonListResponse:
+    """
+    Member-facing person lookup for selection flows (e.g. a family head
+    adding an existing person to their family via POST
+    /families/{pk}/members, which is itself gated only on family-head /
+    family-admin ownership — NOT the administrative PERSON_VIEW).
+
+    Gated on authentication only, so a family head without PERSON_VIEW can
+    still find the person to add. Returns the same PersonSummaryResponse
+    (name/id/gender/DOB/mobile/status) the add-member picker displays.
+    """
+    return _run_person_search(conn, q, limit, offset)
+
+
+def _run_person_search(conn, q: str, limit: int, offset: int) -> PersonListResponse:
+    """Shared trigram person-search behind /search and /search-selectable."""
     # For trigram: strip email-like suffix so "aniket.mishra" → "aniket"
     name_q = re.split(r'[.@]', q)[0] if ('.' in q or '@' in q) else q
 

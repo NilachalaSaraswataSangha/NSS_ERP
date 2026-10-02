@@ -4,14 +4,23 @@ FastAPI application — the only web/API layer in the codebase. Implements **Tie
 (read-only bootstrap-RBAC, unauthenticated), **Tier 1** (Foundation), **Tier 2** (
 Organization), **Tier 3** (Person), and **Tier 4** (Family + Membership) —
 no ORM — behind a cross-tier security middleware stack (headers, opt-in CORS, rate limiting,
-plus a new Content-Security-Policy). **Partway through this branch's development, Tiers 1-3
-and Membership (Tier 4) gained `require_permission("<MODULE>_VIEW")` gating on every GET
-endpoint** — they were read-only/no-auth through the Tier 4 release. **Family (Tier 4) later
-took a different path**: rather than a blanket permission, every one of `family.py`'s 16
+plus a new Content-Security-Policy) and a shared error-handler layer (`error_handlers.py`).
+11 routers; the endpoint inventory and per-router counts live in
+`docs/03_Solution/api/API_CONTRACT.md`.
+**Partway through this branch's development, Tiers 1-3
+and Membership (Tier 4) gained authenticated gating** — they were read-only/no-auth through
+the Tier 4 release. Foundation, Organization, `person.py`'s list/search, and `membership.py`'s
+list/search/darshak-summary use a blanket `require_permission("<MODULE>_VIEW")`; `person.py`'s
+two per-person endpoints and `membership.py`'s per-member endpoints use an ownership model
+(`get_current_user` + `require_self_or_permission()`: the holder of the permission, or the
+person/member themself). **Family (Tier 4) took a different path**: rather than a blanket
+permission, every one of `family.py`'s 16
 endpoints (7 original reads + 9 Tier 5 writes) now requires `get_current_user` plus an
 ownership check — a person reaches their own family through their `family_relationship`/
 `family_admin` row, with `FAMILY_VIEW`/`FAMILY_MANAGE` as the admin override (see the Family
-section below). Only Tier 0's 4 `bootstrap.py` endpoints remain fully unauthenticated now.
+section below). Only Tier 0's 4 `bootstrap.py` endpoints remain fully unauthenticated now
+(plus `registration.py`'s public endpoints, `POST /auth/login`/`refresh`/`forgot-password`/
+`reset-password`, which are unauthenticated by nature).
 
 **Tier 5 (Authentication + Administration + Audit) is in progress, uncommitted** on branch
 `feature/tier5-authentication-administration` — not yet merged/released. It adds the first
@@ -34,61 +43,119 @@ FastAPI direction (`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) was 
 ```
 api/
 ├── main.py             FastAPI app entry point — builds `app`, registers the security
-│                        middleware stack (rate limiting → opt-in CORS → security headers → CSP,
-│                        in
-│                        that order), includes the six Tier 0-4 routers plus (Tier 5, in
-│                        progress) `auth`/`admin`/`registration`/`claim_approval`/`audit` — 11
-│                        routers total, mounts
-│                        `frontend/assets/` at `/assets`. **The six original Tier 0-4 page
+│                        middleware (in code order: `SlowAPIMiddleware` rate limiting → opt-in
+│                        CORS → `add_security_headers`; Starlette runs the last-registered one
+│                        outermost, so security headers wrap everything — CSP is emitted by that
+│                        same security-headers middleware, not a separate layer), registers the
+│                        `error_handlers.py` handlers (validation / `psycopg2.IntegrityError` /
+│                        catch-all), includes all 11 routers (the six Tier 0-4 ones plus, Tier 5,
+│                        in progress, `auth`/`admin`/`registration`/`claim_approval`/`audit`),
+│                        mounts `frontend/assets/` at `/assets`. A `lifespan` hook logs a
+│                        startup warning for each insecure dev setting left on (`DEBUG_MODE`,
+│                        `CSP_ENABLED=false`, `CSP_REPORT_ONLY`) and closes both DB pools on
+│                        shutdown. **The six original Tier 0-4 page
 │                        routes (`/`→`index.html`, `/foundation`, `/organization`, `/person`,
 │                        `/family`, `/membership`) have been deleted** (see the "Retired
 │                        standalone verification pages" comment in the file) — root `/` now
-│                        redirects to `/login` instead. Serves — Tier 5,
+│                        302-redirects to `/login` instead. Serves — Tier 5,
 │                        in progress — `frontend/login.html` at `/login`,
 │                        `frontend/dashboard.html` at `/dashboard`, `frontend/admin.html` at
 │                        `/admin`, `frontend/register.html` at `/register` (each gated
-│                        `if <page>_path.is_file()`), plus a guarded `/forgot-password` route
-│                        whose target file doesn't exist yet, so it never registers. There is no
+│                        `if <page>_path.is_file()`). There is no `/forgot-password`
+│                        page route — that flow is inline on `/login`. There is no
 │                        `/claim-approval` route or `claim-approval.html` file — that feature
-│                        shipped as a tab inside `admin.html` instead. Closes
-│                        the DB pool on shutdown
-├── config.py            Settings: DB_NAME/DB_USER/DB_PASSWORD (required), DB_HOST (default
-│                        localhost), DB_PORT (default 5432), API_PORT (default 8001),
-│                        DISABLE_DOCS (default false), CORS_ORIGINS (comma-separated, default
-│                        empty), RATE_LIMIT (default `60/minute`) — read from api/.env via
-│                        python-dotenv. Tier 5 (in progress) adds DB_WRITE_USER/DB_WRITE_PASSWORD,
-│                        JWT_SECRET_KEY/JWT_ACCESS_TOKEN_MINUTES/JWT_REFRESH_TOKEN_DAYS/
-│                        JWT_ABSOLUTE_SESSION_DAYS, DB_READ_POOL_MIN/MAX, DB_WRITE_POOL_MIN/MAX,
-│                        DEBUG_MODE, plus hardcoded (non-env) lockout/password-policy/OTP
-│                        constants; `Settings.validate_auth()` gates only the write-pool path.
-│                        CSP_ENABLED (default true), CSP_REPORT_ONLY (default false) and
-│                        CSP_SCRIPT_SRC_EXTRA/CSP_STYLE_SRC_EXTRA (comma-separated extra
-│                        origins) control the Content-Security-Policy built in middleware.py
-├── database.py          psycopg2 SimpleConnectionPool (2-5 conns default), connects as
-│                        `nss_db_backend` (read-only); get_connection() is a FastAPI
-│                        generator dependency. Tier 5 (in progress) adds a second pool,
-│                        get_write_pool()/get_write_connection(), connecting as `nss_db_writer`
-│                        (auto-commit on success, rollback on exception)
-├── helpers.py           Shared cursor→Pydantic conversion helpers (`rows_to_models`,
-│                        `row_to_model`) used by every router, plus centralised pagination
-│                        constants (`DEFAULT_LIMIT = 100`, `MAX_LIMIT = 500`) so all list
-│                        endpoints share the same defaults/validation range — extracted from
-│                        per-router duplicates when the Person router landed. Tier 5 (in
-│                        progress) adds `next_id()` (atomic `id_sequence_master` allocation),
-│                        `compose_local_sakha_erp_id()`, `resolve_or_create_city_village()`,
-│                        `resolve_or_create_postal_code()`, `get_active_status_pk()`,
-│                        `log_audit()` (writes a row to the new `nss.system_event_log` table —
-│                        see Audit trail below), `require_entity()`, `check_duplicate_contact()`,
-│                        `record_password_history()`, and `validate_and_hash_password()` — all
-│                        used across `auth.py`/`admin.py`/`registration.py`/`claim_approval.py`
+│                        shipped as a tab inside `admin.html` instead. **Every page route
+│                        serves through `_serve_page()`/`_render_html_with_asset_versions()`**
+│                        (in progress, uncommitted) instead of a bare `FileResponse` — rewrites
+│                        each served page's `/assets/js|css/*` references to
+│                        `?v=<10-char sha256 prefix of current file contents>`, computed per
+│                        request but memoized by file mtime, replacing the old hand-maintained
+│                        `?v=N` convention (removed from every HTML page); the HTML response
+│                        itself is `Cache-Control: no-store`
+├── config.py            `Settings` singleton (`settings`), read from api/.env via python-dotenv.
+│                        Required: DB_NAME/DB_USER/DB_PASSWORD (`validate()`); optional DB_HOST
+│                        (default localhost), DB_PORT (5432), API_PORT (8001 — read but not
+│                        used anywhere in `api/`; the port comes from the uvicorn command line),
+│                        DISABLE_DOCS, CORS_ORIGINS (comma-separated, default empty),
+│                        RATE_LIMIT (default `60/minute`), DEBUG_MODE, pool sizes
+│                        DB_READ_POOL_MIN/MAX (2/15) and DB_WRITE_POOL_MIN/MAX (1/5), and the
+│                        Content-Security-Policy knobs CSP_ENABLED (default true),
+│                        CSP_REPORT_ONLY (default false), CSP_SCRIPT_SRC_EXTRA/
+│                        CSP_STYLE_SRC_EXTRA (comma-separated extra origins). Tier 5 (in
+│                        progress): DB_WRITE_USER/DB_WRITE_PASSWORD, JWT_SECRET_KEY (no default),
+│                        JWT_ACCESS_TOKEN_MINUTES (30)/JWT_REFRESH_TOKEN_DAYS (7)/
+│                        JWT_ABSOLUTE_SESSION_DAYS (30), plus hardcoded (non-env) constants:
+│                        JWT_ALGORITHM `HS256`, lockout (5 failed attempts / 30 s), password
+│                        policy (8-128 chars, 365-day expiry, 30-day warning) and forgot-password
+│                        OTP (6 digits, 15-minute expiry, max 3 active OTPs per user, 60-minute
+│                        rate window). `Settings.validate_auth()` (JWT_SECRET_KEY +
+│                        DB_WRITE_USER/PASSWORD) is called only when the write pool is first
+│                        created
+├── database.py          psycopg2 `ThreadedConnectionPool`s. Read pool (`get_pool()`/
+│                        `get_connection()`, `nss_db_backend`, SELECT-only, 2-15 conns by
+│                        default) — `get_connection()` is a FastAPI generator dependency. Tier 5
+│                        (in progress): write pool (`get_write_pool()`/`get_write_connection()`,
+│                        `nss_db_writer`, 1-5 conns by default) — commits on success, rolls
+│                        back on exception. Also `close_pool()` (closes both) and
+│                        `check_connection()` (backs `/bootstrap/health`)
+├── error_handlers.py    Three app-wide handlers registered in `main.py`, so every failure reaches
+│                        the browser as a readable `detail` string instead of a bare status code:
+│                        `validation_exception_handler` (flattens Pydantic's error list into
+│                        one sentence per field via `humanize_field()`),
+│                        `integrity_error_handler` (`psycopg2.IntegrityError` — duplicate
+│                        key → 409; FK/NOT NULL/CHECK → 422; readable instead of an unhandled 500), and
+│                        `unhandled_exception_handler` (catch-all 500 with a generic detail; logs
+│                        the real error). An endpoint's own `HTTPException` still wins. Covered
+│                        by `tests/api/test_error_messages.py`
+├── helpers.py           Shared cursor→Pydantic conversion (`rows_to_models`, `row_to_model`) used
+│                        by every router, plus pagination constants (`DEFAULT_LIMIT = 100`,
+│                        `MAX_LIMIT = 500`) and list-sorting helpers (`SORT_ASC`/`SORT_DESC`,
+│                        `natural_sort_key()`, `build_order_by()` — whitelist-based ORDER BY so
+│                        `sort_by`/`sort_dir` query params never reach SQL unvalidated).
+│                        Tier 5 (in progress) write-path helpers:
+│                        ID minting — `next_id()` (atomic `id_sequence_master` `UPDATE ...
+│                        RETURNING`, returns `prefix + current_value`; ignores the table's
+│                        `padding_length`), `peek_next_id()` (preview without consuming),
+│                        `financial_year_bounds()`, `next_credential_document_number()`
+│                        (Kendra/Anumati `<seq>/<fy_start>/<fy_end>` counter via
+│                        `credential_sequence_counter`); membership —
+│                        `compose_local_sakha_erp_id()`, `insert_sakha_affiliation()`,
+│                        `issue_membership_credential()`, `is_probationary_membership_type()`,
+│                        `require_sakha_organization()`, `resolve_scoped_sakha()`,
+│                        `resolve_kumari_sevak_parent_sakha()`, `get_kendra_organization_pk()`;
+│                        lookups/get-or-create — `get_system_setting()`,
+│                        `resolve_or_create_city_village()`, `resolve_or_create_postal_code()`,
+│                        `get_active_status_pk()`; guards — `require_entity()` (404 on a missing/
+│                        inactive row), `require_self_or_permission()` (shared ownership check
+│                        behind `person.py`/`membership.py`), `check_duplicate_contact()`;
+│                        passwords — `record_password_history()`,
+│                        `validate_and_hash_password()`; audit — `log_audit()` (writes a row to
+│                        `nss.system_event_log` — see Audit trail below). **Also 5 shared SQL
+│                        fragment constants**, each spliced (via an f-string) into 2+ routers'
+│                        queries rather than copy-pasted: `FAMILY_MAJORITY_CTE_SQL` (the FAM-036
+│                        majority-rule CTE, shared by `organization.py`'s `/children-stats` +
+│                        `/stats` and `family.py`'s `_FAMILY_SELECT`),
+│                        `ORGANIZATION_ADDRESS_JOINS_SQL` (shared by `organization.py`'s
+│                        `_ORG_SELECT` and `admin.py`'s org-list query),
+│                        `PERSON_MASTER_DATA_JOINS_SQL` (gender/marital-status/blood-group
+│                        triple, shared by `person.py`'s DETAIL/SUMMARY/COUNT selects),
+│                        `MEMBER_JOINS_SQL` (shared by `membership.py`'s SELECT/COUNT), and
+│                        `USER_ACCOUNT_MEMBERSHIP_JOINS_SQL` (`admin.py`'s user-list/detail
+│                        membership + pending-claim joins). Plus constants
+│                        `DARSHAK_LOCAL_ID_MARKER_SETTING`,
+│                        `PROBATIONARY_MEMBERSHIP_TYPE_CODE`
 ├── middleware.py        `add_security_headers(request, call_next)` — sets
 │                        `X-Content-Type-Options`/`X-Frame-Options`/`Referrer-Policy`/
 │                        `Permissions-Policy` on every response, plus `Cache-Control: no-store`
-│                        scoped to `/api/*` only. Also emits the `Content-Security-Policy`
-│                        assembled by `build_csp()` (or the `-Report-Only` variant when
-│                        CSP_REPORT_ONLY is set), skipping `CSP_EXEMPT_PATHS` — `/docs`,
-│                        `/redoc`, `/openapi.json` — because Swagger UI embeds an inline script
-├── routers/
+│                        on `/api/*` and `public, max-age=86400, must-revalidate` on `/assets/*`.
+│                        Also emits the `Content-Security-Policy` assembled by `build_csp()` (or
+│                        the `-Report-Only` variant when CSP_REPORT_ONLY is set; nothing when
+│                        CSP_ENABLED is false), skipping `CSP_EXEMPT_PATHS` — `/docs`, `/redoc`,
+│                        `/openapi.json` — because Swagger UI embeds an inline script
+├── routers/             11 routers; module docstrings of `foundation.py`,
+│   │                    `membership.py`, `person.py`, `admin.py`, `auth.py`, `registration.py`
+│   │                    and `family.py` still describe their original/partial endpoint set — see
+│   │                    "Known gaps" at the bottom of this file
 │   ├── bootstrap.py     4 endpoints under /api/v1/bootstrap — no auth, no ORM, raw
 │   │                    parameterized SQL against nss.role_master/permission_master/
 │   │                    role_permission
@@ -97,100 +164,149 @@ api/
 │   │                    see below) plus 6 Tier 5 write endpoints (`POST`/`PATCH` on
 │   │                    `/master-data`, `/settings`, `/sequences`). Reads gated by
 │   │                    `require_permission("FOUNDATION_VIEW")`, writes by
-│   │                    `require_permission("FOUNDATION_MANAGE")` on the Tier 5 branch
-│   ├── organization.py  7 endpoints under /api/v1/organization across 3 tables — reference
-│   │                    data (types, statuses), core organizations (list/detail/children),
-│   │                    children-stats (recursive, no depth-cap guard — see Gotchas), and a
-│   │                    self-referencing hierarchy tree via `WITH RECURSIVE`. Gated by
-│   │                    `require_permission("ORGANIZATION_VIEW")` on the Tier 5 branch
+│   │                    `require_permission("FOUNDATION_MANAGE")` on the Tier 5 branch. Also
+│   │                    exports `fetch_countries()`/`fetch_states()`/`fetch_districts()`/
+│   │                    `fetch_postal_codes()`/`fetch_master_data()`, reused by `registration.py`
+│   ├── organization.py  8 endpoints under /api/v1/organization across 3 tables — reference
+│   │                    data (types, statuses), core organizations (list/detail/children — the
+│   │                    list query is a shared `fetch_organizations()` function, also called by
+│   │                    `registration.py`'s public reference-data endpoints), children-stats
+│   │                    (recursive, no depth-cap guard — see Known gaps), `/organizations/{pk}/stats`
+│   │                    (same recursive counts collapsed to one row of whole-subtree totals for
+│   │                    the requested org, 403s outside the caller's own admin scope via
+│   │                    `require_org_in_scope`, backs the Org Dashboard tab), and a
+│   │                    self-referencing hierarchy tree via `WITH RECURSIVE` (depth guard at 10).
+│   │                    All gated by `require_permission("ORGANIZATION_VIEW")`
 │   ├── person.py        4 endpoints under /api/v1/person across 2 tables — person list
-│   │                    (with gender/marital-status/blood-group filters + pagination),
-│   │                    person detail, person addresses, and trigram-based (`pg_trgm`) search.
-│   │                    Gated by `require_permission("PERSON_VIEW")` on the Tier 5 branch
+│   │                    (with gender/marital-status/blood-group filters + pagination) and
+│   │                    trigram-based (`pg_trgm`) search, both gated by
+│   │                    `require_permission("PERSON_VIEW")`; person detail and person addresses
+│   │                    use an ownership model instead (`get_current_user` +
+│   │                    `require_self_or_permission()` — `PERSON_VIEW` holder or the person
+│   │                    themself)
 │   ├── family.py        16 endpoints under /api/v1/family across 6 tables — 7 original reads
 │   │                    (family group list/detail/members/head-history, plus `/graph` (dynamic
 │   │                    relationship-label BFS via `api/services/family_graph.py`),
 │   │                    `/sakha-alignment` (FAM-036 majority-rule computation), and
-│   │                    `/person/{pk}/membership-summary`) plus 9 Tier 5 write endpoints
-│   │                    (create family, add/remove member, create link, admin CRUD ×3,
-│   │                    transfer-head). **Unlike the three routers above, `family.py` uses an
+│   │                    `/person/{pk}/membership-summary`) plus 9 Tier 5 endpoints
+│   │                    (`GET /person/{pk}/families`, create family, add/remove member, create
+│   │                    link, list/assign/revoke admin, transfer-head). **Unlike the routers
+│   │                    above, `family.py` uses an
 │   │                    ownership model instead of a blanket `require_permission` gate: every
-│   │                    one of the 16 endpoints requires `get_current_user`, and a person
+│   │                    one of the 16 endpoints requires `get_current_user` (only `GET /families`
+│   │                    requires `FAMILY_VIEW` outright), and a person
 │   │                    reaches their own family through their `family_relationship`/
 │   │                    `family_admin` row, with `FAMILY_VIEW`/`FAMILY_MANAGE` as the admin
 │   │                    override** — a deliberate design choice per the router's own module
-│   │                    docstring, not a gap. `tests/api/test_family_ownership.py` (20 tests,
-│   │                    new) now covers the ownership path for the 9 write endpoints plus
-│   │                    `/graph`; `/person/{pk}/membership-summary` still has no coverage
-│   │                    (see "Endpoints (Tier 4)" below)
-│   ├── membership.py    7 endpoints under /api/v1/membership — member list/detail, member
-│   │                    search (7-field), member Sakha affiliations, Parichaya Patra records,
-│   │                    Anumati Patra records, and journey events. Gated by
-│   │                    `require_permission("MEMBERSHIP_VIEW")` on the Tier 5 branch
-│   ├── auth.py          Tier 5 (in progress) — /api/v1/auth: login, refresh, logout,
-│   │                    change-password, forgot-password, reset-password, /me, profile update
-│   ├── admin.py         Tier 5 (in progress) — /api/v1/admin: user CRUD, Sangha Sevi
-│   │                    creation/lookup (standalone from user accounts), role assignment,
-│   │                    person creation, organization CRUD, dashboard-stats aggregate
-│   ├── registration.py  Tier 5 (in progress) — /api/v1/register: self-registration
-│   ├── claim_approval.py Tier 5 (in progress) — /api/v1/admin/claims: Sakha-admin review queue
-│   │                        for registration_claim rows. Its frontend shipped as a
-│   │                        "Registration Approvals" tab inside `admin.html`/`admin.js`, not a
-│   │                        standalone page
-│   └── audit.py          Tier 5 (in progress) — /api/v1/audit: `GET /change-log`, a
-│                          filterable/paginated view over `nss.field_change_log`, gated by
+│   │                    docstring, not a gap. `tests/api/test_family_ownership.py` (20 tests)
+│   │                    covers the ownership path for the write endpoints plus `/graph`;
+│   │                    `/person/{pk}/membership-summary` still has no coverage
+│   ├── membership.py    8 endpoints under /api/v1/membership — member list, search and
+│   │                    `/organizations/{pk}/darshak-summary` (per-org Darshak counts for the
+│   │                    Org Dashboard tab) gated by `require_permission("MEMBERSHIP_VIEW")`;
+│   │                    member detail, Sakha affiliations, Parichaya Patra, Anumati Patra and
+│   │                    journey events use an ownership model instead (`get_current_user` plus
+│   │                    either `MEMBERSHIP_VIEW` or being the member themself, via a shared
+│   │                    `_require_member_view()` → `require_self_or_permission()`)
+│   ├── auth.py          Tier 5 (in progress) — 8 endpoints under /api/v1/auth: login, refresh,
+│   │                    logout, change-password, forgot-password, reset-password, /me, /profile
+│   ├── admin.py         Tier 5 (in progress) — 25 endpoints under /api/v1/admin: user list/
+│   │                    create/detail/check-account, reset-password/status/delete; role
+│   │                    assignment; `POST /persons` + `GET /persons/check-contact`; Sangha Sevi
+│   │                    provisioning (create, check, check-batch, without-account); organization
+│   │                    list/create/PATCH/short-code plus 5 creation-helper GETs
+│   │                    (`kumari-sevak-sakha-options`, `sakha-scope-options`,
+│   │                    `code-availability`, `next-code`); `dashboard-stats`.
+│   │                    `PATCH /organizations/{pk}` also accepts `parent_organization_pk`
+│   │                    (re-parenting, backs the "Assign Sakhas" admin tab). Module-level
+│   │                    `_ALLOWED_PARENT_TYPES`/`_NO_ADDRESS_TYPES`/`_SAKHA_GATED_TYPES`
+│   │                    constants are shared by create/update rather than re-defined per function
+│   ├── registration.py  Tier 5 (in progress) — 6 endpoints under /api/v1/register: `POST ""`
+│   │                    self-registration, `GET /check-duplicate`, plus 4 public,
+│   │                    unauthenticated reference-data endpoints (`/reference-data`, `/states`,
+│   │                    `/districts`, `/postal-codes`) that thinly wrap `foundation.py`'s/
+│   │                    `organization.py`'s own shared query functions — fixes a regression where
+│   │                    Tier 5's permission gating had silently emptied every dropdown on the
+│   ��                    public registration page
+│   ├── claim_approval.py Tier 5 (in progress) — 5 endpoints under /api/v1/admin/claims:
+│   │                        Sakha-admin review queue for registration_claim rows. Its frontend
+│   │                        shipped as a "Registration Approvals" tab inside
+│   │                        `admin.html`/`admin.js`, not a standalone page
+│   └── audit.py          Tier 5 (in progress) — 1 endpoint under /api/v1/audit: `GET /change-log`,
+│                          a filterable/paginated view over `nss.field_change_log`, gated by
 │                          `AUDIT_VIEW`; the authenticated counterpart to Tier 1's
 │                          deliberately-unexposed audit data
 ├── dependencies/        Tier 5 (in progress) — FastAPI `Depends()` factories, distinct from
-│   ├── auth.py          `services/`: `get_current_user()` (mandatory JWT auth, loads
-│   │                    UserContext) / `get_optional_user()` (same, returns None instead of
-│   │                    401ing)
+│   │                    `services/`. No `__init__` exports; import from the submodules
+│   ├── auth.py          `get_current_user()` (mandatory HTTP Bearer JWT auth: access token only,
+│   │                    loads `UserContext`, and — on the request's read connection — sets the
+│   │                    `nss.actor_user_account_pk`/`nss.actor_sangha_sevi_pk` session variables
+│   │                    the DB `fn_audit_trigger()` reads) / `get_optional_user()` (same, returns
+│   │                    None instead of 401ing; currently not used by any router)
 │   └── rbac.py          `require_permission(code)` / `require_any_permission(*codes)` —
 │                        wrap `get_current_user()` and additionally 403 on missing permission
 ├── services/
 │   ├── family_graph.py  BFS graph-traversal relationship computation over `nss.family_link`
-│   │                    edges — first file in this layer, distinct from routers/schemas; no
-│   │                    test coverage yet (see Gotchas)
-│   ├── auth_service.py  Tier 5 (in progress) — Argon2 hashing, JWT create/decode
-│   │                    (access 30 min / refresh 7 days / 30-day absolute session max),
-│   │                    password-policy validation, lockout helpers (5 attempts / 30s)
+│   │                    edges (`FamilyGraph`, `PersonNode`, `build_family_graph()`, a
+│   │                    `PATH_LABELS` kinship lookup) — first file in this layer, distinct from
+│   │                    routers/schemas; exercised only indirectly via `/graph` in
+│   │                    `tests/api/test_family_ownership.py` (no unit tests of its own)
+│   ├── auth_service.py  Tier 5 (in progress) — Argon2 `hash_password()`/`verify_password()`,
+│   │                    `create_access_token()`/`create_refresh_token()`/`decode_token()`
+│   │                    (defaults: access 30 min / refresh 7 days / 30-day absolute session max,
+│   │                    all three `JWT_*` env-configurable; `decode_token()` enforces the
+│   │                    absolute max), `validate_password_policy()` (8-128 chars, >=1 uppercase,
+│   │                    >=1 digit), `is_account_locked()`/`calculate_lockout_until()` (5
+│   │                    attempts / 30 s)
 │   └── rbac_service.py  Tier 5 (in progress) — `UserContext`/`ScopeInfo` dataclasses +
 │                        `load_user_context()`: permissions = union of every active role's
 │                        `role_permission` rows; scopes = one per active `user_role` +
-│                        `admin_scope`
+│                        `admin_scope`. `UserContext.is_super_admin()` is true only for the
+│                        `NSS_ERP_ADMIN` role (the sole blanket authority; every other role is
+│                        scope-bounded). Scope-check helpers: `actor_scope_org_pks()`,
+│                        `org_in_scope()`, `require_org_in_scope()`, `require_person_in_scope()`,
+│                        `require_account_in_scope()`
 └── schemas/
     ├── bootstrap.py      Pydantic response models (RoleResponse, PermissionResponse,
     │                     HealthResponse) — audit columns deliberately excluded
-    ├── foundation.py     11 plain Pydantic models, one per exposed table/view — audit columns,
-    │                     `current_value`, and unimplemented FK columns deliberately excluded
-    ├── organization.py   4 Pydantic models (OrganizationTypeResponse,
-    │                     StatusResponse, OrganizationResponse,
-    │                     OrganizationHierarchyNodeResponse) — OrganizationResponse includes
+    ├── foundation.py     Response models, one per exposed table/view (CategoryResponse,
+    │                     MasterDataResponse, SettingResponse, SequenceResponse, CountryResponse,
+    │                     StateResponse, DistrictResponse, CityVillageResponse,
+    │                     PostalCodeResponse, PostalCodeMappingResponse, DocumentResponse) plus
+    │                     Create/Update request models for master-data/settings/sequences — audit
+    │                     columns, `current_value`, and unimplemented FK columns deliberately
+    │                     excluded
+    ├── organization.py   OrganizationTypeResponse, StatusResponse, OrganizationResponse,
+    │                     OrgChildStatsResponse, OrgStatsResponse,
+    │                     OrganizationHierarchyNodeResponse — OrganizationResponse includes
     │                     contact/online-presence fields (phone_number, mobile_number, email,
     │                     org_email, website_url, org_website_url, youtube_channel_url,
     │                     org_youtube_channel_url)
-    ├── person.py         3 Pydantic models (PersonResponse, PersonSummaryResponse,
-    │                     PersonAddressResponse) — PersonResponse/PersonSummaryResponse never
+    ├── person.py         PersonResponse, PersonSummaryResponse, PersonAddressResponse,
+    │                     PersonListResponse — PersonResponse/PersonSummaryResponse never
     │                     include `aadhaar_encrypted`/`aadhaar_hash`, only `aadhaar_last4` for
     │                     masked display (PER-BR-081); audit columns excluded
     ├── family.py         8 original Pydantic models (FamilyGroupResponse, FamilyMemberResponse,
     │                     FamilyGraphMemberResponse, PersonMembershipSummaryResponse,
     │                     FamilyHeadHistoryResponse, SakhaAffiliationCount, MemberSakhaInfo,
     │                     FamilySakhaAlignmentResponse) plus 8 more (Tier 5, in progress) for the
-    │                     new write endpoints: AddFamilyMemberRequest,
+    │                     write endpoints: AddFamilyMemberRequest,
     │                     RemoveFamilyMemberRequest, CreateFamilyLinkRequest,
     │                     CreateFamilyRequest, FamilyAdminResponse, AssignFamilyAdminRequest,
     │                     RevokeFamilyAdminRequest, TransferHeadRequest
-    ├── membership.py     5 Pydantic models (MemberResponse, SakhaAffiliationResponse,
-    │                     ParichayaPatraResponse, AnumatiPatraResponse, JourneyEventResponse)
+    ├── membership.py     MemberResponse, SakhaAffiliationResponse, ParichayaPatraResponse,
+    │                     AnumatiPatraResponse, JourneyEventResponse, MemberListResponse,
+    │                     OrgDarshakSummaryResponse
     ├── auth.py           Tier 5 (in progress) — LoginRequest/Response,
     │                     RefreshRequest/Response, ChangePasswordRequest,
     │                     ForgotPasswordRequest/Response, ResetPasswordRequest, MeResponse,
     │                     ScopeResponse, MessageResponse, UpdateProfileRequest
     ├── admin.py          Tier 5 (in progress) — CreateUserRequest, ResetPasswordRequest,
     │                     UpdateStatusRequest, AssignRoleRequest, CreateSanghaSeviRequest,
-    │                     UserAccountResponse, UserDetailResponse, UserListResponse,
-    │                     RoleAssignmentResponse, CreateSanghaSeviResponse
+    │                     UserAccountResponse, UserListResponse, UserDetailResponse,
+    │                     RoleAssignmentResponse, CreateSanghaSeviResponse,
+    │                     AccountlessSanghaSeviResponse/ListResponse (organization-create/update
+    │                     and other request bodies are defined inline in `routers/admin.py`)
     └── audit.py          Tier 5 (in progress) — FieldChangeLogResponse (the one schema in this
                           codebase that deliberately includes audit-actor columns, since the
                           whole point of this endpoint is exposing them)
@@ -199,40 +315,55 @@ api/
 ## Endpoints (Tier 5 — in progress, uncommitted)
 
 Not yet merged/released. Requires `api/.env` to also carry `DB_WRITE_USER`, `DB_WRITE_PASSWORD`,
-and `JWT_SECRET_KEY` (see `docs/PROJECT_DOCUMENTATION.md` → Configuration) — every endpoint
-below except `GET /api/v1/audit/change-log` is backed by the new `nss_db_writer` connection pool
-(`api/database.py::get_write_connection`); `audit.py`'s endpoint never writes, so it connects via
-the same read-only `nss_db_backend` pool (`get_connection`) the rest of this file describes.
+and `JWT_SECRET_KEY` (see `docs/PROJECT_DOCUMENTATION.md` → Configuration). Endpoints that
+mutate data (and `POST /auth/login`, which records failed attempts/lockout) use the `nss_db_writer`
+pool (`api/database.py::get_write_connection`); pure reads — `POST /auth/refresh`, `GET /auth/me`,
+every `GET` under `/admin` and `/admin/claims`, `GET /audit/change-log`, and the `/register` `GET`s
+— use the read-only `nss_db_backend` pool (`get_connection`). Permission codes below are the
+exact `require_permission`/`require_any_permission` arguments in each router.
 
 | Method | Path | Auth | Returns |
 |--------|------|------|---------|
 | POST | `/api/v1/auth/login` | none | Access + refresh JWT; login_id = Sangha Sevi ID or Person ID |
-| POST | `/api/v1/auth/refresh` | refresh token | New access JWT |
+| POST | `/api/v1/auth/refresh` | refresh token (body) | New access JWT (refresh token is not rotated) |
 | POST | `/api/v1/auth/logout` | access token | Stateless — client discards tokens, no server-side revocation |
 | POST | `/api/v1/auth/change-password` | access token | Self-service password change (policy + reuse check) |
-| POST | `/api/v1/auth/forgot-password` | none | Generates a 6-digit OTP (`password_reset_token`); always returns a generic message (anti-enumeration) |
+| POST | `/api/v1/auth/forgot-password` | none | Generates a 6-digit OTP (`password_reset_token`); always returns a generic message (anti-enumeration); `otp_debug` only when `DEBUG_MODE`. **The OTP is not delivered** — email/SMS sending is a `TODO` in `auth.py` |
 | POST | `/api/v1/auth/reset-password` | none | Consumes the OTP, sets a new password |
 | GET | `/api/v1/auth/me` | access token | Profile + permissions + scopes |
 | PATCH | `/api/v1/auth/profile` | access token | Self-service update of `mobile_number`/`country_phone_code`/`email`/`date_of_birth`; name fields are admin-only |
-| GET/POST | `/api/v1/admin/users` | `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | List/create user accounts |
-| GET | `/api/v1/admin/users/{pk}` | `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | User detail + role assignments |
-| POST | `/api/v1/admin/users/{pk}/reset-password` | `ADMIN_USER_MANAGE` | Admin-initiated password reset |
-| PATCH | `/api/v1/admin/users/{pk}/status` | `ADMIN_USER_MANAGE` | Activate/suspend/deactivate; auto-generates a `sangha_sevi_id` when activating a claim-less `PENDING_APPROVAL` user |
-| DELETE | `/api/v1/admin/users/{pk}` | `ADMIN_USER_MANAGE` | Soft-delete (also revokes roles + scopes) |
-| GET/POST | `/api/v1/admin/users/{pk}/roles` | `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` (GET) / `ADMIN_ROLE_MANAGE` (POST) | List/assign role + scope |
+| GET | `/api/v1/admin/users` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | List user accounts (scope-filtered unless NSS-WIDE) |
+| POST | `/api/v1/admin/users` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Create a user account |
+| GET | `/api/v1/admin/users/check-account/{person_pk}` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Whether a person already has a usable or soft-deleted login (Create User wizard) |
+| GET | `/api/v1/admin/users/{pk}` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | User detail + role assignments |
+| POST | `/api/v1/admin/users/{pk}/reset-password` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Admin-initiated password reset |
+| PATCH | `/api/v1/admin/users/{pk}/status` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Activate/suspend/deactivate; auto-generates a `sangha_sevi_id` when activating a claim-less `PENDING_APPROVAL` user |
+| DELETE | `/api/v1/admin/users/{pk}` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Soft-delete (also revokes roles + scopes) |
+| GET | `/api/v1/admin/users/{pk}/roles` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | List role assignments |
+| POST | `/api/v1/admin/users/{pk}/roles` | `ADMIN_ROLE_MANAGE` | Assign role + scope |
 | DELETE | `/api/v1/admin/users/{pk}/roles/{user_role_pk}` | `ADMIN_ROLE_MANAGE` | Revoke a role assignment |
 | POST | `/api/v1/admin/persons` | `PERSON_MANAGE` | Admin creates a person directly (no account) |
-| POST | `/api/v1/admin/sangha-sevi` | `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Create a standalone Sangha Sevi record, decoupled from user-account creation; scope-checked for non-`ADMIN_USER_MANAGE` callers |
-| GET | `/api/v1/admin/sangha-sevi/check/{person_pk}` | `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | Whether a person already has an active Sangha Sevi record |
-| POST | `/api/v1/admin/sangha-sevi/check-batch` | `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | Batch check up to 100 persons for an active Sangha Sevi or a pending registration claim |
-| GET/POST | `/api/v1/admin/organizations` | `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE` / `NSS_ERP_ADMIN` only for create | List / create organizations |
-| PATCH | `/api/v1/admin/organizations/{pk}/short-code` | `ADMIN_USER_MANAGE` | Set/clear the 3-5 char short code |
-| PATCH | `/api/v1/admin/organizations/{pk}` | `ADMIN_USER_MANAGE`, scope-checked | Update org contact/address fields |
-| GET | `/api/v1/admin/dashboard-stats` | (see `api/routers/admin.py::dashboard_stats`) | Aggregated counts for the admin dashboard cards |
+| GET | `/api/v1/admin/persons/check-contact` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Advisory duplicate lookup by mobile/email |
+| POST | `/api/v1/admin/sangha-sevi` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Create a standalone Sangha Sevi record, decoupled from user-account creation; scope-checked |
+| GET | `/api/v1/admin/sangha-sevi/check/{person_pk}` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | Whether a person already has an active Sangha Sevi record |
+| POST | `/api/v1/admin/sangha-sevi/check-batch` | same | Batch check up to 100 persons for an active Sangha Sevi or a pending registration claim |
+| GET | `/api/v1/admin/sangha-sevi/without-account` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | Paginated, searchable Sangha Sevis with an SS ID but no usable login (Create Account picker) |
+| GET | `/api/v1/admin/organizations` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | List organizations (scope-filtered) |
+| POST | `/api/v1/admin/organizations` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE`, then in-handler: `NSS_ERP_ADMIN` only, except `KUMARI_SANGHA`/`SEVAK_SANGHA` (also the target Sakha's own admin, ORG-BR-101/102) | Create an organization |
+| GET | `/api/v1/admin/organizations/kumari-sevak-sakha-options` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Sakha choices for creating a Kumari/Sevak wing (ORG-BR-101/102) |
+| GET | `/api/v1/admin/organizations/code-availability` | same | Live duplicate check for an `organization_code` or `short_code` (`field`/`value`/`exclude_pk` query params) |
+| GET | `/api/v1/admin/organizations/next-code` | same | Sequence-driven organization-code preview |
+| GET | `/api/v1/admin/sakha-scope-options` | same | Sakha options for member-scoped records (ORG-BR-103) |
+| PATCH | `/api/v1/admin/organizations/{pk}/short-code` | any of `ORGANIZATION_MANAGE`/`ORGANIZATION_VIEW`, then subtree scope check (`NSS_ERP_ADMIN`/NSS-WIDE: any org) | Set/clear the 3-5 char short code |
+| PATCH | `/api/v1/admin/organizations/{pk}` | same | Update org contact/address/jurisdiction fields and `parent_organization_pk` (re-parenting, validated against `_ALLOWED_PARENT_TYPES`) |
+| GET | `/api/v1/admin/dashboard-stats` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | Aggregated counts for the admin dashboard cards, scoped to the viewer's own scope |
 | POST | `/api/v1/register` | none | Self-registration — creates `person` + `user_account(PENDING_APPROVAL)` + optional `registration_claim` |
-| GET | `/api/v1/admin/claims` | `MEMBERSHIP_APPROVE`/`ADMIN_USER_MANAGE`, scoped | List registration claims |
+| GET | `/api/v1/register/check-duplicate` | none | `{mobile_exists, email_exists}` pre-submit check |
+| GET | `/api/v1/register/reference-data` | none | Countries + gender/marital-status/blood-group/membership-type master-data + the Sakha list, bundled into one call for the public registration page |
+| GET | `/api/v1/register/states`/`/districts`/`/postal-codes` | none | Public location-cascade lookups, thin wrappers over `foundation.py`'s `fetch_states()`/`fetch_districts()`/`fetch_postal_codes()` |
+| GET | `/api/v1/admin/claims` | any of `MEMBERSHIP_APPROVE`/`ADMIN_USER_MANAGE`, scoped | List registration claims (`claim_status` filter, default `PENDING`; `page`/`page_size` pagination) |
 | GET/PATCH | `/api/v1/admin/claims/{pk}` | same | Claim detail / admin edits before approval |
-| POST | `/api/v1/admin/claims/{pk}/approve` | same | Creates `sangha_sevi` + affiliation, activates the account |
+| POST | `/api/v1/admin/claims/{pk}/approve` | same | Creates `sangha_sevi` + affiliation (+ mandatory credential for a new Sangha Sevi), activates the account |
 | POST | `/api/v1/admin/claims/{pk}/reject` | same | Leaves the account `PENDING_APPROVAL`, remarks required |
 | GET | `/api/v1/audit/change-log` | `AUDIT_VIEW` | Filterable, paginated `nss.field_change_log` history — the authenticated counterpart to Tier 1's deliberately-unexposed `/api/v1/foundation/change-log` (which doesn't exist) |
 
@@ -260,28 +391,36 @@ app-authored with a human `summary`, one trigger-authored and generic).
 
 ## Security middleware
 
-Registered in `api/main.py`, order matters (outermost registered last runs first):
+Registered in `api/main.py`. Starlette runs the **last-registered** middleware outermost, so
+the effective request order is security headers → CORS → rate limiting → route:
 
 1. **Rate limiting** (`slowapi`) — `Limiter(key_func=get_remote_address, default_limits=[settings.RATE_LIMIT])`
    registered via `SlowAPIMiddleware`; default `60/minute` per client IP, global (no per-route
-   overrides yet). Returns 429 once the limit trips.
+   `@limiter.limit` overrides exist anywhere in `api/`). Returns 429 once the limit trips.
+   `POST /auth/forgot-password`'s 3-per-hour cap is a separate, DB-backed check on
+   `password_reset_token`, not this limiter.
 2. **CORS** (`fastapi.middleware.cors.CORSMiddleware`) — only added `if settings.CORS_ORIGINS:`;
    empty by default, so no CORS headers appear on any response out of the box. When configured,
-   `GET`-only, credentials allowed, never a wildcard origin.
-3. **Security headers** (`api/middleware.py`) — always on: `X-Content-Type-Options: nosniff`,
-   `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
+   `GET`/`POST`/`PATCH`/`DELETE` are allowed, all request headers, credentials allowed, never a
+   wildcard origin.
+3. **Security headers** (`api/middleware.py`, `app.middleware("http")`) — always on:
+   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+   `Referrer-Policy: strict-origin-when-cross-origin`,
    `Permissions-Policy: camera=(), microphone=(), geolocation=()` on every response, plus
    `Cache-Control: no-store` on `/api/*` responses, and `Cache-Control: public, max-age=86400,
-   must-revalidate` on `/assets/*` responses (new, uncommitted — Tailwind CDN→CLI migration; no
-   test coverage yet). Deliberately skips `X-XSS-Protection`
-   (obsolete); CSP remains deferred — the original blocker (Tailwind Play CDN's inline styles)
-   no longer applies now that Tailwind is pre-built, but a full audit of remaining inline styles
-   hasn't happened yet —
-   and HSTS (left to Render's edge TLS).
+   must-revalidate` on `/assets/*` responses. **Content-Security-Policy** (`build_csp()`) is
+   enabled and enforcing by default (`default-src 'self'`; `script-src 'self' 'unsafe-eval'
+   https://cdn.jsdelivr.net` + `CSP_SCRIPT_SRC_EXTRA` — no `'unsafe-inline'`; `style-src 'self'
+   'unsafe-inline'` + `CSP_STYLE_SRC_EXTRA`; `img-src 'self' data:`; `frame-ancestors 'none'`;
+   `object-src 'none'`), switchable to `-Report-Only` via `CSP_REPORT_ONLY`, off via
+   `CSP_ENABLED=false`, and skipped for `/docs`, `/redoc`, `/openapi.json`. Deliberately skips
+   `X-XSS-Protection` (obsolete) and HSTS (left to Render's edge TLS).
+4. **Error handlers** (`api/error_handlers.py`, registered via `app.add_exception_handler`) —
+   validation, `psycopg2.IntegrityError`, and catch-all, each returning a plain-string `detail`.
 
-Verified by `tests/security/test_security_headers.py` (24 tests) — the old flat
-`tests/test_security.py` (8 tests) no longer exists, absorbed into the new `tests/security/`
-directory (see `CLAUDE.md` → Tests & lint). Full walkthrough:
+Verified by `tests/security/test_security_headers.py` (24 tests) and
+`tests/api/test_error_messages.py` (15) — the old flat `tests/test_security.py` no longer exists
+(see `CLAUDE.md` → Tests & lint). Full walkthrough:
 `docs/03_Solution/code_explanations/SECURITY_CODE_EXPLANATIONS.md`.
 
 ## Running
@@ -293,10 +432,13 @@ python3 -m uvicorn api.main:app --reload --port 8001   # macOS/Linux
 py -m uvicorn api.main:app --reload --port 8001         # Windows
 ```
 
-Requires `api/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` (see
-`database/scripts/README.md` for the full bootstrap-to-running-API sequence — the database must
-be built and `nss_db_backend` granted read access via `database/scripts/04_grant_backend.sql`
-before this will connect to anything meaningful).
+Requires `api/.env` with `DB_NAME`, `DB_USER`, `DB_PASSWORD` (required — `Settings.validate()`
+raises without them) plus `DB_HOST`/`DB_PORT` (defaults `localhost`/`5432`); Tier 5 endpoints also
+need `DB_WRITE_USER`, `DB_WRITE_PASSWORD`, `JWT_SECRET_KEY` (see the `config.py` entry above for
+every optional variable, and `database/scripts/README.md` for the full bootstrap-to-running-API
+sequence — `database/scripts/06_setup_env.sh` generates a working `.env`). The database must be
+built and `nss_db_backend` granted read access (done by `02_build`'s Phase 9, or
+`database/scripts/04_grant_backend.sql`) before this will connect to anything meaningful.
 
 Swagger UI: `http://localhost:8001/docs` (set `DISABLE_DOCS=true` in `api/.env` to turn off
 `/docs`, `/redoc`, and `/openapi.json`).
@@ -332,16 +474,18 @@ The 6 `POST`/`PATCH` endpoints above are new (Tier 5, in progress, uncommitted) 
 `create_sequence`/`update_sequence` — each writes via `get_write_connection` and logs through
 `log_audit()`.
 
-`nss.field_change_log` is deliberately not exposed — deferred to Tier 5 (needs auth). All list
+`nss.field_change_log` is deliberately not exposed here — it is reachable only through the
+`AUDIT_VIEW`-gated `GET /api/v1/audit/change-log` (Tier 5, see above). All list
 endpoints filter `is_active = TRUE` (except the postal-code-mapping junction table, which has no
-such column); detail endpoints 404 on missing/inactive rows. Full contract:
+such column); detail endpoints 404 on missing/inactive rows. (`foundation.py`'s own module
+docstring still says "17 GET endpoints ... No authentication" — stale.) Full contract:
 `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`. Verified by 45 pytest integration
 tests (`tests/api/test_foundation.py`; some of the original 59 were extracted into
 `tests/security/`).
 
 ## Endpoints (Tier 2)
 
-7 endpoints under `/api/v1/organization` — no ORM,
+8 endpoints under `/api/v1/organization` — no ORM,
 parameterized SQL. **Gated by `require_permission("ORGANIZATION_VIEW")` on the Tier 5 branch**
 (read-only/no-auth through Tier 4). Organization type values come from Foundation `master_data`
 (category `ORGANIZATION_TYPE`). Status values come from the unified ERP-wide
@@ -351,23 +495,29 @@ for address resolution, since those FKs are nullable.
 
 | Method | Path | Returns |
 |--------|------|---------|
-| GET | `/api/v1/organization/types` | The 10 frozen organization types from `nss.master_data` (category `ORGANIZATION_TYPE`) |
-| GET | `/api/v1/organization/statuses` | The 13 unified lifecycle statuses from `nss.master_data` (category `STATUS`) |
+| GET | `/api/v1/organization/types` | The 13 frozen organization types from `nss.master_data` (category `ORGANIZATION_TYPE`) |
+| GET | `/api/v1/organization/statuses` | The 7 Organization-applicable statuses out of the unified `STATUS` category's 16 total values from `nss.master_data` |
 | GET | `/api/v1/organization/organizations` | Organizations with resolved type/status/parent/geography context; optional `type_code`/`status_code` filters, `limit`/`offset` pagination (default 100, max 500) |
 | GET | `/api/v1/organization/organizations/{organization_pk}` | Single organization detail; 404 if missing/inactive |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children` | Direct children of an organization; 404 if the parent `organization_pk` doesn't exist |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children-stats` | Aggregate family/member/person counts per direct child, recursing through descendant Sakhas and applying the FAM-036 majority-rule "effective Sakha" computation; its own recursive CTE has **no** depth-cap guard, unlike `/hierarchy` |
+| GET | `/api/v1/organization/organizations/{organization_pk}/stats` | New, in progress/uncommitted — same recursive counts collapsed to one row of whole-subtree totals for the requested org itself; 403s outside the caller's own admin scope (ADMIN-BR-076); backs the new Org Dashboard tab |
 | GET | `/api/v1/organization/hierarchy` | Full organization tree as a flat list with a `depth` field, via a `WITH RECURSIVE` CTE (depth guard at 10); `limit`/`offset` pagination |
 
 All list endpoints filter `is_active = TRUE`; detail/children endpoints 404 on a missing parent.
-Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md`. Verified by 58 pytest
+Full contract: `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` (documents the original 7,
+not yet updated for `/stats`). Verified by 67 pytest
 integration tests (`tests/api/test_organization.py`; some of the original 72 were extracted into
-`tests/security/`).
+`tests/security/`, and 4 more new ones cover `/stats` via
+`tests/security/test_organization_stats_security.py` instead).
 
 ## Endpoints (Tier 3)
 
-4 endpoints under `/api/v1/person` — no ORM, raw parameterized SQL. **Gated by
-`require_permission("PERSON_VIEW")` on the Tier 5 branch** (read-only/no-auth through Tier 4).
+4 endpoints under `/api/v1/person` — no ORM, raw parameterized SQL. **Gated on the Tier 5
+branch** (read-only/no-auth through Tier 4): `/persons` and `/search` by
+`require_permission("PERSON_VIEW")`; `/persons/{person_pk}` and
+`/persons/{person_pk}/addresses` by `get_current_user` + `require_self_or_permission()` (a
+`PERSON_VIEW` holder, or the person themself).
 Gender,
 marital status, blood group, emergency relationship, and address type are resolved via JOINs
 against Foundation's `master_data`. Trigram search relies on `pg_trgm` (installed in
@@ -389,12 +539,12 @@ against Foundation's `master_data`. Trigram search relies on `pg_trgm` (installe
 ## Endpoints (Tier 4)
 
 Originally 14 read-only endpoints across Family and Membership — no ORM, raw
-parameterized SQL. **`membership.py`'s 7 gained `require_permission("MEMBERSHIP_VIEW")` gating
-on the Tier 5 branch; `family.py`'s 7 gained an ownership-based auth model instead** (every
-endpoint now requires `get_current_user`, with `FAMILY_VIEW`/`FAMILY_MANAGE` as the admin
+parameterized SQL. **On the Tier 5 branch `membership.py`'s list/search gained
+`require_permission("MEMBERSHIP_VIEW")` gating and its per-member endpoints an ownership check
+(see the Membership table below); `family.py`'s 7 gained an ownership-based auth model instead**
+(every endpoint now requires `get_current_user`, with `FAMILY_VIEW`/`FAMILY_MANAGE` as the admin
 override — a deliberate design choice, not a gap), and `family.py` separately
-**gained 9 more, authenticated write endpoints on the Tier 5
-branch (in progress, uncommitted) — see below.**
+**gained 9 more endpoints on the Tier 5 branch (in progress, uncommitted) — see below.**
 
 **Family** — originally 7 read-only endpoints under `/api/v1/family`, across 5 tables (now
 authenticated — see above):
@@ -403,51 +553,71 @@ authenticated — see above):
 |--------|------|---------|
 | GET | `/api/v1/family/families` | Family group list with filters + pagination (requires `FAMILY_VIEW`) |
 | GET | `/api/v1/family/families/{family_group_pk}` | Family group detail (current member, or `FAMILY_VIEW`) |
-| GET | `/api/v1/family/families/{family_group_pk}/members` | Family group members |
-| GET | `/api/v1/family/families/{family_group_pk}/head-history` | Family head history |
-| GET | `/api/v1/family/families/{family_group_pk}/graph?viewer_person_pk=` | Dynamic relationship-label computation via BFS traversal over `nss.family_link` edges (`api/services/family_graph.py`); covered by `tests/api/test_family_ownership.py` |
-| GET | `/api/v1/family/families/{family_group_pk}/sakha-alignment` | FAM-036 majority-rule "effective Sakha" computation — `is_aligned` is hardcoded `True` by design; per-member `is_home_sakha` flags surface real mismatches |
-| GET | `/api/v1/family/person/{person_pk}/membership-summary` | Bridges family context to membership context for a UI panel; no test coverage yet |
+| GET | `/api/v1/family/families/{family_group_pk}/members` | Family group members (current member or `FAMILY_VIEW`) |
+| GET | `/api/v1/family/families/{family_group_pk}/head-history` | Family head history (current member or `FAMILY_VIEW`) |
+| GET | `/api/v1/family/families/{family_group_pk}/graph?viewer_person_pk=` | Dynamic relationship-label computation via BFS traversal over `nss.family_link` edges (`api/services/family_graph.py`); covered by `tests/api/test_family_ownership.py`; current member or `FAMILY_VIEW` |
+| GET | `/api/v1/family/families/{family_group_pk}/sakha-alignment` | FAM-036 majority-rule "effective Sakha" computation — `is_aligned` is hardcoded `True` by design; per-member `is_home_sakha` flags surface real mismatches; current member or `FAMILY_VIEW` |
+| GET | `/api/v1/family/person/{person_pk}/membership-summary` | Bridges family context to membership context for a UI panel; self, a current relative, or `FAMILY_VIEW`; no test coverage yet |
 
 Full contract: `docs/03_Solution/api/API_CONTRACT.md` (documents these 7 only, not yet updated
 for the 9 below). Verified by 52 pytest integration tests
-(`tests/api/test_family.py`; some of the original 67 were extracted into `tests/security/`) —
-`/graph` and `/person/{pk}/membership-summary` are the two
-exceptions with no coverage.
+(`tests/api/test_family.py`, admin-token path; some of the original 67 were extracted into
+`tests/security/`) plus 20 in `tests/api/test_family_ownership.py` (role-less JWT path, incl.
+`/graph`) — `/person/{pk}/membership-summary` is the one endpoint with no coverage.
 
 **Family (Tier 5 additions, in progress, uncommitted) — 9 more endpoints, all requiring
-`get_current_user` (JWT) + `get_write_connection` (`nss_db_writer`), all with zero test
-coverage:**
+`get_current_user` (JWT); the 2 `GET`s use the read pool, the 7 `POST`/`DELETE`s use
+`get_write_connection` (`nss_db_writer`). The 7 writes (plus the admin list) are covered by
+`tests/api/test_family_ownership.py`:**
 
 | Method | Path | Returns |
 |--------|------|---------|
-| GET | `/api/v1/family/person/{person_pk}/families` | Families a person belongs to |
+| GET | `/api/v1/family/person/{person_pk}/families` | Families a person belongs to (read pool; used by the member dashboard) |
 | POST | `/api/v1/family/families` | Create a family — authenticated user becomes founding member + head; auto-generates the next `family_id`; uses the new `SELF` `RELATIONSHIP_TYPE` value |
-| POST | `/api/v1/family/families/{pk}/members` | Add a member — requester must be a current family member |
-| DELETE | `/api/v1/family/families/{pk}/members` | Remove a member — requester must be head or admin (FAM-048) |
-| POST | `/api/v1/family/families/{pk}/links` | Create `family_link` graph edges |
-| GET | `/api/v1/family/families/{pk}/admins` | List `family_admin` rows (current by default, or full history) |
-| POST | `/api/v1/family/families/{pk}/admins` | Assign a Family Admin — requester must be the current head (FAM-046) |
-| DELETE | `/api/v1/family/families/{pk}/admins` | Revoke a Family Admin — requester must be the current head (FAM-050) |
-| POST | `/api/v1/family/families/{pk}/transfer-head` | Transfer family headship |
+| POST | `/api/v1/family/families/{pk}/members` | Add a member — requester must be the family's head or a family admin, or hold `FAMILY_MANAGE` (`_require_family_manage`) |
+| DELETE | `/api/v1/family/families/{pk}/members` | Remove a member — same rule (FAM-048) |
+| POST | `/api/v1/family/families/{pk}/links` | Create `family_link` graph edges — same rule |
+| GET | `/api/v1/family/families/{pk}/admins` | List `family_admin` rows (current by default, or full history via `current_only=false`); current member or `FAMILY_VIEW` (read pool) |
+| POST | `/api/v1/family/families/{pk}/admins` | Assign a Family Admin — requester must be the current head (FAM-046) or hold `FAMILY_MANAGE` (`_require_family_head`) |
+| DELETE | `/api/v1/family/families/{pk}/admins` | Revoke a Family Admin — same rule (FAM-050) |
+| POST | `/api/v1/family/families/{pk}/transfer-head` | Transfer family headship — head only, or `FAMILY_MANAGE` |
 
-**Membership** — 7 endpoints under `/api/v1/membership`:
+**Membership** — 8 endpoints under `/api/v1/membership`:
 
 | Method | Path | Returns |
 |--------|------|---------|
-| GET | `/api/v1/membership/members` | Member list with filters + pagination |
-| GET | `/api/v1/membership/members/{sangha_sevi_pk}` | Member detail |
-| GET | `/api/v1/membership/search` | 7-field member search: `sangha_sevi_id`, `person_id`, `local_sakha_erp_id`, name (trigram 0.45), mobile, email, Kendra number |
-| GET | `/api/v1/membership/members/{sangha_sevi_pk}/affiliations` | Member Sakha affiliations (current + historical) |
-| GET | `/api/v1/membership/members/{sangha_sevi_pk}/parichaya-patra` | Member Parichaya Patra records |
-| GET | `/api/v1/membership/members/{sangha_sevi_pk}/anumati-patra` | Member Anumati Patra records |
-| GET | `/api/v1/membership/members/{sangha_sevi_pk}/journey` | Member journey events |
+| GET | `/api/v1/membership/members` | Member list with filters + pagination (`MEMBERSHIP_VIEW`) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}` | Member detail (`MEMBERSHIP_VIEW` or the member themself) |
+| GET | `/api/v1/membership/search` | 7-field member search: `sangha_sevi_id`, `person_id`, `local_sakha_erp_id`, name (trigram 0.45), mobile, email, Kendra number (`MEMBERSHIP_VIEW`) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/affiliations` | Member Sakha affiliations, current + historical (`MEMBERSHIP_VIEW` or the member themself) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/parichaya-patra` | Member Parichaya Patra records (same) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/anumati-patra` | Member Anumati Patra records (same) |
+| GET | `/api/v1/membership/members/{sangha_sevi_pk}/journey` | Member journey events (same) |
+| GET | `/api/v1/membership/organizations/{organization_pk}/darshak-summary` | `home_probationary_count` + `attending_from_other_sakha_count` for an org's Org Dashboard card (`MEMBERSHIP_VIEW`) |
 
-Full contract: `docs/03_Solution/api/API_CONTRACT.md` (documents the original 46 endpoints
-across Tiers 0-4; now 61 with Family's 9 Tier 5 writes and Foundation's 6, plus 28 more across
-the 5 Tier 5-only routers — 100 endpoints total, see `CLAUDE.md`'s Running the FastAPI API
-section for the current per-router breakdown).
-Verified by 94 pytest integration tests (`tests/api/test_membership.py`; some of the original 99
-were extracted into `tests/security/`).
+Full contract and endpoint counts: `docs/03_Solution/api/API_CONTRACT.md`. Tests:
+`tests/api/test_membership.py` (counts in `tests/README.md`).
+
+## Known gaps (code-verified, this pass)
+
+- **Stale module docstrings**: `foundation.py` ("17 GET ... No authentication"), `membership.py`
+  ("7 GET ... No authentication"), `person.py` ("No authentication"), `admin.py` (lists 17 of its
+  25 endpoints and still says short-code/create are "NSS_ERP_ADMIN only"), `auth.py` (omits
+  `PATCH /profile`), `registration.py` (lists only `POST /register`), `family.py` (its write list
+  omits create-family and create-link), and `main.py` ("Verification UIs", "Read-only endpoints")
+  no longer match their code. `middleware.py`'s docstring still says JS uses `?v=N` cache busting
+  (now an automatic content hash, see `main.py`).
+- **`/children-stats` and `/stats` recursion has no depth cap** — the SQL comments say "capped at
+  depth 10" but neither CTE carries a depth column or `depth < 10` predicate; only `/hierarchy`
+  does.
+- **Audit-actor session variables** (`nss.actor_user_account_pk`/`nss.actor_sangha_sevi_pk`) are
+  set only in `dependencies/auth.py`, via `set_config(..., TRUE)` on the *read-pool* connection;
+  write endpoints run on a separate `nss_db_writer` connection, so the DB `fn_audit_trigger()`
+  can only see them if that connection gets them some other way (nothing else in `api/` calls
+  `set_config`). Application-level `log_audit()` passes actor PKs explicitly and is unaffected.
+- **`get_optional_user()` is unused** by every router.
+- **`API_PORT` is read by `config.py` but never used.**
+- **`next_id()` ignores `id_sequence_master.padding_length`** (returns `prefix + current_value`).
+- **`auth.py::forgot_password` does not deliver the OTP** (`# TODO: Send OTP via email/SMS`).
 
 See `docs/PROJECT_DOCUMENTATION.md` → Key workflows for more detail on all six tiers.

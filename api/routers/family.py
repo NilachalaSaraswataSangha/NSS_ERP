@@ -41,7 +41,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from api.database import get_connection, get_write_connection
 from api.dependencies.auth import get_current_user
 from api.dependencies.rbac import require_permission
-from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, log_audit, row_to_model, rows_to_models, get_active_status_pk, require_entity
+from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, log_audit, row_to_model, rows_to_models, get_active_status_pk, require_entity, FAMILY_MAJORITY_CTE_SQL
 from api.schemas.auth import MessageResponse
 from api.schemas.family import (
     AddFamilyMemberRequest,
@@ -62,31 +62,15 @@ from api.schemas.family import (
     TransferHeadRequest,
 )
 from api.services.family_graph import Step, build_family_graph
-from api.services.rbac_service import UserContext
+from api.services.rbac_service import UserContext, actor_scope_org_pks
 
 router = APIRouter(prefix="/api/v1/family", tags=["family"])
 
 
 # ── Shared SQL fragments ──────────────────────────────────────────────────
 
-_FAMILY_SELECT = """
-    WITH family_majority AS (
-        SELECT fr.family_group_pk,
-               aff.organization_pk        AS sakha_pk,
-               COUNT(*)                    AS cnt,
-               ROW_NUMBER() OVER (
-                   PARTITION BY fr.family_group_pk
-                   ORDER BY COUNT(*) DESC
-               ) AS rn
-        FROM   nss.family_relationship fr
-        JOIN   nss.sangha_sevi ss
-               ON ss.person_pk = fr.person_pk AND ss.is_active = TRUE
-        JOIN   nss.membership_sakha_affiliation aff
-               ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
-              AND aff.effective_to IS NULL
-        WHERE  fr.is_current = TRUE
-        GROUP BY fr.family_group_pk, aff.organization_pk
-    )
+_FAMILY_SELECT = f"""
+    WITH {FAMILY_MAJORITY_CTE_SQL}
     SELECT fg.family_group_pk,
            fg.family_id,
            fg.family_name,
@@ -329,6 +313,14 @@ def list_families(
 
     Optionally filter by sakha_code or status_code. Supports pagination
     via limit/offset (default 100, max 500).
+
+    The result is bounded to the orgs the caller may act within
+    (``actor_scope_org_pks``), so an admin holding the same organizational
+    role over several sanghas sees families across ALL of them — not just
+    the first — while a scope-bounded admin can never see families outside
+    their subtree. NSS-WIDE / super admins are unrestricted. This mirrors
+    the scope resolver already used by the Administration/claim write
+    guards: what an admin can see now equals what an admin can manage.
     """
     sql = _FAMILY_SELECT + " WHERE fg.is_active = TRUE"
     params: list = []
@@ -343,11 +335,24 @@ def list_families(
         sql += " AND st.value_code = %s"
         params.append(status_code)
 
-    sql += " ORDER BY fg.family_name"
-    sql += " LIMIT %s OFFSET %s"
-    params.extend([limit, offset])
-
     with conn.cursor() as cur:
+        # Restrict to the admin's scope subtree. None → NSS-WIDE / super
+        # admin (no restriction). An empty set → a scope-bounded admin with
+        # no org-anchored role: they manage no org, so they see no org-level
+        # families (short-circuit avoids an empty-ARRAY cast in SQL).
+        scoped = actor_scope_org_pks(cur, user)
+        if scoped is not None:
+            if not scoped:
+                return []
+            sql += (
+                " AND COALESCE(fmj.sakha_pk, fg.sakha_organization_pk) = ANY(%s)"
+            )
+            params.append(list(scoped))
+
+        sql += " ORDER BY fg.family_name"
+        sql += " LIMIT %s OFFSET %s"
+        params.extend([limit, offset])
+
         cur.execute(sql, tuple(params))
         return rows_to_models(cur, FamilyGroupResponse)
 
@@ -838,14 +843,9 @@ _ORIGIN_GHOST_PERSONS_SQL = """
 
 # ALL active links from the OLD family — needed so the ghost tree
 # is fully connected (not just the arrived person's direct links).
-_ORIGIN_GHOST_LINKS_SQL = """
-    SELECT fl.person_a_pk,
-           fl.person_b_pk,
-           fl.link_type
-    FROM   nss.family_link fl
-    WHERE  fl.family_group_pk = %s
-      AND  fl.is_current = TRUE
-"""
+# Same "all current links for a family_group_pk" shape as _GRAPH_LINKS_SQL
+# above — aliased, not redefined, so the two can't silently drift apart.
+_ORIGIN_GHOST_LINKS_SQL = _GRAPH_LINKS_SQL
 
 # Soft-deleted links between the arrived person and members
 # of the old family (these reconnect the arrived person to the ghost tree).

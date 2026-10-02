@@ -1,7 +1,9 @@
 """
-Membership API router — Tier 4 read-only endpoints.
+Membership API router — Tier 4 read endpoints.
 
-7 GET endpoints across 5 Membership tables. No authentication.
+8 GET endpoints across 5 Membership tables. Requires authentication
+(require_permission("MEMBERSHIP_VIEW"), or self-access via
+require_self_or_permission).
 nss_db_backend connects with SELECT-only privileges.
 
 Endpoint groups:
@@ -10,6 +12,7 @@ Endpoint groups:
   - Affiliations:  sakha affiliation history (per member)
   - Credentials:   parichaya patra, anumati patra (per member)
   - Timeline:      journey events (per member)
+  - Org summary:   darshak affiliation summary (per organization)
 
 Three-tier identity model:
   - Sangha Sevi ID (SS1) — permanent NSS-wide (sangha_sevi)
@@ -28,6 +31,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.database import get_connection
+from api.dependencies.auth import get_current_user
 from api.dependencies.rbac import require_permission
 from api.helpers import (
     DEFAULT_LIMIT,
@@ -37,6 +41,8 @@ from api.helpers import (
     row_to_model,
     rows_to_models,
     require_entity,
+    MEMBER_JOINS_SQL,
+    require_self_or_permission,
 )
 from api.services.rbac_service import UserContext
 from api.schemas.membership import (
@@ -44,6 +50,7 @@ from api.schemas.membership import (
     JourneyEventResponse,
     MemberListResponse,
     MemberResponse,
+    OrgDarshakSummaryResponse,
     ParichayaPatraResponse,
     SakhaAffiliationResponse,
 )
@@ -51,11 +58,23 @@ from api.schemas.membership import (
 router = APIRouter(prefix="/api/v1/membership", tags=["membership"])
 
 
+def _require_member_view(sangha_sevi_pk, user: UserContext) -> None:
+    """
+    Read access to one member record: an administrator holding
+    MEMBERSHIP_VIEW, or the member themself (e.g. their own Member
+    Dashboard).
+    """
+    require_self_or_permission(
+        sangha_sevi_pk, user.sangha_sevi_pk, "MEMBERSHIP_VIEW", user,
+        detail="You do not have access to this member record.",
+    )
+
+
 # ── Shared SQL fragments ──────────────────────────────────────────────────
 
 # Member list/detail with resolved person, type, status, org, and
 # current active local_sakha_erp_id (LEFT JOIN on active affiliation).
-_MEMBER_SELECT = """
+_MEMBER_SELECT = f"""
     SELECT ss.sangha_sevi_pk,
            ss.sangha_sevi_id,
            ss.person_pk,
@@ -76,45 +95,24 @@ _MEMBER_SELECT = """
            o.organization_name,
            o.organization_code,
            aff.local_sakha_erp_id,
+           daff.organization_pk  AS darshak_organization_pk,
+           dorg.organization_name AS darshak_organization_name,
+           daff.local_sakha_erp_id AS darshak_local_sakha_number,
            ss.joining_date,
            ss.renewal_due_date,
            ss.remarks,
            ss.is_active
     FROM   nss.sangha_sevi ss
-    JOIN   nss.person p
-           ON p.person_pk = ss.person_pk
-    JOIN   nss.master_data mt
-           ON mt.master_data_pk = ss.membership_type_master_data_pk
-    JOIN   nss.master_data ms
-           ON ms.master_data_pk = ss.membership_status_master_data_pk
-    JOIN   nss.organization o
-           ON o.organization_pk = ss.organization_pk
-    LEFT JOIN nss.master_data ot
-           ON ot.master_data_pk = o.organization_type_master_data_pk
-    LEFT JOIN nss.membership_sakha_affiliation aff
-           ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
-          AND aff.effective_to IS NULL
+    {MEMBER_JOINS_SQL}
 """
 
-# Count variant of _MEMBER_SELECT's FROM/JOIN — mirrors it exactly so
-# total counts match the member rows one-for-one. Kept separate rather
-# than derived to match this file's existing SELECT-fragment style.
-_MEMBER_COUNT_SELECT = """
+# Count variant of _MEMBER_SELECT's FROM/JOIN — shares the same
+# MEMBER_JOINS_SQL fragment so total counts match the member rows
+# one-for-one; previously a byte-identical standalone copy.
+_MEMBER_COUNT_SELECT = f"""
     SELECT count(*)
     FROM   nss.sangha_sevi ss
-    JOIN   nss.person p
-           ON p.person_pk = ss.person_pk
-    JOIN   nss.master_data mt
-           ON mt.master_data_pk = ss.membership_type_master_data_pk
-    JOIN   nss.master_data ms
-           ON ms.master_data_pk = ss.membership_status_master_data_pk
-    JOIN   nss.organization o
-           ON o.organization_pk = ss.organization_pk
-    LEFT JOIN nss.master_data ot
-           ON ot.master_data_pk = o.organization_type_master_data_pk
-    LEFT JOIN nss.membership_sakha_affiliation aff
-           ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
-          AND aff.effective_to IS NULL
+    {MEMBER_JOINS_SQL}
 """
 
 
@@ -230,9 +228,15 @@ def list_members(
 def get_member(
     sangha_sevi_pk: UUID,
     conn=Depends(get_connection),
-    user: UserContext = Depends(require_permission("MEMBERSHIP_VIEW")),
+    user: UserContext = Depends(get_current_user),
 ) -> MemberResponse:
-    """Get a single member by PK with full resolved context."""
+    """
+    Get a single member by PK with full resolved context.
+
+    Access: an administrator holding MEMBERSHIP_VIEW, or the member
+    themself (e.g. their own Member Dashboard).
+    """
+    _require_member_view(sangha_sevi_pk, user)
     sql = _MEMBER_SELECT + " WHERE ss.sangha_sevi_pk = %s AND ss.is_active = TRUE"
 
     with conn.cursor() as cur:
@@ -343,12 +347,16 @@ def search_members(
 def list_member_affiliations(
     sangha_sevi_pk: UUID,
     conn=Depends(get_connection),
-    user: UserContext = Depends(require_permission("MEMBERSHIP_VIEW")),
+    user: UserContext = Depends(get_current_user),
 ) -> list[SakhaAffiliationResponse]:
     """
     List all sakha affiliations for a member (current and historical).
     Returns 404 if the member does not exist.
+
+    Access: an administrator holding MEMBERSHIP_VIEW, or the member
+    themself (e.g. their own Member Dashboard).
     """
+    _require_member_view(sangha_sevi_pk, user)
     with conn.cursor() as cur:
         require_entity(cur, "sangha_sevi", str(sangha_sevi_pk), label="Member")
 
@@ -386,13 +394,17 @@ def list_member_affiliations(
 def list_member_parichaya_patra(
     sangha_sevi_pk: UUID,
     conn=Depends(get_connection),
-    user: UserContext = Depends(require_permission("MEMBERSHIP_VIEW")),
+    user: UserContext = Depends(get_current_user),
 ) -> list[ParichayaPatraResponse]:
     """
     List all Parichaya Patra records for a member (current and historical).
     Includes point-in-time snapshot of affiliated Sakha and local number.
     Returns 404 if the member does not exist.
+
+    Access: an administrator holding MEMBERSHIP_VIEW, or the member
+    themself (e.g. their own Member Dashboard).
     """
+    _require_member_view(sangha_sevi_pk, user)
     with conn.cursor() as cur:
         require_entity(cur, "sangha_sevi", str(sangha_sevi_pk), label="Member")
 
@@ -432,12 +444,16 @@ def list_member_parichaya_patra(
 def list_member_anumati_patra(
     sangha_sevi_pk: UUID,
     conn=Depends(get_connection),
-    user: UserContext = Depends(require_permission("MEMBERSHIP_VIEW")),
+    user: UserContext = Depends(get_current_user),
 ) -> list[AnumatiPatraResponse]:
     """
     List all Anumati Patra records for a member.
     Returns 404 if the member does not exist.
+
+    Access: an administrator holding MEMBERSHIP_VIEW, or the member
+    themself (e.g. their own Member Dashboard).
     """
+    _require_member_view(sangha_sevi_pk, user)
     with conn.cursor() as cur:
         require_entity(cur, "sangha_sevi", str(sangha_sevi_pk), label="Member")
 
@@ -471,12 +487,16 @@ def list_member_anumati_patra(
 def list_member_journey(
     sangha_sevi_pk: UUID,
     conn=Depends(get_connection),
-    user: UserContext = Depends(require_permission("MEMBERSHIP_VIEW")),
+    user: UserContext = Depends(get_current_user),
 ) -> list[JourneyEventResponse]:
     """
     List all journey events for a member in chronological order.
     Returns 404 if the member does not exist.
+
+    Access: an administrator holding MEMBERSHIP_VIEW, or the member
+    themself (e.g. their own Member Dashboard).
     """
+    _require_member_view(sangha_sevi_pk, user)
     with conn.cursor() as cur:
         require_entity(cur, "sangha_sevi", str(sangha_sevi_pk), label="Member")
 
@@ -493,3 +513,69 @@ def list_member_journey(
             ORDER BY mje.event_date ASC
         """, (str(sangha_sevi_pk),))
         return rows_to_models(cur, JourneyEventResponse)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 7. ORG-LEVEL DARSHAK SUMMARY (Sakha/Kendra dashboard card)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get(
+    "/organizations/{organization_pk}/darshak-summary",
+    response_model=OrgDarshakSummaryResponse,
+)
+def get_org_darshak_summary(
+    organization_pk: UUID,
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("MEMBERSHIP_VIEW")),
+) -> OrgDarshakSummaryResponse:
+    """
+    Darshak counts for one organization's own "Darshak" dashboard card
+    (docs/03_Solution/ui/mockups/03_sakha_dashboard.html §Darshak Summary,
+    02_kendra_dashboard.html §Membership and Renewal):
+
+      - home_probationary_count: active members whose HOME sangha_sevi
+        record at this org has membership_type PROBATIONARY (Darshaka).
+      - attending_from_other_sakha_count: members whose home Sakha is a
+        DIFFERENT org, currently holding an active membership_sakha_affiliation
+        at this org (cross-Sakha darshak attendance, SOL-MEM-006).
+
+    Not scoped to a Sakha specifically — a Kendra/Anchalika/Zilla org_pk
+    aggregates across nothing on its own (both counts are 0 for non-leaf
+    orgs); callers wanting a Kendra-wide total should sum this across
+    every Sakha themselves.
+    """
+    with conn.cursor() as cur:
+        require_entity(cur, "organization", str(organization_pk), label="Organization")
+
+        cur.execute(
+            """
+            SELECT COUNT(*)
+            FROM   nss.sangha_sevi ss
+            JOIN   nss.master_data mt ON mt.master_data_pk = ss.membership_type_master_data_pk
+            WHERE  ss.organization_pk = %s
+              AND  ss.is_active = TRUE
+              AND  mt.value_code = 'PROBATIONARY'
+            """,
+            (str(organization_pk),),
+        )
+        home_probationary_count = cur.fetchone()[0]
+
+        cur.execute(
+            """
+            SELECT COUNT(DISTINCT msa.sangha_sevi_pk)
+            FROM   nss.membership_sakha_affiliation msa
+            JOIN   nss.sangha_sevi ss ON ss.sangha_sevi_pk = msa.sangha_sevi_pk
+            WHERE  msa.organization_pk = %s
+              AND  msa.effective_to IS NULL
+              AND  ss.organization_pk != %s
+              AND  ss.is_active = TRUE
+            """,
+            (str(organization_pk), str(organization_pk)),
+        )
+        attending_from_other_sakha_count = cur.fetchone()[0]
+
+    return OrgDarshakSummaryResponse(
+        home_probationary_count=home_probationary_count,
+        attending_from_other_sakha_count=attending_from_other_sakha_count,
+    )

@@ -1,8 +1,10 @@
 """
-Foundation API router — Tier 1 read-only endpoints.
+Foundation API router — Tier 1 Foundation endpoints.
 
-17 GET endpoints across 11 Foundation tables. No authentication.
-nss_db_backend connects with SELECT-only privileges.
+17 GET (read) endpoints plus master-data / settings / sequences write
+endpoints, across 11 Foundation tables. All routes require authentication
+(FOUNDATION_VIEW to read, FOUNDATION_MANAGE to write). Reads use the
+nss_db_backend pool (SELECT-only); writes use the nss_db_writer pool.
 
 Endpoint groups:
   - Master Data:      categories, master-data
@@ -30,23 +32,199 @@ from api.schemas.foundation import (
     CategoryResponse,
     CityVillageResponse,
     CountryResponse,
+    CreateFestivalCalendarDateRequest,
     CreateMasterDataRequest,
     CreateSequenceRequest,
     CreateSettingRequest,
     DistrictResponse,
     DocumentResponse,
+    FestivalCalendarDateResponse,
+    FestivalMasterResponse,
     MasterDataResponse,
     PostalCodeMappingResponse,
     PostalCodeResponse,
+    SakhaPostalCodeResponse,
     SequenceResponse,
     SettingResponse,
     StateResponse,
+    UpdateFestivalCalendarDateRequest,
     UpdateMasterDataRequest,
     UpdateSequenceRequest,
     UpdateSettingRequest,
 )
 
 router = APIRouter(prefix="/api/v1/foundation", tags=["foundation"])
+
+
+# ── Shared query helpers ─────────────────────────────────────────────────
+# Factored out so a second, differently-authenticated caller (the public
+# self-registration reference-data endpoint, api/routers/registration.py)
+# can reuse the exact same SQL rather than a duplicated copy that could
+# drift. Each authenticated route below is now a thin wrapper over one of
+# these; behavior is unchanged.
+
+def fetch_master_data(cur, category_code: str | None = None, category_pk=None):
+    base_sql = """
+        SELECT md.master_data_pk, md.master_category_pk,
+               mc.category_code, mc.category_name,
+               md.value_code, md.value_name,
+               md.description, md.applicable_modules,
+               md.display_order, md.is_active
+        FROM   nss.master_data md
+        JOIN   nss.master_category mc
+               ON mc.master_category_pk = md.master_category_pk
+        WHERE  md.is_active = TRUE
+          AND  mc.is_active = TRUE
+    """
+    params: list = []
+    if category_pk is not None:
+        base_sql += " AND md.master_category_pk = %s"
+        params.append(str(category_pk))
+    elif category_code is not None:
+        base_sql += " AND mc.category_code = %s"
+        params.append(category_code)
+    base_sql += """
+        ORDER BY mc.display_order, mc.category_name,
+                 md.display_order, md.value_name
+    """
+    cur.execute(base_sql, tuple(params))
+    return rows_to_models(cur, MasterDataResponse)
+
+
+def fetch_countries(cur):
+    cur.execute("""
+        SELECT country_pk, country_code, country_name,
+               display_order, is_active
+        FROM   nss.country
+        WHERE  is_active = TRUE
+        ORDER BY display_order, country_name
+    """)
+    return rows_to_models(cur, CountryResponse)
+
+
+def fetch_states(cur, country_pk=None):
+    base_sql = """
+        SELECT s.state_pk, s.country_pk,
+               c.country_code, c.country_name,
+               s.state_code, s.state_name,
+               s.display_order, s.is_active
+        FROM   nss.state s
+        JOIN   nss.country c ON c.country_pk = s.country_pk
+        WHERE  s.is_active = TRUE
+          AND  c.is_active = TRUE
+    """
+    params: list = []
+    if country_pk is not None:
+        base_sql += " AND s.country_pk = %s"
+        params.append(str(country_pk))
+    base_sql += " ORDER BY c.display_order, s.display_order, s.state_name"
+    cur.execute(base_sql, tuple(params))
+    return rows_to_models(cur, StateResponse)
+
+
+def fetch_districts(cur, state_pk=None):
+    base_sql = """
+        SELECT d.district_pk, d.state_pk,
+               s.state_name,
+               d.district_code, d.district_name,
+               d.display_order, d.is_active
+        FROM   nss.district d
+        JOIN   nss.state s ON s.state_pk = d.state_pk
+        WHERE  d.is_active = TRUE
+          AND  s.is_active = TRUE
+    """
+    params: list = []
+    if state_pk is not None:
+        base_sql += " AND d.state_pk = %s"
+        params.append(str(state_pk))
+    base_sql += " ORDER BY s.state_name, d.display_order, d.district_name"
+    cur.execute(base_sql, tuple(params))
+    return rows_to_models(cur, DistrictResponse)
+
+
+def fetch_cities(cur, district_pk=None, postal_code_pk=None):
+    """
+    Shared Cities/Villages query — list_cities() (Foundation, authenticated)
+    and get_register_cities() (public registration cascade) both route
+    through here (SOL-ARCH-010 Amendment, 2026-10-01).
+    """
+    base_sql = """
+        SELECT cv.city_village_pk, cv.district_pk,
+               d.district_name,
+               cv.city_village_code, cv.city_village_name,
+               cv.city_village_type,
+               cv.postal_code_pk, pc.postal_code,
+               cv.display_order, cv.is_active
+        FROM   nss.city_village cv
+        LEFT JOIN nss.district d ON d.district_pk = cv.district_pk
+        LEFT JOIN nss.postal_code pc ON pc.postal_code_pk = cv.postal_code_pk
+        WHERE  cv.is_active = TRUE
+          AND  (d.district_pk IS NULL OR d.is_active = TRUE)
+    """
+    params: list = []
+    if district_pk is not None:
+        base_sql += " AND cv.district_pk = %s"
+        params.append(str(district_pk))
+    if postal_code_pk is not None:
+        base_sql += " AND cv.postal_code_pk = %s"
+        params.append(str(postal_code_pk))
+    base_sql += " ORDER BY d.district_name, cv.display_order, cv.city_village_name"
+    cur.execute(base_sql, tuple(params))
+    return rows_to_models(cur, CityVillageResponse)
+
+
+def fetch_postal_codes(cur, state_pk=None, country_pk=None, district_pk=None, q=None):
+    """
+    Simplified Geography Model (2026-10-02): nss.post_office is retired —
+    postal_code is now a single state-scoped row per PIN (one row
+    globally, unique on postal_code alone; no per-country/per-office
+    duplicates to disambiguate, so there is no office_count or
+    post_office_name any more).
+
+    postal_code still has no direct district_pk column (a PIN is a
+    state-scoped postal unit, not a revenue-district one), so "postal
+    codes in district X" is answered through nss.city_village, which
+    carries the direct district_pk anchor alongside postal_code_pk — the
+    same join fetch_cities() uses in the other direction.
+
+    country_pk is accepted for backward compatibility with callers (e.g.
+    the public registration cascade) but postal_code itself has no
+    country_pk column any more — it's resolved via state.country_pk.
+
+    *q* now only matches the PIN digits — the office-name search is
+    gone along with nss.post_office.
+    """
+    base_sql = """
+        SELECT pc.postal_code_pk, pc.state_pk,
+               s.state_name, s.country_pk,
+               pc.postal_code, pc.is_active
+        FROM   nss.postal_code pc
+        JOIN   nss.state s ON s.state_pk = pc.state_pk
+        WHERE  pc.is_active = TRUE
+    """
+    params: list = []
+    if district_pk is not None:
+        base_sql += """
+            AND EXISTS (
+                SELECT 1 FROM nss.city_village cv
+                WHERE  cv.postal_code_pk = pc.postal_code_pk
+                  AND  cv.is_active = TRUE
+                  AND  cv.district_pk = %s
+            )
+        """
+        params.append(str(district_pk))
+    if state_pk is not None:
+        base_sql += " AND pc.state_pk = %s"
+        params.append(str(state_pk))
+    elif country_pk is not None:
+        base_sql += " AND s.country_pk = %s"
+        params.append(str(country_pk))
+    if q:
+        base_sql += " AND pc.postal_code LIKE %s"
+        params.append(f"{q}%")
+    base_sql += " ORDER BY pc.postal_code"
+    cur.execute(base_sql, tuple(params))
+    return rows_to_models(cur, PostalCodeResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -104,35 +282,8 @@ def list_master_data(
     Optionally filter by category_code or category_pk.
     If both are provided, category_pk takes precedence.
     """
-    base_sql = """
-        SELECT md.master_data_pk, md.master_category_pk,
-               mc.category_code, mc.category_name,
-               md.value_code, md.value_name,
-               md.description, md.applicable_modules,
-               md.display_order, md.is_active
-        FROM   nss.master_data md
-        JOIN   nss.master_category mc
-               ON mc.master_category_pk = md.master_category_pk
-        WHERE  md.is_active = TRUE
-          AND  mc.is_active = TRUE
-    """
-    params: list = []
-
-    if category_pk is not None:
-        base_sql += " AND md.master_category_pk = %s"
-        params.append(str(category_pk))
-    elif category_code is not None:
-        base_sql += " AND mc.category_code = %s"
-        params.append(category_code)
-
-    base_sql += """
-        ORDER BY mc.display_order, mc.category_name,
-                 md.display_order, md.value_name
-    """
-
     with conn.cursor() as cur:
-        cur.execute(base_sql, tuple(params))
-        return rows_to_models(cur, MasterDataResponse)
+        return fetch_master_data(cur, category_code, category_pk)
 
 
 @router.get("/master-data/{master_data_pk}", response_model=MasterDataResponse)
@@ -662,14 +813,7 @@ def list_countries(
 ) -> list[CountryResponse]:
     """List all active countries."""
     with conn.cursor() as cur:
-        cur.execute("""
-            SELECT country_pk, country_code, country_name,
-                   display_order, is_active
-            FROM   nss.country
-            WHERE  is_active = TRUE
-            ORDER BY display_order, country_name
-        """)
-        return rows_to_models(cur, CountryResponse)
+        return fetch_countries(cur)
 
 
 @router.get("/countries/{country_pk}", response_model=CountryResponse)
@@ -703,27 +847,8 @@ def list_states(
 
     Optionally filter by parent country PK.
     """
-    base_sql = """
-        SELECT s.state_pk, s.country_pk,
-               c.country_code, c.country_name,
-               s.state_code, s.state_name,
-               s.display_order, s.is_active
-        FROM   nss.state s
-        JOIN   nss.country c ON c.country_pk = s.country_pk
-        WHERE  s.is_active = TRUE
-          AND  c.is_active = TRUE
-    """
-    params: list = []
-
-    if country_pk is not None:
-        base_sql += " AND s.country_pk = %s"
-        params.append(str(country_pk))
-
-    base_sql += " ORDER BY c.display_order, s.display_order, s.state_name"
-
     with conn.cursor() as cur:
-        cur.execute(base_sql, tuple(params))
-        return rows_to_models(cur, StateResponse)
+        return fetch_states(cur, country_pk)
 
 
 @router.get("/states/{state_pk}", response_model=StateResponse)
@@ -763,27 +888,8 @@ def list_districts(
     Optionally filter by parent state PK. Without filter, returns all
     active districts (~700+ for India alone).
     """
-    base_sql = """
-        SELECT d.district_pk, d.state_pk,
-               s.state_name,
-               d.district_code, d.district_name,
-               d.display_order, d.is_active
-        FROM   nss.district d
-        JOIN   nss.state s ON s.state_pk = d.state_pk
-        WHERE  d.is_active = TRUE
-          AND  s.is_active = TRUE
-    """
-    params: list = []
-
-    if state_pk is not None:
-        base_sql += " AND d.state_pk = %s"
-        params.append(str(state_pk))
-
-    base_sql += " ORDER BY s.state_name, d.display_order, d.district_name"
-
     with conn.cursor() as cur:
-        cur.execute(base_sql, tuple(params))
-        return rows_to_models(cur, DistrictResponse)
+        return fetch_districts(cur, state_pk)
 
 
 @router.get("/districts/{district_pk}", response_model=DistrictResponse)
@@ -814,73 +920,43 @@ def get_district(
 @router.get("/cities", response_model=list[CityVillageResponse])
 def list_cities(
     district_pk: UUID | None = Query(None, description="Filter by parent district"),
+    postal_code_pk: UUID | None = Query(None, description="Filter by postal code"),
     conn=Depends(get_connection),
     user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[CityVillageResponse]:
     """
     List all active cities/villages.
 
-    Optionally filter by parent district PK.
-    Currently returns empty — no seed data by design.
+    Optionally filter by parent district PK or by postal_code_pk
+    (SOL-ARCH-010 Amendment, 2026-10-01): district is a best-effort name
+    match and may be unresolved; postal_code is the primary location
+    anchor, so filtering by it is the more reliable narrowing step —
+    e.g. completing the Geography admin cascade (state → district →
+    postal code → city/village) once a postal code is selected.
     """
-    base_sql = """
-        SELECT cv.city_village_pk, cv.district_pk,
-               d.district_name,
-               cv.city_village_code, cv.city_village_name,
-               cv.city_village_type,
-               cv.display_order, cv.is_active
-        FROM   nss.city_village cv
-        JOIN   nss.district d ON d.district_pk = cv.district_pk
-        WHERE  cv.is_active = TRUE
-          AND  d.is_active = TRUE
-    """
-    params: list = []
-
-    if district_pk is not None:
-        base_sql += " AND cv.district_pk = %s"
-        params.append(str(district_pk))
-
-    base_sql += " ORDER BY d.district_name, cv.display_order, cv.city_village_name"
-
     with conn.cursor() as cur:
-        cur.execute(base_sql, tuple(params))
-        return rows_to_models(cur, CityVillageResponse)
+        return fetch_cities(cur, district_pk, postal_code_pk)
 
 
 @router.get("/postal-codes", response_model=list[PostalCodeResponse])
 def list_postal_codes(
     state_pk: UUID | None = Query(None, description="Filter by state"),
     country_pk: UUID | None = Query(None, description="Filter by country"),
+    district_pk: UUID | None = Query(None, description="Filter by district (via city_village — postal_code has no direct district FK)"),
+    q: str | None = Query(None, min_length=2, max_length=100, description="Match the PIN digits"),
     conn=Depends(get_connection),
     user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
 ) -> list[PostalCodeResponse]:
     """
     List all active postal codes.
 
-    Optionally filter by state or country.
+    Optionally filter by state, country, or district, and search with *q*.
+
+    Simplified Geography Model (2026-10-02): one row per PIN globally
+    (unique on postal_code alone), no office-level detail any more.
     """
-    base_sql = """
-        SELECT pc.postal_code_pk, pc.country_pk, pc.state_pk,
-               s.state_name,
-               pc.postal_code, pc.post_office_name, pc.is_active
-        FROM   nss.postal_code pc
-        JOIN   nss.state s ON s.state_pk = pc.state_pk
-        WHERE  pc.is_active = TRUE
-    """
-    params: list = []
-
-    if state_pk is not None:
-        base_sql += " AND pc.state_pk = %s"
-        params.append(str(state_pk))
-    elif country_pk is not None:
-        base_sql += " AND pc.country_pk = %s"
-        params.append(str(country_pk))
-
-    base_sql += " ORDER BY pc.postal_code"
-
     with conn.cursor() as cur:
-        cur.execute(base_sql, tuple(params))
-        return rows_to_models(cur, PostalCodeResponse)
+        return fetch_postal_codes(cur, state_pk, country_pk, district_pk, q)
 
 
 @router.get("/postal-code-mappings", response_model=list[PostalCodeMappingResponse])
@@ -893,35 +969,94 @@ def list_postal_code_mappings(
     """
     List city/village to postal code mappings.
 
-    Pure junction table — no is_active, no soft-delete.
-    Currently returns empty — no seed data by design.
+    SOL-ARCH-010 Amendment (2026-10-01): the former M:N junction
+    table is retired. This now reads the direct
+    nss.city_village.postal_code_pk FK — a city/village is its own
+    mapping row whenever its PIN has been resolved. No separate
+    mapping PK exists any more.
     """
     base_sql = """
-        SELECT m.city_village_postal_code_map_pk,
-               m.city_village_pk, cv.city_village_name,
-               m.postal_code_pk, pc.postal_code
-        FROM   nss.city_village_postal_code_map m
-        JOIN   nss.city_village cv ON cv.city_village_pk = m.city_village_pk
-        JOIN   nss.postal_code pc ON pc.postal_code_pk = m.postal_code_pk
+        SELECT cv.city_village_pk, cv.city_village_name,
+               cv.postal_code_pk, pc.postal_code
+        FROM   nss.city_village cv
+        JOIN   nss.postal_code pc ON pc.postal_code_pk = cv.postal_code_pk
+        WHERE  cv.is_active = TRUE
     """
     conditions: list[str] = []
     params: list = []
 
     if city_village_pk is not None:
-        conditions.append("m.city_village_pk = %s")
+        conditions.append("cv.city_village_pk = %s")
         params.append(str(city_village_pk))
     if postal_code_pk is not None:
-        conditions.append("m.postal_code_pk = %s")
+        conditions.append("cv.postal_code_pk = %s")
         params.append(str(postal_code_pk))
 
     if conditions:
-        base_sql += " WHERE " + " AND ".join(conditions)
+        base_sql += " AND " + " AND ".join(conditions)
 
     base_sql += " ORDER BY cv.city_village_name, pc.postal_code"
 
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
         return rows_to_models(cur, PostalCodeMappingResponse)
+
+
+@router.get("/sakha-postal-codes", response_model=list[SakhaPostalCodeResponse])
+def list_sakha_postal_codes(
+    state_pk: UUID | None = Query(None, description="Filter by state (via the linked postal code)"),
+    district_pk: UUID | None = Query(None, description="Filter by district (via city_village — resolves which PINs belong to this district)"),
+    postal_code_pk: UUID | None = Query(None, description="Filter by a specific postal code"),
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[SakhaPostalCodeResponse]:
+    """
+    List Sakha Sangha branches linked to a postal code.
+
+    The link is `organization.postal_code_pk` (set from the branch's
+    address PIN). Only active SAKHA_SANGHA organizations that have a
+    resolved postal code are returned. Optionally filter by state,
+    district (via city_village.district_pk — see fetch_postal_codes), or
+    a specific postal code.
+    """
+    base_sql = """
+        SELECT o.organization_pk, o.organization_name, o.organization_code,
+               pc.postal_code_pk, pc.postal_code,
+               pc.state_pk, s.state_name
+        FROM   nss.organization o
+        JOIN   nss.master_data md
+               ON md.master_data_pk = o.organization_type_master_data_pk
+        JOIN   nss.postal_code pc ON pc.postal_code_pk = o.postal_code_pk
+        JOIN   nss.state s ON s.state_pk = pc.state_pk
+        WHERE  md.value_code = 'SAKHA_SANGHA'
+          AND  o.is_active = TRUE
+          AND  o.postal_code_pk IS NOT NULL
+    """
+    params: list = []
+
+    if district_pk is not None:
+        base_sql += """
+            AND EXISTS (
+                SELECT 1 FROM nss.city_village cv
+                WHERE  cv.postal_code_pk = pc.postal_code_pk
+                  AND  cv.is_active = TRUE
+                  AND  cv.district_pk = %s
+            )
+        """
+        params.append(str(district_pk))
+    if state_pk is not None:
+        base_sql += " AND pc.state_pk = %s"
+        params.append(str(state_pk))
+    if postal_code_pk is not None:
+        base_sql += " AND pc.postal_code_pk = %s"
+        params.append(str(postal_code_pk))
+
+
+    base_sql += " ORDER BY s.state_name, o.organization_name"
+
+    with conn.cursor() as cur:
+        cur.execute(base_sql, tuple(params))
+        return rows_to_models(cur, SakhaPostalCodeResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -963,3 +1098,246 @@ def list_documents(
     with conn.cursor() as cur:
         cur.execute(base_sql, tuple(params))
         return rows_to_models(cur, DocumentResponse)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 5. FESTIVAL REFERENCE CALENDAR (SOL-ARCH-013)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# festival_master is seeded reference data (read-only here — no admin UI
+# need to add new festivals yet, only DOLA_PURNIMA exists today).
+# festival_calendar_date is the per-year observed-date record an
+# administrator must enter/confirm before any credential-validity window
+# or renewal-deadline calculation that depends on it (MBR-011A, MBR-029,
+# SOL-ARCH-013 FC-DECISION-01) can resolve. Writes require
+# FOUNDATION_CALENDAR_MANAGE (NSS_ERP_ADMIN only).
+
+_FESTIVAL_CALENDAR_DATE_SELECT = """
+    SELECT fcd.festival_calendar_date_pk, fcd.festival_master_pk,
+           fm.festival_code, fm.festival_name,
+           fcd.calendar_year, fcd.observed_date, fcd.is_confirmed,
+           fcd.source_reference, fcd.remarks, fcd.is_active
+    FROM   nss.festival_calendar_date fcd
+    JOIN   nss.festival_master fm
+           ON fm.festival_master_pk = fcd.festival_master_pk
+    WHERE  fcd.festival_calendar_date_pk = %s
+"""
+
+
+@router.get("/festivals", response_model=list[FestivalMasterResponse])
+def list_festivals(
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[FestivalMasterResponse]:
+    """List all active festivals that can carry calendar dates."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT festival_master_pk, festival_code, festival_name,
+                   festival_name_odia, lunar_basis, is_erp_reference_date,
+                   description, display_order, is_active
+            FROM   nss.festival_master
+            WHERE  is_active = TRUE
+            ORDER BY display_order, festival_name
+        """)
+        return rows_to_models(cur, FestivalMasterResponse)
+
+
+@router.get("/festival-calendar-dates", response_model=list[FestivalCalendarDateResponse])
+def list_festival_calendar_dates(
+    festival_code: str | None = Query(None, description="Filter by festival code, e.g. DOLA_PURNIMA"),
+    calendar_year: int | None = Query(None, description="Filter by calendar year"),
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[FestivalCalendarDateResponse]:
+    """
+    List observed festival dates on file, newest year first.
+
+    Powers the Festival Calendar admin screen (SOL-ARCH-013): shows which
+    years are confirmed vs. provisional vs. missing entirely, so an admin
+    can see at a glance that (e.g.) 2016 has no Dola Purnima date on file.
+    """
+    base_sql = """
+        SELECT fcd.festival_calendar_date_pk, fcd.festival_master_pk,
+               fm.festival_code, fm.festival_name,
+               fcd.calendar_year, fcd.observed_date, fcd.is_confirmed,
+               fcd.source_reference, fcd.remarks, fcd.is_active
+        FROM   nss.festival_calendar_date fcd
+        JOIN   nss.festival_master fm
+               ON fm.festival_master_pk = fcd.festival_master_pk
+        WHERE  fcd.is_active = TRUE
+    """
+    params: list = []
+
+    if festival_code is not None:
+        base_sql += " AND fm.festival_code = %s"
+        params.append(festival_code.strip().upper())
+
+    if calendar_year is not None:
+        base_sql += " AND fcd.calendar_year = %s"
+        params.append(calendar_year)
+
+    base_sql += " ORDER BY fcd.calendar_year DESC, fm.festival_name"
+
+    with conn.cursor() as cur:
+        cur.execute(base_sql, tuple(params))
+        return rows_to_models(cur, FestivalCalendarDateResponse)
+
+
+@router.post(
+    "/festival-calendar-dates",
+    response_model=FestivalCalendarDateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_festival_calendar_date(
+    body: CreateFestivalCalendarDateRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_CALENDAR_MANAGE")),
+) -> FestivalCalendarDateResponse:
+    """
+    Record the observed date for a festival/year. Requires
+    FOUNDATION_CALENDAR_MANAGE.
+
+    One row per (festival, calendar_year) — a second POST for the same
+    pair is a 409; use PATCH to correct or confirm an existing row.
+    is_confirmed may be set TRUE immediately if the administrator already
+    has a confirmed source (almanac/Kendra Sangha circular); otherwise
+    leave it FALSE and confirm later via PATCH once verified.
+    """
+    festival_code = body.festival_code.strip().upper()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT festival_master_pk FROM nss.festival_master "
+            "WHERE festival_code = %s AND is_active = TRUE",
+            (festival_code,),
+        )
+        fm = cur.fetchone()
+        if fm is None:
+            raise HTTPException(status_code=404, detail=f"Festival '{festival_code}' not found.")
+        festival_master_pk = fm[0]
+
+        cur.execute(
+            "SELECT 1 FROM nss.festival_calendar_date "
+            "WHERE festival_master_pk = %s AND calendar_year = %s AND is_active = TRUE",
+            (str(festival_master_pk), body.calendar_year),
+        )
+        if cur.fetchone() is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"A {festival_code} date for {body.calendar_year} is already on "
+                    "file — use PATCH to correct or confirm it instead."
+                ),
+            )
+
+        if body.observed_date.year != body.calendar_year:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"observed_date ({body.observed_date.isoformat()}) must fall "
+                    f"within calendar_year {body.calendar_year}."
+                ),
+            )
+
+        cur.execute(
+            """
+            INSERT INTO nss.festival_calendar_date
+                (festival_master_pk, calendar_year, observed_date,
+                 is_confirmed, source_reference, remarks)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING festival_calendar_date_pk
+            """,
+            (
+                str(festival_master_pk), body.calendar_year, body.observed_date,
+                body.is_confirmed,
+                (body.source_reference.strip() if body.source_reference else None) or None,
+                (body.remarks.strip() if body.remarks else None) or None,
+            ),
+        )
+        new_pk = cur.fetchone()[0]
+
+        log_audit(
+            cur, action="CREATE", table_name="festival_calendar_date", record_pk=str(new_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation",
+            summary=f"Recorded {festival_code} {body.calendar_year} = {body.observed_date.isoformat()}",
+        )
+
+        cur.execute(_FESTIVAL_CALENDAR_DATE_SELECT, (str(new_pk),))
+        return row_to_model(cur, FestivalCalendarDateResponse)
+
+
+@router.patch(
+    "/festival-calendar-dates/{festival_calendar_date_pk}",
+    response_model=FestivalCalendarDateResponse,
+)
+def update_festival_calendar_date(
+    festival_calendar_date_pk: UUID,
+    body: UpdateFestivalCalendarDateRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_CALENDAR_MANAGE")),
+) -> FestivalCalendarDateResponse:
+    """
+    Correct or confirm an existing festival-calendar-date row. Requires
+    FOUNDATION_CALENDAR_MANAGE.
+
+    The common path is confirming a provisional date (is_confirmed:
+    false → true) once the administrator has verified it against an
+    almanac/Kendra Sangha circular — this is what unblocks any pending
+    credential-validity window calculation for that year.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT fcd.calendar_year FROM nss.festival_calendar_date fcd "
+            "WHERE fcd.festival_calendar_date_pk = %s AND fcd.is_active = TRUE",
+            (str(festival_calendar_date_pk),),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Festival calendar date not found.")
+        calendar_year = row[0]
+
+        updates: dict = {}
+        if body.observed_date is not None:
+            if body.observed_date.year != calendar_year:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        f"observed_date ({body.observed_date.isoformat()}) must fall "
+                        f"within calendar_year {calendar_year}."
+                    ),
+                )
+            updates["observed_date"] = body.observed_date
+        if body.is_confirmed is not None:
+            updates["is_confirmed"] = body.is_confirmed
+        if body.source_reference is not None:
+            updates["source_reference"] = body.source_reference.strip() or None
+        if body.remarks is not None:
+            updates["remarks"] = body.remarks.strip() or None
+
+        if not updates:
+            raise HTTPException(status_code=422, detail="No fields provided to update.")
+
+        set_parts = ["updated_at = NOW()"]
+        params: list = []
+        for col, val in updates.items():
+            set_parts.append(f"{col} = %s")
+            params.append(val)
+        params.append(str(festival_calendar_date_pk))
+
+        cur.execute(
+            f"UPDATE nss.festival_calendar_date SET {', '.join(set_parts)} "
+            "WHERE festival_calendar_date_pk = %s",
+            params,
+        )
+
+        log_audit(
+            cur, action="UPDATE", table_name="festival_calendar_date",
+            record_pk=str(festival_calendar_date_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary="Updated festival calendar date",
+        )
+
+        cur.execute(_FESTIVAL_CALENDAR_DATE_SELECT, (str(festival_calendar_date_pk),))
+        return row_to_model(cur, FestivalCalendarDateResponse)
+

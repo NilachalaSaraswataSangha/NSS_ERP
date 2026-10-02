@@ -11,19 +11,24 @@ Sakha Admin endpoints for reviewing pending registration claims:
 Flow (approve):
   1. Validate claim is PENDING
   2. Verify admin has scope for the claimed organization
-  3. For Darshaka: generate sangha_sevi_id + create sangha_sevi record
-  4. For non-Darshaka: verify claimed_local_sakha_number matches an existing
+  3. Require claimed_local_sakha_number (every membership type, incl.
+     Darshaka — MBR-030C namespaces Darshak numbers, doesn't waive them)
+  4. For Darshaka: generate sangha_sevi_id + create sangha_sevi record
+  5. For non-Darshaka: verify claimed_local_sakha_number matches an existing
      sangha_sevi record, or create one with that number
-  5. Create membership_sakha_affiliation
-  6. If darshak_organization_pk set, create darshak affiliation
-  7. Set user_account.account_status = 'ACTIVE'
-  8. Set registration_claim.claim_status = 'APPROVED'
+  6. Create membership_sakha_affiliation
+  6b. Issue the mandatory Anumati/Parichaya Patra credential (only for a
+      newly-created sangha_sevi — see api/helpers.py::issue_membership_credential())
+  7. If darshak_organization_pk set, create darshak affiliation (its own
+     Local Sakha Number, required — see darshak_local_sakha_number)
+  8. Set user_account.account_status = 'ACTIVE'
+  9. Set registration_claim.claim_status = 'APPROVED'
 
 Authority: SOL-AUTH-006 (AUTH-BR-090, AUTH-BR-092, AUTH-BR-094)
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 logger = logging.getLogger(__name__)
@@ -36,6 +41,9 @@ from api.dependencies.rbac import require_any_permission
 from api.helpers import (
     next_id, get_active_status_pk, compose_local_sakha_erp_id, log_audit,
     build_order_by, natural_sort_key, require_sakha_organization,
+    issue_membership_credential, financial_year_bounds,
+    validate_mobile, validate_email,
+    fetch_person_date_of_birth,
 )
 from api.services.rbac_service import (
     UserContext,
@@ -71,8 +79,10 @@ class ClaimListResponse(BaseModel):
 
 class ClaimDetailResponse(ClaimListItem):
     user_account_pk: str
+    claimed_credential_document_number: str | None = None
     darshak_organization_pk: str | None = None
     darshak_organization_name: str | None = None
+    darshak_local_sakha_number: str | None = None
     country_phone_code: str | None = None
     mobile_number: str | None = None
     email: str | None = None
@@ -96,8 +106,10 @@ class UpdateClaimRequest(BaseModel):
     claimed_organization_pk: UUID | None = None
     claimed_membership_type_master_data_pk: UUID | None = None
     claimed_local_sakha_number: str | None = Field(None, max_length=20)
+    claimed_credential_document_number: str | None = Field(None, max_length=30)
     claimed_joining_date: str | None = None
     darshak_organization_pk: UUID | None = None
+    darshak_local_sakha_number: str | None = Field(None, max_length=20)
     first_name: str | None = Field(None, max_length=100)
     middle_name: str | None = Field(None, max_length=100)
     last_name: str | None = Field(None, max_length=100)
@@ -248,12 +260,14 @@ def get_claim(
                    org.organization_name,
                    mt.value_name,
                    rc.claimed_local_sakha_number,
+                   rc.claimed_credential_document_number,
                    rc.claimed_joining_date,
                    rc.claim_status,
                    rc.created_at,
                    rc.user_account_pk,
                    rc.darshak_organization_pk,
                    dorg.organization_name,
+                   rc.darshak_local_sakha_number,
                    p.country_phone_code,
                    p.mobile_number,
                    p.email,
@@ -293,19 +307,21 @@ def get_claim(
         organization_name=r[5],
         claimed_membership_type=r[6],
         claimed_local_sakha_number=r[7],
-        claimed_joining_date=str(r[8]) if r[8] else None,
-        claim_status=r[9],
-        created_at=r[10],
-        user_account_pk=str(r[11]),
-        darshak_organization_pk=str(r[12]) if r[12] else None,
-        darshak_organization_name=r[13],
-        country_phone_code=r[14],
-        mobile_number=r[15],
-        email=r[16],
-        reviewed_by=r[17],
-        reviewed_at=r[18],
-        admin_remarks=r[19],
-        claimed_membership_type_master_data_pk=str(r[20]) if r[20] else None,
+        claimed_credential_document_number=r[8],
+        claimed_joining_date=str(r[9]) if r[9] else None,
+        claim_status=r[10],
+        created_at=r[11],
+        user_account_pk=str(r[12]),
+        darshak_organization_pk=str(r[13]) if r[13] else None,
+        darshak_organization_name=r[14],
+        darshak_local_sakha_number=r[15],
+        country_phone_code=r[16],
+        mobile_number=r[17],
+        email=r[18],
+        reviewed_by=r[19],
+        reviewed_at=r[20],
+        admin_remarks=r[21],
+        claimed_membership_type_master_data_pk=str(r[22]) if r[22] else None,
     )
 
 
@@ -368,12 +384,18 @@ def update_claim(
         if body.claimed_local_sakha_number is not None:
             claim_sets.append("claimed_local_sakha_number = %s")
             claim_params.append(body.claimed_local_sakha_number.strip() or None)
+        if body.claimed_credential_document_number is not None:
+            claim_sets.append("claimed_credential_document_number = %s")
+            claim_params.append(body.claimed_credential_document_number.strip() or None)
         if body.claimed_joining_date is not None:
             claim_sets.append("claimed_joining_date = %s")
             claim_params.append(body.claimed_joining_date or None)
         if body.darshak_organization_pk is not None:
             claim_sets.append("darshak_organization_pk = %s")
             claim_params.append(str(body.darshak_organization_pk))
+        if body.darshak_local_sakha_number is not None:
+            claim_sets.append("darshak_local_sakha_number = %s")
+            claim_params.append(body.darshak_local_sakha_number.strip() or None)
 
         actor_pk = user.actor_pk
 
@@ -396,6 +418,23 @@ def update_claim(
         # ── Update person fields ─────────────────────────────────────
         person_sets = []
         person_params = []
+
+        # MBR-CONTACT-01/02: validate the EFFECTIVE contact values. This is a
+        # partial edit, so merge incoming changes over the current person row
+        # before validating country-wise mobile + email format.
+        if (body.email is not None
+                or body.mobile_number is not None
+                or body.country_phone_code is not None):
+            cur.execute(
+                "SELECT country_phone_code, mobile_number, email FROM nss.person WHERE person_pk = %s",
+                (str(person_pk),),
+            )
+            cur_contact = cur.fetchone() or (None, None, None)
+            eff_code = (body.country_phone_code.strip() or None) if body.country_phone_code is not None else cur_contact[0]
+            eff_mobile = (body.mobile_number.strip() or None) if body.mobile_number is not None else cur_contact[1]
+            eff_email = (body.email.strip().lower() if body.email.strip() else None) if body.email is not None else cur_contact[2]
+            validate_mobile(eff_code, eff_mobile)
+            validate_email(eff_email)
 
         if body.first_name is not None:
             person_sets.append("first_name = %s")
@@ -462,8 +501,10 @@ def approve_claim(
                    rc.claimed_organization_pk,
                    rc.claimed_membership_type_master_data_pk,
                    rc.claimed_local_sakha_number,
+                   rc.claimed_credential_document_number,
                    rc.claimed_joining_date,
                    rc.darshak_organization_pk,
+                   rc.darshak_local_sakha_number,
                    rc.claim_status,
                    mt.value_code AS membership_type_code
             FROM nss.registration_claim rc
@@ -479,7 +520,8 @@ def approve_claim(
             raise HTTPException(status_code=404, detail="Claim not found.")
 
         (claim_pk, user_account_pk, person_pk, org_pk, membership_type_pk,
-         local_sakha_number, joining_date, darshak_org_pk, claim_status,
+         local_sakha_number, credential_document_number, joining_date,
+         darshak_org_pk, darshak_local_sakha_number, claim_status,
          membership_type_code) = claim
 
         if claim_status != "PENDING":
@@ -498,6 +540,25 @@ def approve_claim(
         # 3. Determine if Darshaka
         is_darshaka = membership_type_code == "PROBATIONARY"
 
+        # Every claim must carry a Local Sakha Number — Darshaka included.
+        # Darshak members land in a separate short_code+marker namespace
+        # (MBR-030C) at composition below, not exempted from having a
+        # number at all (AUTH-BR-086).
+        if not local_sakha_number:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Claim has no Local Sakha Number. Reject and ask for correction.",
+            )
+
+        # Cross-Sakha darshak attendance must carry its own Local Sakha
+        # Number at the attending Sakha too — separate namespace from the
+        # home Sakha's number above.
+        if darshak_org_pk and not darshak_local_sakha_number:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Claim has a Darshak Sakha but no Local Sakha Number for it. Reject and ask for correction.",
+            )
+
         # MBR-038A: a sangha_sevi's organization must be a SAKHA_SANGHA.
         # Mirrors the DB trigger (trg_enforce_sakha_only_sangha_sevi) with a
         # clean 422. Guards both sangha_sevi inserts below, which share org_pk.
@@ -509,6 +570,7 @@ def approve_claim(
         # 5. Create or link sangha_sevi
         sangha_sevi_id = None
         sangha_sevi_pk = None
+        sangha_sevi_newly_created = False
         actor_pk = user.actor_pk
 
         if is_darshaka:
@@ -542,14 +604,8 @@ def approve_claim(
                       module="claim_approval",
                       summary=f"Created sangha sevi {sangha_sevi_id} via claim approval")
             sangha_sevi_pk = ss_pk
+            sangha_sevi_newly_created = True
         else:
-            # Non-Darshaka: must have a local sakha number
-            if not local_sakha_number:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail="Non-Darshaka claim has no Local Sakha Number. Reject and ask for correction.",
-                )
-
             # Check if person already has an active sangha_sevi record
             cur.execute(
                 """
@@ -596,17 +652,18 @@ def approve_claim(
                           module="claim_approval",
                           summary=f"Created sangha sevi {sangha_sevi_id} via claim approval")
                 sangha_sevi_pk = ss_pk
+                sangha_sevi_newly_created = True
 
         # 6. Create membership_sakha_affiliation
         # Tier 2 local ID, namespace-separated by membership state (MBR-030C):
         #   Regular/Associate  <short_code><number>          ESS123
         #   Darshak            <short_code><marker><number>  ESSD123
-        affiliation_local_id = (
-            compose_local_sakha_erp_id(
-                cur, org_pk, local_sakha_number, is_darshak=is_darshaka
-            )
-            if local_sakha_number
-            else sangha_sevi_id  # Darshaka with no local number: use SS ID
+        # local_sakha_number is guaranteed non-empty (checked in step 3
+        # above), and compose_local_sakha_erp_id raises a clean 422 itself
+        # if the org has no short_code assigned yet — same failure mode as
+        # the standalone Create Sangha Sevi flow, not a silent skip.
+        affiliation_local_id = compose_local_sakha_erp_id(
+            cur, org_pk, local_sakha_number, is_darshak=is_darshaka
         )
         cur.execute(
             """
@@ -643,8 +700,46 @@ def approve_claim(
                 str(org_pk), affiliation_local_id,
             )
 
+        # 6b. Mandatory credential (MBR-010/014/019A/B): every new Sangha
+        # Sevi must be issued an Anumati Patra (Darshaka) or Parichaya
+        # Patra (Regular/Associate) — same rule admin.py's create_sangha_sevi
+        # enforces, via the same shared helper. Only for a newly-created SS
+        # record: linking to an existing one (the person is already a
+        # Sangha Sevi elsewhere) means they already hold a credential.
+        if sangha_sevi_newly_created:
+            # The registration form only collects a plain sequence number
+            # for an already-issued legacy credential (not the full
+            # "<no>/<fy_start>/<fy_end>" Kendra Number string — the FY is
+            # derived automatically, not typed by the registrant). Compose
+            # it here using the CURRENT financial year; a genuinely old
+            # document from a past FY would need the admin to correct the
+            # number after approval, since registration has no way to ask
+            # which past year it was issued in.
+            legacy_document_number = None
+            if credential_document_number:
+                fy_start, fy_end, _, _ = financial_year_bounds(date.today())
+                legacy_document_number = f"{credential_document_number}/{fy_start}/{fy_end}"
+
+            credential_type, credential_pk, credential_doc_number = issue_membership_credential(
+                cur,
+                sangha_sevi_pk=str(sangha_sevi_pk),
+                membership_type_pk=str(membership_type_pk),
+                organization_pk=str(org_pk),
+                document_number=legacy_document_number,
+                joining_date=joining_date,
+                date_of_birth=fetch_person_date_of_birth(cur, person_pk),
+            )
+            log_audit(cur, action="CREATE", table_name=credential_type.lower(),
+                      record_pk=credential_pk, actor_pk=actor_pk,
+                      actor_user_account_pk=str(user.user_account_pk),
+                      module="claim_approval",
+                      summary=f"Issued {credential_type} {credential_doc_number} via claim approval")
+
         # 7. Darshak attendance affiliation (at a different Sakha)
         if darshak_org_pk:
+            darshak_affiliation_local_id = compose_local_sakha_erp_id(
+                cur, darshak_org_pk, darshak_local_sakha_number, is_darshak=True
+            )
             cur.execute(
                 """
                 INSERT INTO nss.membership_sakha_affiliation (
@@ -658,7 +753,7 @@ def approve_claim(
                 ON CONFLICT DO NOTHING
                 RETURNING membership_sakha_affiliation_pk
                 """,
-                (str(sangha_sevi_pk), str(darshak_org_pk), sangha_sevi_id, joining_date),
+                (str(sangha_sevi_pk), str(darshak_org_pk), darshak_affiliation_local_id, joining_date),
             )
             darshak_aff_row = cur.fetchone()
             if darshak_aff_row:

@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+import re
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -216,6 +217,267 @@ def peek_next_id(cur, sequence_code: str) -> str | None:
     if row is None:
         return None
     return f"{row[0]}{row[1]}"
+
+
+# ── Credential (Parichaya/Anumati Patra) numbering (MBR-010/014/030A) ────
+
+# Kendra Number format enforced on every parichaya_patra/anumati_patra
+# document_number: a legacy credential number (admin/registrant-supplied)
+# is stored verbatim, exactly as written on the old paper register —
+# no format or year is required or validated (decided 2026-10-01: no one,
+# legacy or new, is ever asked to supply a year — new numbers are
+# auto-minted as <seq>/<fy_start>/<fy_end> by next_credential_document_number()
+# below, legacy numbers are whatever the historical record says, which
+# varies across decades and Kendras and is not a fixed shape).
+
+
+# ── Contact validation (mobile / email) ──────────────────────────────────
+#
+# Per-country mobile rules. Keyed by dial code (the stored
+# person.country_phone_code, e.g. "+91"). Each rule bounds the national
+# number's DIGIT COUNT and may add an exact pattern. An unknown dial code
+# falls back to the permissive 7–15 range the DB CHECK already allows
+# (chk_person_mobile_number_format), so a code we have not catalogued is
+# never harder-rejected than the schema itself.
+#
+# IMPORTANT: this table is mirrored on the frontend in nss-config.js
+# (NSS.COUNTRY_PHONE_RULES). Keep the two in sync — there is no build step
+# that could share one source across Python and the browser.
+COUNTRY_PHONE_RULES: dict[str, dict] = {
+    "+91":  {"name": "India",        "min": 10, "max": 10, "pattern": r"^[6-9]\d{9}$", "hint": "10 digits, starting 6–9"},
+    "+1":   {"name": "US/Canada",    "min": 10, "max": 10, "pattern": r"^[2-9]\d{9}$", "hint": "10 digits"},
+    "+44":  {"name": "UK",           "min": 10, "max": 10, "hint": "10 digits"},
+    "+971": {"name": "UAE",          "min": 9,  "max": 9,  "hint": "9 digits"},
+    "+65":  {"name": "Singapore",    "min": 8,  "max": 8,  "pattern": r"^[689]\d{7}$", "hint": "8 digits"},
+    "+61":  {"name": "Australia",    "min": 9,  "max": 9,  "hint": "9 digits"},
+    "+966": {"name": "Saudi Arabia", "min": 9,  "max": 9,  "hint": "9 digits"},
+    "+974": {"name": "Qatar",        "min": 8,  "max": 8,  "hint": "8 digits"},
+    "+973": {"name": "Bahrain",      "min": 8,  "max": 8,  "hint": "8 digits"},
+    "+968": {"name": "Oman",         "min": 8,  "max": 8,  "hint": "8 digits"},
+    "+60":  {"name": "Malaysia",     "min": 9,  "max": 10, "hint": "9–10 digits"},
+    "+49":  {"name": "Germany",      "min": 10, "max": 11, "hint": "10–11 digits"},
+    "+33":  {"name": "France",       "min": 9,  "max": 9,  "hint": "9 digits"},
+    "+81":  {"name": "Japan",        "min": 10, "max": 10, "hint": "10 digits"},
+    "+86":  {"name": "China",        "min": 11, "max": 11, "hint": "11 digits"},
+    "+880": {"name": "Bangladesh",   "min": 10, "max": 10, "hint": "10 digits"},
+    "+977": {"name": "Nepal",        "min": 10, "max": 10, "hint": "10 digits"},
+    "+94":  {"name": "Sri Lanka",    "min": 9,  "max": 9,  "hint": "9 digits"},
+    "+975": {"name": "Bhutan",       "min": 8,  "max": 8,  "hint": "8 digits"},
+}
+DEFAULT_PHONE_RULE = {"name": None, "min": 7, "max": 15, "hint": "7–15 digits"}
+
+COUNTRY_PHONE_CODE_PATTERN = re.compile(r"^\+[0-9]{1,4}$")
+# Pragmatic email format — one @, a dotted domain, a 2+ char alphabetic TLD,
+# no whitespace. Mirrors the tightened DB CHECK and the frontend regex.
+EMAIL_PATTERN = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
+
+
+def validate_mobile(country_phone_code: str | None, mobile_number: str | None) -> None:
+    """
+    Validate a mobile number against its country's rule (MBR-CONTACT-01).
+
+    No-op when no number is supplied (the mobile-or-email presence rule is
+    enforced separately by the callers). When a number IS supplied the code
+    must be present and well-formed, the number must be digits only, and its
+    length/pattern must satisfy the per-country rule (or the permissive
+    fallback for an uncatalogued dial code).
+
+    Raises HTTPException 422 on any violation.
+    """
+    if not mobile_number:
+        return
+    if not country_phone_code:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A country phone code (e.g. +91) is required with a mobile number.",
+        )
+    if not COUNTRY_PHONE_CODE_PATTERN.match(country_phone_code):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Country phone code '{country_phone_code}' is invalid — expected a form like +91.",
+        )
+    if not mobile_number.isdigit():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Mobile number must contain digits only (no spaces, dashes, or country code).",
+        )
+
+    rule = COUNTRY_PHONE_RULES.get(country_phone_code, DEFAULT_PHONE_RULE)
+    label = rule["name"] or "This"
+    n = len(mobile_number)
+    if n < rule["min"] or n > rule["max"]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{label} ({country_phone_code}) mobile number must be {rule['hint']} — got {n} digits.",
+        )
+    pattern = rule.get("pattern")
+    if pattern and not re.match(pattern, mobile_number):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"'{mobile_number}' is not a valid {label} ({country_phone_code}) mobile number — expected {rule['hint']}.",
+        )
+
+
+def validate_email(email: str | None) -> None:
+    """
+    Validate email format (MBR-CONTACT-02). No-op when email is absent.
+    Raises HTTPException 422 on an invalid address.
+    """
+    if not email:
+        return
+    if len(email) > 254 or not EMAIL_PATTERN.match(email):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"'{email}' is not a valid email address.",
+        )
+
+
+def financial_year_bounds(as_of: date) -> tuple[int, int, date, date]:
+    """
+    India's NSS financial year: 1 April – 31 March.
+
+    Returns (fy_start_year, fy_end_year, valid_from, valid_to) for the FY
+    containing *as_of* — e.g. any date in Sep 2026 through Mar 2027 maps to
+    (2026, 2027, 2026-04-01, 2027-03-31).
+    """
+    fy_start = as_of.year if as_of.month >= 4 else as_of.year - 1
+    fy_end = fy_start + 1
+    return fy_start, fy_end, date(fy_start, 4, 1), date(fy_end, 3, 31)
+
+
+def next_credential_document_number(
+    cur, credential_type: str, scope_organization_pk, as_of: date | None = None,
+) -> str:
+    """
+    Atomically mint the next Parichaya/Anumati Patra document_number
+    ("Kendra Number") for the financial year containing *as_of*
+    (default: today) — MBR-030A format ``<seq>/<fy_start>/<fy_end>``
+    (e.g. "345/2026/2027").
+
+    *credential_type* is "PARICHAYA_PATRA" or "ANUMATI_PATRA".
+    *scope_organization_pk* is the Kendra org for PARICHAYA_PATRA (one
+    Kendra-wide counter — the Kendra Sangha issues every Parichaya Patra
+    itself) or the issuing Sakha's org for ANUMATI_PATRA (one counter per
+    Sakha — each Sakha issues its own Anumati Patra numbers).
+
+    Rows in nss.credential_sequence_counter are created on demand (upsert)
+    and the counter resets to 1 every FY, since it's keyed by
+    (credential_type, scope_organization_pk, financial_year_start).
+
+    Returns document_number only. Financial-year numbering and
+    credential-validity windows are deliberately decoupled (SOL-ARCH-013
+    FC-DECISION-01): document_number stays FY-based (MBR-030A, unchanged
+    by this function), while valid_from/valid_to are now derived from the
+    Dola Purnima reference calendar by the caller — see
+    next_festival_date_on_or_after() / festival_date_for_year() below.
+    """
+    as_of = as_of or date.today()
+    fy_start, fy_end, _, _ = financial_year_bounds(as_of)
+    cur.execute(
+        """
+        INSERT INTO nss.credential_sequence_counter
+            (credential_type, scope_organization_pk, financial_year_start, current_value)
+        VALUES (%s, %s, %s, 1)
+        ON CONFLICT (credential_type, scope_organization_pk, financial_year_start)
+        DO UPDATE SET current_value = nss.credential_sequence_counter.current_value + 1,
+                      updated_at = NOW()
+        RETURNING current_value
+        """,
+        (credential_type, str(scope_organization_pk), fy_start),
+    )
+    seq = cur.fetchone()[0]
+    return f"{seq}/{fy_start}/{fy_end}"
+
+
+# ── Festival reference calendar (SOL-ARCH-013) ──────────────────────────
+
+def festival_date_for_year(
+    cur, festival_code: str, calendar_year: int, require_confirmed: bool = True,
+) -> date | None:
+    """
+    Look up the authoritative observed date for *festival_code* in
+    *calendar_year* (e.g. "DOLA_PURNIMA", 2026).
+
+    Returns None if no row is on file for that festival/year, or if a row
+    exists but is only provisional (is_confirmed = FALSE) and
+    *require_confirmed* is True (the default). Never computes or guesses a
+    date — SOL-ARCH-013 §3. Callers must treat None as "data missing" and
+    raise their own 422, not silently fall back to a different date source
+    (e.g. financial_year_bounds()).
+    """
+    cur.execute(
+        """
+        SELECT fcd.observed_date, fcd.is_confirmed
+        FROM nss.festival_calendar_date fcd
+        JOIN nss.festival_master fm ON fm.festival_master_pk = fcd.festival_master_pk
+        WHERE fm.festival_code = %s AND fcd.calendar_year = %s AND fcd.is_active = TRUE
+        """,
+        (festival_code, calendar_year),
+    )
+    row = cur.fetchone()
+    if row is None:
+        return None
+    observed_date, is_confirmed = row
+    if require_confirmed and not is_confirmed:
+        return None
+    return observed_date
+
+
+def next_festival_date_on_or_after(
+    cur, festival_code: str, as_of: date, require_confirmed: bool = True,
+) -> date | None:
+    """
+    Next observed date for *festival_code* that falls on or after *as_of*
+    — the MBR-011A / MBR-029 / credential-validity primitive (SOL-ARCH-013
+    §12).
+
+    Looks at *as_of*'s calendar year first, then the following year, since
+    Dola Purnima (the only festival in scope today) never straddles
+    1 January (OPEN-FC-04). Returns None — never a computed/guessed date —
+    if neither year has a usable row; the caller must raise its own 422.
+    """
+    candidate = festival_date_for_year(cur, festival_code, as_of.year, require_confirmed)
+    if candidate is not None and candidate >= as_of:
+        return candidate
+    return festival_date_for_year(cur, festival_code, as_of.year + 1, require_confirmed)
+
+
+def dola_purnima_credential_validity_window(cur, issue_date: date) -> tuple[date, date]:
+    """
+    Parichaya Patra / Anumati Patra validity window for a credential issued
+    on *issue_date* (SOL-ARCH-013 FC-DECISION-01): valid_from is the next
+    Dola Purnima on/after *issue_date*, valid_to is the following year's
+    Dola Purnima — the "Dola Purnima membership year". Gruhasana
+    (PARIBARIK_ASANA) inherits the Parichaya Patra's window and needs no
+    independent call to this function (ORG-BR-094).
+
+    Raises HTTPException 422 if the required Dola Purnima dates are not on
+    file / not yet confirmed — never silently falls back to
+    financial_year_bounds() or any computed date.
+    """
+    valid_from = next_festival_date_on_or_after(cur, "DOLA_PURNIMA", issue_date)
+    if valid_from is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Cannot determine the credential validity window: no confirmed "
+                f"Dola Purnima date is on file on or after {issue_date.isoformat()}. "
+                "An administrator must enter/confirm it in the festival reference "
+                "calendar (SOL-ARCH-013) before this credential can be issued."
+            ),
+        )
+    valid_to = festival_date_for_year(cur, "DOLA_PURNIMA", valid_from.year + 1)
+    if valid_to is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Cannot determine the credential validity window: no confirmed "
+                f"Dola Purnima date is on file for {valid_from.year + 1}. An "
+                "administrator must enter/confirm it in the festival reference "
+                "calendar (SOL-ARCH-013) before this credential can be issued."
+            ),
+        )
+    return valid_from, valid_to
 
 
 # ── System settings ─────────────────────────────────────────────────────
@@ -645,6 +907,221 @@ def insert_sakha_affiliation(
     return str(aff_pk)
 
 
+def issue_membership_credential(
+    cur,
+    *,
+    sangha_sevi_pk: str,
+    membership_type_pk: str | None,
+    organization_pk: str,
+    document_number: str | None = None,
+    issue_date: date | None = None,
+    issue_year: int | None = None,
+    valid_from: date | None = None,
+    valid_to: date | None = None,
+    joining_date: date | None = None,
+    date_of_birth: date | None = None,
+) -> tuple[str, str, str]:
+    """
+    Issue the mandatory credential for a newly-created Sangha Sevi
+    (MBR-010/014/019A/B): an Anumati Patra for a PROBATIONARY member,
+    a Parichaya Patra for everyone else (REGULAR/ASSOCIATE).
+
+    Single owner for this write — create_sangha_sevi() and create_user()'s
+    bundled-SS branch both route through here, mirroring
+    insert_sakha_affiliation()'s convention just above.
+
+    Two paths, selected by whether *document_number* is provided:
+      - Omitted: mints a new number for the current financial year via
+        next_credential_document_number() (Kendra-wide sequence for
+        Parichaya Patra, Sakha-wide for Anumati Patra — MBR-030A).
+        *valid_from*/*valid_to* default to the Dola Purnima membership-year
+        window containing *issue_date* (SOL-ARCH-013 FC-DECISION-01) —
+        decoupled from the FY used for the document_number itself.
+      - Provided: records an already-issued legacy credential as-is.
+        *valid_from*/*valid_to* default to the same Dola Purnima window if
+        not given.
+    *issue_date* is resolved in this order: an explicit *issue_date* wins;
+    otherwise, when *issue_year* is given, it is that year's Dola Purnima
+    (422 if that date is unknown, or still in the future — "not issued till
+    now"); otherwise it defaults to today.
+
+    Date rules enforced here (shared across all call sites):
+      - MBR-030D is retired (decided 2026-10-01): a legacy document_number
+        is stored verbatim with no format or year requirement — neither
+        legacy nor new credentials ever ask the caller for a year.
+      - MBR-030E — the credential *issue_date* may not fall before the
+        member's *joining_date* (when known): a card cannot be issued
+        before the member joined. Applies to both credential types and
+        both the legacy and fresh paths.
+      - MBR-030F — a member must be at least 10 years old as of
+        *issue_date* (when *date_of_birth* is known) to be issued EITHER
+        credential type — Parichaya Patra or Anumati Patra.
+
+    Returns (credential_type, credential_pk, document_number) —
+    credential_type is "ANUMATI_PATRA" or "PARICHAYA_PATRA".
+
+    Raises HTTPException 409 if document_number collides with an existing
+    credential, or this member already holds an active one of this type.
+    """
+    is_probationary = is_probationary_membership_type(cur, membership_type_pk)
+    credential_type = "ANUMATI_PATRA" if is_probationary else "PARICHAYA_PATRA"
+
+    # Request 2026-10-02: operators are no longer asked for a raw issue date.
+    # They choose a membership YEAR and the credential's issue_date is that
+    # year's Dola Purnima (SOL-ARCH-013 FC-DECISION-01 — the same festival
+    # that anchors the validity window). Resolved via the festival reference
+    # calendar only (never computed/guessed). An explicit *issue_date*, when
+    # given, still wins (e.g. internal callers that already know the date).
+    if issue_year is not None and issue_date is None:
+        dola = festival_date_for_year(cur, "DOLA_PURNIMA", issue_year)
+        if dola is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"No confirmed Dola Purnima date is on file for {issue_year}. "
+                    "An administrator must enter/confirm it in the festival "
+                    "reference calendar (SOL-ARCH-013) before a credential can "
+                    "be issued for that year."
+                ),
+            )
+        if dola > date.today():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"The {issue_year} Dola Purnima falls on {dola.isoformat()}, "
+                    "which is still in the future — this credential is not issued "
+                    "till now."
+                ),
+            )
+        issue_date = dola
+
+    issue_date = issue_date or date.today()
+
+    # MBR-030E: a credential cannot be issued before the member joined.
+    if joining_date is not None and issue_date < joining_date:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Credential issue date ({issue_date.isoformat()}) cannot be "
+                f"earlier than the member's joining date "
+                f"({joining_date.isoformat()})."
+            ),
+        )
+
+    # MBR-030F: a member must be at least 10 years old as of issue_date to
+    # be issued either credential type. Skipped silently if date_of_birth
+    # is unknown.
+    if date_of_birth is not None:
+        age_years = (
+            issue_date.year - date_of_birth.year
+            - ((issue_date.month, issue_date.day) < (date_of_birth.month, date_of_birth.day))
+        )
+        if age_years < 10:
+            credential_label = credential_type.replace("_", " ").title()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"A {credential_label} cannot be issued to a member under "
+                    f"10 years of age. This member is {age_years} year(s) old "
+                    f"as of the issue date ({issue_date.isoformat()})."
+                ),
+            )
+
+    if document_number:
+        # Decided 2026-10-01: no one, legacy or new, is ever asked to supply
+        # a year. A legacy credential number is stored verbatim, exactly as
+        # written on the old paper register — no format or year is required
+        # or validated (see the module-level comment above
+        # next_credential_document_number()). MBR-030D (requiring the
+        # current financial year) is retired.
+        if valid_from is None or valid_to is None:
+            window_from, window_to = dola_purnima_credential_validity_window(cur, issue_date)
+            valid_from = valid_from or window_from
+            valid_to = valid_to or window_to
+    else:
+        scope_organization_pk = (
+            organization_pk if credential_type == "ANUMATI_PATRA"
+            else get_kendra_organization_pk(cur)
+        )
+        if scope_organization_pk is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Cannot auto-generate a Parichaya Patra number: no active KENDRA organization exists.",
+            )
+        document_number = next_credential_document_number(
+            cur, credential_type, scope_organization_pk, as_of=issue_date,
+        )
+        if valid_from is None or valid_to is None:
+            window_from, window_to = dola_purnima_credential_validity_window(cur, issue_date)
+            valid_from = valid_from or window_from
+            valid_to = valid_to or window_to
+
+    table = "anumati_patra" if credential_type == "ANUMATI_PATRA" else "parichaya_patra"
+    pk_column = f"{table}_pk"
+    cur.execute(f"SAVEPOINT {table}_insert")
+    try:
+        if credential_type == "ANUMATI_PATRA":
+            cur.execute(
+                f"""
+                INSERT INTO nss.{table} (
+                    sangha_sevi_pk, issuing_organization_pk, document_number,
+                    issue_date, valid_from, valid_to
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING {pk_column}
+                """,
+                (str(sangha_sevi_pk), str(organization_pk), document_number,
+                 issue_date, valid_from, valid_to),
+            )
+        else:
+            cur.execute(
+                f"""
+                INSERT INTO nss.{table} (
+                    sangha_sevi_pk, document_number, issue_date, valid_from, valid_to,
+                    affiliated_organization_pk
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING {pk_column}
+                """,
+                (str(sangha_sevi_pk), document_number, issue_date, valid_from, valid_to, str(organization_pk)),
+            )
+        credential_pk = cur.fetchone()[0]
+    except psycopg2.errors.UniqueViolation as exc:
+        cur.execute(f"ROLLBACK TO SAVEPOINT {table}_insert")
+        # Two very different failures land here; conflating them makes the
+        # cause undiagnosable from the response alone, so name the one that
+        # actually fired rather than reporting both as a possibility.
+        constraint = getattr(getattr(exc, "diag", None), "constraint_name", None) or ""
+        label = credential_type.replace("_", " ").title()
+        if "active_per_member" in constraint:
+            detail = f"This member already holds an active {label}."
+        elif "document_number" in constraint:
+            detail = f"{label} number '{document_number}' is already in use."
+        else:
+            detail = (
+                f"Could not issue this {label}: a uniqueness constraint "
+                f"({constraint or 'unknown'}) was violated."
+            )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+    cur.execute(f"RELEASE SAVEPOINT {table}_insert")
+    return credential_type, str(credential_pk), document_number
+
+
+def fetch_person_date_of_birth(cur, person_pk: str) -> date | None:
+    """
+    Look up a person's date_of_birth by person_pk.
+
+    Small shared lookup for issue_membership_credential()'s MBR-030F
+    (min-age-10) check — callers that only have person_pk on hand
+    (admin create-SS, claim approval) use this instead of threading the
+    value through their own request payload.
+    """
+    cur.execute(
+        "SELECT date_of_birth FROM nss.person WHERE person_pk = %s",
+        (str(person_pk),),
+    )
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
 # ── City/Village lookup or create ────────────────────────────────────────
 
 def resolve_or_create_city_village(cur, name: str, district_pk: str, *, actor_pk: str | None = None) -> str:
@@ -693,10 +1170,18 @@ def resolve_or_create_city_village(cur, name: str, district_pk: str, *, actor_pk
 
 def resolve_or_create_postal_code(cur, postal_code_value: str, state_pk: str, country_pk: str, *, actor_pk: str | None = None) -> str:
     """
-    Resolve a postal code by value + state, creating it if not found.
+    Resolve a postal code by value, creating it if not found.
 
-    Lookup is exact match. On create, inserts a new postal_code row
-    linked to the given state and country.
+    Simplified Geography Model (2026-10-02): nss.postal_code is unique
+    on postal_code alone — one row per PIN globally, carrying a
+    pre-resolved dominant state_pk. So the lookup must NOT be scoped by
+    state: a PIN that already exists under a different dominant state is
+    still the same row, and re-scoping the lookup would miss it and then
+    trip the unique constraint on insert.
+
+    *state_pk* is used only when creating a genuinely new PIN.
+    *country_pk* is accepted for call-site compatibility but no longer
+    stored (it's derived via state.country_pk).
 
     *actor_pk* is accepted for call-site compatibility but not written
     to the table (the DB audit trigger records the actor automatically).
@@ -708,11 +1193,10 @@ def resolve_or_create_postal_code(cur, postal_code_value: str, state_pk: str, co
         """
         SELECT postal_code_pk FROM nss.postal_code
         WHERE postal_code = %s
-          AND state_pk = %s
           AND is_active = TRUE
         LIMIT 1
         """,
-        (code, state_pk),
+        (code,),
     )
     row = cur.fetchone()
     if row:
@@ -722,11 +1206,11 @@ def resolve_or_create_postal_code(cur, postal_code_value: str, state_pk: str, co
     cur.execute(
         """
         INSERT INTO nss.postal_code (
-            country_pk, state_pk, postal_code
-        ) VALUES (%s, %s, %s)
+            state_pk, postal_code
+        ) VALUES (%s, %s)
         RETURNING postal_code_pk
         """,
-        (country_pk, state_pk, code),
+        (state_pk, code),
     )
     return str(cur.fetchone()[0])
 
@@ -758,6 +1242,28 @@ def get_active_status_pk(cur) -> str:
             detail="ACTIVE status not found in master_data.",
         )
     return str(row[0])
+
+
+def get_kendra_organization_pk(cur) -> str | None:
+    """
+    Look up the single active KENDRA organization's pk.
+
+    Shared by create_organization's single-instance-parent auto-resolution
+    and the credential-issuance flow (Parichaya Patra numbering is
+    Kendra-wide — MBR-030A) — previously duplicated inline in the former.
+    Returns None if no active KENDRA row exists.
+    """
+    cur.execute(
+        """
+        SELECT o.organization_pk
+        FROM nss.organization o
+        JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+        WHERE md.value_code = 'KENDRA' AND o.is_active = TRUE
+        LIMIT 1
+        """
+    )
+    row = cur.fetchone()
+    return str(row[0]) if row else None
 
 
 # ── Centralized audit trail ─────────────────────────────────────────────
@@ -860,6 +1366,31 @@ def require_entity(
         )
 
 
+def require_self_or_permission(
+    resource_pk,
+    self_pk,
+    permission_code: str,
+    user,
+    *,
+    detail: str,
+) -> None:
+    """
+    403 unless the caller holds *permission_code*, or *resource_pk* is their
+    own (*self_pk* — e.g. UserContext.person_pk/sangha_sevi_pk). Shared
+    control flow behind person.py's _require_person_view and membership.py's
+    _require_member_view: without a self-access carve-out, a regular
+    member's own dashboard (no admin permissions) can't load its own
+    person/membership record — mirrors the ownership pattern family.py
+    already uses for /families.
+    """
+    if user.has_permission(permission_code):
+        return
+    if self_pk is not None and str(resource_pk) == str(self_pk):
+        return
+    raise HTTPException(status_code=403, detail=detail)
+
+
+
 # ── Duplicate contact check ────────────────────────────────────────────
 
 def check_duplicate_contact(
@@ -957,3 +1488,153 @@ def validate_and_hash_password(password: str) -> tuple[str, datetime]:
         days=settings.PASSWORD_EXPIRY_DAYS
     )
     return pw_hash, expires_at
+
+
+# ── FAM-036: family majority-rule "effective Sakha" CTE ──────────────────
+# Shared between api/routers/family.py's _FAMILY_SELECT (single-family
+# reads, incl. /sakha-alignment) and api/routers/organization.py's
+# _CHILDREN_STATS_SQL (aggregate counts across a whole org subtree) — both
+# need "which Sakha does the majority of this family's active-affiliation
+# members belong to." Previously duplicated byte-for-byte in both files
+# (a real, previously-tracked gap — see CLAUDE.md's Deferred Items); this
+# is the one shared copy. No trailing comma — the CTE-list comma/closing
+# paren is the caller's responsibility, since the two callers splice it
+# into different positions inside their own WITH clauses.
+FAMILY_MAJORITY_CTE_SQL = """
+    family_majority AS (
+        SELECT fr.family_group_pk,
+               aff.organization_pk  AS sakha_pk,
+               COUNT(*)             AS cnt,
+               ROW_NUMBER() OVER (
+                   PARTITION BY fr.family_group_pk
+                   ORDER BY COUNT(*) DESC
+               ) AS rn
+        FROM   nss.family_relationship fr
+        JOIN   nss.sangha_sevi ss
+               ON ss.person_pk = fr.person_pk AND ss.is_active = TRUE
+        JOIN   nss.membership_sakha_affiliation aff
+               ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
+              AND aff.effective_to IS NULL
+        WHERE  fr.is_current = TRUE
+        GROUP BY fr.family_group_pk, aff.organization_pk
+    )
+"""
+
+# ── Shared nss.organization address-JOIN chain ────────────────────────────
+# Used by organization.py's _ORG_SELECT and admin.py's
+# list_organizations_admin — previously duplicated with different table
+# aliases in each (co/st/dt vs c/s/d), now one shared copy. The caller's
+# base query must alias the organization row as "o"; this fragment always
+# uses c/s/d/cv/pc for country/state/district/city_village/postal_code.
+ORGANIZATION_ADDRESS_JOINS_SQL = """
+    LEFT JOIN nss.district d
+           ON d.district_pk = o.district_pk
+    LEFT JOIN nss.state s
+           ON s.state_pk = o.state_pk
+    LEFT JOIN nss.country c
+           ON c.country_pk = o.country_pk
+    LEFT JOIN nss.city_village cv
+           ON cv.city_village_pk = o.city_village_pk
+    LEFT JOIN nss.postal_code pc
+           ON pc.postal_code_pk = o.postal_code_pk
+"""
+
+# ── Shared nss.person gender/marital-status/blood-group JOIN triple ──────
+# Used by person.py's _PERSON_SUMMARY_SELECT and _PERSON_COUNT_SELECT
+# (previously byte-identical copies of each other — the file's own comment
+# called this "this file's existing DETAIL/SUMMARY duplication style") and
+# as the base _PERSON_DETAIL_SELECT builds on with one more join
+# (emergency_relationship). Caller's base query must alias the person row
+# as "p".
+PERSON_MASTER_DATA_JOINS_SQL = """
+    LEFT JOIN nss.master_data g
+           ON g.master_data_pk = p.gender_master_data_pk
+    LEFT JOIN nss.master_data ms
+           ON ms.master_data_pk = p.marital_status_master_data_pk
+    LEFT JOIN nss.master_data bg
+           ON bg.master_data_pk = p.blood_group_master_data_pk
+"""
+
+# ── Shared nss.sangha_sevi membership JOIN chain ──────────────────────────
+# Used by membership.py's _MEMBER_SELECT and _MEMBER_COUNT_SELECT
+# (previously byte-identical copies of each other — same "count mirrors
+# select" pattern as PERSON_MASTER_DATA_JOINS_SQL above). Caller's base
+# query must alias sangha_sevi as "ss".
+#
+# `aff` is scoped to the home organization (organization_pk = ss.organization_pk)
+# — a member can now simultaneously hold a second active affiliation at a
+# darshak (cross-Sakha attendance) org (see uq_mem_sakha_aff_active,
+# narrowed to (sangha_sevi_pk, organization_pk) in
+# database/ddl/05_membership/06_membership_sakha_affiliation.sql), and an
+# unscoped join here would fan this row out to one-row-per-affiliation.
+# `daff`/`dorg` resolve that second, cross-Sakha affiliation (if any) for
+# darshak_organization_pk/darshak_organization_name/darshak_local_sakha_number.
+MEMBER_JOINS_SQL = """
+    JOIN   nss.person p
+           ON p.person_pk = ss.person_pk
+    JOIN   nss.master_data mt
+           ON mt.master_data_pk = ss.membership_type_master_data_pk
+    JOIN   nss.master_data ms
+           ON ms.master_data_pk = ss.membership_status_master_data_pk
+    JOIN   nss.organization o
+           ON o.organization_pk = ss.organization_pk
+    LEFT JOIN nss.master_data ot
+           ON ot.master_data_pk = o.organization_type_master_data_pk
+    LEFT JOIN nss.membership_sakha_affiliation aff
+           ON aff.sangha_sevi_pk = ss.sangha_sevi_pk
+          AND aff.organization_pk = ss.organization_pk
+          AND aff.effective_to IS NULL
+    LEFT JOIN nss.membership_sakha_affiliation daff
+           ON daff.sangha_sevi_pk = ss.sangha_sevi_pk
+          AND daff.organization_pk != ss.organization_pk
+          AND daff.effective_to IS NULL
+    LEFT JOIN nss.organization dorg
+           ON dorg.organization_pk = daff.organization_pk
+"""
+
+# ── Shared nss.user_account -> membership-context JOIN chain ─────────────
+# Used by admin.py's list_users() and get_user() (previously byte-identical
+# copies of each other). Resolves, for one user_account row: the person's
+# active sangha_sevi (if any) + its home organization, the ACTIVE/REACTIVATED
+# home membership_sakha_affiliation (for local_sakha_erp_id), the member's
+# cross-Sakha darshak attendance — a second, simultaneous active
+# membership_sakha_affiliation row at a different org (for
+# darshak_local_number/darshak_organization_name; NOT
+# nss.darshak_attendance_registration, which nothing in this codebase ever
+# writes to), the still-PENDING registration_claim (for claimed_* fallbacks
+# when no sangha_sevi exists yet), and — via master_data — the home
+# membership type's value_code (COALESCE'd between the live sangha_sevi and
+# the pending claim) so callers can label a Darshaka home affiliation
+# correctly instead of assuming every local_sakha_erp_id is "Regular".
+# Caller's base query must alias user_account as "ua" and join person as "p".
+USER_ACCOUNT_MEMBERSHIP_JOINS_SQL = """
+    LEFT JOIN nss.sangha_sevi ss ON ss.person_pk = ua.person_pk
+          AND ss.is_active = TRUE
+    LEFT JOIN nss.organization o ON o.organization_pk = ss.organization_pk
+          AND o.is_active = TRUE
+    LEFT JOIN nss.membership_sakha_affiliation msa
+          ON msa.sangha_sevi_pk = ss.sangha_sevi_pk
+          AND msa.organization_pk = ss.organization_pk
+          AND msa.affiliation_status IN ('ACTIVE', 'REACTIVATED')
+          AND msa.effective_to IS NULL
+    LEFT JOIN nss.membership_sakha_affiliation dmsa
+          ON dmsa.sangha_sevi_pk = ss.sangha_sevi_pk
+          AND dmsa.organization_pk != ss.organization_pk
+          AND dmsa.affiliation_status IN ('ACTIVE', 'REACTIVATED')
+          AND dmsa.effective_to IS NULL
+    LEFT JOIN nss.organization dorg2
+          ON dorg2.organization_pk = dmsa.organization_pk
+    LEFT JOIN nss.registration_claim rc
+          ON rc.person_pk = ua.person_pk
+          AND rc.claim_status = 'PENDING'
+          AND rc.is_active = TRUE
+    LEFT JOIN nss.organization co
+          ON co.organization_pk = rc.claimed_organization_pk
+          AND co.is_active = TRUE
+    LEFT JOIN nss.master_data mt
+          ON mt.master_data_pk = COALESCE(
+              ss.membership_type_master_data_pk,
+              rc.claimed_membership_type_master_data_pk
+          )
+"""
+

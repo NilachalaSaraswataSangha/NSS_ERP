@@ -134,6 +134,7 @@ class MeResponse(BaseModel):
     """GET /api/v1/auth/me — current user profile."""
     user_account_pk: UUID
     person_pk: UUID
+    sangha_sevi_pk: UUID | None = None
     sangha_sevi_id: str
     person_name: str | None = None
     local_sakha_erp_id: str | None = None
