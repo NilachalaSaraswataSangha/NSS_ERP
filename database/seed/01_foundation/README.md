@@ -20,7 +20,10 @@ Files must be run in numeric order (each may depend on data from earlier files).
 | 06 | `06_district.sql` | `district` | `05_state.sql` |
 | 07 | `07_system_setting.sql` | `system_setting` | DDL complete |
 | 08 | `08_postal_code.sql` | `postal_code` | `04_country.sql`, `05_state.sql` |
-| 09 | `09_sakha_postal_codes.sql` | `postal_code` | `04_country.sql`, `05_state.sql` — new, uncommitted (Tier 5 branch) |
+| 09 | `09_sakha_postal_codes.sql` | `postal_code` | `04_country.sql`, `05_state.sql` — Tier 5 branch |
+
+`02_build.sh`/`.ps1` run files 01–08 in Phase 2; **`09_sakha_postal_codes.sql` runs later, in
+Phase 4**, right before `seed/02_organization/05_sakha_branches.sql` (which consumes its PINs).
 
 ## Execution Command
 
@@ -61,10 +64,9 @@ classification buckets; each category's individual values are seeded in
 
 ### 02_master_data.sql
 
-Seeds individual values into `master_data` for each category created above (89 values total as
-of the Tier 5 branch, uncommitted — grew from 88 with the addition of `RELATIONSHIP_TYPE.SELF`
-below; verify against the live seed file rather than trusting this number, it has changed more
-than once). Uses `CROSS JOIN ... VALUES` with a subquery to resolve `master_category_pk`
+Seeds individual values into `master_data` for each category created above (89 values total:
+3 + 5 + 3 + 7 + 4 + 16 + 30 + 13 + 8 — counted from the seed file; it has changed more than
+once, so re-verify after editing). Uses `CROSS JOIN ... VALUES` with a subquery to resolve `master_category_pk`
 by `category_code` — no hardcoded UUIDs. `LOGIN_ROLE`, `STATUS_REASON`, `WORKFLOW_STATUS`, and
 `APPLICATION_TYPE` are seeded as categories only (0 values) — reserved for later use.
 
@@ -95,7 +97,7 @@ their own inline `VARCHAR` + `CHECK` column, not FKs into `master_data`, so this
 reference/lookup value rather than what those two tables actually store.
 
 **RELATIONSHIP_TYPE** (30 values, comprehensive for Indian family structure — grew from 29 to 30
-on the Tier 5 branch, uncommitted, with the addition of `SELF`):
+on the Tier 5 branch, with the addition of `SELF`):
 - Immediate family: SPOUSE, FATHER, MOTHER, SON, DAUGHTER, BROTHER, SISTER
 - In-laws: FATHER_IN_LAW, MOTHER_IN_LAW, SON_IN_LAW, DAUGHTER_IN_LAW,
   BROTHER_IN_LAW, SISTER_IN_LAW
@@ -104,7 +106,7 @@ on the Tier 5 branch, uncommitted, with the addition of `SELF`):
 - Cousins: COUSIN
 - Step relations: STEP_FATHER, STEP_MOTHER, STEP_SON, STEP_DAUGHTER
 - Guardian/ward: GUARDIAN, WARD
-- Self: `SELF` (new, uncommitted — a family founder/head with no relational context to record
+- Self: `SELF` (Tier 5 — a family founder/head with no relational context to record
   against; `display_order = 0`, sorts before every other value)
 - Other: OTHER
 
@@ -128,7 +130,7 @@ prefix and counter for generating human-readable business IDs.
 | 2 | `SANGHA_SEVI` | `SS` | 8 | SS00000001 | Membership identity |
 | 3 | `ANCHALIKA` | `ANC` | 8 | ANC00000001 | Anchalika organization (multiple) |
 | 4 | `ZILLA` | `ZL` | 8 | ZL00000001 | Zilla organization (multiple) |
-| 5 | `SAKHA` | `SKH` | 0 (was 8 — changed on the Tier 5 branch, uncommitted) | SKH1 | Sakha organization (multiple) |
+| 5 | `SAKHA` | `SKH` | 0 (was 8 — changed on the Tier 5 branch) | SKH1 | Sakha organization (multiple) |
 | 6 | `SAKHA_ASANA` | `SA` | 8 | SA00000001 | Sakha Asana organization (multiple) |
 | 7 | `PATHA_CHAKRA` | `PC` | 8 | PC00000001 | Patha Chakra organization (multiple) |
 | 8 | `PARIBARIK_ASANA` | `PA` | 5 | PA00001 | Paribarik Asana organization (multiple) |
@@ -140,10 +142,10 @@ prefix and counter for generating human-readable business IDs.
 | 14 | `MAHILA_SANGHA` | `MS` | 5 | MS00001 | Reserved for a future module (not yet consumed by any API) |
 
 All sequences start at `current_value = 0`. `padding_length` varies per sequence (see table
-above). **`SAKHA`'s `padding_length` was changed from `8` to `0` on the Tier 5 branch
-(uncommitted)** — it is no longer true that "no existing sequence's `padding_length` has been
+above). **`SAKHA`'s `padding_length` was changed from `8` to `0` on the Tier 5 branch**
+— it is no longer true that "no existing sequence's `padding_length` has been
 changed to 0"; `SAKHA` is now the first real example, matching the unpadded `SKH1`-`SKH175`
-codes seeded by `database/seed/02_organization/05_sakha_branches.sql` (new, uncommitted). Every
+codes seeded by `database/seed/02_organization/05_sakha_branches.sql` (Tier 5). Every
 other sequence's `padding_length` is unchanged from the zero-padded values in the table above.
 The `chk_id_sequence_padding` CHECK constraint on `id_sequence_master` was loosened from
 `BETWEEN 2 AND 12` to `BETWEEN 0 AND 12` to allow this.
@@ -227,7 +229,7 @@ populated at runtime as needed.
 
 ### 07_system_setting.sql
 
-Seeds 4 initial system settings into `system_setting`. Values are illustrative
+Seeds 5 initial system settings into `system_setting`. Values are illustrative
 defaults; actual production values are configured during deployment.
 
 | # | `setting_key` | Value | Type | Purpose |
@@ -236,12 +238,13 @@ defaults; actual production values are configured during deployment.
 | 2 | `DEFAULT_COUNTRY` | `IN` | STRING | Default country code for new records |
 | 3 | `PASSWORD_EXPIRY_DAYS` | `90` | INTEGER | Days before password must be changed |
 | 4 | `MAX_LOGIN_ATTEMPTS` | `5` | INTEGER | Failed logins before account lockout |
+| 5 | `MEMBERSHIP_DARSHAK_LOCAL_ID_MARKER` | `D` | STRING | Namespace marker inserted between a Sakha short code and the local number for Darshak/Probationary local Sakha IDs (MBR-030C, e.g. `ESSD000045` vs Regular `ESS000123`); configurable so it is never hardcoded |
 
 ---
 
 ### 08_postal_code.sql
 
-Seeds 2 postal codes into `postal_code` — the minimal bootstrap set required
+Seeds 3 postal codes into `postal_code` — the minimal bootstrap set required
 by Organization seed data (FK references from `organization.postal_code_pk`).
 Uses JOIN to resolve `country_pk` and `state_pk` from existing seed data.
 
@@ -249,13 +252,14 @@ Uses JOIN to resolve `country_pk` and `state_pk` from existing seed data.
 |--:|-------------|-------------|---------|
 | 1 | `751022` | Unit 9 SO, Bhubaneswar | Kendra Sangha (Satsikshya Mandir) |
 | 2 | `752001` | Puri HO | Nilachala Kutira, Smruti Mandira |
+| 3 | `753001` | Cuttack HO | Originally the second Tier 4 verification Sakha location; retained as a plain reference PIN |
 
 Full postal code data (India Post PIN codes) is loaded during deployment
 or data migration — this file only seeds what the Organization bootstrap needs.
 
 ---
 
-### 09_sakha_postal_codes.sql (new, uncommitted — Tier 5 branch)
+### 09_sakha_postal_codes.sql (Tier 5 branch)
 
 Seeds 56 additional unique postal codes into `postal_code`, extracted from the official NSS
 Sakha branch directory addresses — the minimal bootstrap set needed by
@@ -275,7 +279,7 @@ postal_code) DO NOTHING`) and BEFORE `database/seed/02_organization/05_sakha_bra
   `01_master_category.sql`/`02_master_data.sql`; Person added `BLOOD_GROUP`). Downstream
   modules do not carry their own `master_data` seed — Foundation stays the single owner.
 - Cities/villages are not seeded — populated during deployment or data migration.
-- Postal codes: a minimal bootstrap set (751022 Bhubaneswar, 752001 Puri) is
+- Postal codes: a minimal bootstrap set (751022 Bhubaneswar, 752001 Puri, 753001 Cuttack) is
   seeded by `08_postal_code.sql` to satisfy Organization seed FK references, plus 56 more
-  (Sakha-branch PINs) by `09_sakha_postal_codes.sql` (new, uncommitted). Full postal code data
+  (Sakha-branch PINs) by `09_sakha_postal_codes.sql` (Tier 5). Full postal code data
   (India Post PIN codes) is populated during deployment or data migration.

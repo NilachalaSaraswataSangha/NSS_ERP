@@ -3,16 +3,19 @@
 -- Module: Bootstrap RBAC
 -- File: 03_role_permission.sql (seed)
 -- Seed: Role-to-permission mappings (~110 rows)
--- Version: 1.1 — added NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN (12 rows, same
+-- Version: 1.2 — added FOUNDATION_CALENDAR_MANAGE for NSS_ERP_ADMIN only
+--          (SOL-ARCH-013 OPEN-FC-03, 2026-10-01); v1.1 added
+--          NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN (12 rows, same
 --          set as SAKHA/ZILLA/ANCHALIKA/PATHA_CHAKRA)
 -- Authority: SOL-ARCH-011 §4, SOL-ADMIN-004 §10,
---            Tier 5 design decisions (2026-09-15)
+--            Tier 5 design decisions (2026-09-15), SOL-ARCH-013
 --
 -- DEPENDS ON: 01_permission_master.sql (seed),
 --             02_role_master.sql (seed)
 --
--- Matrix: 20 permissions x 9 roles
--- ADMIN and KENDRA_ADMIN columns are identical.
+-- Matrix: 21 permissions x 9 roles (FOUNDATION_CALENDAR_MANAGE
+-- granted to NSS_ERP_ADMIN only — deliberately NOT mirrored onto
+-- NSS_ERP_KENDRA_ADMIN, unlike every other ADMIN/KENDRA_ADMIN pair).
 -- Idempotent: ON CONFLICT ... DO NOTHING (mapping is
 -- immutable once created; deactivate via is_active).
 -- =====================================================
@@ -33,10 +36,13 @@ perms AS (
 ),
 mappings (role_code, permission_code) AS (
     VALUES
-    -- ── NSS_ERP_ADMIN (20 permissions — full access) ────
+    -- ── NSS_ERP_ADMIN (21 permissions — full access, including
+    --    FOUNDATION_CALENDAR_MANAGE which NO OTHER ROLE receives —
+    --    SOL-ARCH-013 OPEN-FC-03) ──────────────────────────────
     ('NSS_ERP_ADMIN', 'BOOTSTRAP_VIEW'),
     ('NSS_ERP_ADMIN', 'FOUNDATION_VIEW'),
     ('NSS_ERP_ADMIN', 'FOUNDATION_MANAGE'),
+    ('NSS_ERP_ADMIN', 'FOUNDATION_CALENDAR_MANAGE'),
     ('NSS_ERP_ADMIN', 'ORGANIZATION_VIEW'),
     ('NSS_ERP_ADMIN', 'ORGANIZATION_MANAGE'),
     ('NSS_ERP_ADMIN', 'PERSON_VIEW'),
@@ -55,7 +61,8 @@ mappings (role_code, permission_code) AS (
     ('NSS_ERP_ADMIN', 'AUDIT_VIEW'),
     ('NSS_ERP_ADMIN', 'REPORT_VIEW'),
 
-    -- ── NSS_ERP_KENDRA_ADMIN (20 — identical to ADMIN) ─
+    -- ── NSS_ERP_KENDRA_ADMIN (20 — identical to ADMIN except
+    --    FOUNDATION_CALENDAR_MANAGE, which ADMIN alone holds) ─
     ('NSS_ERP_KENDRA_ADMIN', 'BOOTSTRAP_VIEW'),
     ('NSS_ERP_KENDRA_ADMIN', 'FOUNDATION_VIEW'),
     ('NSS_ERP_KENDRA_ADMIN', 'FOUNDATION_MANAGE'),

@@ -113,7 +113,7 @@ Write-Host ""
 # Foundation
 Write-Host "--- Foundation ---" -ForegroundColor Cyan
 Write-Host "  Tables:"
-$foundationTables = @("master_category","system_setting","id_sequence_master","country","document_master","field_change_log","master_data","state","district","city_village","postal_code","city_village_postal_code_map")
+$foundationTables = @("master_category","system_setting","id_sequence_master","country","document_master","field_change_log","master_data","state","district","city_village","postal_code")
 foreach ($t in $foundationTables) { Check-TableExists $t }
 
 Write-Host "  Row counts:"
@@ -122,21 +122,24 @@ Check-RowCount "master_data" 82
 Check-RowCount "id_sequence_master" 11
 Check-RowCount "country" 5
 Check-RowCount "state" 112
-Check-RowCount "district" 700
+Check-RowCount "district" 780
 Check-RowCount "system_setting" 4
-Check-RowCount "postal_code" 2
+Check-RowCount "postal_code" 17800
+Check-RowCount "city_village" 673000
 
 Write-Host "  Unique constraints:"
 Check-NoDuplicates "master_category" "category_code"
 Check-NoDuplicates "country" "country_code"
 Check-NoDuplicates "id_sequence_master" "sequence_code"
+Check-NoDuplicates "postal_code" "postal_code"
 
 Write-Host "  FK integrity:"
 Check-FkIntegrity "master_data -> master_category" "SELECT COUNT(*) FROM nss.master_data md LEFT JOIN nss.master_category mc ON md.master_category_pk = mc.master_category_pk WHERE mc.master_category_pk IS NULL;"
 Check-FkIntegrity "state -> country" "SELECT COUNT(*) FROM nss.state s LEFT JOIN nss.country c ON s.country_pk = c.country_pk WHERE c.country_pk IS NULL;"
 Check-FkIntegrity "district -> state" "SELECT COUNT(*) FROM nss.district d LEFT JOIN nss.state s ON d.state_pk = s.state_pk WHERE s.state_pk IS NULL;"
-Check-FkIntegrity "postal_code -> country" "SELECT COUNT(*) FROM nss.postal_code p LEFT JOIN nss.country c ON p.country_pk = c.country_pk WHERE c.country_pk IS NULL;"
 Check-FkIntegrity "postal_code -> state" "SELECT COUNT(*) FROM nss.postal_code p LEFT JOIN nss.state s ON p.state_pk = s.state_pk WHERE s.state_pk IS NULL;"
+Check-FkIntegrity "city_village -> postal_code" "SELECT COUNT(*) FROM nss.city_village cv LEFT JOIN nss.postal_code pc ON cv.postal_code_pk = pc.postal_code_pk WHERE cv.postal_code_pk IS NOT NULL AND pc.postal_code_pk IS NULL;"
+Check-FkIntegrity "city_village -> district" "SELECT COUNT(*) FROM nss.city_village cv LEFT JOIN nss.district d ON cv.district_pk = d.district_pk WHERE cv.district_pk IS NOT NULL AND d.district_pk IS NULL;"
 
 Write-Host "  Deferred columns:"
 Check-ColumnExists "document_master" "person_pk"

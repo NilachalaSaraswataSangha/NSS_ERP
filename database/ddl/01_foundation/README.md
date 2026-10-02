@@ -1,6 +1,11 @@
 # database/ddl/01_foundation/
 
-Foundation Module DDL — 13 tables (Depths 0–4), plus one cross-cutting audit trigger. `14_system_event_log.sql`/`15_audit_trigger.sql` are new, uncommitted, on branch
+Foundation Module DDL — 13 tables (Depths 0–3), plus one cross-cutting audit trigger. Includes
+`festival_master`/`festival_calendar_date` (Festival Calendar feature;
+full table design in `docs/03_Solution/architecture/FESTIVAL_CALENDAR_ARCHITECTURE.md`).
+`post_office` was retired on 2026-10-02 (Simplified Geography Model) — district now lives
+directly on `city_village` rather than on a separate office-grain table.
+`14_system_event_log.sql`/`15_audit_trigger.sql` are added on branch
 `feature/tier5-authentication-administration`.
 
 Authority: SOL-ARCH-010 (DDL Creation Order) + Amendment (PIN Code Geographic
@@ -27,16 +32,17 @@ by earlier-numbered files in this directory.
 | 09 | `09_state.sql` | `state` | 1 | #19 |
 | 10 | `10_district.sql` | `district` | 2 | #26 |
 | 11 | `11_city_village.sql` | `city_village` | 3 | #32 |
-| 12 | `12_postal_code.sql` | `postal_code` | 2 | #87 (amendment) |
-| 13 | `13_city_village_postal_code_map.sql` | `city_village_postal_code_map` | 4 | #88 (amendment) |
+| 12 | `12_postal_code.sql` | `postal_code` | 1 | #87 (amendment) |
 | 14 | `14_system_event_log.sql` | `system_event_log` | 0 | — (Tier 5) |
 | 15 | `15_audit_trigger.sql` | *(no table — trigger function + `DO` block attaching it to every `nss.*` table)* | — | — (Tier 5) |
+| 16 | `16_festival_master.sql` | `festival_master` | 0 | — (Festival Calendar) |
+| 17 | `17_festival_calendar_date.sql` | `festival_calendar_date` | 1 | — (Festival Calendar) |
 
-**Note:** Files 12–13 depend on `country`+`state` (Depth 0/1 — `postal_code` has a direct
-`state_pk` FK) and `city_village` (Depth 3) respectively. They are
+**Note:** File 12 depends only on `state` (Depth 1 — `postal_code` has a direct
+`state_pk` FK). It is
 numbered after the original 11 files for clarity but
-execute correctly in sequence because their dependencies are already created
-by earlier files. **Files 14–15 (new, uncommitted, Tier 5) must run last** — `15_audit_trigger.sql`
+executes correctly in sequence because its dependency is already created
+by earlier files. **Files 14–15 (Tier 5) must run last** — `15_audit_trigger.sql`
 attaches `nss.fn_audit_trigger()` to every table already present in the `nss` schema at the
 time it runs (`SELECT tablename FROM pg_tables WHERE schemaname = 'nss'`), excluding only
 `system_event_log` and `field_change_log` themselves; if it ran before later modules'
@@ -306,15 +312,23 @@ runtime.
 ### 10. `city_village` (Depth 3, #32 of 88)
 
 Fourth level of the geographic hierarchy. Stores individual localities
-(cities, towns, villages) within a district. Not seeded — populated during
-deployment or data migration.
+(cities, towns, villages) within a district. Seeded all-India from the
+Simplified Geography Model (2026-10-02): village rows resolve `district_pk`
+directly from the government village-directory's numeric district code;
+a small number of urban-only localities (pins with no village row) resolve
+`district_pk` via local-body name matching and may be left NULL when the
+match is ambiguous. `district_pk` is nullable for this reason — an
+unresolved district should not block a locality from loading. A direct
+nullable `postal_code_pk` FK is the primary location anchor
+(city_village → PIN → state).
 
-**FK:** `district_pk` → `district`
+**FKs:** `district_pk` → `district` (nullable), `postal_code_pk` → `postal_code` (nullable)
 
 | Column | Type | Constraint | Purpose |
 |--------|------|-----------|---------|
 | `city_village_pk` | UUID | PK, auto | Internal primary key |
-| `district_pk` | UUID | FK, NOT NULL | Parent district |
+| `district_pk` | UUID | FK, NULL | Parent district (NULL if unresolved) |
+| `postal_code_pk` | UUID | FK, NULL | PIN this locality belongs to |
 | `city_village_code` | VARCHAR(20) | NOT NULL | Locality code |
 | `city_village_name` | VARCHAR(150) | NOT NULL | Full locality name |
 | `city_village_type` | VARCHAR(20) | NOT NULL | CHECK: `CITY`, `TOWN`, `VILLAGE` |
@@ -324,63 +338,47 @@ deployment or data migration.
 | `deleted_at` | TIMESTAMPTZ | NULL | Soft-delete timestamp |
 | `is_active` | BOOLEAN | NOT NULL, default TRUE | Soft-delete flag |
 
-**Unique:** `(district_pk, city_village_code)`, `(district_pk, city_village_name)`
+**Unique:** `(district_pk, city_village_code)`, `(district_pk, city_village_name)`,
+`(postal_code_pk, city_village_name)`
 
-**Indexes:** `district_pk`, `is_active`, `city_village_name` (GIN trigram)
+**Indexes:** `district_pk`, `postal_code_pk`, `is_active`, `city_village_name` (GIN trigram)
 
 ---
 
-### 11. `postal_code` (Depth 2, #87 of 88 — amendment)
+### 11. `postal_code` (Depth 1, #87 of 88 — amendment, v2.0 2026-10-02)
 
-PIN code / postal code reference table. Country-scoped with a direct `state_pk`
-FK for administrative ownership (PIN → State is always deterministic). One PIN code can serve multiple cities/villages (M:N via the map
-table). Supports address validation, autocomplete, and map-based search
-("find nearby Sanghas").
+PIN code / postal code reference table. State-scoped with a direct `state_pk`
+FK for administrative ownership (PIN → State is always deterministic — the dominant
+state is chosen for the handful of PINs that legitimately span state lines).
+`city_village` carries a direct `postal_code_pk` FK (one city/village → one PIN);
+PIN → District is NOT 1:1 (many PINs legitimately span 2+ districts), so district is
+intentionally NOT a column here — it is reached through `city_village`, which carries
+its own `district_pk` per locality row. Supports address validation, autocomplete, and
+map-based search ("find nearby Sanghas"). As of the Simplified Geography Model amendment
+(2026-10-02), this table no longer carries `country_pk` (redundant — reachable via
+`state_pk → state.country_pk`) or `post_office_name` (no source once `post_office` was
+retired; the new 4-file government source carries no post-office data, only
+village/urban locality names, which now live on `city_village`).
 
-**FKs:** `country_pk` → `country`, `state_pk` → `state`
+**FK:** `state_pk` → `state`
 
 | Column | Type | Constraint | Purpose |
 |--------|------|-----------|---------|
 | `postal_code_pk` | UUID | PK, auto | Internal primary key |
-| `country_pk` | UUID | FK, NOT NULL | Country this PIN code belongs to |
-| `state_pk` | UUID | FK, NOT NULL | State this PIN code belongs to (reference only, not part of the unique key) |
+| `state_pk` | UUID | FK, NOT NULL | State this PIN code belongs to |
 | `postal_code` | VARCHAR(20) | NOT NULL | The PIN / postal code value (e.g. `751024`) |
-| `post_office_name` | VARCHAR(150) | NULL | Name of the post office serving this code |
 | `created_at` | TIMESTAMPTZ | NOT NULL, auto | Row creation timestamp |
 | `updated_at` | TIMESTAMPTZ | NULL | Last modification timestamp |
 | `deleted_at` | TIMESTAMPTZ | NULL | Soft-delete timestamp |
 | `is_active` | BOOLEAN | NOT NULL, default TRUE | Soft-delete flag |
 
-**Unique:** `(country_pk, postal_code)` — a PIN is globally unique within a country's postal system
+**Unique:** `(postal_code)` — one row per PIN, globally unique
 
-**Indexes:** `country_pk`, `state_pk`, `postal_code`, `is_active`,
-`post_office_name` (GIN trigram, partial WHERE NOT NULL)
-
----
-
-### 12. `city_village_postal_code_map` (Depth 4, #88 of 88 — amendment)
-
-Junction table implementing the M:N relationship between `city_village` and
-`postal_code`. One PIN code can serve multiple localities (e.g. a post office
-covers several villages); one locality can have multiple PIN codes (e.g. a
-large city with multiple post offices).
-
-**FKs:** `city_village_pk` → `city_village`, `postal_code_pk` → `postal_code`
-
-| Column | Type | Constraint | Purpose |
-|--------|------|-----------|---------|
-| `city_village_postal_code_map_pk` | UUID | PK, auto | Internal primary key |
-| `city_village_pk` | UUID | FK, NOT NULL | The locality |
-| `postal_code_pk` | UUID | FK, NOT NULL | The PIN/postal code |
-| `created_at` | TIMESTAMPTZ | NOT NULL, auto | Row creation timestamp |
-
-**Unique:** `(city_village_pk, postal_code_pk)` — no duplicate mappings
-
-**Indexes:** `city_village_pk`, `postal_code_pk`
+**Indexes:** `state_pk`, `postal_code`, `is_active`
 
 ---
 
-### 13. `system_event_log` (Depth 0, new/uncommitted — Tier 5)
+### 12. `system_event_log` (Depth 0, Tier 5)
 
 Centralized, immutable audit trail (SOL-AUDIT-004 §8–9). Every authenticated write
 operation is expected to append a row here — either explicitly via the application-layer
@@ -449,23 +447,33 @@ new table is added after the initial build.
   `(is_active = TRUE AND deleted_at IS NULL) OR (is_active = FALSE AND deleted_at IS NOT NULL)`
   CHECK constraint added to all 10 tables that carry `is_active`
   (`master_category`, `system_setting`, `id_sequence_master`, `country`, `document_master`,
-  `master_data`, `state`, `district`, `city_village`, `postal_code`) — `deleted_at` is a plain
-  timestamp, not an audit-actor FK, so unlike `deleted_by_sangha_sevi_pk` above it doesn't need
-  to wait for Pass 2. `field_change_log` and `city_village_postal_code_map` deliberately have
-  neither column — the former is an append-only log, the latter a pure M:N junction table.
+  `master_data`, `state`, `district`, `city_village`, `postal_code`) —
+  `deleted_at` is a plain timestamp, not an audit-actor FK, so unlike
+  `deleted_by_sangha_sevi_pk` above it doesn't need to wait for Pass 2. `field_change_log`
+  deliberately has neither column — it is an append-only log.
 - **`document_master`** — owned by Foundation (DOC-ARCH-001); logical design from Person §54.
   Person-specific FKs (`person_pk`, `uploaded_by_sangha_sevi_pk`) deferred to Pass 2.
 - **`field_change_log`** — stores references as UUID values without FK constraints to avoid
   circular dependencies. Application layer enforces referential integrity.
-- **PIN Code Model (Amendment)** — `postal_code` and
-  `city_village_postal_code_map` added to support searchable geographic hierarchy and map
-  visualization. PIN codes have an explicit `state_pk` FK for direct administrative ownership
-  (PIN → State is always deterministic); uniqueness is `(country_pk, postal_code)`.
-  M:N relationship to `city_village` via mapping table. **Note:** the implemented `organization`
-  table (`database/ddl/02_organization/03_organization.sql`) does consume this model — it has a
+- **PIN Code Model (Amendment)** — `postal_code` added to support searchable geographic
+  hierarchy and map visualization. PIN codes have an explicit `state_pk` FK for direct
+  administrative ownership (PIN → State is always deterministic). `city_village` carries a
+  direct `postal_code_pk` FK (one city/village → one PIN, replacing an earlier M:N junction
+  table design). **Note:** the implemented `organization` table
+  (`database/ddl/02_organization/03_organization.sql`) also consumes this model — it has a
   `postal_code_pk UUID` FK to `nss.postal_code` (plus `district_pk`/`state_pk`/`country_pk`/
   `city_village_pk` FKs and standalone `latitude`/`longitude` columns for map-based search).
+- **Simplified Geography Model (Amendment, 2026-10-02)** — the `post_office` table (added
+  2026-10-02 as an interim office-grain child of `postal_code`) was retired the same day in
+  favor of resolving district directly on `city_village`. `postal_code` was simplified in
+  lockstep: `country_pk` dropped (redundant via `state_pk`), `post_office_name` dropped (no
+  source once `post_office` was retired), and uniqueness relaxed from
+  `(country_pk, postal_code)` to `(postal_code)` alone — a dominant state is chosen for the
+  small number of PINs that legitimately span state lines. Seed data was regenerated
+  all-India from 4 government-coded source files (LGD district codes, ULB local-body
+  mapping, the village directory, and the pincode-to-village mapping) rather than the
+  previously used India Post PDF/CSV directory.
 - **Supersedes** — this replaces the previous `country_master`, `state_province_master`,
-  `district_region_master`, `city_village_master` tables from the prototype iteration.
-  The new `postal_code` and `city_village_postal_code_map` tables preserve the same
-  M:N model from the prototype but with corrected naming.
+  `district_region_master`, `city_village_master` tables from the prototype iteration, and an
+  earlier `city_village_postal_code_map` M:N junction table (retired in favor of the direct
+  `city_village.postal_code_pk` FK above).

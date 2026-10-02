@@ -1,6 +1,6 @@
 # database/ddl/06_authentication/
 
-Authentication & Security Module DDL — 4 tables. **In progress, uncommitted** on branch
+Authentication & Security Module DDL — 4 tables. **In progress (committed on the branch, not merged)** on branch
 `feature/tier5-authentication-administration` (see `docs/PROJECT_DOCUMENTATION.md` → Tier 5).
 
 Authority: SOL-AUTH-001, SOL-AUTH-002, SOL-AUTH-004, SOL-AUTH-005, SOL-AUTH-006, SOL-AUTH-007,
@@ -20,7 +20,11 @@ Execute AFTER Person DDL (`database/ddl/03_person/`) and Organization DDL
 | 04 | `04_password_reset_token.sql` | `password_reset_token` | 4 | `user_account` |
 
 Run as Phase 10 in `database/scripts/02_build.sh`/`.ps1`, after Phase 9 (grant
-`nss_db_backend`).
+`nss_db_backend`) and before Phase 12 (grant `nss_db_writer`, which must follow so its
+`ALL TABLES` grant covers these tables). The Depth column above is the per-module numbering; each
+SQL file's own `-- Depth:` header comment records one less for every table here (`user_account` 2,
+the other three 3) — cosmetic only. There is no seed folder for this module — the only auth data
+ever seeded is the admin account from `database/seed/04_admin/` (Phase 13).
 
 ## What These Tables Are For
 

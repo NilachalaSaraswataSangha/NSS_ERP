@@ -12,7 +12,11 @@
 --       Persistent per person per Sakha — archived on
 --       transfer (never reassigned to another person),
 --       reactivated on return to same Sakha.
---       One active affiliation per member at any time.
+--       One active affiliation per member PER ORGANIZATION at
+--       any time (narrowed from "per member" — see uq_mem_sakha_aff_active
+--       below; a member's home affiliation and a darshak
+--       attendance affiliation at a different Sakha are two
+--       different organization_pk values and must coexist).
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS nss.membership_sakha_affiliation
@@ -118,9 +122,17 @@ CREATE INDEX IF NOT EXISTS idx_mem_sakha_aff_org
 CREATE INDEX IF NOT EXISTS idx_mem_sakha_aff_status
     ON nss.membership_sakha_affiliation (affiliation_status);
 
--- One active affiliation per member at any time.
+-- One active affiliation per member PER ORGANIZATION at any time.
+-- Narrowed from (sangha_sevi_pk) alone: that version made a member's
+-- home affiliation and a cross-Sakha darshak-attendance affiliation
+-- (SOL-MEM-006, DAR-001..DAR-006) mutually exclusive — the second
+-- INSERT always silently conflicted via ON CONFLICT DO NOTHING, so
+-- darshak attendance never actually persisted a second affiliation
+-- row for anyone. A member's own re-affiliation history at ONE Sakha
+-- (transfer/return) is still exactly one active row per that Sakha,
+-- so this narrowing doesn't reopen anything MEM-PENDING-001 covers.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_mem_sakha_aff_active
-    ON nss.membership_sakha_affiliation (sangha_sevi_pk)
+    ON nss.membership_sakha_affiliation (sangha_sevi_pk, organization_pk)
     WHERE effective_to IS NULL;
 
 -- Performance: family_majority CTE filters effective_to IS NULL,

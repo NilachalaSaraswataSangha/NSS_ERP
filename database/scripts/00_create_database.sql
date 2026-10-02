@@ -11,19 +11,19 @@
 --
 --   psql -U postgres -d postgres -f database/scripts/00_create_database.sql
 --
--- The dblink_exec call below (step 4) opens its own connection back to this
--- server using an explicit host/port/user/password connection string (dblink
--- does NOT inherit the invoking psql session's authentication). The password
--- is hardcoded to a local-dev placeholder ('root') — change it to match your
--- actual `postgres` superuser password before running this against any
--- shared/non-local environment.
+-- The database is created idempotently via psql's \gexec (step 3): a
+-- conditional SELECT emits the CREATE DATABASE statement only when the
+-- database is absent, and \gexec runs it in the SAME authenticated psql
+-- session. There is no second connection and no password anywhere in this
+-- script — it inherits the superuser auth you already supplied on the psql
+-- command line (or via .pgpass / PGPASSWORD).
 --
 -- This script creates:
---   1. Extension: dblink (in postgres DB, for idempotent DB creation)
---   2. Role: nss_db_owner   — owns all schema objects, executes DDL/seed
---   3. Role: nss_db_backend — runtime read/write for the application layer
---   4. Database: nss_erp    — owned by nss_db_owner (idempotent via dblink)
---   5. GRANT CONNECT on nss_erp to nss_db_backend
+--   1. Role: nss_db_owner   — owns all schema objects, executes DDL/seed
+--   2. Role: nss_db_backend — runtime read/write for the application layer
+--   3. Database: nss_erp    — owned by nss_db_owner (idempotent via \gexec)
+--   4. Role: nss_db_writer  — Tier 5 write pool (auth + admin writes)
+--   5. GRANT CONNECT on nss_erp to nss_db_backend and nss_db_writer
 --
 -- NAMING CONVENTION (SOL-ARCH-011 §7.2):
 --   nss_db_*    = PostgreSQL infrastructure roles (lowercase)
@@ -60,13 +60,7 @@
 -- =====================================================
 
 -- -------------------------------------------------
--- 1. Extension: dblink (in postgres DB)
---    Required for idempotent CREATE DATABASE below.
--- -------------------------------------------------
-CREATE EXTENSION IF NOT EXISTS dblink;
-
--- -------------------------------------------------
--- 2. PostgreSQL role: nss_db_owner (DDL / schema owner)
+-- 1. PostgreSQL role: nss_db_owner (DDL / schema owner)
 --    LOGIN, NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOINHERIT.
 --    Password must be set separately per environment.
 -- -------------------------------------------------
@@ -92,7 +86,7 @@ END
 $$;
 
 -- -------------------------------------------------
--- 3. PostgreSQL role: nss_db_backend (runtime)
+-- 2. PostgreSQL role: nss_db_backend (runtime)
 --    LOGIN, NOSUPERUSER — used by FastAPI application.
 --    Password must be set separately per environment.
 -- -------------------------------------------------
@@ -117,29 +111,21 @@ END
 $$;
 
 -- -------------------------------------------------
--- 4. Database: nss_erp (owned by nss_db_owner)
---    Idempotent via dblink — safe to re-run.
---    Connection string hardcoded to localhost/postgres with a
---    local-dev placeholder password — change before shared use.
+-- 3. Database: nss_erp (owned by nss_db_owner)
+--    Idempotent via psql \gexec — the conditional SELECT below emits the
+--    CREATE DATABASE statement only when the database is absent, and \gexec
+--    runs it in THIS already-authenticated psql session. No second
+--    connection, no dblink, and (crucially) no password to hardcode.
+--    CREATE DATABASE cannot run inside a transaction/DO block, which is why
+--    it is generated at the client level and piped back with \gexec.
 -- -------------------------------------------------
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_database WHERE datname = 'nss_erp'
-    ) THEN
-        PERFORM dblink_exec(
-            'dbname=postgres host=localhost port=5432 user=postgres password=root',
-            'CREATE DATABASE nss_erp OWNER nss_db_owner'
-        );
-        RAISE NOTICE 'Database nss_erp created.';
-    ELSE
-        RAISE NOTICE 'Database nss_erp already exists — skipping.';
-    END IF;
-END
-$$;
+SELECT 'CREATE DATABASE nss_erp OWNER nss_db_owner'
+WHERE NOT EXISTS (
+    SELECT 1 FROM pg_database WHERE datname = 'nss_erp'
+)\gexec
 
 -- -------------------------------------------------
--- 4b. PostgreSQL role: nss_db_writer (Tier 5 write)
+-- 4. PostgreSQL role: nss_db_writer (Tier 5 write)
 --     LOGIN, NOSUPERUSER — used by FastAPI for auth +
 --     admin write operations only.
 --     Password must be set separately per environment.

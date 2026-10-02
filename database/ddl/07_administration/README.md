@@ -1,7 +1,7 @@
 # database/ddl/07_administration/
 
-Administration Module DDL — 2 tables (RBAC role-assignment + scope). **In progress,
-uncommitted** on branch `feature/tier5-authentication-administration` (see
+Administration Module DDL — 2 tables (RBAC role-assignment + scope). **In progress
+(committed on the branch, not merged)** on branch `feature/tier5-authentication-administration` (see
 `docs/PROJECT_DOCUMENTATION.md` → Tier 5).
 
 Authority: SOL-ADMIN-004, SOL-AUTH-004, Tier 5 decisions (2026-09-15).
@@ -10,7 +10,10 @@ Authority: SOL-ADMIN-004, SOL-AUTH-004, Tier 5 decisions (2026-09-15).
 
 Execute AFTER Bootstrap RBAC DDL (`database/ddl/00_bootstrap/` — `role_master`) and
 Authentication DDL (`database/ddl/06_authentication/` — `user_account`). Run as Phase 11 in
-`database/scripts/02_build.sh`/`.ps1`, immediately after Phase 10 (Authentication).
+`database/scripts/02_build.sh`/`.ps1`, immediately after Phase 10 (Authentication). No seed folder
+of its own — the `NSS_ERP_ADMIN`/`NSS-WIDE` `user_role`/`admin_scope` rows for the bootstrap admin
+come from `database/seed/04_admin/` (Phase 13). The Depth column is the per-module numbering; the
+SQL files' own `-- Depth:` headers say 3 (`user_role`) and 4 (`admin_scope`) — cosmetic only.
 
 | # | File | Table | Depth | Depends on |
 |--:|------|-------|------:|------------|
@@ -22,7 +25,7 @@ Authentication DDL (`database/ddl/06_authentication/` — `user_account`). Run a
 
 ## What These Tables Are For
 
-- **`user_role`** — junction table assigning one of the 8 frozen `role_master` roles to a
+- **`user_role`** — junction table assigning one of the 9 frozen `role_master` roles to a
   `user_account`. Multi-role per user is supported (a user can hold several rows), and a user
   can even hold the **same** role twice with different scopes (e.g. `NSS_ERP_SAKHA_ADMIN` for
   two different Sakhas) — duplicate-scope prevention (same role + same scope_level + same org)
@@ -31,7 +34,7 @@ Authentication DDL (`database/ddl/06_authentication/` — `user_account`). Run a
   separate `role_history` table (frozen decision).
 - **`admin_scope`** — the organizational scope attached to *one specific* `user_role` assignment
   (`UNIQUE (user_role_pk)` — exactly one scope row per role assignment, not per user globally).
-  `scope_level` is one of `NSS-WIDE`/`KENDRA`/`ANCHALIKA`/`ZILLA`/`SAKHA`/`PATHA_CHAKRA`;
+  `scope_level` is one of `NSS-WIDE`/`KENDRA`/`ANCHALIKA`/`ZILLA`/`SAKHA`/`PATHA_CHAKRA`/`KENDRA_MAHILA_SANGHA` (same 7 values as `role_master.scope_level`);
   `organization_pk` must be `NULL` for `NSS-WIDE` and non-`NULL` for every other level (enforced
   by a CHECK constraint, not just convention). This is what `UserContext.has_scope_for_org()`/
   `is_nss_wide()` (`api/services/rbac_service.py`) reads to decide whether a given admin action

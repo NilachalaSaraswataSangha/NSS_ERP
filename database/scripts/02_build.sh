@@ -9,7 +9,9 @@
 #
 # Authority: SOL-ARCH-010 (DDL Creation Order),
 #            SOL-ARCH-011 (Bootstrap Architecture)
-# Version: 2.4  — add Phase 14 (Audit DDL + trigger)
+# Version: 2.5  — drop post_office (retired 2026-10-02:
+#            Simplified Geography Model — district now lives on
+#            city_village, not a separate office-grain table)
 #
 # Usage:
 #   ./database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
@@ -29,14 +31,15 @@
 #
 # Implemented phases:
 #   Phase 0  — Bootstrap RBAC (3 tables + seed)
-#   Phase 1  — Foundation DDL (12 tables)
+#   Phase 1  — Foundation DDL (13 tables: 02-12 + 16-17; system_event_log is
+#              created separately in Phase 14)
 #   Phase 2  — Foundation seed data (incl. ORGANIZATION_TYPE
 #              category and unified STATUS category in master_data)
 #   Phase 3  — Organization DDL (1 table)
 #   Phase 4  — Organization seed data
 #   Phase 5  — Person DDL (2 tables)
 #   Phase 6  — Family DDL (6 tables)
-#   Phase 7  — Membership DDL (13 tables)
+#   Phase 7  — Membership DDL (14 tables)
 #   Phase 8  — Tier 4 Verification Seed Data (removed — no demo data)
 #   Phase 9  — Grant nss_db_backend read-only access
 #   Phase 10 — Authentication DDL (4 tables: user_account,
@@ -47,8 +50,9 @@
 #   Phase 14 — Audit DDL (system_event_log table + DB trigger)
 #
 # NOT executed:
-#   - database/ddl/03_person/01_person_master_tables.sql (superseded)
-#   - database/seed/03_person/ (superseded — data in Foundation seed)
+#   - database/seed/03_person/ (no seed data — Person data lives in
+#     Foundation master_data; the superseded 01_person_master_tables.sql
+#     DDL/seed were removed 2026-10-01, dead code with zero references)
 #   - Pass 2 audit-actor FK constraints (deferred)
 # =====================================================
 
@@ -142,9 +146,15 @@ run_sql "role_permission (seed)"   "${SEED_BASE}/00_bootstrap/03_role_permission
 echo ""
 
 # -------------------------------------------------
-# Phase 1: Foundation DDL (12 tables, Depths 0–4)
+# Phase 1: Foundation DDL (14 tables, Depths 0–4)
+# Note: festival_master/festival_calendar_date (16/17)
+#       are file-numbered after system_event_log/
+#       audit_trigger (14/15) but are created here, in
+#       Phase 1, so the Phase 14 audit trigger (which
+#       enumerates pg_tables at execution time) still
+#       attaches to them.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 1] Foundation — DDL (12 tables)${NC}"
+echo -e "${CYAN}[Phase 1] Foundation — DDL (13 tables)${NC}"
 FOUNDATION_DDL=(
     "master_category|02_master_category.sql"
     "system_setting|03_system_setting.sql"
@@ -155,9 +165,10 @@ FOUNDATION_DDL=(
     "master_data|08_master_data.sql"
     "state|09_state.sql"
     "district|10_district.sql"
-    "city_village|11_city_village.sql"
     "postal_code|12_postal_code.sql"
-    "city_village_postal_code_map|13_city_village_postal_code_map.sql"
+    "city_village|11_city_village.sql"
+    "festival_master|16_festival_master.sql"
+    "festival_calendar_date|17_festival_calendar_date.sql"
 )
 for entry in "${FOUNDATION_DDL[@]}"; do
     label="${entry%%|*}"
@@ -181,6 +192,10 @@ FOUNDATION_SEED=(
     "district (seed)|06_district.sql"
     "system_setting (seed)|07_system_setting.sql"
     "postal_code (seed)|08_postal_code.sql"
+    "postal_code bulk (seed)|08b_postal_code_bulk.sql"
+    "festival_calendar (seed)|10_festival_calendar.sql"
+    "city_village (seed)|11_city_village.sql"
+    "city_village urban recovery (seed)|11b_city_village_urban_recovery.sql"
 )
 for entry in "${FOUNDATION_SEED[@]}"; do
     label="${entry%%|*}"
@@ -213,9 +228,10 @@ echo ""
 
 # -------------------------------------------------
 # Phase 5: Person DDL (2 tables, Depths 2–3)
-# Note: 01_person_master_tables.sql is SUPERSEDED —
-#       gender/marital_status/address_type data is now
-#       in Foundation master_data seed.
+# Note: the superseded 01_person_master_tables.sql
+#       DDL/seed were removed 2026-10-01 — dead code,
+#       zero references. gender/marital_status/address_type
+#       data lives in Foundation master_data seed.
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 5] Person — DDL (2 tables)${NC}"
 run_sql "person"         "${DDL_BASE}/03_person/02_person.sql"
@@ -240,11 +256,11 @@ run_sql "family_move_transition_guard" "${DDL_BASE}/04_family/07_family_move_tra
 echo ""
 
 # -------------------------------------------------
-# Phase 7: Membership DDL (13 tables, Depths 2–4)
+# Phase 7: Membership DDL (14 tables, Depths 2–4)
 # Note: sangha_sevi must be created first — all
 #       other membership tables depend on it.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 7] Membership — DDL (13 tables + Sakha-only trigger)${NC}"
+echo -e "${CYAN}[Phase 7] Membership — DDL (14 tables + Sakha-only trigger)${NC}"
 run_sql "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
 run_sql "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
 run_sql "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
@@ -259,6 +275,7 @@ run_sql "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_p
 run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
 run_sql "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
 run_sql "sakha_only_membership_trigger"  "${DDL_BASE}/05_membership/14_sakha_only_membership_trigger.sql"
+run_sql "credential_sequence_counter"    "${DDL_BASE}/05_membership/15_credential_sequence_counter.sql"
 echo ""
 
 # -------------------------------------------------
@@ -314,7 +331,7 @@ echo ""
 
 # -------------------------------------------------
 # Phase 13: Admin Bootstrap Seed
-# Seeds NSS Admin superuser (P1 / SS1 / NSSAdmin1)
+# Seeds NSS Admin superuser (P1 / SS1 / Admin@123)
 # with NSS_ERP_ADMIN role and NSS-WIDE scope.
 # Must run AFTER Auth + Admin DDL (Phases 10–11)
 # and AFTER Foundation + Organization seeds.

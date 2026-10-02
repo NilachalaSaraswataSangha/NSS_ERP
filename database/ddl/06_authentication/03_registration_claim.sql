@@ -41,9 +41,25 @@ CREATE TABLE IF NOT EXISTS nss.registration_claim
 
     claimed_joining_date DATE NULL,
 
+    -- Existing Parichaya Patra / Anumati Patra document number, for a
+    -- registrant who already holds one (legacy member). Distinct from
+    -- claimed_local_sakha_number (Tier 2 identity) — this is the Tier 3
+    -- annual Kendra/Sakha-wide credential number (MEM-PENDING-001 /
+    -- Tier 4 Frozen Decisions "Three-tier member identity"). NULL means
+    -- a new one is auto-generated for the current FY at approval time
+    -- (see api/helpers.py::issue_membership_credential()).
+    claimed_credential_document_number VARCHAR(30) NULL,
+
     -- ── Darshak Attendance ──────────────────────────────
 
     darshak_organization_pk UUID NULL,
+
+    -- Local Sakha Number at the darshak_organization_pk (attending) Sakha —
+    -- separate namespace from claimed_local_sakha_number, which is the
+    -- home Sakha's number. NULL while the attending Sakha hasn't assigned
+    -- one yet; required at approval once darshak_organization_pk is set
+    -- (mirrors claimed_local_sakha_number's own requirement).
+    darshak_local_sakha_number VARCHAR(20) NULL,
 
     -- ── Claim Status ────────────────────────────────────
 

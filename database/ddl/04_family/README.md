@@ -1,8 +1,9 @@
 # database/ddl/04_family/
 
 Family Module DDL — 6 tables per SOL-FAM-005, SOL-FAM-003, SOL-ARCH-010, and (for `family_link`)
-ERP-DECISION — Graph-based dynamic relationship model. `family_admin` (see below) is new,
-uncommitted, on branch `feature/tier5-authentication-administration`.
+ERP-DECISION — Graph-based dynamic relationship model. `family_admin` (see below) and the
+move-transition guard are Tier 5 additions on branch `feature/tier5-authentication-administration`
+(committed, not merged to `develop`).
 
 Authority: SOL-FAM-005 (Family Table Design), SOL-FAM-003, SOL-ARCH-010 (DDL Creation Order) for
 the first 4 tables; `family_link` carries its own separate `ERP-DECISION` authority tag (see its
@@ -24,6 +25,21 @@ references `organization`, and `family_relationship`/`family_head_history`/
 | 04 | `04_family_transition_history.sql` | `family_transition_history` | 3 | #58 |
 | 05 | `05_family_link.sql` | `family_link` | 3 | — |
 | 06 | `06_family_admin.sql` | `family_admin` | 3 | — |
+| 07 | `07_family_move_transition_guard.sql` | *(no table — `fn_family_move_requires_transition()` + constraint trigger on `family_relationship`)* | 4 | — |
+
+Run as Phase 6 of `database/scripts/02_build.sh`/`.ps1` (6 tables + the guard).
+
+## The move-transition guard (`07_family_move_transition_guard.sql`)
+
+A `DEFERRABLE INITIALLY DEFERRED` constraint trigger (`trg_family_move_requires_transition`) on
+`family_relationship`, checked at COMMIT. When a `family_relationship` row is closed
+(`is_current` TRUE→FALSE) and the same person ends the transaction as a current member of a
+**different** family, a matching `family_transition_history` row (`old_family_group_pk` = the
+family they left) must exist, otherwise the transaction fails with
+`integrity_constraint_violation`. A plain removal (the person ends up in no other current family)
+is deliberately allowed with no transition record. This makes the "ghost member" case a DB-level
+invariant rather than something a repair script has to patch — the old `database/fixes/` script
+for it no longer exists.
 
 ## What These Tables Are For
 
@@ -54,7 +70,7 @@ implement that:
   than storing every possible relationship label as data. See "Is `family_relationship`
   superseded by `family_link`?" below — it is not; the two tables serve different, coexisting
   purposes.
-- **`family_admin`** — (new, uncommitted, Tier 5 branch) tracks Family Admin role assignments,
+- **`family_admin`** — (Tier 5 branch) tracks Family Admin role assignments,
   independent of `family_head_history`: a person may be Head, Admin, both, or neither at once.
   Multiple admins per family are allowed. Only the current Family Head may assign/revoke an
   admin (enforced in `api/routers/family.py`'s `POST`/`DELETE /families/{pk}/admins`, FAM-046/

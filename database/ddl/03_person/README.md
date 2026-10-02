@@ -1,6 +1,6 @@
 # database/ddl/03_person/
 
-**Implemented** — 2 tables: `person` (28 columns) and `person_address`. Both follow the
+**Implemented** — 2 tables: `person` (32 columns, incl. 7 audit/soft-delete columns) and `person_address`. Both follow the
 Foundation `master_category`/`master_data` pattern: gender, marital status, blood group, and
 emergency relationship resolve via `master_data` (categories `GENDER`, `MARITAL_STATUS`,
 `BLOOD_GROUP`), and `person_address.address_type_master_data_pk` resolves via `master_data`

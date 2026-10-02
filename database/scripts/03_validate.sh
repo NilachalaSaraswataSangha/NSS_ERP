@@ -117,6 +117,21 @@ check_fk_integrity() {
     fi
 }
 
+check_min_percentage() {
+    local label="$1"
+    local query="$2"      # must SELECT a single numeric percentage (0-100)
+    local min_pct="$3"
+    local pct
+    pct=$(${PSQL} -c "${query}" 2>&1 || echo "ERROR")
+    if [ "$pct" = "ERROR" ]; then
+        log_fail "${label}: query failed"
+    elif awk -v p="$pct" -v m="$min_pct" 'BEGIN{exit !(p>=m)}'; then
+        log_pass "${label}: ${pct}% (expected >= ${min_pct}%)"
+    else
+        log_fail "${label}: ${pct}% (expected >= ${min_pct}%)"
+    fi
+}
+
 check_column_exists() {
     local table="$1"
     local column="$2"
@@ -164,7 +179,7 @@ check_fk_integrity "role_permission -> permission_master" \
 echo ""
 
 # =====================================================
-# Module 2: Foundation (12 tables)
+# Module 2: Foundation (11 tables)
 # =====================================================
 echo -e "${CYAN}--- Foundation ---${NC}"
 echo "  Tables:"
@@ -172,7 +187,7 @@ FOUNDATION_TABLES=(
     "master_category" "system_setting" "id_sequence_master"
     "country" "document_master" "field_change_log"
     "master_data" "state" "district"
-    "city_village" "postal_code" "city_village_postal_code_map"
+    "city_village" "postal_code"
 )
 for t in "${FOUNDATION_TABLES[@]}"; do
     check_table_exists "$t"
@@ -184,14 +199,16 @@ check_row_count "master_data" 82
 check_row_count "id_sequence_master" 11
 check_row_count "country" 5
 check_row_count "state" 112
-check_row_count "district" 700
+check_row_count "district" 780
 check_row_count "system_setting" 4
-check_row_count "postal_code" 2
+check_row_count "postal_code" 17800
+check_row_count "city_village" 673000
 
 echo "  Unique constraints:"
 check_no_duplicates "master_category" "category_code"
 check_no_duplicates "country" "country_code"
 check_no_duplicates "id_sequence_master" "sequence_code"
+check_no_duplicates "postal_code" "postal_code"
 
 echo "  FK integrity:"
 check_fk_integrity "master_data -> master_category" \
@@ -200,10 +217,18 @@ check_fk_integrity "state -> country" \
     "SELECT COUNT(*) FROM nss.state s LEFT JOIN nss.country c ON s.country_pk = c.country_pk WHERE c.country_pk IS NULL;"
 check_fk_integrity "district -> state" \
     "SELECT COUNT(*) FROM nss.district d LEFT JOIN nss.state s ON d.state_pk = s.state_pk WHERE s.state_pk IS NULL;"
-check_fk_integrity "postal_code -> country" \
-    "SELECT COUNT(*) FROM nss.postal_code p LEFT JOIN nss.country c ON p.country_pk = c.country_pk WHERE c.country_pk IS NULL;"
 check_fk_integrity "postal_code -> state" \
     "SELECT COUNT(*) FROM nss.postal_code p LEFT JOIN nss.state s ON p.state_pk = s.state_pk WHERE s.state_pk IS NULL;"
+check_fk_integrity "city_village -> postal_code" \
+    "SELECT COUNT(*) FROM nss.city_village cv LEFT JOIN nss.postal_code pc ON cv.postal_code_pk = pc.postal_code_pk WHERE cv.postal_code_pk IS NOT NULL AND pc.postal_code_pk IS NULL;"
+check_fk_integrity "city_village -> district" \
+    "SELECT COUNT(*) FROM nss.city_village cv LEFT JOIN nss.district d ON cv.district_pk = d.district_pk WHERE cv.district_pk IS NOT NULL AND d.district_pk IS NULL;"
+
+echo "  Geography model (SOL-ARCH-010 Amendment, 2026-10-02 — district at city_village grain):"
+check_column_exists "city_village" "district_pk"
+check_min_percentage "city_village district_pk coverage" \
+    "SELECT ROUND(COUNT(*) FILTER (WHERE district_pk IS NOT NULL) * 100.0 / NULLIF(COUNT(*),0), 2) FROM nss.city_village;" \
+    98
 
 echo "  Deferred columns:"
 check_column_exists "document_master" "person_pk"

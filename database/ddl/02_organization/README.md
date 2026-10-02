@@ -1,6 +1,6 @@
 # database/ddl/02_organization/
 
-Organization Module DDL — 1 table (Depth 1) per SOL-ORG-005, SOL-ARCH-010.
+Organization Module DDL — 1 table (Depth 1) plus 2 enforcement triggers, per SOL-ORG-005, SOL-ARCH-010.
 
 Authority: SOL-ORG-005 v1.2.0, SOL-ARCH-010
 
@@ -11,6 +11,11 @@ Execute AFTER all Foundation DDL (`database/ddl/01_foundation/`).
 | # | File | Table | Depth | Sequence |
 |--:|------|-------|------:|:--------:|
 | 03 | `03_organization.sql` | `organization` | 1 | #33 |
+| 04 | `04_organization_address_restriction_trigger.sql` | *(trigger `fn_enforce_organization_address_restriction()`, no table)* | 2 | — |
+| 05 | `05_organization_kumari_sevak_uniqueness_trigger.sql` | *(trigger `fn_enforce_kumari_sevak_one_per_sakha()`, no table)* | 2 | — |
+
+File numbers start at 03 because `01`/`02` (the retired type/status master tables, below) no
+longer exist. Run as Phase 3 of `02_build.sh`/`.ps1`.
 
 > **Retired:** `01_organization_type_master.sql` and
 > `02_organization_status_master.sql` (and the tables they created,
@@ -25,6 +30,17 @@ Execute AFTER all Foundation DDL (`database/ddl/01_foundation/`).
 > `nss.master_data(master_data_pk)` instead.
 
 ## Design Notes
+
+- **Triggers (DB-level invariants, mirrored in `api/routers/admin.py`):**
+  - `04_…address_restriction_trigger.sql` (v1.1, ORG-BR-099 narrowed 2026-09-28) — `ANCHALIKA_SANGHA`,
+    `ZILLA_SANGHA` and `PATHA_CHAKRA` may never carry a physical premises address
+    (`address_line_1`/`address_line_2`/`city_village_pk`/`postal_code_pk`/`latitude`/`longitude`
+    must be NULL), but **may** carry `country_pk`/`state_pk`/`district_pk` (administrative
+    jurisdiction).
+  - `05_…kumari_sevak_uniqueness_trigger.sql` (ORG-BR-102) — at most one active `KUMARI_SANGHA`
+    and one active `SEVAK_SANGHA` per Sakha; a BEFORE trigger rather than a partial unique index
+    because the predicate needs `master_data.value_code`, and Postgres forbids subqueries in
+    index predicates.
 
 - **No `organization_address` table** — address is inline on `organization`
   per frozen design (SOL-ORG-005 §44).

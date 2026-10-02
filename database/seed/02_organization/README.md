@@ -15,8 +15,13 @@ Execute AFTER:
 | # | File | Seeds Into | Depends On |
 |--:|------|-----------|-----------|
 | 03 | `03_organization.sql` | `organization` | Foundation `master_category`/`master_data` seed, Foundation `country`/`postal_code` seed, Organization DDL complete |
-| 05 | `05_sakha_branches.sql` | `organization` | `03_organization.sql` (needs `KEN` as parent); Foundation `master_data` seed |
+| — | `../01_foundation/09_sakha_postal_codes.sql` | `postal_code` | Foundation `country`/`state` seed; must run **before** `05_sakha_branches.sql` (build Phase 4 runs it here, not in Phase 2) |
+| 05 | `05_sakha_branches.sql` | `organization` | `03_organization.sql` (needs `KEN` as parent); Foundation `master_data` seed; `09_sakha_postal_codes.sql` |
 | 06 | `06_id_sequence_org_sync.sql` | `id_sequence_master` | `03_organization.sql` + `05_sakha_branches.sql` (reads seeded `organization_code`s) |
+
+There is no `01_*`, `02_*` or `04_*` file in this folder (the first two were retired type/status
+masters, the last was the deleted Tier 4 verification-org seed). `database/scripts/02_build.sh`/`.ps1`
+run these as Phase 4, in the order 03 → `09_sakha_postal_codes` → 05 → 06.
 
 > **Moved:** The former `01_organization_type_master.sql` and
 > `02_organization_status_master.sql` seed files are gone. Type and status
@@ -34,11 +39,15 @@ Execute AFTER:
 ## Execution Command
 
 ```bash
-# As nss_db_owner against the nss_erp database:
-for f in database/seed/02_organization/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
+# As nss_db_owner against the nss_erp database (manual run; 02_build.sh does this for you):
+psql -U nss_db_owner -d nss_erp -f database/seed/02_organization/03_organization.sql
+psql -U nss_db_owner -d nss_erp -f database/seed/01_foundation/09_sakha_postal_codes.sql
+psql -U nss_db_owner -d nss_erp -f database/seed/02_organization/05_sakha_branches.sql
+psql -U nss_db_owner -d nss_erp -f database/seed/02_organization/06_id_sequence_org_sync.sql
 ```
+
+(A plain `0*.sql` glob over this folder alone would skip the Sakha postal codes and leave the
+branches seeded with a NULL `postal_code_pk` where a PIN exists in the source data.)
 
 ---
 

@@ -1,8 +1,11 @@
 # database/ddl/05_membership/
 
-Membership Module DDL — 13 tables (Depth 2–4) per SOL-MEM-005, SOL-MEM-003, plus (for
-`darshak_attendance_registration`) SOL-MEM-006. The 13th table is new, uncommitted, on branch
-`feature/tier5-authentication-administration`.
+Membership Module DDL — 14 tables (Depth 2–4) per SOL-MEM-005, SOL-MEM-003, plus (for
+`darshak_attendance_registration`) SOL-MEM-006, and one enforcement-trigger file. The 13th table
+(`darshak_attendance_registration`) and 14th (`credential_sequence_counter`) are Tier 5
+additions on branch `feature/tier5-authentication-administration` (`15_credential_sequence_counter.sql`
+was still untracked/uncommitted when this README was refreshed; the rest is committed, nothing is
+merged to `develop`).
 
 Authority: SOL-MEM-005 v1.0 (Physical Table Design), SOL-MEM-003 (Business Rules), MBR-001
 through MBR-035 (business-rule identifiers cited in table comments); SOL-MEM-006 for
@@ -10,8 +13,8 @@ through MBR-035 (business-rule identifiers cited in table comments); SOL-MEM-006
 
 > **Design-doc status note:** `docs/03_Solution/modules/membership/README.md` still reads
 > "Status: DRAFT — full Solution design complete, **not yet implemented in SQL**" / "SQL
-> Implementation Not Started." That status predates this DDL — all 12 tables below are real,
-> implemented, and executed by `database/scripts/02_build.sh`/`02_build.ps1`. The module design
+> Implementation Not Started." That status predates this DDL — all 14 tables below are real,
+> implemented, and executed by `database/scripts/02_build.sh`/`02_build.ps1` (Phase 7). The module design
 > docs themselves are out of scope for this pass (a separate governance/design update); treat the
 > tables in this folder, not that README, as the current source of truth for what exists in the
 > database.
@@ -34,9 +37,11 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
 | 08 | `08_probationary_member_review.sql` | `probationary_member_review` | 3 | `sangha_sevi` |
 | 09 | `09_parichaya_patra.sql` | `parichaya_patra` | 3 | `sangha_sevi`, `organization` |
 | 10 | `10_parichaya_patra_history.sql` | `parichaya_patra_history` | 4 | `parichaya_patra` |
-| 11 | `11_anumati_patra.sql` | `anumati_patra` | 3 | `sangha_sevi` |
+| 11 | `11_anumati_patra.sql` | `anumati_patra` | 3 | `sangha_sevi`, `organization` |
 | 12 | `12_anumati_patra_history.sql` | `anumati_patra_history` | 4 | `anumati_patra` |
 | 13 | `13_darshak_attendance_registration.sql` | `darshak_attendance_registration` | 3 | `sangha_sevi`, `organization` (×2) |
+| 14 | `14_sakha_only_membership_trigger.sql` | *(no table — 2 BEFORE triggers, MBR-038A)* | — | `sangha_sevi`, `membership_sakha_affiliation`, `organization`, `master_data` |
+| 15 | `15_credential_sequence_counter.sql` | `credential_sequence_counter` | 3 | `organization` |
 
 ## What Each Table Is For
 
@@ -93,13 +98,19 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
   `EXPIRED`/`CANCELLED`/`REPLACED`) with previous/new status. Historical records are never
   deleted.
 - **`anumati_patra`** — the Probationary member's credential ("Admit Card," Bye-Law §B(a)),
-  structurally identical to `parichaya_patra` (own `document_number`, validity range, status,
+  structurally similar to `parichaya_patra` (own `document_number`, validity range, status,
   partial unique "one ACTIVE per member" index) but with no Sakha-snapshot columns — it isn't
   tied to a specific Sakha the way the Identity Card is. Must be valid at least one year before
-  Regular enrolment (Bye-Law §B(b)(i)).
+  Regular enrolment (Bye-Law §B(b)(i)). Numbering is **per issuing Sakha**: `issuing_organization_pk`
+  records the minting Sakha and `document_number` is unique only within it
+  (`uq_ap_document_number` = `UNIQUE(issuing_organization_pk, document_number)`). This replaced an
+  earlier global `UNIQUE(document_number)` that collided (409) whenever two Sakhas each issued their
+  first Anumati Patra of a financial year — both legitimately minting `1/<FY>/<FY>` from their own
+  per-Sakha counters. (Parichaya Patra differs: its single Kendra-wide counter already yields
+  globally-unique numbers, so `uq_pp_document_number` stays single-column.)
 - **`anumati_patra_history`** — change log for an `anumati_patra` row, same shape and rationale
   as `parichaya_patra_history`.
-- **`darshak_attendance_registration`** — (new, uncommitted, Tier 5 branch) a member's
+- **`darshak_attendance_registration`** — (Tier 5 branch) a member's
   registration to attend Sangha Puja as a Darshak at a **different** Sakha than their own
   (`chk_dar_att_reg_different_sakha` forbids `home_organization_pk = attending_organization_pk`).
   Goes through a 3-step approval chain (`PENDING_HOME_SAKHA` → `PENDING_PARICHALAK` →
@@ -110,6 +121,21 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
   membership, not cross-Sakha attendance. A partial unique index
   (`uq_dar_att_reg_active`) enforces at most one `ACTIVE` `registration_status` row per member at
   a time.
+
+- **`credential_sequence_counter`** — (Tier 5 branch) backs
+  `api/helpers.py::next_credential_document_number()`, which mints
+  `parichaya_patra.document_number`/`anumati_patra.document_number` in `<seq>/<FY start>/<FY end>`
+  format. One row per (`credential_type`, `scope_organization_pk`, `financial_year_start`) —
+  `PARICHAYA_PATRA` is a single Kendra-wide counter, `ANUMATI_PATRA` is one counter per issuing
+  Sakha — and the sequence restarts at 1 each 1 April (a new FY = a new row). Rows are created on
+  demand by upsert, not seeded. Distinct from `id_sequence_master` (one flat, never-reset counter
+  per business ID). `uq_credential_sequence_scope` makes the triple unique; the
+  `credential_type` CHECK limits it to the two values above.
+- **`14_sakha_only_membership_trigger.sql`** (no table) — enforces MBR-038A at the DB level: a
+  member's `sangha_sevi.organization_pk` and `membership_sakha_affiliation.organization_pk` must
+  reference a `SAKHA_SANGHA` organization (`trg_enforce_sakha_only_sangha_sevi`,
+  `trg_enforce_sakha_only_affiliation`). The single exception is the reserved system account
+  (`sangha_sevi.is_system_account = TRUE`, the seeded admin `SS1`), which may point at Kendra.
 
 ## The "Current State + History" Pairing Pattern
 
@@ -153,8 +179,7 @@ replaced), not just what the *current* value happens to be.
   at the DB level, not just in application code.
 - **`uq_mem_sakha_aff_local_id UNIQUE (organization_pk, local_sakha_erp_id)`** — a Local Sakha
   ERP ID is unique *within* a Sakha (not globally); the same numeric suffix can recur at a
-  different Sakha (seed data shows `ESS1100` at SKH1 vs. `CTC1` at SKH2 for the same member,
-  Suresh Patel, before/after his transfer).
+  different Sakha (a member who transfers gets a new, Sakha-local ID at the new Sakha).
 - **Two partial unique indexes enforcing "at most one active X per member"** —
   `uq_mem_sakha_aff_active` (one open affiliation), `uq_pp_active_per_member` (one active
   Parichaya Patra), `uq_ap_active_per_member` (one active Anumati Patra) — all implemented as
@@ -178,10 +203,12 @@ replaced), not just what the *current* value happens to be.
 
 See `docs/03_Solution/modules/membership/05_membership_table_design.md` (`SOL-MEM-005`) for the
 full design rationale — noting the design-doc status caveat at the top of this file. See also
-`docs/03_Solution/modules/membership/06_darshak_attendance_registration.md` (new, uncommitted)
+`docs/03_Solution/modules/membership/06_darshak_attendance_registration.md` (Tier 5)
 for the `darshak_attendance_registration` design rationale,
 `docs/PROJECT_DOCUMENTATION.md` for the tier-by-tier plan, and
 `docs/03_Solution/api/API_CONTRACT.md` §8 for how these tables are exposed over HTTP (note: no
-router currently reads/writes `darshak_attendance_registration` — it exists in DDL only as of
-this pass, though `api/routers/admin.py`'s user-list queries do LEFT JOIN it for
-`darshak_local_number` display).
+router reads or writes `darshak_attendance_registration` — it exists in DDL only as of this
+pass. `darshak_local_number` in `api/routers/admin.py`'s user queries comes from
+`membership_sakha_affiliation` (alias `dmsa`), not from this table, and the dashboard's
+attendance % is reported as "not tracked" because this is a registration/approval record, not
+an attendance log).

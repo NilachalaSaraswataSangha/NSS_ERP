@@ -16,7 +16,7 @@ Usage:
     python3 scripts/bootstrap_admin.py
     python3 scripts/bootstrap_admin.py --password MyCustomPass1
 
-Default password: NSSAdmin1  (force_password_change = TRUE)
+Default password: Admin@123  (force_password_change = FALSE)
 
 Prerequisites:
     - Tier 0-4 DDL + seed data already applied
@@ -37,7 +37,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from api.services.auth_service import hash_password
 from api.database import get_write_pool
 
-DEFAULT_PASSWORD = "NSSAdmin1"
+DEFAULT_PASSWORD = "Admin@123"
 
 # Single source of truth: the SQL seed file. It carries the full account
 # definition and one bind parameter, %(password_hash)s, which we supply
@@ -86,7 +86,7 @@ def main():
         conn.commit()
         print()
         print("Done. NSS Admin account is ready.")
-        print("*** Change the password after first login. ***")
+        print("*** Change this password before using beyond local dev. ***")
 
     except Exception as e:
         conn.rollback()

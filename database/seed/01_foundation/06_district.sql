@@ -2,1310 +2,1232 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 06_district.sql
--- Version: 4.0 — every INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
---          so a partial re-run no longer silently skips every block after
---          the first pre-existing row it hits
--- Authority: SOL-FND-004 §15, SOL-ARCH-010 §8
+-- Version: 5.0 — numeric LGD district_code (globally unique)
+-- Authority: SOL-ARCH-010 Amendment (Simplified Geography Model, 2026-10-02)
 -- Owner: NSS_ERP_ADMIN
--- Note: All districts for all Indian states/UTs.
---       Major subdivisions for other seeded countries.
+-- Source: 4 government LGD files (Village, Urban, District, ULB), 2026-10-01/02.
+-- Note: All-India districts keyed on the numeric LGD district code. district_code is globally unique so city_village can resolve district by code (not fragile name match).
 -- =====================================================
 
--- =========================================================
--- INDIA — ODISHA (30 districts)
--- =========================================================
-
+-- ---- AN — 3 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
+SELECT s.state_pk, v.dcode, v.dname, v.ord
 FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
 CROSS JOIN (VALUES
-    ('ANG', 'Angul',            1),
-    ('BLG', 'Balangir',         2),
-    ('BLS', 'Balasore',         3),
-    ('BGH', 'Bargarh',          4),
-    ('BDK', 'Bhadrak',          5),
-    ('BOU', 'Boudh',            6),
-    ('CTC', 'Cuttack',          7),
-    ('DEB', 'Deogarh',          8),
-    ('DHK', 'Dhenkanal',        9),
-    ('GJP', 'Gajapati',        10),
-    ('GJM', 'Ganjam',          11),
-    ('JPR', 'Jagatsinghpur',   12),
-    ('AJP', 'Jajpur',          13),
-    ('JHR', 'Jharsuguda',      14),
-    ('KLH', 'Kalahandi',       15),
-    ('KDP', 'Kandhamal',       16),
-    ('KDR', 'Kendrapara',      17),
-    ('KJH', 'Kendujhar',       18),
-    ('KHD', 'Khordha',         19),
-    ('KRP', 'Koraput',         20),
-    ('MKG', 'Malkangiri',      21),
-    ('MBJ', 'Mayurbhanj',      22),
-    ('NBR', 'Nabarangpur',     23),
-    ('NYG', 'Nayagarh',        24),
-    ('NPN', 'Nuapada',         25),
-    ('PUR', 'Puri',            26),
-    ('RYG', 'Rayagada',        27),
-    ('SMP', 'Sambalpur',       28),
-    ('SOA', 'Subarnapur',      29),
-    ('SDG', 'Sundargarh',      30)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'OD'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — ANDHRA PRADESH (26 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ALV', 'Alluri Sitharama Raju', 1),
-    ('ANA', 'Anakapalli',            2),
-    ('ANN', 'Annamayya',             3),
-    ('ANT', 'Ananthapuramu',         4),
-    ('BAP', 'Bapatla',               5),
-    ('CHT', 'Chittoor',              6),
-    ('EGD', 'East Godavari',         7),
-    ('ELU', 'Eluru',                 8),
-    ('GUN', 'Guntur',                9),
-    ('KDP', 'Kadapa',               10),
-    ('KAK', 'Kakinada',             11),
-    ('KNL', 'Kurnool',              12),
-    ('KRS', 'Krishna',              13),
-    ('KON', 'Konaseema',            14),
-    ('NAN', 'Nandyal',              15),
-    ('NTR', 'NTR',                  16),
-    ('NEL', 'Nellore',              17),
-    ('PAL', 'Palnadu',              18),
-    ('PRK', 'Prakasam',             19),
-    ('SPS', 'Sri Potti Sriramulu Nellore', 20),
-    ('SRI', 'Srikakulam',           21),
-    ('TPT', 'Tirupati',             22),
-    ('VIS', 'Visakhapatnam',        23),
-    ('VIZ', 'Vizianagaram',         24),
-    ('WGD', 'West Godavari',        25),
-    ('PAR', 'Parvathipuram Manyam', 26)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'AP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — ARUNACHAL PRADESH (26 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ANJ', 'Anjaw',                1),
-    ('CHA', 'Changlang',            2),
-    ('DIB', 'Dibang Valley',        3),
-    ('EKM', 'East Kameng',          4),
-    ('ESI', 'East Siang',           5),
-    ('ICH', 'Itanagar Capital',     6),
-    ('KAM', 'Kamle',                7),
-    ('KRA', 'Kra Daadi',            8),
-    ('KUR', 'Kurung Kumey',         9),
-    ('LEP', 'Lepa Rada',           10),
-    ('LOH', 'Lohit',               11),
-    ('LDV', 'Lower Dibang Valley', 12),
-    ('LSI', 'Lower Siang',        13),
-    ('LSU', 'Lower Subansiri',     14),
-    ('LNG', 'Longding',            15),
-    ('NMC', 'Namsai',              16),
-    ('PKE', 'Pakke Kessang',       17),
-    ('PPG', 'Papum Pare',          18),
-    ('SHI', 'Shi Yomi',           19),
-    ('SIA', 'Siang',               20),
-    ('TAW', 'Tawang',              21),
-    ('TIR', 'Tirap',               22),
-    ('USI', 'Upper Siang',         23),
-    ('USU', 'Upper Subansiri',     24),
-    ('WKM', 'West Kameng',         25),
-    ('WSI', 'West Siang',          26)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'AR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — ASSAM (35 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('BAK', 'Baksa',            1),
-    ('BAR', 'Barpeta',          2),
-    ('BIS', 'Biswanath',        3),
-    ('BON', 'Bongaigaon',       4),
-    ('CAC', 'Cachar',           5),
-    ('CHR', 'Charaideo',        6),
-    ('CHI', 'Chirang',          7),
-    ('DAR', 'Darrang',          8),
-    ('DHE', 'Dhemaji',          9),
-    ('DHU', 'Dhubri',          10),
-    ('DIB', 'Dibrugarh',       11),
-    ('DIM', 'Dima Hasao',      12),
-    ('GOA', 'Goalpara',        13),
-    ('GOL', 'Golaghat',        14),
-    ('HAI', 'Hailakandi',      15),
-    ('HJO', 'Hojai',           16),
-    ('JOR', 'Jorhat',          17),
-    ('KAM', 'Kamrup',          18),
-    ('KMM', 'Kamrup Metropolitan', 19),
-    ('KAN', 'Karbi Anglong',   20),
-    ('KAR', 'Karimganj',       21),
-    ('KOK', 'Kokrajhar',       22),
-    ('LAK', 'Lakhimpur',       23),
-    ('MAJ', 'Majuli',          24),
-    ('MOR', 'Morigaon',        25),
-    ('NAG', 'Nagaon',          26),
-    ('NAL', 'Nalbari',         27),
-    ('SIB', 'Sivasagar',       28),
-    ('SON', 'Sonitpur',        29),
-    ('SKA', 'South Salmara-Mankachar', 30),
-    ('TAM', 'Tamulpur',        31),
-    ('TIN', 'Tinsukia',        32),
-    ('UDA', 'Udalguri',        33),
-    ('WKA', 'West Karbi Anglong', 34),
-    ('BAJ', 'Bajali',          35)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'AS'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — BIHAR (38 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ARA', 'Araria',           1),
-    ('ARW', 'Arwal',            2),
-    ('AUR', 'Aurangabad',       3),
-    ('BAN', 'Banka',            4),
-    ('BEG', 'Begusarai',        5),
-    ('BHA', 'Bhagalpur',        6),
-    ('BHO', 'Bhojpur',          7),
-    ('BUX', 'Buxar',            8),
-    ('DAR', 'Darbhanga',        9),
-    ('ECP', 'East Champaran',  10),
-    ('GAY', 'Gaya',            11),
-    ('GOP', 'Gopalganj',       12),
-    ('JAM', 'Jamui',           13),
-    ('JEH', 'Jehanabad',       14),
-    ('KAI', 'Kaimur',          15),
-    ('KAT', 'Katihar',         16),
-    ('KHG', 'Khagaria',        17),
-    ('KIS', 'Kishanganj',      18),
-    ('LAK', 'Lakhisarai',      19),
-    ('MDH', 'Madhepura',       20),
-    ('MDB', 'Madhubani',       21),
-    ('MUN', 'Munger',          22),
-    ('MUZ', 'Muzaffarpur',     23),
-    ('NAL', 'Nalanda',         24),
-    ('NAW', 'Nawada',          25),
-    ('PAT', 'Patna',           26),
-    ('PUR', 'Purnia',          27),
-    ('ROH', 'Rohtas',          28),
-    ('SAH', 'Saharsa',         29),
-    ('SAM', 'Samastipur',      30),
-    ('SAR', 'Saran',           31),
-    ('SHE', 'Sheikhpura',     32),
-    ('SHO', 'Sheohar',        33),
-    ('SIT', 'Sitamarhi',       34),
-    ('SIW', 'Siwan',           35),
-    ('SUP', 'Supaul',          36),
-    ('VAI', 'Vaishali',        37),
-    ('WCP', 'West Champaran',  38)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'BR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — CHHATTISGARH (33 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('BAL', 'Balod',                1),
-    ('BLP', 'Baloda Bazar',         2),
-    ('BLR', 'Balrampur',            3),
-    ('BST', 'Bastar',               4),
-    ('BEM', 'Bemetara',             5),
-    ('BIJ', 'Bijapur',              6),
-    ('BIL', 'Bilaspur',             7),
-    ('DAN', 'Dantewada',            8),
-    ('DHM', 'Dhamtari',             9),
-    ('DUR', 'Durg',                10),
-    ('GPB', 'Gariaband',           11),
-    ('GRR', 'Gaurela-Pendra-Marwahi', 12),
-    ('JAN', 'Janjgir-Champa',      13),
-    ('JAS', 'Jashpur',             14),
-    ('KBR', 'Kabirdham',           15),
-    ('KAN', 'Kanker',              16),
-    ('KHA', 'Khairagarh-Chhuikhadan-Gandai', 17),
-    ('KOD', 'Kondagaon',           18),
-    ('KOR', 'Korba',               19),
-    ('KRI', 'Koriya',              20),
-    ('MAH', 'Mahasamund',          21),
-    ('MAN', 'Manendragarh-Chirmiri-Bharatpur', 22),
-    ('MOH', 'Mohla-Manpur-Ambagarh Chowki', 23),
-    ('MUN', 'Mungeli',             24),
-    ('NAR', 'Narayanpur',          25),
-    ('RAI', 'Raipur',              26),
-    ('RGR', 'Raigarh',             27),
-    ('RJN', 'Rajnandgaon',         28),
-    ('SAK', 'Sakti',               29),
-    ('SAR', 'Sarangarh-Bilaigarh', 30),
-    ('SUK', 'Sukma',               31),
-    ('SUR', 'Surajpur',            32),
-    ('SGJ', 'Surguja',             33)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'CG'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — GOA (2 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('NGO', 'North Goa', 1),
-    ('SGO', 'South Goa', 2)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'GA'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — GUJARAT (33 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AHM', 'Ahmedabad',       1),
-    ('AMR', 'Amreli',          2),
-    ('ANA', 'Anand',           3),
-    ('ARV', 'Aravalli',        4),
-    ('BAN', 'Banaskantha',     5),
-    ('BHA', 'Bharuch',         6),
-    ('BHV', 'Bhavnagar',       7),
-    ('BOT', 'Botad',           8),
-    ('CHH', 'Chhota Udaipur',  9),
-    ('DAH', 'Dahod',          10),
-    ('DAN', 'Dang',           11),
-    ('DEV', 'Devbhumi Dwarka',12),
-    ('GAN', 'Gandhinagar',    13),
-    ('GIR', 'Gir Somnath',    14),
-    ('JAM', 'Jamnagar',       15),
-    ('JUN', 'Junagadh',       16),
-    ('KAC', 'Kachchh',        17),
-    ('KHE', 'Kheda',          18),
-    ('MAH', 'Mahisagar',      19),
-    ('MEH', 'Mehsana',        20),
-    ('MOR', 'Morbi',          21),
-    ('NAR', 'Narmada',        22),
-    ('NAV', 'Navsari',        23),
-    ('PAN', 'Panchmahal',     24),
-    ('PAT', 'Patan',          25),
-    ('POR', 'Porbandar',      26),
-    ('RAJ', 'Rajkot',         27),
-    ('SAB', 'Sabarkantha',    28),
-    ('SUR', 'Surat',          29),
-    ('SRN', 'Surendranagar',  30),
-    ('TAP', 'Tapi',           31),
-    ('VAD', 'Vadodara',       32),
-    ('VAL', 'Valsad',         33)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'GJ'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — HARYANA (22 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AMB', 'Ambala',          1),
-    ('BHI', 'Bhiwani',         2),
-    ('CHA', 'Charkhi Dadri',   3),
-    ('FAR', 'Faridabad',       4),
-    ('FAT', 'Fatehabad',       5),
-    ('GUR', 'Gurugram',        6),
-    ('HIS', 'Hisar',           7),
-    ('JHA', 'Jhajjar',         8),
-    ('JIN', 'Jind',            9),
-    ('KAI', 'Kaithal',        10),
-    ('KAR', 'Karnal',         11),
-    ('KUR', 'Kurukshetra',    12),
-    ('MAH', 'Mahendragarh',   13),
-    ('NUH', 'Nuh',            14),
-    ('PAL', 'Palwal',         15),
-    ('PAN', 'Panchkula',      16),
-    ('PNP', 'Panipat',        17),
-    ('REW', 'Rewari',         18),
-    ('ROH', 'Rohtak',         19),
-    ('SIR', 'Sirsa',          20),
-    ('SON', 'Sonipat',        21),
-    ('YAM', 'Yamunanagar',    22)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'HR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — HIMACHAL PRADESH (12 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('BIL', 'Bilaspur',        1),
-    ('CHA', 'Chamba',          2),
-    ('HAM', 'Hamirpur',        3),
-    ('KAN', 'Kangra',          4),
-    ('KIN', 'Kinnaur',         5),
-    ('KUL', 'Kullu',           6),
-    ('LAH', 'Lahaul and Spiti', 7),
-    ('MAN', 'Mandi',           8),
-    ('SHI', 'Shimla',          9),
-    ('SIR', 'Sirmaur',        10),
-    ('SOL', 'Solan',          11),
-    ('UNA', 'Una',            12)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'HP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — JHARKHAND (24 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('BOK', 'Bokaro',           1),
-    ('CHA', 'Chatra',           2),
-    ('DEO', 'Deoghar',          3),
-    ('DHN', 'Dhanbad',          4),
-    ('DUM', 'Dumka',            5),
-    ('EAS', 'East Singhbhum',   6),
-    ('GAR', 'Garhwa',           7),
-    ('GIR', 'Giridih',          8),
-    ('GOD', 'Godda',            9),
-    ('GUM', 'Gumla',           10),
-    ('HAZ', 'Hazaribagh',      11),
-    ('JAM', 'Jamtara',         12),
-    ('KHU', 'Khunti',          13),
-    ('KOD', 'Koderma',         14),
-    ('LAT', 'Latehar',         15),
-    ('LOH', 'Lohardaga',       16),
-    ('PAK', 'Pakur',           17),
-    ('PAL', 'Palamu',          18),
-    ('RAM', 'Ramgarh',         19),
-    ('RAN', 'Ranchi',          20),
-    ('SAH', 'Sahebganj',       21),
-    ('SER', 'Seraikela Kharsawan', 22),
-    ('SIM', 'Simdega',         23),
-    ('WES', 'West Singhbhum',  24)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'JH'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — KARNATAKA (31 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('BGL', 'Bagalkot',             1),
-    ('BLU', 'Bengaluru Urban',      2),
-    ('BLR', 'Bengaluru Rural',      3),
-    ('BEL', 'Belagavi',             4),
-    ('BLY', 'Ballari',              5),
-    ('BID', 'Bidar',                6),
-    ('CKM', 'Chamarajanagar',       7),
-    ('CKB', 'Chikkaballapura',      8),
-    ('CKG', 'Chikkamagaluru',       9),
-    ('CTD', 'Chitradurga',         10),
-    ('DVG', 'Davangere',           11),
-    ('DWD', 'Dharwad',             12),
-    ('GAD', 'Gadag',               13),
-    ('HAS', 'Hassan',              14),
-    ('HVR', 'Haveri',              15),
-    ('KLB', 'Kalaburagi',          16),
-    ('KDG', 'Kodagu',              17),
-    ('KOL', 'Kolar',               18),
-    ('KOP', 'Koppal',              19),
-    ('MND', 'Mandya',              20),
-    ('MYS', 'Mysuru',              21),
-    ('RCR', 'Raichur',             22),
-    ('RAM', 'Ramanagara',          23),
-    ('SMG', 'Shivamogga',          24),
-    ('TUM', 'Tumakuru',            25),
-    ('UDP', 'Udupi',              26),
-    ('UKD', 'Uttara Kannada',      27),
-    ('VJN', 'Vijayapura',          28),
-    ('YAD', 'Yadgir',             29),
-    ('DKN', 'Dakshina Kannada',    30),
-    ('VBN', 'Vijayanagara',        31)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'KA'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — KERALA (14 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ALP', 'Alappuzha',        1),
-    ('ERN', 'Ernakulam',        2),
-    ('IDU', 'Idukki',           3),
-    ('KAN', 'Kannur',           4),
-    ('KAS', 'Kasaragod',        5),
-    ('KOL', 'Kollam',           6),
-    ('KOT', 'Kottayam',         7),
-    ('KOZ', 'Kozhikode',        8),
-    ('MAL', 'Malappuram',       9),
-    ('PAL', 'Palakkad',        10),
-    ('PTN', 'Pathanamthitta',  11),
-    ('TVM', 'Thiruvananthapuram', 12),
-    ('TSR', 'Thrissur',        13),
-    ('WYD', 'Wayanad',         14)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'KL'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — MADHYA PRADESH (55 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AGR', 'Agar Malwa',       1),
-    ('ALI', 'Alirajpur',        2),
-    ('ANU', 'Anuppur',          3),
-    ('ASH', 'Ashoknagar',       4),
-    ('BAL', 'Balaghat',         5),
-    ('BAR', 'Barwani',          6),
-    ('BET', 'Betul',            7),
-    ('BHI', 'Bhind',            8),
-    ('BHO', 'Bhopal',           9),
-    ('BUR', 'Burhanpur',       10),
-    ('CHH', 'Chhatarpur',      11),
-    ('CHI', 'Chhindwara',      12),
-    ('DAM', 'Damoh',           13),
-    ('DAT', 'Datia',           14),
-    ('DEW', 'Dewas',           15),
-    ('DHA', 'Dhar',            16),
-    ('DIN', 'Dindori',         17),
-    ('GUN', 'Guna',            18),
-    ('GWL', 'Gwalior',         19),
-    ('HAR', 'Harda',           20),
-    ('HOS', 'Hoshangabad',     21),
-    ('IND', 'Indore',          22),
-    ('JAB', 'Jabalpur',        23),
-    ('JHA', 'Jhabua',          24),
-    ('KAT', 'Katni',           25),
-    ('KHD', 'Khandwa',         26),
-    ('KHG', 'Khargone',        27),
-    ('MAN', 'Mandla',          28),
-    ('MDS', 'Mandsaur',        29),
-    ('MOR', 'Morena',          30),
-    ('NAR', 'Narsinghpur',     31),
-    ('NEE', 'Neemuch',         32),
-    ('NWD', 'Niwari',          33),
-    ('PAN', 'Panna',           34),
-    ('RAI', 'Raisen',          35),
-    ('RAJ', 'Rajgarh',         36),
-    ('RAT', 'Ratlam',          37),
-    ('REW', 'Rewa',            38),
-    ('SAG', 'Sagar',           39),
-    ('SAT', 'Satna',           40),
-    ('SEH', 'Sehore',          41),
-    ('SEO', 'Seoni',           42),
-    ('SHA', 'Shahdol',         43),
-    ('SHJ', 'Shajapur',        44),
-    ('SHP', 'Sheopur',         45),
-    ('SHV', 'Shivpuri',        46),
-    ('SID', 'Sidhi',           47),
-    ('SIN', 'Singrauli',       48),
-    ('TIK', 'Tikamgarh',       49),
-    ('UJJ', 'Ujjain',          50),
-    ('UMA', 'Umaria',          51),
-    ('VID', 'Vidisha',         52),
-    ('MKR', 'Maihar',          53),
-    ('NAG', 'Nagda',           54),
-    ('PNH', 'Pandhurna',       55)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — MAHARASHTRA (36 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AHN', 'Ahmednagar',       1),
-    ('AKO', 'Akola',            2),
-    ('AMR', 'Amravati',         3),
-    ('AUR', 'Aurangabad',       4),
-    ('BEE', 'Beed',             5),
-    ('BHN', 'Bhandara',         6),
-    ('BUL', 'Buldhana',         7),
-    ('CHN', 'Chandrapur',       8),
-    ('DHU', 'Dhule',            9),
-    ('GAD', 'Gadchiroli',      10),
-    ('GON', 'Gondia',          11),
-    ('HIN', 'Hingoli',         12),
-    ('JAL', 'Jalgaon',         13),
-    ('JLN', 'Jalna',           14),
-    ('KOL', 'Kolhapur',        15),
-    ('LAT', 'Latur',           16),
-    ('MUM', 'Mumbai City',     17),
-    ('MBS', 'Mumbai Suburban',  18),
-    ('NGP', 'Nagpur',          19),
-    ('NAN', 'Nanded',          20),
-    ('NDB', 'Nandurbar',       21),
-    ('NSK', 'Nashik',          22),
-    ('OSM', 'Osmanabad',       23),
-    ('PAL', 'Palghar',         24),
-    ('PRB', 'Parbhani',        25),
-    ('PUN', 'Pune',            26),
-    ('RAI', 'Raigad',          27),
-    ('RTN', 'Ratnagiri',       28),
-    ('SNG', 'Sangli',          29),
-    ('SAT', 'Satara',          30),
-    ('SIN', 'Sindhudurg',      31),
-    ('SOL', 'Solapur',         32),
-    ('THN', 'Thane',           33),
-    ('WAR', 'Wardha',          34),
-    ('WAS', 'Washim',          35),
-    ('YAV', 'Yavatmal',        36)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MH'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — MANIPUR (16 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('BIS', 'Bishnupur',        1),
-    ('CHA', 'Chandel',          2),
-    ('CHU', 'Churachandpur',    3),
-    ('IMP', 'Imphal East',      4),
-    ('IMW', 'Imphal West',      5),
-    ('JIR', 'Jiribam',          6),
-    ('KAK', 'Kakching',         7),
-    ('KAM', 'Kamjong',          8),
-    ('KAN', 'Kangpokpi',        9),
-    ('NNY', 'Noney',           10),
-    ('PHE', 'Pherzawl',        11),
-    ('SEK', 'Senapati',        12),
-    ('TAM', 'Tamenglong',      13),
-    ('TEN', 'Tengnoupal',      14),
-    ('THO', 'Thoubal',         15),
-    ('UKH', 'Ukhrul',          16)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MN'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — MEGHALAYA (12 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('EGH', 'East Garo Hills',         1),
-    ('EJH', 'East Jaintia Hills',       2),
-    ('EKH', 'East Khasi Hills',         3),
-    ('NGA', 'North Garo Hills',         4),
-    ('RIB', 'Ri Bhoi',                  5),
-    ('SGA', 'South Garo Hills',         6),
-    ('SWG', 'South West Garo Hills',    7),
-    ('SWK', 'South West Khasi Hills',   8),
-    ('WGA', 'West Garo Hills',          9),
-    ('WJH', 'West Jaintia Hills',      10),
-    ('WKH', 'West Khasi Hills',        11),
-    ('EKJ', 'Eastern West Khasi Hills',12)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'ML'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — MIZORAM (11 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AIZ', 'Aizawl',          1),
-    ('CHA', 'Champhai',        2),
-    ('HNA', 'Hnahthial',       3),
-    ('KHW', 'Khawzawl',        4),
-    ('KOL', 'Kolasib',         5),
-    ('LAW', 'Lawngtlai',       6),
-    ('LUN', 'Lunglei',         7),
-    ('MAM', 'Mamit',           8),
-    ('SAI', 'Saitual',         9),
-    ('SER', 'Serchhip',       10),
-    ('SIH', 'Siaha',          11)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'MZ'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — NAGALAND (16 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('CHU', 'Chumoukedima',     1),
-    ('DIM', 'Dimapur',          2),
-    ('KIP', 'Kiphire',          3),
-    ('KOH', 'Kohima',           4),
-    ('LON', 'Longleng',         5),
-    ('MOK', 'Mokokchung',       6),
-    ('MON', 'Mon',              7),
-    ('NOR', 'Noklak',           8),
-    ('PER', 'Peren',            9),
-    ('PHE', 'Phek',            10),
-    ('SHA', 'Shamator',        11),
-    ('TUE', 'Tuensang',        12),
-    ('TSM', 'Tseminyu',        13),
-    ('WOK', 'Wokha',           14),
-    ('ZUN', 'Zunheboto',       15),
-    ('NIU', 'Niuland',         16)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'NL'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — PUNJAB (23 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AMR', 'Amritsar',         1),
-    ('BAR', 'Barnala',          2),
-    ('BAT', 'Bathinda',         3),
-    ('FAR', 'Faridkot',        4),
-    ('FAZ', 'Fazilka',          5),
-    ('FER', 'Ferozepur',        6),
-    ('GUR', 'Gurdaspur',        7),
-    ('HOS', 'Hoshiarpur',       8),
-    ('JAL', 'Jalandhar',        9),
-    ('KAP', 'Kapurthala',      10),
-    ('LUD', 'Ludhiana',        11),
-    ('MAL', 'Malerkotla',      12),
-    ('MAN', 'Mansa',           13),
-    ('MOG', 'Moga',            14),
-    ('MUK', 'Muktsar',         15),
-    ('NAW', 'Nawanshahr',      16),
-    ('PAT', 'Pathankot',       17),
-    ('PAL', 'Patiala',         18),
-    ('RUP', 'Rupnagar',        19),
-    ('SAS', 'SAS Nagar',       20),
-    ('SAN', 'Sangrur',         21),
-    ('TAR', 'Tarn Taran',      22),
-    ('SBN', 'Sri Muktsar Sahib', 23)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'PB'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — RAJASTHAN (50 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AJM', 'Ajmer',            1),
-    ('ALW', 'Alwar',            2),
-    ('ANP', 'Anupgarh',         3),
-    ('BAN', 'Banswara',         4),
-    ('BAR', 'Baran',            5),
-    ('BAM', 'Barmer',           6),
-    ('BEA', 'Beawar',           7),
-    ('BHA', 'Bharatpur',        8),
-    ('BHI', 'Bhilwara',         9),
-    ('BIK', 'Bikaner',         10),
-    ('BUN', 'Bundi',           11),
-    ('CHI', 'Chittorgarh',     12),
-    ('CHU', 'Churu',           13),
-    ('DAU', 'Dausa',           14),
-    ('DEE', 'Deedwana-Kuchaman', 15),
-    ('DHO', 'Dholpur',         16),
-    ('DUN', 'Dungarpur',       17),
-    ('DUS', 'Dudu',            18),
-    ('GAN', 'Gangapur City',   19),
-    ('HAN', 'Hanumangarh',     20),
-    ('JAI', 'Jaipur',          21),
-    ('JAR', 'Jaipur Rural',    22),
-    ('JAS', 'Jaisalmer',       23),
-    ('JAL', 'Jalore',          24),
-    ('JHU', 'Jhunjhunu',       25),
-    ('JOD', 'Jodhpur',         26),
-    ('JDR', 'Jodhpur Rural',   27),
-    ('KAR', 'Karauli',         28),
-    ('KET', 'Kekri',           29),
-    ('KHA', 'Khairthal-Tijara', 30),
-    ('KOT', 'Kota',            31),
-    ('NAG', 'Nagaur',          32),
-    ('NWA', 'Neem Ka Thana',   33),
-    ('PAL', 'Pali',            34),
-    ('PRA', 'Pratapgarh',      35),
-    ('RAJ', 'Rajsamand',       36),
-    ('SAL', 'Salumbar',        37),
-    ('SAN', 'Sanchore',        38),
-    ('SAW', 'Sawai Madhopur',  39),
-    ('SHA', 'Shahpura',        40),
-    ('SHE', 'Shekhawati',      41),
-    ('SIK', 'Sikar',           42),
-    ('SIR', 'Sirohi',          43),
-    ('SRI', 'Sri Ganganagar',  44),
-    ('TON', 'Tonk',            45),
-    ('UDA', 'Udaipur',         46),
-    ('PHO', 'Phalodi',         47),
-    ('SGN', 'Ganganagar',      48),
-    ('BAL', 'Balotra',         49),
-    ('KPB', 'Kotputli-Behror', 50)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'RJ'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — SIKKIM (6 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('EAS', 'East Sikkim',      1),
-    ('NOR', 'North Sikkim',     2),
-    ('PAK', 'Pakyong',          3),
-    ('SOR', 'Soreng',           4),
-    ('SOU', 'South Sikkim',     5),
-    ('WES', 'West Sikkim',      6)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'SK'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — TAMIL NADU (38 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ARI', 'Ariyalur',             1),
-    ('CHG', 'Chengalpattu',         2),
-    ('CHE', 'Chennai',              3),
-    ('COI', 'Coimbatore',           4),
-    ('CUD', 'Cuddalore',            5),
-    ('DHR', 'Dharmapuri',            6),
-    ('DIN', 'Dindigul',              7),
-    ('ERO', 'Erode',                 8),
-    ('KAL', 'Kallakurichi',          9),
-    ('KAN', 'Kanchipuram',          10),
-    ('KAR', 'Karur',                11),
-    ('KRI', 'Krishnagiri',          12),
-    ('MAD', 'Madurai',              13),
-    ('MAY', 'Mayiladuthurai',       14),
-    ('NAG', 'Nagapattinam',         15),
-    ('KAM', 'Kanyakumari',          16),
-    ('NAM', 'Namakkal',             17),
-    ('NIL', 'Nilgiris',             18),
-    ('PER', 'Perambalur',           19),
-    ('PUD', 'Pudukkottai',          20),
-    ('RAM', 'Ramanathapuram',       21),
-    ('RAN', 'Ranipet',              22),
-    ('SAL', 'Salem',                23),
-    ('SIV', 'Sivagangai',           24),
-    ('TEN', 'Tenkasi',              25),
-    ('THA', 'Thanjavur',            26),
-    ('THE', 'Theni',                27),
-    ('TIR', 'Tiruvallur',           28),
-    ('TRP', 'Tirupattur',           29),
-    ('TRC', 'Tiruchirappalli',      30),
-    ('TRN', 'Tirunelveli',          31),
-    ('TVN', 'Tiruvannamalai',       32),
-    ('TUT', 'Thoothukudi',          33),
-    ('VEL', 'Vellore',              34),
-    ('VIL', 'Villupuram',           35),
-    ('VIR', 'Virudhunagar',         36),
-    ('TRV', 'Tiruvarur',            37),
-    ('TNP', 'Tenkasi South',        38)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'TN'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — TELANGANA (33 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ADI', 'Adilabad',              1),
-    ('BHD', 'Bhadradri Kothagudem', 2),
-    ('HYD', 'Hyderabad',            3),
-    ('JAG', 'Jagtial',              4),
-    ('JAN', 'Jangaon',              5),
-    ('JBC', 'Jayashankar Bhupalpally', 6),
-    ('JOG', 'Jogulamba Gadwal',     7),
-    ('KAM', 'Kamareddy',            8),
-    ('KAR', 'Karimnagar',           9),
-    ('KHM', 'Khammam',             10),
-    ('KMB', 'Kumuram Bheem Asifabad', 11),
-    ('MAH', 'Mahabubabad',         12),
-    ('MHN', 'Mahabubnagar',        13),
-    ('MAN', 'Mancherial',          14),
-    ('MDK', 'Medak',               15),
-    ('MCL', 'Medchal-Malkajgiri',  16),
-    ('MUL', 'Mulugu',              17),
-    ('NAG', 'Nagarkurnool',        18),
-    ('NAL', 'Nalgonda',            19),
-    ('NAR', 'Narayanpet',          20),
-    ('NIR', 'Nirmal',              21),
-    ('NIZ', 'Nizamabad',           22),
-    ('PED', 'Peddapalli',          23),
-    ('RJN', 'Rajanna Sircilla',    24),
-    ('RNG', 'Rangareddy',          25),
-    ('SAN', 'Sangareddy',          26),
-    ('SID', 'Siddipet',            27),
-    ('SUR', 'Suryapet',            28),
-    ('VIK', 'Vikarabad',           29),
-    ('WAN', 'Wanaparthy',          30),
-    ('WAR', 'Warangal',            31),
-    ('HNK', 'Hanumakonda',         32),
-    ('YDB', 'Yadadri Bhuvanagiri', 33)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'TS'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — TRIPURA (8 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('DHT', 'Dhalai',           1),
-    ('GOM', 'Gomati',           2),
-    ('KHW', 'Khowai',           3),
-    ('NRT', 'North Tripura',    4),
-    ('SEP', 'Sepahijala',       5),
-    ('SOT', 'South Tripura',    6),
-    ('UNA', 'Unakoti',          7),
-    ('WET', 'West Tripura',     8)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'TR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — UTTAR PRADESH (75 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('AGR', 'Agra',              1),
-    ('ALG', 'Aligarh',           2),
-    ('ALD', 'Prayagraj',         3),
-    ('AMB', 'Ambedkar Nagar',    4),
-    ('AME', 'Amethi',            5),
-    ('AMR', 'Amroha',            6),
-    ('AUR', 'Auraiya',           7),
-    ('AYO', 'Ayodhya',           8),
-    ('AZA', 'Azamgarh',          9),
-    ('BAD', 'Badaun',           10),
-    ('BAG', 'Baghpat',          11),
-    ('BAH', 'Bahraich',         12),
-    ('BAL', 'Ballia',           13),
-    ('BLR', 'Balrampur',        14),
-    ('BAN', 'Banda',            15),
-    ('BAR', 'Barabanki',        16),
-    ('BRE', 'Bareilly',         17),
-    ('BAS', 'Basti',            18),
-    ('BIJ', 'Bijnor',           19),
-    ('BUD', 'Bulandshahr',      20),
-    ('CHA', 'Chandauli',        21),
-    ('CHI', 'Chitrakoot',       22),
-    ('DEO', 'Deoria',           23),
-    ('ETH', 'Etah',             24),
-    ('ETA', 'Etawah',           25),
-    ('FAR', 'Farrukhabad',      26),
-    ('FAT', 'Fatehpur',         27),
-    ('FIR', 'Firozabad',        28),
-    ('GBN', 'Gautam Buddha Nagar', 29),
-    ('GHA', 'Ghaziabad',        30),
-    ('GHZ', 'Ghazipur',         31),
-    ('GON', 'Gonda',            32),
-    ('GOR', 'Gorakhpur',        33),
-    ('HAM', 'Hamirpur',         34),
-    ('HAP', 'Hapur',            35),
-    ('HAR', 'Hardoi',           36),
-    ('HAT', 'Hathras',          37),
-    ('JAL', 'Jalaun',           38),
-    ('JAU', 'Jaunpur',          39),
-    ('JHA', 'Jhansi',           40),
-    ('KAN', 'Kannauj',          41),
-    ('KNP', 'Kanpur Dehat',     42),
-    ('KNU', 'Kanpur Nagar',     43),
-    ('KAS', 'Kasganj',          44),
-    ('KAU', 'Kaushambi',        45),
-    ('KUS', 'Kushinagar',       46),
-    ('LAK', 'Lakhimpur Kheri',  47),
-    ('LAL', 'Lalitpur',         48),
-    ('LUC', 'Lucknow',          49),
-    ('MAH', 'Maharajganj',      50),
-    ('MAI', 'Mainpuri',         51),
-    ('MAT', 'Mathura',          52),
-    ('MAU', 'Mau',              53),
-    ('MER', 'Meerut',           54),
-    ('MIR', 'Mirzapur',         55),
-    ('MOR', 'Moradabad',        56),
-    ('MUZ', 'Muzaffarnagar',    57),
-    ('PIL', 'Pilibhit',         58),
-    ('PRA', 'Pratapgarh',       59),
-    ('RAB', 'Rae Bareli',       60),
-    ('RAM', 'Rampur',           61),
-    ('SAH', 'Saharanpur',       62),
-    ('SAM', 'Sambhal',          63),
-    ('SKP', 'Sant Kabir Nagar', 64),
-    ('SRN', 'Sant Ravidas Nagar', 65),
-    ('SHA', 'Shahjahanpur',     66),
-    ('SHR', 'Shamli',           67),
-    ('SHW', 'Shravasti',        68),
-    ('SDD', 'Siddharthnagar',   69),
-    ('SIT', 'Sitapur',          70),
-    ('SON', 'Sonbhadra',        71),
-    ('SUL', 'Sultanpur',        72),
-    ('UNN', 'Unnao',            73),
-    ('VAR', 'Varanasi',         74),
-    ('MOH', 'Mohamdi',          75)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'UP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — UTTARAKHAND (13 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ALM', 'Almora',           1),
-    ('BAG', 'Bageshwar',        2),
-    ('CHA', 'Chamoli',          3),
-    ('CHM', 'Champawat',        4),
-    ('DEH', 'Dehradun',         5),
-    ('HAR', 'Haridwar',         6),
-    ('NTL', 'Nainital',         7),
-    ('PPG', 'Pauri Garhwal',    8),
-    ('PIT', 'Pithoragarh',      9),
-    ('RUD', 'Rudraprayag',     10),
-    ('TGW', 'Tehri Garhwal',   11),
-    ('USK', 'Udham Singh Nagar', 12),
-    ('UTK', 'Uttarkashi',      13)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'UK'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — WEST BENGAL (23 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ALI', 'Alipurduar',           1),
-    ('BAN', 'Bankura',              2),
-    ('BIR', 'Birbhum',              3),
-    ('COO', 'Cooch Behar',          4),
-    ('DAK', 'Dakshin Dinajpur',     5),
-    ('DAR', 'Darjeeling',           6),
-    ('HOO', 'Hooghly',              7),
-    ('HOW', 'Howrah',               8),
-    ('JAL', 'Jalpaiguri',           9),
-    ('JHG', 'Jhargram',            10),
-    ('KAL', 'Kalimpong',           11),
-    ('KOL', 'Kolkata',             12),
-    ('MAL', 'Malda',               13),
-    ('MUR', 'Murshidabad',         14),
-    ('NAD', 'Nadia',               15),
-    ('N24', 'North 24 Parganas',   16),
-    ('PME', 'Paschim Medinipur',   17),
-    ('PBA', 'Paschim Bardhaman',   18),
-    ('PUM', 'Purba Medinipur',     19),
-    ('PUB', 'Purba Bardhaman',     20),
-    ('PUR', 'Purulia',             21),
-    ('S24', 'South 24 Parganas',   22),
-    ('UTD', 'Uttar Dinajpur',      23)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'WB'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — DELHI (11 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('CEN', 'Central Delhi',       1),
-    ('EAS', 'East Delhi',          2),
-    ('NEW', 'New Delhi',           3),
-    ('NOR', 'North Delhi',         4),
-    ('NWD', 'North West Delhi',    5),
-    ('NED', 'North East Delhi',    6),
-    ('SHA', 'Shahdara',            7),
-    ('SOU', 'South Delhi',         8),
-    ('SED', 'South East Delhi',    9),
-    ('SWD', 'South West Delhi',   10),
-    ('WES', 'West Delhi',         11)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'DL'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — JAMMU AND KASHMIR (20 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('ANA', 'Anantnag',         1),
-    ('BAN', 'Bandipora',        2),
-    ('BAR', 'Baramulla',        3),
-    ('BUD', 'Budgam',           4),
-    ('DOD', 'Doda',             5),
-    ('GAN', 'Ganderbal',        6),
-    ('JAM', 'Jammu',            7),
-    ('KAT', 'Kathua',           8),
-    ('KIS', 'Kishtwar',         9),
-    ('KUL', 'Kulgam',          10),
-    ('KUP', 'Kupwara',         11),
-    ('PUL', 'Pulwama',         12),
-    ('PUN', 'Punch',           13),
-    ('RAJ', 'Rajouri',         14),
-    ('RAM', 'Ramban',          15),
-    ('REA', 'Reasi',           16),
-    ('SAM', 'Samba',           17),
-    ('SHO', 'Shopian',         18),
-    ('SRI', 'Srinagar',        19),
-    ('UDH', 'Udhampur',        20)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'JK'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — LADAKH (2 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('LEH', 'Leh',     1),
-    ('KAR', 'Kargil',  2)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'LA'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — CHANDIGARH (1 district)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('CHD', 'Chandigarh', 1)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'CH'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — PUDUCHERRY (4 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('PUD', 'Puducherry',   1),
-    ('KAR', 'Karaikal',     2),
-    ('MAH', 'Mahe',         3),
-    ('YAN', 'Yanam',        4)
-) AS v(district_code, district_name, display_order)
-WHERE s.state_code = 'PY'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
-
--- =========================================================
--- INDIA — ANDAMAN AND NICOBAR ISLANDS (3 districts)
--- =========================================================
-
-INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
-FROM nss.state s
-CROSS JOIN (VALUES
-    ('NMI', 'Nicobar',              1),
-    ('NAN', 'North and Middle Andaman', 2),
-    ('SAN', 'South Andaman',        3)
-) AS v(district_code, district_name, display_order)
+    ('603', 'Nicobars', 1),
+    ('632', 'North And Middle Andaman', 2),
+    ('602', 'South Andamans', 3)
+) AS v(dcode, dname, ord)
 WHERE s.state_code = 'AN'
 ON CONFLICT (state_pk, district_code) DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
--- =========================================================
--- INDIA — DADRA AND NAGAR HAVELI AND DAMAN AND DIU (3 districts)
--- =========================================================
-
+-- ---- AP — 28 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
+SELECT s.state_pk, v.dcode, v.dname, v.ord
 FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
 CROSS JOIN (VALUES
-    ('DNH', 'Dadra and Nagar Haveli', 1),
-    ('DAM', 'Daman',                  2),
-    ('DIU', 'Diu',                    3)
-) AS v(district_code, district_name, display_order)
+    ('745', 'Alluri Sitharama Raju', 1),
+    ('744', 'Anakapalli', 2),
+    ('502', 'Ananthapuramu', 3),
+    ('753', 'Annamayya', 4),
+    ('750', 'Bapatla', 5),
+    ('503', 'Chittoor', 6),
+    ('747', 'Dr. B.R. Ambedkar Konaseema', 7),
+    ('505', 'East Godavari', 8),
+    ('748', 'Eluru', 9),
+    ('506', 'Guntur', 10),
+    ('746', 'Kakinada', 11),
+    ('510', 'Krishna', 12),
+    ('511', 'Kurnool', 13),
+    ('790', 'Markapuram', 14),
+    ('755', 'Nandyal', 15),
+    ('749', 'Ntr', 16),
+    ('751', 'Palnadu', 17),
+    ('743', 'Parvathipuram Manyam', 18),
+    ('791', 'Polavaram', 19),
+    ('517', 'Prakasam', 20),
+    ('515', 'Sri Potti Sriramulu Nellore', 21),
+    ('754', 'Sri Sathya Sai', 22),
+    ('519', 'Srikakulam', 23),
+    ('752', 'Tirupati', 24),
+    ('520', 'Visakhapatnam', 25),
+    ('521', 'Vizianagaram', 26),
+    ('523', 'West Godavari', 27),
+    ('504', 'Y.S.R. Kadapa', 28)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'AP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- AR — 27 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('628', 'Anjaw', 1),
+    ('787', 'Bichom', 2),
+    ('229', 'Changlang', 3),
+    ('230', 'Dibang Valley', 4),
+    ('231', 'East Kameng', 5),
+    ('232', 'East Siang', 6),
+    ('718', 'Kamle', 7),
+    ('786', 'Keyi Panyor', 8),
+    ('677', 'Kra Daadi', 9),
+    ('233', 'Kurung Kumey', 10),
+    ('724', 'Leparada', 11),
+    ('234', 'Lohit', 12),
+    ('666', 'Longding', 13),
+    ('235', 'Lower Dibang Valley', 14),
+    ('719', 'Lower Siang', 15),
+    ('236', 'Lower Subansiri', 16),
+    ('678', 'Namsai', 17),
+    ('723', 'Pakke Kessang', 18),
+    ('237', 'Papum Pare', 19),
+    ('725', 'Shi Yomi', 20),
+    ('679', 'Siang', 21),
+    ('238', 'Tawang', 22),
+    ('239', 'Tirap', 23),
+    ('240', 'Upper Siang', 24),
+    ('241', 'Upper Subansiri', 25),
+    ('242', 'West Kameng', 26),
+    ('243', 'West Siang', 27)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'AR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- AS — 35 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('739', 'Bajali', 1),
+    ('616', 'Baksa', 2),
+    ('280', 'Barpeta', 3),
+    ('705', 'Biswanath', 4),
+    ('281', 'Bongaigaon', 5),
+    ('282', 'Cachar', 6),
+    ('708', 'Charaideo', 7),
+    ('612', 'Chirang', 8),
+    ('283', 'Darrang', 9),
+    ('284', 'Dhemaji', 10),
+    ('285', 'Dhubri', 11),
+    ('286', 'Dibrugarh', 12),
+    ('299', 'Dima Hasao', 13),
+    ('287', 'Goalpara', 14),
+    ('288', 'Golaghat', 15),
+    ('289', 'Hailakandi', 16),
+    ('709', 'Hojai', 17),
+    ('290', 'Jorhat', 18),
+    ('291', 'Kamrup', 19),
+    ('618', 'Kamrup Metro', 20),
+    ('292', 'Karbi Anglong', 21),
+    ('294', 'Kokrajhar', 22),
+    ('295', 'Lakhimpur', 23),
+    ('706', 'Majuli', 24),
+    ('296', 'Marigaon', 25),
+    ('297', 'Nagaon', 26),
+    ('298', 'Nalbari', 27),
+    ('300', 'Sivasagar', 28),
+    ('301', 'Sonitpur', 29),
+    ('707', 'South Salmara Mancachar', 30),
+    ('293', 'Sribhumi', 31),
+    ('756', 'Tamulpur', 32),
+    ('302', 'Tinsukia', 33),
+    ('617', 'Udalguri', 34),
+    ('710', 'West Karbi Anglong', 35)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'AS'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- BR — 38 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('188', 'Araria', 1),
+    ('611', 'Arwal', 2),
+    ('189', 'Aurangabad', 3),
+    ('190', 'Banka', 4),
+    ('191', 'Begusarai', 5),
+    ('192', 'Bhagalpur', 6),
+    ('193', 'Bhojpur', 7),
+    ('194', 'Buxar', 8),
+    ('195', 'Darbhanga', 9),
+    ('196', 'Gaya', 10),
+    ('197', 'Gopalganj', 11),
+    ('198', 'Jamui', 12),
+    ('199', 'Jehanabad', 13),
+    ('200', 'Kaimur (Bhabua)', 14),
+    ('201', 'Katihar', 15),
+    ('202', 'Khagaria', 16),
+    ('203', 'Kishanganj', 17),
+    ('204', 'Lakhisarai', 18),
+    ('205', 'Madhepura', 19),
+    ('206', 'Madhubani', 20),
+    ('207', 'Munger', 21),
+    ('208', 'Muzaffarpur', 22),
+    ('209', 'Nalanda', 23),
+    ('210', 'Nawada', 24),
+    ('211', 'Pashchim Champaran', 25),
+    ('212', 'Patna', 26),
+    ('213', 'Purbi Champaran', 27),
+    ('214', 'Purnia', 28),
+    ('215', 'Rohtas', 29),
+    ('216', 'Saharsa', 30),
+    ('217', 'Samastipur', 31),
+    ('218', 'Saran', 32),
+    ('219', 'Sheikhpura', 33),
+    ('220', 'Sheohar', 34),
+    ('221', 'Sitamarhi', 35),
+    ('222', 'Siwan', 36),
+    ('223', 'Supaul', 37),
+    ('224', 'Vaishali', 38)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'BR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- CG — 33 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('646', 'Balod', 1),
+    ('644', 'Balodabazar-Bhatapara', 2),
+    ('649', 'Balrampur-Ramanujganj', 3),
+    ('374', 'Bastar', 4),
+    ('650', 'Bemetara', 5),
+    ('636', 'Bijapur', 6),
+    ('375', 'Bilaspur', 7),
+    ('376', 'Dakshin Bastar Dantewada', 8),
+    ('377', 'Dhamtari', 9),
+    ('378', 'Durg', 10),
+    ('645', 'Gariyaband', 11),
+    ('734', 'Gaurela-Pendra-Marwahi', 12),
+    ('379', 'Janjgir-Champa', 13),
+    ('380', 'Jashpur', 14),
+    ('382', 'Kabeerdham', 15),
+    ('759', 'Khairagarh-Chhuikhadan-Gandai', 16),
+    ('643', 'Kondagaon', 17),
+    ('383', 'Korba', 18),
+    ('384', 'Korea', 19),
+    ('385', 'Mahasamund', 20),
+    ('760', 'Manendragarh-Chirmiri-Bharatpur(M C B)', 21),
+    ('761', 'Mohla-Manpur-Ambagarh Chouki', 22),
+    ('647', 'Mungeli', 23),
+    ('637', 'Narayanpur', 24),
+    ('386', 'Raigarh', 25),
+    ('387', 'Raipur', 26),
+    ('388', 'Rajnandgaon', 27),
+    ('762', 'Sakti', 28),
+    ('763', 'Sarangarh-Bilaigarh', 29),
+    ('642', 'Sukma', 30),
+    ('648', 'Surajpur', 31),
+    ('389', 'Surguja', 32),
+    ('381', 'Uttar Bastar Kanker', 33)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'CG'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- CH — 1 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('44', 'Chandigarh', 1)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'CH'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- DL — 14 districts ----
+-- 2026-10-02: added Shahdara (LGD code 671) — the original 13-row load
+-- omitted it; two live orphan PINs (110095, 110151) carry district
+-- "SHAHDARA" in the India Post directory with no match until this row
+-- exists (SOL-ARCH-010 Amendment, urban-recovery follow-up).
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('77', 'Central', 1),
+    ('796', 'Central North', 2),
+    ('78', 'East', 3),
+    ('79', 'New Delhi', 4),
+    ('80', 'North', 5),
+    ('81', 'North East', 6),
+    ('82', 'North West', 7),
+    ('795', 'Old Delhi', 8),
+    ('794', 'Outer North', 9),
+    ('83', 'South', 10),
+    ('670', 'South East', 11),
+    ('84', 'South West', 12),
+    ('85', 'West', 13),
+    ('671', 'Shahdara', 14)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'DL'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- DN — 3 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('465', 'Dadra And Nagar Haveli', 1),
+    ('463', 'Daman', 2),
+    ('464', 'Diu', 3)
+) AS v(dcode, dname, ord)
 WHERE s.state_code = 'DN'
 ON CONFLICT (state_pk, district_code) DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
--- =========================================================
--- INDIA — LAKSHADWEEP (1 district)
--- =========================================================
-
+-- ---- GA — 3 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
-SELECT s.state_pk, v.district_code, v.district_name, v.display_order
+SELECT s.state_pk, v.dcode, v.dname, v.ord
 FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
 CROSS JOIN (VALUES
-    ('LKD', 'Lakshadweep', 1)
-) AS v(district_code, district_name, display_order)
+    ('793', 'Kushavati', 1),
+    ('551', 'North Goa', 2),
+    ('552', 'South Goa', 3)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'GA'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- GJ — 34 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('438', 'Ahmedabad', 1),
+    ('439', 'Amreli', 2),
+    ('440', 'Anand', 3),
+    ('672', 'Arvalli', 4),
+    ('441', 'Banas Kantha', 5),
+    ('442', 'Bharuch', 6),
+    ('443', 'Bhavnagar', 7),
+    ('676', 'Botad', 8),
+    ('668', 'Chhotaudepur', 9),
+    ('445', 'Dahod', 10),
+    ('444', 'Dangs', 11),
+    ('674', 'Devbhumi Dwarka', 12),
+    ('446', 'Gandhinagar', 13),
+    ('675', 'Gir Somnath', 14),
+    ('447', 'Jamnagar', 15),
+    ('448', 'Junagadh', 16),
+    ('449', 'Kachchh', 17),
+    ('450', 'Kheda', 18),
+    ('451', 'Mahesana', 19),
+    ('669', 'Mahisagar', 20),
+    ('673', 'Morbi', 21),
+    ('452', 'Narmada', 22),
+    ('453', 'Navsari', 23),
+    ('454', 'Panch Mahals', 24),
+    ('455', 'Patan', 25),
+    ('456', 'Porbandar', 26),
+    ('457', 'Rajkot', 27),
+    ('458', 'Sabar Kantha', 28),
+    ('459', 'Surat', 29),
+    ('460', 'Surendranagar', 30),
+    ('641', 'Tapi', 31),
+    ('461', 'Vadodara', 32),
+    ('462', 'Valsad', 33),
+    ('789', 'Vav-Tharad', 34)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'GJ'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- HP — 12 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('15', 'Bilaspur', 1),
+    ('16', 'Chamba', 2),
+    ('17', 'Hamirpur', 3),
+    ('18', 'Kangra', 4),
+    ('19', 'Kinnaur', 5),
+    ('20', 'Kullu', 6),
+    ('21', 'Lahaul And Spiti', 7),
+    ('22', 'Mandi', 8),
+    ('23', 'Shimla', 9),
+    ('24', 'Sirmaur', 10),
+    ('25', 'Solan', 11),
+    ('26', 'Una', 12)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'HP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- HR — 23 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('58', 'Ambala', 1),
+    ('59', 'Bhiwani', 2),
+    ('701', 'Charkhi Dadri', 3),
+    ('60', 'Faridabad', 4),
+    ('61', 'Fatehabad', 5),
+    ('62', 'Gurugram', 6),
+    ('792', 'Hansi', 7),
+    ('63', 'Hisar', 8),
+    ('64', 'Jhajjar', 9),
+    ('65', 'Jind', 10),
+    ('66', 'Kaithal', 11),
+    ('67', 'Karnal', 12),
+    ('68', 'Kurukshetra', 13),
+    ('69', 'Mahendragarh', 14),
+    ('604', 'Nuh', 15),
+    ('619', 'Palwal', 16),
+    ('70', 'Panchkula', 17),
+    ('71', 'Panipat', 18),
+    ('72', 'Rewari', 19),
+    ('73', 'Rohtak', 20),
+    ('74', 'Sirsa', 21),
+    ('75', 'Sonipat', 22),
+    ('76', 'Yamunanagar', 23)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'HR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- JH — 24 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('322', 'Bokaro', 1),
+    ('323', 'Chatra', 2),
+    ('324', 'Deoghar', 3),
+    ('325', 'Dhanbad', 4),
+    ('326', 'Dumka', 5),
+    ('327', 'East Singhbum', 6),
+    ('328', 'Garhwa', 7),
+    ('329', 'Giridih', 8),
+    ('330', 'Godda', 9),
+    ('331', 'Gumla', 10),
+    ('332', 'Hazaribagh', 11),
+    ('333', 'Jamtara', 12),
+    ('606', 'Khunti', 13),
+    ('334', 'Koderma', 14),
+    ('335', 'Latehar', 15),
+    ('336', 'Lohardaga', 16),
+    ('337', 'Pakur', 17),
+    ('338', 'Palamu', 18),
+    ('607', 'Ramgarh', 19),
+    ('339', 'Ranchi', 20),
+    ('340', 'Sahebganj', 21),
+    ('341', 'Saraikela Kharsawan', 22),
+    ('342', 'Simdega', 23),
+    ('343', 'West Singhbhum', 24)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'JH'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- JK — 20 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('1', 'Anantnag', 1),
+    ('623', 'Bandipora', 2),
+    ('3', 'Baramulla', 3),
+    ('2', 'Budgam', 4),
+    ('4', 'Doda', 5),
+    ('626', 'Ganderbal', 6),
+    ('5', 'Jammu', 7),
+    ('7', 'Kathua', 8),
+    ('620', 'Kishtwar', 9),
+    ('622', 'Kulgam', 10),
+    ('8', 'Kupwara', 11),
+    ('10', 'Poonch', 12),
+    ('11', 'Pulwama', 13),
+    ('12', 'Rajouri', 14),
+    ('621', 'Ramban', 15),
+    ('627', 'Reasi', 16),
+    ('624', 'Samba', 17),
+    ('625', 'Shopian', 18),
+    ('13', 'Srinagar', 19),
+    ('14', 'Udhampur', 20)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'JK'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- KA — 31 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('524', 'Bagalkote', 1),
+    ('528', 'Ballari', 2),
+    ('527', 'Belagavi', 3),
+    ('526', 'Bengaluru Rural', 4),
+    ('631', 'Bengaluru South', 5),
+    ('525', 'Bengaluru Urban', 6),
+    ('529', 'Bidar', 7),
+    ('531', 'Chamarajanagar', 8),
+    ('630', 'Chikkaballapura', 9),
+    ('532', 'Chikkamagaluru', 10),
+    ('533', 'Chitradurga', 11),
+    ('534', 'Dakshina Kannada', 12),
+    ('535', 'Davanagere', 13),
+    ('536', 'Dharwad', 14),
+    ('537', 'Gadag', 15),
+    ('539', 'Hassan', 16),
+    ('540', 'Haveri', 17),
+    ('538', 'Kalaburagi', 18),
+    ('541', 'Kodagu', 19),
+    ('542', 'Kolar', 20),
+    ('543', 'Koppal', 21),
+    ('544', 'Mandya', 22),
+    ('545', 'Mysuru', 23),
+    ('546', 'Raichur', 24),
+    ('547', 'Shivamogga', 25),
+    ('548', 'Tumakuru', 26),
+    ('549', 'Udupi', 27),
+    ('550', 'Uttara Kannada', 28),
+    ('738', 'Vijayanagara', 29),
+    ('530', 'Vijayapura', 30),
+    ('635', 'Yadgir', 31)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'KA'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- KL — 14 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('554', 'Alappuzha', 1),
+    ('555', 'Ernakulam', 2),
+    ('556', 'Idukki', 3),
+    ('557', 'Kannur', 4),
+    ('558', 'Kasaragod', 5),
+    ('559', 'Kollam', 6),
+    ('560', 'Kottayam', 7),
+    ('561', 'Kozhikode', 8),
+    ('562', 'Malappuram', 9),
+    ('563', 'Palakkad', 10),
+    ('564', 'Pathanamthitta', 11),
+    ('565', 'Thiruvananthapuram', 12),
+    ('566', 'Thrissur', 13),
+    ('567', 'Wayanad', 14)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'KL'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- LA — 2 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('6', 'Kargil', 1),
+    ('9', 'Leh Ladakh', 2)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'LA'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- LD — 1 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('553', 'Lakshadweep District', 1)
+) AS v(dcode, dname, ord)
 WHERE s.state_code = 'LD'
 ON CONFLICT (state_pk, district_code) DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
--- =========================================================
--- NON-INDIA COUNTRIES
--- Note: For US, UK, AU, CA the state/province level is
--- already seeded in 05_state.sql. District-level
--- subdivisions for those countries are populated at
--- runtime as needed (too numerous and not operationally
--- required for NSS at seed time).
--- =========================================================
+-- ---- MH — 36 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('466', 'Ahilyanagar', 1),
+    ('467', 'Akola', 2),
+    ('468', 'Amravati', 3),
+    ('470', 'Beed', 4),
+    ('471', 'Bhandara', 5),
+    ('472', 'Buldhana', 6),
+    ('473', 'Chandrapur', 7),
+    ('469', 'Chhatrapati Sambhajinagar', 8),
+    ('488', 'Dharashiv', 9),
+    ('474', 'Dhule', 10),
+    ('475', 'Gadchiroli', 11),
+    ('476', 'Gondia', 12),
+    ('477', 'Hingoli', 13),
+    ('478', 'Jalgaon', 14),
+    ('479', 'Jalna', 15),
+    ('480', 'Kolhapur', 16),
+    ('481', 'Latur', 17),
+    ('482', 'Mumbai', 18),
+    ('483', 'Mumbai Suburban', 19),
+    ('484', 'Nagpur', 20),
+    ('485', 'Nanded', 21),
+    ('486', 'Nandurbar', 22),
+    ('487', 'Nashik', 23),
+    ('665', 'Palghar', 24),
+    ('489', 'Parbhani', 25),
+    ('490', 'Pune', 26),
+    ('491', 'Raigad', 27),
+    ('492', 'Ratnagiri', 28),
+    ('493', 'Sangli', 29),
+    ('494', 'Satara', 30),
+    ('495', 'Sindhudurg', 31),
+    ('496', 'Solapur', 32),
+    ('497', 'Thane', 33),
+    ('498', 'Wardha', 34),
+    ('499', 'Washim', 35),
+    ('500', 'Yavatmal', 36)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'MH'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- ML — 12 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('273', 'East Garo Hills', 1),
+    ('657', 'East Jaintia Hills', 2),
+    ('274', 'East Khasi Hills', 3),
+    ('740', 'Eastern West Khasi Hills', 4),
+    ('656', 'North Garo Hills', 5),
+    ('276', 'Ri Bhoi', 6),
+    ('277', 'South Garo Hills', 7),
+    ('663', 'South West Garo Hills', 8),
+    ('658', 'South West Khasi Hills', 9),
+    ('278', 'West Garo Hills', 10),
+    ('275', 'West Jaintia Hills', 11),
+    ('279', 'West Khasi Hills', 12)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'ML'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- MN — 16 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('252', 'Bishnupur', 1),
+    ('253', 'Chandel', 2),
+    ('254', 'Churachandpur', 3),
+    ('255', 'Imphal East', 4),
+    ('256', 'Imphal West', 5),
+    ('713', 'Jiribam', 6),
+    ('711', 'Kakching', 7),
+    ('717', 'Kamjong', 8),
+    ('712', 'Kangpokpi', 9),
+    ('714', 'Noney', 10),
+    ('715', 'Pherzawl', 11),
+    ('257', 'Senapati', 12),
+    ('258', 'Tamenglong', 13),
+    ('716', 'Tengnoupal', 14),
+    ('259', 'Thoubal', 15),
+    ('260', 'Ukhrul', 16)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'MN'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- MP — 55 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('667', 'Agar-Malwa', 1),
+    ('639', 'Alirajpur', 2),
+    ('390', 'Anuppur', 3),
+    ('391', 'Ashoknagar', 4),
+    ('392', 'Balaghat', 5),
+    ('393', 'Barwani', 6),
+    ('394', 'Betul', 7),
+    ('395', 'Bhind', 8),
+    ('396', 'Bhopal', 9),
+    ('397', 'Burhanpur', 10),
+    ('398', 'Chhatarpur', 11),
+    ('399', 'Chhindwara', 12),
+    ('400', 'Damoh', 13),
+    ('401', 'Datia', 14),
+    ('402', 'Dewas', 15),
+    ('403', 'Dhar', 16),
+    ('404', 'Dindori', 17),
+    ('406', 'Guna', 18),
+    ('407', 'Gwalior', 19),
+    ('408', 'Harda', 20),
+    ('410', 'Indore', 21),
+    ('411', 'Jabalpur', 22),
+    ('412', 'Jhabua', 23),
+    ('413', 'Katni', 24),
+    ('405', 'Khandwa (East Nimar)', 25),
+    ('414', 'Khargone (West Nimar)', 26),
+    ('766', 'MAUGANJ', 27),
+    ('784', 'Maihar', 28),
+    ('415', 'Mandla', 29),
+    ('416', 'Mandsaur', 30),
+    ('417', 'Morena', 31),
+    ('409', 'Narmadapuram', 32),
+    ('418', 'Narsimhapur', 33),
+    ('419', 'Neemuch', 34),
+    ('722', 'Niwari', 35),
+    ('785', 'Pandhurna', 36),
+    ('420', 'Panna', 37),
+    ('421', 'Raisen', 38),
+    ('422', 'Rajgarh', 39),
+    ('423', 'Ratlam', 40),
+    ('424', 'Rewa', 41),
+    ('425', 'Sagar', 42),
+    ('426', 'Satna', 43),
+    ('427', 'Sehore', 44),
+    ('428', 'Seoni', 45),
+    ('429', 'Shahdol', 46),
+    ('430', 'Shajapur', 47),
+    ('431', 'Sheopur', 48),
+    ('432', 'Shivpuri', 49),
+    ('433', 'Sidhi', 50),
+    ('638', 'Singrauli', 51),
+    ('434', 'Tikamgarh', 52),
+    ('435', 'Ujjain', 53),
+    ('436', 'Umaria', 54),
+    ('437', 'Vidisha', 55)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'MP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- MZ — 11 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('261', 'Aizawl', 1),
+    ('262', 'Champhai', 2),
+    ('726', 'Hnahthial', 3),
+    ('728', 'Khawzawl', 4),
+    ('263', 'Kolasib', 5),
+    ('264', 'Lawngtlai', 6),
+    ('265', 'Lunglei', 7),
+    ('266', 'Mamit', 8),
+    ('727', 'Saitual', 9),
+    ('268', 'Serchhip', 10),
+    ('267', 'Siaha', 11)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'MZ'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- NL — 17 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('758', 'Chumoukedima', 1),
+    ('244', 'Dimapur', 2),
+    ('614', 'Kiphire', 3),
+    ('245', 'Kohima', 4),
+    ('615', 'Longleng', 5),
+    ('788', 'Meluri', 6),
+    ('246', 'Mokokchung', 7),
+    ('247', 'Mon', 8),
+    ('764', 'Niuland', 9),
+    ('736', 'Noklak', 10),
+    ('613', 'Peren', 11),
+    ('248', 'Phek', 12),
+    ('765', 'Shamator', 13),
+    ('757', 'Tseminyu', 14),
+    ('249', 'Tuensang', 15),
+    ('250', 'Wokha', 16),
+    ('251', 'Zunheboto', 17)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'NL'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- OD — 30 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('344', 'Anugola', 1),
+    ('345', 'Balangir', 2),
+    ('346', 'Baleshwar', 3),
+    ('347', 'Baragada', 4),
+    ('348', 'Bhadrak', 5),
+    ('349', 'Boudh', 6),
+    ('351', 'Debagada', 7),
+    ('352', 'Dhenkanal', 8),
+    ('353', 'Gajapati', 9),
+    ('354', 'Ganjam', 10),
+    ('355', 'Jagatsinghapur', 11),
+    ('356', 'Jajpur', 12),
+    ('357', 'Jharsuguda', 13),
+    ('358', 'Kalahandi', 14),
+    ('359', 'Kandhamala', 15),
+    ('350', 'Kataka', 16),
+    ('360', 'Kendrapada', 17),
+    ('361', 'Kendujhar', 18),
+    ('362', 'Khordha', 19),
+    ('363', 'Koraput', 20),
+    ('364', 'Malkangiri', 21),
+    ('365', 'Mayurbhanj', 22),
+    ('366', 'Nabarangpur', 23),
+    ('367', 'Nayagada', 24),
+    ('368', 'Nuapada', 25),
+    ('369', 'Puri', 26),
+    ('370', 'Rayagada', 27),
+    ('371', 'Sambalpur', 28),
+    ('372', 'Subarnapur', 29),
+    ('373', 'Sundaragada', 30)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'OD'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- PB — 23 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('27', 'Amritsar', 1),
+    ('605', 'Barnala', 2),
+    ('28', 'Bathinda', 3),
+    ('29', 'Faridkot', 4),
+    ('30', 'Fatehgarh Sahib', 5),
+    ('651', 'Fazilka', 6),
+    ('31', 'Ferozepur', 7),
+    ('32', 'Gurdaspur', 8),
+    ('33', 'Hoshiarpur', 9),
+    ('34', 'Jalandhar', 10),
+    ('35', 'Kapurthala', 11),
+    ('36', 'Ludhiana', 12),
+    ('737', 'Malerkotla', 13),
+    ('37', 'Mansa', 14),
+    ('38', 'Moga', 15),
+    ('662', 'Pathankot', 16),
+    ('41', 'Patiala', 17),
+    ('42', 'Rupnagar', 18),
+    ('608', 'S.A.S Nagar', 19),
+    ('43', 'Sangrur', 20),
+    ('40', 'Shahid Bhagat Singh Nagar', 21),
+    ('39', 'Sri Muktsar Sahib', 22),
+    ('609', 'Tarn Taran', 23)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'PB'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- PY — 2 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('598', 'Karaikal', 1),
+    ('600', 'Puducherry', 2)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'PY'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- RJ — 41 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('86', 'Ajmer', 1),
+    ('87', 'Alwar', 2),
+    ('775', 'Balotra', 3),
+    ('88', 'Banswara', 4),
+    ('89', 'Baran', 5),
+    ('90', 'Barmer', 6),
+    ('774', 'Beawar', 7),
+    ('91', 'Bharatpur', 8),
+    ('92', 'Bhilwara', 9),
+    ('93', 'Bikaner', 10),
+    ('94', 'Bundi', 11),
+    ('95', 'Chittorgarh', 12),
+    ('96', 'Churu', 13),
+    ('97', 'Dausa', 14),
+    ('767', 'Deeg', 15),
+    ('98', 'Dholpur', 16),
+    ('768', 'Didwana-Kuchaman', 17),
+    ('99', 'Dungarpur', 18),
+    ('100', 'Ganganagar', 19),
+    ('101', 'Hanumangarh', 20),
+    ('102', 'Jaipur', 21),
+    ('103', 'Jaisalmer', 22),
+    ('104', 'Jalore', 23),
+    ('105', 'Jhalawar', 24),
+    ('106', 'Jhunjhunu', 25),
+    ('107', 'Jodhpur', 26),
+    ('108', 'Karauli', 27),
+    ('770', 'Khairthal-Tijara', 28),
+    ('109', 'Kota', 29),
+    ('782', 'Kotputli-Behror', 30),
+    ('110', 'Nagaur', 31),
+    ('111', 'Pali', 32),
+    ('772', 'Phalodi', 33),
+    ('629', 'Pratapgarh', 34),
+    ('112', 'Rajsamand', 35),
+    ('777', 'Salumbar', 36),
+    ('113', 'Sawai Madhopur', 37),
+    ('114', 'Sikar', 38),
+    ('115', 'Sirohi', 39),
+    ('116', 'Tonk', 40),
+    ('117', 'Udaipur', 41)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'RJ'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- SK — 6 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('225', 'Gangtok', 1),
+    ('228', 'Gyalshing', 2),
+    ('226', 'Mangan', 3),
+    ('227', 'Namchi', 4),
+    ('741', 'Pakyong', 5),
+    ('742', 'Soreng', 6)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'SK'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- TN — 38 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('610', 'Ariyalur', 1),
+    ('730', 'Chengalpattu', 2),
+    ('568', 'Chennai', 3),
+    ('569', 'Coimbatore', 4),
+    ('570', 'Cuddalore', 5),
+    ('571', 'Dharmapuri', 6),
+    ('572', 'Dindigul', 7),
+    ('573', 'Erode', 8),
+    ('729', 'Kallakurichi', 9),
+    ('574', 'Kancheepuram', 10),
+    ('575', 'Kanniyakumari', 11),
+    ('576', 'Karur', 12),
+    ('577', 'Krishnagiri', 13),
+    ('578', 'Madurai', 14),
+    ('735', 'Mayiladuthurai', 15),
+    ('579', 'Nagapattinam', 16),
+    ('580', 'Namakkal', 17),
+    ('581', 'Perambalur', 18),
+    ('582', 'Pudukkottai', 19),
+    ('583', 'Ramanathapuram', 20),
+    ('731', 'Ranipet', 21),
+    ('584', 'Salem', 22),
+    ('585', 'Sivaganga', 23),
+    ('733', 'Tenkasi', 24),
+    ('586', 'Thanjavur', 25),
+    ('587', 'The Nilgiris', 26),
+    ('588', 'Theni', 27),
+    ('589', 'Thiruvallur', 28),
+    ('590', 'Thiruvarur', 29),
+    ('594', 'Thoothukkudi', 30),
+    ('591', 'Tiruchirappalli', 31),
+    ('592', 'Tirunelveli', 32),
+    ('732', 'Tirupathur', 33),
+    ('634', 'Tiruppur', 34),
+    ('593', 'Tiruvannamalai', 35),
+    ('595', 'Vellore', 36),
+    ('596', 'Viluppuram', 37),
+    ('597', 'Virudhunagar', 38)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'TN'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- TR — 8 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('269', 'Dhalai', 1),
+    ('654', 'Gomati', 2),
+    ('652', 'Khowai', 3),
+    ('270', 'North Tripura', 4),
+    ('653', 'Sepahijala', 5),
+    ('271', 'South Tripura', 6),
+    ('655', 'Unakoti', 7),
+    ('272', 'West Tripura', 8)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'TR'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- TS — 33 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('501', 'Adilabad', 1),
+    ('690', 'Bhadradri Kothagudem', 2),
+    ('686', 'Hanumakonda', 3),
+    ('507', 'Hyderabad', 4),
+    ('681', 'Jagitial', 5),
+    ('689', 'Jangoan', 6),
+    ('687', 'Jayashankar Bhupalapally', 7),
+    ('695', 'Jogulamba Gadwal', 8),
+    ('685', 'Kamareddy', 9),
+    ('508', 'Karimnagar', 10),
+    ('509', 'Khammam', 11),
+    ('699', 'Kumuram Bheem Asifabad', 12),
+    ('688', 'Mahabubabad', 13),
+    ('512', 'Mahabubnagar', 14),
+    ('684', 'Mancherial', 15),
+    ('513', 'Medak', 16),
+    ('700', 'Medchal Malkajgiri', 17),
+    ('720', 'Mulugu', 18),
+    ('694', 'Nagarkurnool', 19),
+    ('514', 'Nalgonda', 20),
+    ('721', 'Narayanpet', 21),
+    ('680', 'Nirmal', 22),
+    ('516', 'Nizamabad', 23),
+    ('682', 'Peddapalli', 24),
+    ('683', 'Rajanna Sircilla', 25),
+    ('518', 'Ranga Reddy', 26),
+    ('691', 'Sangareddy', 27),
+    ('692', 'Siddipet', 28),
+    ('696', 'Suryapet', 29),
+    ('698', 'Vikarabad', 30),
+    ('693', 'Wanaparthy', 31),
+    ('522', 'Warangal', 32),
+    ('697', 'Yadadri Bhuvanagiri', 33)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'TS'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- UK — 13 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('45', 'Almora', 1),
+    ('46', 'Bageshwar', 2),
+    ('47', 'Chamoli', 3),
+    ('48', 'Champawat', 4),
+    ('49', 'Dehradun', 5),
+    ('50', 'Haridwar', 6),
+    ('51', 'Nainital', 7),
+    ('52', 'Pauri Garhwal', 8),
+    ('53', 'Pithoragarh', 9),
+    ('54', 'Rudraprayag', 10),
+    ('55', 'Tehri Garhwal', 11),
+    ('56', 'Udham Singh Nagar', 12),
+    ('57', 'Uttarkashi', 13)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'UK'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- UP — 75 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('118', 'Agra', 1),
+    ('119', 'Aligarh', 2),
+    ('121', 'Ambedkar Nagar', 3),
+    ('640', 'Amethi', 4),
+    ('154', 'Amroha', 5),
+    ('122', 'Auraiya', 6),
+    ('140', 'Ayodhya', 7),
+    ('123', 'Azamgarh', 8),
+    ('124', 'Baghpat', 9),
+    ('125', 'Bahraich', 10),
+    ('126', 'Ballia', 11),
+    ('127', 'Balrampur', 12),
+    ('128', 'Banda', 13),
+    ('129', 'Bara Banki', 14),
+    ('130', 'Bareilly', 15),
+    ('131', 'Basti', 16),
+    ('179', 'Bhadohi', 17),
+    ('132', 'Bijnor', 18),
+    ('133', 'Budaun', 19),
+    ('134', 'Bulandshahr', 20),
+    ('135', 'Chandauli', 21),
+    ('136', 'Chitrakoot', 22),
+    ('137', 'Deoria', 23),
+    ('138', 'Etah', 24),
+    ('139', 'Etawah', 25),
+    ('141', 'Farrukhabad', 26),
+    ('142', 'Fatehpur', 27),
+    ('143', 'Firozabad', 28),
+    ('144', 'Gautam Buddha Nagar', 29),
+    ('145', 'Ghaziabad', 30),
+    ('146', 'Ghazipur', 31),
+    ('147', 'Gonda', 32),
+    ('148', 'Gorakhpur', 33),
+    ('149', 'Hamirpur', 34),
+    ('661', 'Hapur', 35),
+    ('150', 'Hardoi', 36),
+    ('163', 'Hathras', 37),
+    ('151', 'Jalaun', 38),
+    ('152', 'Jaunpur', 39),
+    ('153', 'Jhansi', 40),
+    ('155', 'Kannauj', 41),
+    ('156', 'Kanpur Dehat', 42),
+    ('157', 'Kanpur Nagar', 43),
+    ('633', 'Kasganj', 44),
+    ('158', 'Kaushambi', 45),
+    ('159', 'Kheri', 46),
+    ('160', 'Kushinagar', 47),
+    ('161', 'Lalitpur', 48),
+    ('162', 'Lucknow', 49),
+    ('165', 'Mahoba', 50),
+    ('164', 'Mahrajganj', 51),
+    ('166', 'Mainpuri', 52),
+    ('167', 'Mathura', 53),
+    ('168', 'Mau', 54),
+    ('169', 'Meerut', 55),
+    ('170', 'Mirzapur', 56),
+    ('171', 'Moradabad', 57),
+    ('172', 'Muzaffarnagar', 58),
+    ('173', 'Pilibhit', 59),
+    ('174', 'Pratapgarh', 60),
+    ('120', 'Prayagraj', 61),
+    ('175', 'Rae Bareli', 62),
+    ('176', 'Rampur', 63),
+    ('177', 'Saharanpur', 64),
+    ('659', 'Sambhal', 65),
+    ('178', 'Sant Kabir Nagar', 66),
+    ('180', 'Shahjahanpur', 67),
+    ('660', 'Shamli', 68),
+    ('181', 'Shrawasti', 69),
+    ('182', 'Siddharthnagar', 70),
+    ('183', 'Sitapur', 71),
+    ('184', 'Sonbhadra', 72),
+    ('185', 'Sultanpur', 73),
+    ('186', 'Unnao', 74),
+    ('187', 'Varanasi', 75)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'UP'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- ---- WB — 23 districts ----
+INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
+SELECT s.state_pk, v.dcode, v.dname, v.ord
+FROM nss.state s
+JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
+CROSS JOIN (VALUES
+    ('664', 'Alipurduar', 1),
+    ('305', 'Bankura', 2),
+    ('307', 'Birbhum', 3),
+    ('308', 'Cooch Behar', 4),
+    ('310', 'Dakshin Dinajpur', 5),
+    ('309', 'Darjeeling', 6),
+    ('312', 'Hooghly', 7),
+    ('313', 'Howrah', 8),
+    ('314', 'Jalpaiguri', 9),
+    ('703', 'Jhargram', 10),
+    ('702', 'Kalimpong', 11),
+    ('315', 'Kolkata', 12),
+    ('316', 'Malda', 13),
+    ('319', 'Murshidabad', 14),
+    ('320', 'Nadia', 15),
+    ('303', 'North 24 Parganas', 16),
+    ('704', 'Paschim Bardhaman', 17),
+    ('318', 'Paschim Medinipur', 18),
+    ('306', 'Purba Bardhaman', 19),
+    ('317', 'Purba Medinipur', 20),
+    ('321', 'Purulia', 21),
+    ('304', 'South 24 Parganas', 22),
+    ('311', 'Uttar Dinajpur', 23)
+) AS v(dcode, dname, ord)
+WHERE s.state_code = 'WB'
+ON CONFLICT (state_pk, district_code) DO UPDATE SET
+    district_name = EXCLUDED.district_name,
+    display_order = EXCLUDED.display_order;
+
+-- END OF DOCUMENT

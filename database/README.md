@@ -3,8 +3,9 @@
 Hand-written PostgreSQL DDL and seed data — the schema authority for the NSS ERP.
 
 **DDL Execution Authority:** PostgreSQL role `nss_db_owner`
-**Runtime Read/Write:** PostgreSQL role `nss_db_backend` (read-only) plus, on the Tier 5 branch
-below, `nss_db_writer` (write access on auth+admin tables only)
+**Runtime Read:** PostgreSQL role `nss_db_backend` (read-only `SELECT`)
+**Runtime Write:** PostgreSQL role `nss_db_writer` (`SELECT` + `INSERT`/`UPDATE` on every `nss.*`
+table, no `DELETE`/DDL — Tier 5, see `scripts/05_create_writer_role.sql`)
 **Architecture Authority:** SOL-ARCH-010 (DDL Creation Order),
 SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 
@@ -14,24 +15,19 @@ SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 > enforced by the application layer). See SOL-ARCH-011 §7.2 for the
 > full identity distinction.
 
-> **Tier 5 (Authentication + Administration) is in progress, uncommitted** on branch
+> **Tier 5 (Authentication + Administration) is in progress (committed on the branch, not merged)** on branch
 > `feature/tier5-authentication-administration` — not merged to `develop`/`main`, no release
-> tag. It adds `database/ddl/06_authentication/` (4 tables), `database/ddl/07_administration/`
-> (2 tables), `family_admin`/`darshak_attendance_registration` to the already-implemented
-> Family/Membership modules (2 more tables — 8 new total), a new `nss_db_writer` PostgreSQL
-> role (`database/scripts/05_create_writer_role.sql`), a new top-level
-> `scripts/bootstrap_admin.py`, a new centralized `nss.system_event_log` audit-trail table plus a
-> `fn_audit_trigger()` trigger attached to every `nss.*` table
-> (`database/ddl/01_foundation/14_system_event_log.sql`, `15_audit_trigger.sql` — 1 more new
-> table, bringing the Tier 5 total to 9), and **removes every Tier 4 "verification"/demo seed
-> file** —
-> see `database/seed/README.md` and the per-folder seed READMEs below. It also briefly added,
-> then deleted, a narrow `database/fixes/` successor to `database/migrations/` for one-off
-> data-repair scripts — its only file hardcoded UUIDs from the now-deleted demo seed data and
-> was verifiably obsolete once verified against `family.py`'s auto-transfer logic, so the whole
-> folder was removed rather than kept as documented dead weight. Most of this section
-> predates that branch and describes the pre-Tier-5 state unless noted; see
-> `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5") for the full, current detail.
+> tag. Relative to the last released schema it adds `ddl/06_authentication/` (4 tables),
+> `ddl/07_administration/` (2 tables), `family_admin` (Family), `darshak_attendance_registration`
+> and `credential_sequence_counter` (Membership), and `system_event_log` (Foundation, with
+> `fn_audit_trigger()` attached to every other `nss.*` table) — **10 new tables**; the
+> `nss_db_writer` role (`scripts/05_create_writer_role.sql`) and `scripts/06_setup_env.sh`; the
+> top-level `scripts/bootstrap_admin.py` + `seed/04_admin/`; and several new triggers
+> (Organization address restriction + Kumari/Sevak one-per-Sakha, Family move-transition guard,
+> Membership Sakha-only). It also **removes every Tier 4 "verification"/demo seed file**,
+> `database/migrations/` and `database/fixes/` entirely (neither folder exists any more; the
+> FAM-036 performance indexes now live in the table DDL itself). See `database/seed/README.md`,
+> `database/scripts/README.md`, and `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5").
 
 ---
 
@@ -39,160 +35,50 @@ SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 
 ### Full Build (from scratch)
 
-The build follows the bootstrap sequence defined in SOL-ARCH-011.
-Prerequisites (superuser) must complete before the nss_db_owner phases.
+The build follows the bootstrap sequence defined in SOL-ARCH-011. Prerequisites (superuser)
+must complete before the `nss_db_owner` phases. Full walkthrough: `scripts/README.md` and
+`docs/03_Solution/architecture/GETTING_STARTED.md`.
 
 ```bash
-# ─────────────────────────────────────────────────
-# Prerequisites (run as PostgreSQL superuser)
-# ─────────────────────────────────────────────────
-psql -U postgres -d postgres -f database/scripts/00_create_database.sql
+# Prerequisites (PostgreSQL superuser)
+psql -U postgres -d postgres -f database/scripts/00_create_database.sql   # DB + 3 roles
+psql -U postgres -d nss_erp  -f database/scripts/01_extensions.sql        # extensions + nss schema
+./database/scripts/06_setup_env.sh      # sets passwords on all 3 roles, writes api/.env (+ JWT secret)
 
-# Set passwords for both roles (never commit real passwords)
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_owner PASSWORD 'your_password_here';"
-psql -U postgres -d postgres -c "ALTER ROLE nss_db_backend PASSWORD 'your_password_here';"
+# Build (as nss_db_owner) — runs pip install, then Phases 0-14, and calls
+# scripts/bootstrap_admin.py as Phase 13 (seeds admin SS1 / Admin@123)
+./database/scripts/02_build.sh          # Windows: database\scripts\02_build.ps1
+./database/scripts/03_validate.sh       # optional post-build checks (see its known gaps below)
 
-psql -U postgres -d nss_erp  -f database/scripts/01_extensions.sql
-
-# ─────────────────────────────────────────────────
-# Phase 0: Bootstrap RBAC Definitions
-#          (3 tables, Depths 0–1)
-#          Authority: SOL-ARCH-011 §4
-# ─────────────────────────────────────────────────
-for f in database/ddl/00_bootstrap/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-for f in database/seed/00_bootstrap/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 1: Foundation DDL (12 tables, Depths 0–4)
-# ─────────────────────────────────────────────────
-for f in database/ddl/01_foundation/0[2-9]*.sql database/ddl/01_foundation/1*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 2: Foundation Seed Data
-# ─────────────────────────────────────────────────
-for f in database/seed/01_foundation/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 3: Organization DDL (1 table, Depth 1)
-# ─────────────────────────────────────────────────
-for f in database/ddl/02_organization/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 4: Organization Seed Data
-# ─────────────────────────────────────────────────
-for f in database/seed/02_organization/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 5: Person DDL (2 tables)
-# ─────────────────────────────────────────────────
-for f in database/ddl/03_person/0[2-3]*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 6: Family DDL (5 tables)
-# ─────────────────────────────────────────────────
-for f in database/ddl/04_family/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 7: Membership DDL (12 tables)
-# ─────────────────────────────────────────────────
-for f in database/ddl/05_membership/0*.sql database/ddl/05_membership/1*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-
-# ─────────────────────────────────────────────────
-# Phase 8: Tier 4 Verification Seed Data
-#          (Organization → Person → Family → Membership)
-# ─────────────────────────────────────────────────
-psql -U nss_db_owner -d nss_erp -f database/seed/02_organization/04_tier4_verification_orgs.sql
-psql -U nss_db_owner -d nss_erp -f database/seed/03_person/02_tier4_verification_persons.sql
-for f in database/seed/04_family/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-for f in database/seed/05_membership/0*.sql; do
-    psql -U nss_db_owner -d nss_erp -f "$f"
-done
-# ─────────────────────────────────────────────────
-# Phase 8b: Performance Indexes (migrations) — v0.10.4.
-#           See `database/migrations/README.md` for the
-#           convention tension this file introduces.
-# ─────────────────────────────────────────────────
-psql -U nss_db_owner -d nss_erp -f database/migrations/add_performance_indexes.sql
-
-# ─────────────────────────────────────────────────
-# Phase 9: Grant nss_db_backend read-only access
-#         (as nss_db_owner, after build completes)
-# ─────────────────────────────────────────────────
-psql -U nss_db_owner -d nss_erp -f database/scripts/04_grant_backend.sql
-
-# ─────────────────────────────────────────────────
-# Step 7: Install dependencies, create api/.env,
-#         and start FastAPI
-# ─────────────────────────────────────────────────
-# Install Python dependencies
-# macOS / Linux:
-python3 -m pip install -r requirements.txt
-# Windows:
-#   py -m pip install -r requirements.txt
-
-# Create api/.env with DB_NAME, DB_USER (nss_db_backend),
-# DB_PASSWORD (from step 2), DB_HOST, DB_PORT
-# macOS / Linux:
-cat > api/.env << 'EOF'
-DB_NAME=nss_erp
-DB_USER=nss_db_backend
-DB_PASSWORD=your_password_here
-DB_HOST=localhost
-DB_PORT=5432
-EOF
+# Run the API from the repository root
+python3 -m uvicorn api.main:app --reload --port 8001
 ```
 
-Windows (PowerShell):
+`02_build.sh` already runs `04_grant_backend.sql` (Phase 9) and `05_create_writer_role.sql`
+(Phase 12); running them by hand is only needed if you skip the build script. The API needs
+`api/.env` with `DB_NAME`/`DB_USER`/`DB_PASSWORD`/`DB_HOST`/`DB_PORT`, plus
+`DB_WRITE_USER`/`DB_WRITE_PASSWORD`/`JWT_SECRET_KEY` for Tier 5 endpoints — `06_setup_env.sh`
+generates all of them.
 
-```powershell
-@"
-DB_NAME=nss_erp
-DB_USER=nss_db_backend
-DB_PASSWORD=your_password_here
-DB_HOST=localhost
-DB_PORT=5432
-"@ | Out-File -Encoding utf8 api\.env
-```
+Build phases (authoritative detail in `scripts/README.md`):
 
-```bash
-#
-# Then:
-#   macOS / Linux: python3 -m uvicorn api.main:app --reload --port 8001
-#   Windows:       py -m uvicorn api.main:app --reload --port 8001
-#
-# Swagger UI: http://localhost:8001/docs
-# Tier 0 endpoints (read-only, no authentication):
-#   GET http://localhost:8001/api/v1/bootstrap/health
-#   GET http://localhost:8001/api/v1/bootstrap/roles
-#   GET http://localhost:8001/api/v1/bootstrap/permissions
-#   GET http://localhost:8001/api/v1/bootstrap/roles/{role_pk}/permissions
-
-# ─────────────────────────────────────────────────
-# Remaining modules (Authentication, Administration
-# Phase 4+, Governance, etc.) — not yet implemented
-# ─────────────────────────────────────────────────
-```
+| Phase | Content |
+|------:|---------|
+| 0 | Bootstrap RBAC — 3 tables + seed (9 roles, 20 permissions, 112 mappings) |
+| 1 | Foundation DDL — 13 tables (incl. `festival_master`/`festival_calendar_date`) |
+| 2 | Foundation seed |
+| 3 | Organization DDL — 1 table + 2 triggers |
+| 4 | Organization seed — 3 unique orgs, 56 Sakha PINs, 175 Sakha branches, counter sync |
+| 5 | Person DDL — 2 tables |
+| 6 | Family DDL — 6 tables + move-transition guard trigger |
+| 7 | Membership DDL — 14 tables + Sakha-only trigger |
+| 8 | (reserved — demo seeds removed) |
+| 9 | Grant `nss_db_backend` read-only |
+| 10 | Authentication DDL — 4 tables |
+| 11 | Administration DDL — 2 tables |
+| 12 | Grant `nss_db_writer` |
+| 13 | Admin bootstrap (`scripts/bootstrap_admin.py`) |
+| 14 | Audit DDL — `system_event_log` + `fn_audit_trigger()` attached to every table |
 
 ### Execution Sequence (all implemented tables)
 
@@ -214,33 +100,31 @@ dependency and may be created in any order.
 | 1 | Foundation | `08_master_data.sql` | `master_data` | 1 | #18 |
 | 1 | Foundation | `09_state.sql` | `state` | 1 | #19 |
 | 1 | Foundation | `10_district.sql` | `district` | 2 | #26 |
-| 1 | Foundation | `12_postal_code.sql` | `postal_code` | 2 | #88 |
+| 1 | Foundation | `12_postal_code.sql` | `postal_code` | 1 | #87 |
 | 1 | Foundation | `11_city_village.sql` | `city_village` | 3 | #32 |
-| 1 | Foundation | `13_city_village_postal_code_map.sql` | `city_village_postal_code_map` | 4 | #89 |
 | 3 | Organization | `03_organization.sql` | `organization` | 1 | #33 |
 
-Person, Family, and Membership tables are now implemented too (19 tables
-across 3 modules) — see their own module READMEs for the per-file
-Depth/Seq# breakdown rather than duplicating it here:
+The Organization row above covers Phase 3's single table; the remaining modules' per-file
+Depth/Seq# breakdown lives in their own module READMEs rather than being duplicated here:
+- `ddl/02_organization/README.md` (1 table + 2 triggers)
 - `ddl/03_person/README.md` (2 tables: `person`, `person_address`)
-- `ddl/04_family/README.md` (5 tables: `family_group`, `family_relationship`,
-  `family_head_history`, `family_transition_history`, `family_link`)
-- `ddl/05_membership/README.md` (12 tables, `sangha_sevi` first)
+- `ddl/04_family/README.md` (6 tables: `family_group`, `family_relationship`,
+  `family_head_history`, `family_transition_history`, `family_link`, `family_admin`, plus the
+  move-transition guard trigger)
+- `ddl/05_membership/README.md` (14 tables, `sangha_sevi` first, plus the Sakha-only trigger)
+- `ddl/06_authentication/README.md` (4 tables) and `ddl/07_administration/README.md` (2 tables) —
+  Tier 5, in progress
+- `ddl/01_foundation/README.md` also documents
+  `festival_master`/`festival_calendar_date`, and Phase 14's
+  `system_event_log` (14th Foundation table) and `fn_audit_trigger()`
 
-**Total implemented (pre-Tier-5): 35 tables (3 Bootstrap RBAC + 12 Foundation + 1
-Organization + 2 Person + 5 Family + 12 Membership).** **Plus, in progress/uncommitted on the
-Tier 5 branch: 9 more — `database/ddl/06_authentication/` (4), `database/ddl/07_administration/`
-(2), `family_admin` (Family), `darshak_attendance_registration` (Membership), and
-`system_event_log` (Foundation — centralized audit trail written by both application code
-(`api/helpers.py::log_audit()`) and a DB-level `fn_audit_trigger()` attached to every other
-`nss.*` table) — bringing the working-tree total to 44.** See `database/scripts/README.md` for
-the authoritative, current
-phase-by-phase build sequence (Phases 0-13) rather than the "Full Build" walkthrough above, which
-predates Tier 5 and still shows the now-deleted Tier 4 verification-seed/migrations steps.
+**Total implemented: 44 tables** — 3 Bootstrap RBAC + 12 Foundation (11 + `system_event_log`) +
+1 Organization + 2 Person + 6 Family + 14 Membership + 4 Authentication + 2 Administration
+(verified by counting `CREATE TABLE` across `database/ddl/**`). Of those, 10 are Tier 5 additions
+(see the banner above); the pre-Tier-5 baseline was 34.
 **Organization type/status moved to Foundation `master_data` — standalone tables retired.**
-**Phase 0 seed now complete: `role_master` seeded (9 roles); `permission_master`/
-`role_permission` are also populated (no longer empty) — `require_permission(...)` checks
-succeed for roles with matching mappings.**
+**Phase 0 seed complete:** `role_master` (9 roles), `permission_master` (20), `role_permission`
+(112) are all populated, so `require_permission(...)` checks succeed for roles with mappings.
 
 See module READMEs for per-file details:
 - `ddl/00_bootstrap/README.md` / `seed/00_bootstrap/README.md`
@@ -249,9 +133,8 @@ See module READMEs for per-file details:
 - `ddl/03_person/README.md` / `seed/03_person/README.md`
 - `ddl/04_family/README.md` / `seed/04_family/README.md`
 - `ddl/05_membership/README.md` / `seed/05_membership/README.md`
-- `ddl/06_authentication/README.md` (new, uncommitted — Tier 5 branch)
-- `ddl/07_administration/README.md` (new, uncommitted — Tier 5 branch)
-- `seed/04_admin/README.md` (new, uncommitted — Tier 5 branch)
+- `ddl/06_authentication/README.md`, `ddl/07_administration/README.md` (no seed folders of their
+  own — see `seed/04_admin/README.md`)
 
 ---
 
@@ -261,13 +144,12 @@ See module READMEs for per-file details:
 - **Pass 2:** ALTER TABLE ADD CONSTRAINT for `*_by_sangha_sevi_pk` columns —
   executed after `sangha_sevi` table exists and contains at least one record
 
-Pass 2 is not yet implemented. `sangha_sevi` (Membership DDL, Phase 7) now
-exists as a table, but no bootstrap administrator Sangha Sevi record had been
-created/seeded until the Tier 5 branch's `scripts/bootstrap_admin.py` (uncommitted, seeds
-`SS1`) — and even now, no `ALTER TABLE ADD CONSTRAINT` step for the
-`*_by_sangha_sevi_pk` columns has been added to the build scripts, including for the 8 new
-Tier 5 tables themselves (`user_account`, `user_role`, `admin_scope`, etc. all carry the same
-nullable, unconstrained audit-actor columns) — Pass 2 remains deferred.
+Pass 2 is not yet implemented. `sangha_sevi` (Membership DDL, Phase 7) exists, and
+`scripts/bootstrap_admin.py` (Phase 13, Tier 5) seeds the bootstrap administrator
+`SS1` — but no `ALTER TABLE ADD CONSTRAINT` step for the `*_by_sangha_sevi_pk` columns has been
+added to the build scripts, including for the Tier 5 tables themselves (`user_account`,
+`user_role`, `admin_scope`, etc. all carry the same nullable, unconstrained audit-actor columns)
+— Pass 2 remains deferred.
 
 ---
 
@@ -276,41 +158,45 @@ nullable, unconstrained audit-actor columns) — Pass 2 remains deferred.
 ```
 database/
 ├── scripts/
-│   ├── 00_create_database.sql   Create DB + roles + dblink (superuser, postgres DB)
-│   ├── 01_extensions.sql        Install extensions (superuser, nss_erp DB)
-│   ├── 02_build.sh              Full schema build (all implemented phases) — .ps1 equivalent for Windows
-│   ├── 03_validate.sh           Post-build validation (all modules) — .ps1 equivalent for Windows
-│   ├── 04_grant_backend.sql     Grant nss_db_backend read-only access to nss schema
-│   ├── 05_create_writer_role.sql (new, uncommitted) Grant nss_db_writer write access (auth+admin tables only)
-│   └── 06_setup_env.sh           (new, uncommitted) Set role passwords + generate api/.env
+│   ├── 00_create_database.sql    Create DB + 3 roles + dblink (superuser, postgres DB)
+│   ├── 01_extensions.sql         Install extensions + nss schema (superuser, nss_erp DB)
+│   ├── 02_build.sh / .ps1        Full schema build (Phases 0-14)
+│   ├── 03_validate.sh / .ps1     Post-build validation (partial coverage — see below)
+│   ├── 04_grant_backend.sql      Grant nss_db_backend read-only access to nss schema
+│   ├── 05_create_writer_role.sql Grant nss_db_writer SELECT + INSERT/UPDATE (no DELETE) on nss.*
+│   └── 06_setup_env.sh           Set role passwords + generate api/.env (bash only)
 ├── ddl/
-│   ├── 00_bootstrap/     3 RBAC tables (Depths 0–1) — IMPLEMENTED
-│   ├── 01_foundation/    12 tables (Depths 0–4) — IMPLEMENTED, plus (new/uncommitted, Tier 5)
-│   │                     `14_system_event_log.sql` (centralized audit trail) and
-│   │                     `15_audit_trigger.sql` (`fn_audit_trigger()`, attached via `DO $$`
-│   │                     block to every `nss.*` table except itself/`field_change_log`)
-│   ├── 02_organization/  1 table (Depth 1) — IMPLEMENTED
-│   ├── 03_person/        2 tables (`person`, `person_address`) — IMPLEMENTED
-│   │                     (01_person_master_tables.sql superseded — see below)
-│   ├── 04_family/        6 tables (incl. `family_admin`, new/uncommitted) — IMPLEMENTED
-│   ├── 05_membership/    13 tables (`sangha_sevi` first, incl.
-│   │                     `darshak_attendance_registration`, new/uncommitted) — IMPLEMENTED
-│   ├── 06_authentication/ (new, uncommitted) 4 tables: user_account, password_history,
-│   │                     registration_claim, password_reset_token
-│   └── 07_administration/ (new, uncommitted) 2 tables: user_role, admin_scope
+│   ├── 00_bootstrap/     3 RBAC tables (Depths 0-1)
+│   ├── 01_foundation/    13 tables: 12 reference/runtime tables (files 02-13, Depths 0-4) +
+│   │                     `14_system_event_log.sql` (audit trail, Tier 5); `15_audit_trigger.sql`
+│   │                     (`fn_audit_trigger()` attached to every other `nss.*` table) creates
+│   │                     no table. (No `01_*` file — extensions moved to scripts/01_extensions.sql)
+│   ├── 02_organization/  1 table (`organization`) + 2 triggers (files 03-05; no 01/02 —
+│   │                     type/status masters retired)
+│   ├── 03_person/        2 tables (`person`, `person_address`) — `01_person_master_tables.sql`
+│   │                     superseded, not run
+│   ├── 04_family/        6 tables (incl. `family_admin`) + `07_family_move_transition_guard.sql`
+│   ├── 05_membership/    14 tables (`sangha_sevi` first; incl. `darshak_attendance_registration`,
+│   │                     `credential_sequence_counter`) + `14_sakha_only_membership_trigger.sql`
+│   ├── 06_authentication/ 4 tables: user_account, password_history, registration_claim,
+│   │                     password_reset_token (Tier 5, in progress)
+│   └── 07_administration/ 2 tables: user_role, admin_scope (Tier 5, in progress)
 ├── seed/
-│   ├── 00_bootstrap/     9 roles seeded; permission catalogue populated
-│   ├── 01_foundation/    reference data — IMPLEMENTED
-│   ├── 02_organization/  3 unique orgs + 175 real Sakha branches — IMPLEMENTED (Tier 4
-│   │                     verification-org seed deleted on the Tier 5 branch)
-│   ├── 03_person/        no seed data — persons created at runtime via registration (Tier 4
-│   │                     verification-person seed deleted on the Tier 5 branch)
-│   ├── 04_family/        no seed data (Tier 4 verification-family seed deleted)
-│   ├── 05_membership/    no seed data (Tier 4 verification-membership seed deleted)
-│   └── 04_admin/         (new, uncommitted) seeds one admin superuser, via
-│                          scripts/bootstrap_admin.py (not plain psql)
+│   ├── 00_bootstrap/     9 roles, 20 permissions, 112 role-permission mappings
+│   ├── 01_foundation/    reference data (files 01-09; `09_sakha_postal_codes.sql` runs in Phase 4)
+│   ├── 02_organization/  3 unique orgs + 175 real Sakha branches + org-code counter sync
+│   ├── 03_person/        no seed data (only the superseded `01_person_master_tables.sql` stub)
+│   ├── 04_admin/         one admin superuser, via scripts/bootstrap_admin.py (not plain psql)
+│   ├── 04_family/        no seed data (README only)
+│   └── 05_membership/    no seed data (README only)
+│                         (no seed folders for 06_authentication/07_administration)
 └── README.md             this file
 ```
+
+(`04_admin` and `04_family` are two distinct seed folders that happen to share the `04_` prefix:
+`04_family` mirrors `ddl/04_family/` and is empty, while `04_admin` is a Tier 5 addition with no
+DDL-folder counterpart. Only `04_admin` contains SQL that `02_build.sh` runs.)
+There is no `database/migrations/` or `database/fixes/` folder.
 
 ---
 
@@ -318,31 +204,29 @@ database/
 
 | Module | Tables | DDL Status | Next Action |
 |--------|-------:|-----------|-------------|
-| Bootstrap RBAC | 3 | ✅ IMPLEMENTED | `permission_master`/`role_permission` seed pending permission catalogue freeze — this now also blocks every Tier 5 permission check |
-| Foundation | 12 | ✅ IMPLEMENTED | — (plus `system_event_log`, new/uncommitted on the Tier 5 branch — see Directory Structure below) |
-| Organization | 1 | ✅ IMPLEMENTED | — |
+| Bootstrap RBAC | 3 | ✅ IMPLEMENTED, seeded (9 roles / 20 permissions / 112 mappings) | — |
+| Foundation | 13 | ✅ IMPLEMENTED (12 original + `system_event_log`, Tier 5) | — |
+| Organization | 1 | ✅ IMPLEMENTED (+ 2 triggers) | — |
 | Person | 2 | ✅ IMPLEMENTED | — |
-| Family | 6 | ✅ IMPLEMENTED (`family_admin` new/uncommitted) | — |
-| Membership | 13 | ✅ IMPLEMENTED (`darshak_attendance_registration` new/uncommitted, not yet consumed by any router) | — |
-| Authentication | 4 | ⏳ IN PROGRESS, UNCOMMITTED (Tier 5 branch) | Not merged/released; freeze DDL before relying on it |
-| Administration | 2 (`user_role`/`admin_scope`; 3 more RBAC tables — `role_master`/`permission_master`/`role_permission` — live in Bootstrap) | ⏳ IN PROGRESS, UNCOMMITTED (Tier 5 branch) | Not merged/released; correspondence columns still pending separately |
+| Family | 6 | ✅ IMPLEMENTED (`family_admin` Tier 5; + move-transition guard trigger) | — |
+| Membership | 14 | ✅ IMPLEMENTED (`darshak_attendance_registration`, `credential_sequence_counter` Tier 5; + Sakha-only trigger) | — |
+| Authentication | 4 | ⏳ IN PROGRESS (Tier 5 branch, committed, not merged) | Not merged/released; freeze DDL before relying on it |
+| Administration | 2 (`user_role`/`admin_scope`; the 3 RBAC definition tables live in Bootstrap) | ⏳ IN PROGRESS (Tier 5 branch, committed, not merged) | Not merged/released |
 | Heritage | 4 | ⬜ NOT YET | — |
 
-Table counts for the implemented modules above are the actual counts of
-tables created by their DDL files. Family (5) and Membership (12) exceed
-the frozen SOL-ARCH-010 inventory figures used in earlier planning (3 and
-9 respectively) — the implemented slice grew during design; this is a
-known SOL-ARCH-010 inventory drift to reconcile in a future governance
-pass, not a build error. Modules not listed above have frozen table
-counts but are further down the implementation tier order
-(SOL-ARCH-008).
+Table counts for the implemented modules above are the actual counts of tables created by their
+DDL files (total 45). Family (6) and Membership (14) exceed the frozen SOL-ARCH-010 inventory
+figures used in earlier planning (3 and 9 respectively) — the implemented slice grew during
+design; this is a known SOL-ARCH-010 inventory drift to reconcile in a future governance pass,
+not a build error. Modules not listed above have frozen table counts but are further down the
+implementation tier order (SOL-ARCH-008).
 
 ---
 
 ## Naming Convention
 
 - Internal UUID surrogate keys: `<entity>_pk`
-- Business/external identifiers: `<entity>_code` (never `_id` for business keys)
+- Business/external identifiers: `<entity>_id` for entity identifiers (`person_id`, `organization_id`, `family_group_id`/`family_id`, `sangha_sevi_id`) and `<entity>_code` for Foundation/reference-data codes (`category_code`, `value_code`, `organization_code`); values are unpadded sequence values (`P1`, `SS1`, `SKH1`, `F1`)
 - Foreign keys: `fk_<source_table>_<target_concept>`
 - Unique constraints: `uq_<table>_<columns>`
 - Check constraints: `chk_<table>_<rule>`
@@ -353,7 +237,8 @@ counts but are further down the implementation tier order
 ## Scripts
 
 All executable scripts live in `database/scripts/`. Run from the
-repository root. Each accepts optional positional parameters:
+repository root. `02_build.sh` and `03_validate.sh` (and their `.ps1` twins) accept optional
+positional parameters:
 
 ```
 DB_NAME  (default: nss_erp)
@@ -364,35 +249,29 @@ DB_PORT  (default: 5432)
 
 ### 00_create_database.sql — Database and Role Setup
 
-Run **once** by a PostgreSQL **superuser** (e.g. `postgres`) against
-the `postgres` database. Installs `dblink` (for idempotent database
-creation), creates the `nss_db_owner` and `nss_db_backend` roles, creates
-the `nss_erp` database, and grants CONNECT to `nss_db_backend`.
-
+Run **once** by a PostgreSQL **superuser** (e.g. `postgres`) against the `postgres` database.
+Installs `dblink` (for idempotent database creation), creates the `nss_db_owner`, `nss_db_backend`
+and `nss_db_writer` roles (LOGIN, NOSUPERUSER, no password), creates the `nss_erp` database owned
+by `nss_db_owner`, and grants `CONNECT` on it to `nss_db_backend` and `nss_db_writer`.
 Fully idempotent — safe to re-run.
 
 ```bash
 psql -U postgres -d postgres -f database/scripts/00_create_database.sql
 ```
 
-**Important:** This creates PostgreSQL-level roles only (`LOGIN`, no
-password set — set one via `ALTER ROLE ... PASSWORD '...'` before use).
-The ERP application role `NSS_ERP_ADMIN` is a row in `role_master`
-(Phase 0 seed) and is a separate security boundary (SOL-ARCH-011 §7.2).
-`nss_db_owner` is intentionally not a SUPERUSER.
+**Important:** this creates PostgreSQL-level roles only — set passwords via
+`database/scripts/06_setup_env.sh` (which also writes `api/.env`) or manually with
+`ALTER ROLE ... PASSWORD '...'`. The ERP application role `NSS_ERP_ADMIN` is a row in
+`role_master` (Phase 0 seed) and a separate security boundary (SOL-ARCH-011 §7.2).
+`nss_db_owner` is intentionally not a SUPERUSER. The script's internal `dblink_exec` call
+hardcodes a local-dev placeholder password for the `postgres` superuser connection it opens back
+to itself — change it before running against a shared/non-local environment.
 
-No credentials for `nss_db_owner`/`nss_db_backend` themselves are stored in this
-file — set their passwords externally via `ALTER ROLE ... PASSWORD '...'` or
-`.pgpass` / environment variables. The script's internal `dblink_exec` call
-(step 4) does hardcode a local-dev placeholder password for the `postgres`
-superuser connection it opens back to itself — change that to your actual
-superuser password before running against a shared/non-local environment.
+### 01_extensions.sql — PostgreSQL Extensions and `nss` Schema
 
-### 01_extensions.sql — PostgreSQL Extensions
-
-Run by a PostgreSQL **superuser** against the `nss_erp` database,
-after `00_create_database.sql`. Installs application extensions
-required by Foundation DDL. Idempotent — safe to re-run.
+Run by a PostgreSQL **superuser** against the `nss_erp` database, after
+`00_create_database.sql`. Installs the extensions, creates the `nss` schema owned by
+`nss_db_owner`, and sets `search_path` to `nss, public` on the database. Idempotent.
 
 ```bash
 psql -U postgres -d nss_erp -f database/scripts/01_extensions.sql
@@ -407,81 +286,62 @@ psql -U postgres -d nss_erp -f database/scripts/01_extensions.sql
 
 ### 02_build.sh — Full Schema Build
 
-Executes all DDL and seed scripts for currently implemented modules
-in SOL-ARCH-011 phase order. Runs as `nss_db_owner`.
+Runs `pip install -r requirements.txt`, then executes all DDL and seed scripts for the
+implemented modules in SOL-ARCH-011 phase order, as `nss_db_owner` (see the phase table under
+"Full Build" above and `scripts/README.md` for per-file detail).
 
 ```bash
 ./database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
 ```
 
-Phases executed:
-
-| Phase | Module | Content |
-|------:|--------|---------|
-| 0 | Bootstrap RBAC | 3 tables + seed (roles, permissions, mappings) |
-| 1 | Foundation | 12 tables (Depths 0–4) |
-| 2 | Foundation | Seed data (categories, locations, settings, postal codes) |
-| 3 | Organization | 1 table (Depth 1) |
-| 4 | Organization | Seed data (named orgs; types/statuses come from Foundation seed) |
-| 5 | Person | 2 tables (`person`, `person_address`) |
-| 6 | Family | 5 tables |
-| 7 | Membership | 12 tables (`sangha_sevi` first) |
-| 8 | Tier 4 Verification | Seed data — Organization → Person → Family → Membership |
-| 8b | Performance Indexes | 4 composite partial indexes on the FAM-036 majority-rule CTE hot path (`database/migrations/add_performance_indexes.sql`) — released as v0.10.4 |
-| 9 | Grant Backend | `nss_db_backend` read-only access |
-
 **Not executed:** `ddl/03_person/01_person_master_tables.sql` /
-`seed/03_person/01_person_master_tables.sql` (superseded — gender/marital
-status/address type data now lives in Foundation `master_data`), Pass 2
-audit-actor FK constraints (deferred to Tier 5 — see Two-Pass DDL
-Strategy above).
+`seed/03_person/01_person_master_tables.sql` (superseded — gender/marital status/address type data
+now lives in Foundation `master_data`), Pass 2 audit-actor FK constraints (deferred — see
+Two-Pass DDL Strategy above).
 
-The script uses `set -euo pipefail` and `ON_ERROR_STOP=1` — any
-failed SQL file halts the build immediately.
-
-**This script is NOT idempotent.** Running it twice on the same
-database will fail on `CREATE TABLE`. For a fresh rebuild, drop and
-recreate the database first.
+Error handling: `set -euo pipefail` and psql `ON_ERROR_STOP=1`. A file whose output contains
+`already exists` or `duplicate key value violates unique constraint` is reported `[SKIP]` and the
+build continues, so **re-running against an existing database is supported** (idempotent); any
+other error aborts immediately. (Phase 13, the admin bootstrap, is the exception — a failure is
+counted, the build continues, and the final exit code is 1.) `render_build.sh` at the repository
+root mirrors this sequence for Render/Neon — keep the two in sync.
 
 ### 03_validate.sh — Post-Build Validation
 
-Validates that all implemented modules were built correctly.
-**Does NOT execute any DDL or seed scripts** — run `02_build.sh`
-first. Covers Bootstrap RBAC, Foundation, Organization, and Person (table
-existence + FK integrity); has no Family or Membership checks at all.
+Validates the build. **Does NOT execute any DDL or seed scripts** — run `02_build.sh` first.
 
 ```bash
 ./database/scripts/03_validate.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
 ```
 
-Validation checks per module:
+| Module | Checks |
+|--------|--------|
+| Bootstrap RBAC (3 tables) | Existence, `role_master` row minimum, unique `role_code`, `role_permission` FK integrity |
+| Foundation (12 original tables) | Existence, row minimums, unique codes, FK integrity, deferred `document_master` columns |
+| Organization (1 table) | Existence, row minimum, unique `organization_code`, FK integrity |
+| Person (2 tables) | Existence, FK integrity, address FK columns |
+| Authentication (4 tables) | Existence, `user_account`/`password_history` key columns, unique `person_pk`, FK integrity |
+| Administration (2 tables) | Existence, key columns, FK integrity |
 
-| Module | Tables | Checks |
-|--------|-------:|--------|
-| Bootstrap RBAC | 3 | Existence, 9 roles seeded, unique `role_code`, FK integrity (`role_permission` → both parents) |
-| Foundation | 12 | Existence, row counts (13 categories, 88 master_data, locations, settings, postal codes), unique codes, FK integrity (location hierarchy, `master_data` → `master_category`), deferred columns on `document_master` |
-| Organization | 1 | Existence, 10 types / 13 unified statuses / 3 orgs seeded, unique codes, FK integrity (org → type, status, country, city_village, postal_code) |
-| Person | 2 | Existence, FK integrity (`person` → master_data gender/marital_status/blood_group, `person_address` → person/master_data address_type). Row-count checks assert `person`/`person_address` = 0 rows. |
-
-> **Known bug (not fixed here — `.sh` is code, out of scope for this
-> documentation pass):** `02_build.sh` Phase 8 now seeds 4 additional
-> `organization` rows (`04_tier4_verification_orgs.sql`, total 7) and 8
-> `person` rows (`02_tier4_verification_persons.sql`), but `03_validate.sh`
-> still hardcodes `check_row_count "organization" 3` and
-> `check_row_count "person" 0`. Separately, `database/seed/01_foundation/02_master_data.sql`
-> gained 3 new `ORGANIZATION_TYPE` values and 3 new `STATUS` values (for
-> Membership), growing `master_data` from 82 to 88 rows, but `03_validate.sh`
-> still hardcodes `check_row_count "master_data" 82`. Running `03_validate.sh` after a full
-> `02_build.sh` build will now **fail** on all three of those assertions. Family
-> and Membership have no validation checks at all yet. This script needs a
-> code fix, not a doc fix.
-
-Person, Family, and Membership were added to `02_build.sh` (Phases 5–8);
-Family and Membership have **no `03_validate.sh` coverage at all** yet, and
-Person's existing coverage has the stale row-count assertion noted above —
-this is a known gap, not an intentional omission.
+**Known gaps (script, not docs, needs the fix):** no checks for Family, Membership,
+`system_event_log` or `credential_sequence_counter`. Row-count checks assert `count >= expected`
+and only WARN when lower, so the hardcoded minimums (`role_master` 8, `master_data` 82,
+`id_sequence_master` 11, `system_setting` 4, `postal_code` 2, `organization` 3, `person` 0) do
+not cause false failures — they are simply stale/weak against the current seed (9 roles, 89
+master_data, 14 sequences, 5 settings, 3 + 56 postal codes, 178 organizations).
+The `.sh` and `.ps1` versions are identical (81 check calls each).
 
 **Extend this script when new modules are added to `02_build.sh`.**
+
+### 04_grant_backend.sql / 05_create_writer_role.sql / 06_setup_env.sh
+
+- `04_grant_backend.sql` (Phase 9): `USAGE` on `nss` + `SELECT` on all tables (and future tables via
+  `ALTER DEFAULT PRIVILEGES`) for `nss_db_backend`.
+- `05_create_writer_role.sql` (Phase 12): `USAGE`, `SELECT`, and `INSERT`/`UPDATE` (current and
+  future tables) on the whole `nss` schema for `nss_db_writer` — **not** limited to auth/admin
+  tables; no `DELETE`, `TRUNCATE`, `REFERENCES`, `TRIGGER`, or DDL.
+- `06_setup_env.sh` (superuser, bash only): sets passwords on the 3 roles and writes `api/.env`
+  including a random `JWT_SECRET_KEY`.
 
 ---
 

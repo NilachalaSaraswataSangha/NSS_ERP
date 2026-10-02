@@ -2,7 +2,9 @@
 -- NSS ERP
 -- Module: Authentication & Security
 -- Seed File: 04_admin_bootstrap.sql
--- Version: 1.0
+-- Version: 2.0 — clean-rebuild seed: INSERT-only (no corrective UPDATEs).
+--          membership_type seeded as REGULAR directly; login Admin@123
+--          with force_password_change = FALSE.
 -- Authority: SOL-AUTH-006, Tier 5 decisions
 -- Owner: NSS_ERP_ADMIN
 --
@@ -14,14 +16,15 @@
 --   Person:        NSS Admin (person_id = P1)
 --   Gender:        Other (GENDER/OTHER master_data)
 --   Sangha Sevi:   SS1 (linked to Kendra org)
+--                  Membership type: REGULAR (not PROBATIONARY/"Darshaka")
 --                  is_system_account = TRUE (MBR-038A) —
 --                  the single reserved exception permitting
 --                  a non-SAKHA_SANGHA organization_pk.
---   Login:         SS1 / NSSAdmin1
+--   Login:         SS1 / Admin@123  (force_password_change = FALSE)
 --   Role:          NSS_ERP_ADMIN
 --   Scope:         NSS-WIDE
 --
---   *** CHANGE THE PASSWORD AFTER FIRST LOGIN ***
+--   *** CHANGE THE PASSWORD BEFORE USING BEYOND LOCAL DEV ***
 --
 -- Dependencies (must be seeded first):
 --   - 01_foundation/02_master_data.sql (STATUS/ACTIVE, MEMBERSHIP_TYPE, GENDER/OTHER)
@@ -79,7 +82,10 @@ WHERE NOT EXISTS (
 
 
 -- ── 3. Insert sangha_sevi ──────────────────────────────────────────────
--- Membership type: use a generic type (pick first available active type)
+-- Membership type: REGULAR (explicit — do not pick "first active type by
+-- display_order": PROBATIONARY/"Darshaka" has display_order=1, lower than
+-- REGULAR's 2, so that would silently seed the admin superuser as a
+-- Darshaka instead of a regular member).
 -- Status: ACTIVE
 
 INSERT INTO nss.sangha_sevi (
@@ -105,8 +111,8 @@ CROSS JOIN (
     FROM nss.master_data md
     JOIN nss.master_category mc ON mc.master_category_pk = md.master_category_pk
     WHERE mc.category_code = 'MEMBERSHIP_TYPE'
+      AND md.value_code = 'REGULAR'
       AND md.is_active = TRUE
-    ORDER BY md.display_order
     LIMIT 1
 ) mt
 CROSS JOIN (
@@ -147,7 +153,7 @@ SELECT
     p.person_pk,
     %(password_hash)s,
     'ACTIVE',
-    TRUE,
+    FALSE,
     CURRENT_TIMESTAMP + INTERVAL '365 days'
 FROM nss.person p
 WHERE p.person_id = 'P1'

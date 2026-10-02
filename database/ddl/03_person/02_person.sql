@@ -230,11 +230,17 @@ CREATE TABLE IF NOT EXISTS nss.person
             OR mobile_number ~ '^[0-9]{7,15}$'
         ),
 
+    -- MBR-CONTACT-02: email must be a well-formed address with a dotted
+    -- domain and a 2+ char alphabetic TLD. Mirrors api.helpers EMAIL_PATTERN
+    -- and NSS.EMAIL_PATTERN (nss-config.js). The country-wise mobile rule
+    -- (MBR-CONTACT-01) is enforced in the app layer — the DB keeps the
+    -- permissive 7–15 digit superset since it does not pair digit length to
+    -- the stored dial code.
     CONSTRAINT chk_person_email_format
         CHECK
         (
             email IS NULL
-            OR email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+            OR email ~ '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$'
         ),
 
     CONSTRAINT chk_person_aadhaar_last4_format

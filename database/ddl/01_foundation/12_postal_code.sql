@@ -3,21 +3,29 @@
 -- Module: Foundation
 -- File: 12_postal_code.sql
 -- Table: postal_code
--- Depth: 2 (depends on country, state)
--- Version: 1.1
+-- Depth: 1 (depends on state only)
+-- Version: 2.0 — SOL-ARCH-010 Amendment (Simplified Geography
+--          Model, 2026-10-02): country_pk and post_office_name
+--          dropped. country_pk was redundant (reachable via
+--          state_pk -> state.country_pk); post_office_name had
+--          no source once post_office was retired (the new
+--          4-file government source carries no post-office
+--          data at all, only village/urban locality names,
+--          which now live on city_village instead). Uniqueness
+--          simplified to (postal_code) alone — one row per PIN,
+--          dominant state chosen for the ~29 PINs that span
+--          state lines.
 -- Authority: SOL-ARCH-010 Amendment (PIN Code Geographic
---            Model, 2026-08-28)
+--            Model, 2026-08-28; Simplified Geography Model,
+--            2026-10-02)
 -- Owner: NSS_ERP_ADMIN
--- Note: PIN codes are country-scoped with an explicit
---       state association. One PIN code can serve
---       multiple city/villages (M:N via map table).
---       state_pk provides direct administrative
---       ownership — the postal-to-locality mapping
---       remains in city_village_postal_code_map.
---       Uniqueness is (country_pk, postal_code) because
---       a PIN is globally unique within a country's
---       postal system; state_pk is a reference FK,
---       not part of the unique key.
+-- Note: PIN codes carry a direct state_pk FK (PIN -> State is
+--       always deterministic once a dominant state is chosen
+--       for cross-state PINs). PIN -> District is NOT 1:1
+--       (2,269 PINs legitimately span 2+ districts), so
+--       district is intentionally NOT a column here — it is
+--       reached through city_village, which carries its own
+--       district_pk per locality row.
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS nss.postal_code
@@ -25,13 +33,9 @@ CREATE TABLE IF NOT EXISTS nss.postal_code
     postal_code_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
 
-    country_pk UUID NOT NULL,
-
     state_pk UUID NOT NULL,
 
     postal_code VARCHAR(20) NOT NULL,
-
-    post_office_name VARCHAR(150) NULL,
 
     created_at TIMESTAMPTZ NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
@@ -43,16 +47,12 @@ CREATE TABLE IF NOT EXISTS nss.postal_code
     is_active BOOLEAN NOT NULL
         DEFAULT TRUE,
 
-    CONSTRAINT fk_postal_code_country
-        FOREIGN KEY (country_pk)
-        REFERENCES nss.country (country_pk),
-
     CONSTRAINT fk_postal_code_state
         FOREIGN KEY (state_pk)
         REFERENCES nss.state (state_pk),
 
-    CONSTRAINT uq_postal_code_country
-        UNIQUE (country_pk, postal_code),
+    CONSTRAINT uq_postal_code_code
+        UNIQUE (postal_code),
 
     CONSTRAINT chk_postal_code_soft_delete
         CHECK
@@ -63,9 +63,6 @@ CREATE TABLE IF NOT EXISTS nss.postal_code
         )
 );
 
-CREATE INDEX IF NOT EXISTS idx_postal_code_country
-    ON nss.postal_code (country_pk);
-
 CREATE INDEX IF NOT EXISTS idx_postal_code_state
     ON nss.postal_code (state_pk);
 
@@ -74,7 +71,3 @@ CREATE INDEX IF NOT EXISTS idx_postal_code_code
 
 CREATE INDEX IF NOT EXISTS idx_postal_code_active
     ON nss.postal_code (is_active);
-
-CREATE INDEX IF NOT EXISTS idx_postal_code_post_office
-    ON nss.postal_code USING gin (post_office_name gin_trgm_ops)
-    WHERE post_office_name IS NOT NULL;

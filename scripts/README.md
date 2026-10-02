@@ -1,18 +1,32 @@
 # scripts/
 
 Top-level, repo-root operational Python scripts — distinct from `database/scripts/` (SQL/shell
-bootstrap scripts). **New (uncommitted)** on branch `feature/tier5-authentication-administration`.
+bootstrap scripts). **Tier 5 (committed on the branch, not merged)** — `feature/tier5-authentication-administration`.
 
 | File | Purpose |
 |---|---|
-| `bootstrap_admin.py` | Seeds the NSS Admin superuser account (`P1`/`SS1`, `NSS_ERP_ADMIN` role, `NSS-WIDE` scope) — see `database/seed/04_admin/README.md`. Run as `python3 scripts/bootstrap_admin.py` (optionally `--password <pw>`) from the repository root, after the database has been built through Phase 12 (Administration DDL + `nss_db_writer` grant). Requires `api/.env` with working DB credentials — it imports `api.services.auth_service.hash_password` and `api.database.get_write_pool` directly, so it must run with the repo root on `sys.path` (it inserts this itself via `Path(__file__).resolve().parent.parent`). |
+| `bootstrap_admin.py` | Seeds the NSS Admin superuser (`P1`/`SS1`, `NSS_ERP_ADMIN` role, `NSS-WIDE` scope). Run as `python3 scripts/bootstrap_admin.py` (optionally `--password <pw>`; default `Admin@123`) from the repository root, after the database has been built through Phase 12 (Administration DDL + `nss_db_writer` grant). |
 
-This script exists as Python (not plain `psql -f ...`) specifically because
-`nss.user_account.password_hash` needs a runtime-generated Argon2 hash — there is no SQL-only
-way to produce one, and the project's "no hardcoded credentials" rule means the hash cannot be
-pre-computed and pasted into a seed file either.
+How it works: it hashes the password with `api.services.auth_service.hash_password` (Argon2),
+reads `database/seed/04_admin/01_admin_bootstrap.sql` (the single source of truth for what the
+account looks like — the script deliberately contains no SQL of its own), and executes that
+multi-statement file in **one transaction** through a connection from
+`api.database.get_write_pool()`, binding the one `%(password_hash)s` placeholder. It rolls back
+and exits 1 on any error, or if the seed file is missing. It needs `api/.env` with working
+`DB_WRITE_USER`/`DB_WRITE_PASSWORD` (plus the standard DB settings); it puts the repo root on
+`sys.path` itself (via `Path(__file__).resolve().parent.parent`) so the `api.*` imports resolve.
 
-Called automatically as Phase 13 of `database/scripts/02_build.sh`/`.ps1` and
-`render_build.sh` — you don't need to run it by hand unless bootstrapping a database outside
-those scripts (e.g. after a manual `03_validate.sh` run, or re-seeding a dropped-and-recreated
-local dev DB).
+This exists as Python (not plain `psql -f ...`) because `nss.user_account.password_hash` needs a
+runtime-generated Argon2 hash — there is no SQL-only way to produce one, and the project's "no
+hardcoded credentials" rule means the hash cannot be pre-computed into a seed file either.
+
+Idempotency: the seed's INSERTs are all `WHERE NOT EXISTS`-guarded, so re-running does not create
+duplicates and **does not reset an existing admin's password** (the `user_account` insert is
+skipped if `P1` already has an account); only the `PERSON`/`SANGHA_SEVI` `id_sequence_master`
+counters are nudged up to at least 1.
+
+Called automatically as Phase 13 of `database/scripts/02_build.sh`/`.ps1` and `render_build.sh`
+(a failure there is counted by the `02_build` scripts, which still run Phase 14 and then exit 1,
+but only warns in `render_build.sh`) — you only need to run it by hand when bootstrapping a
+database outside those scripts (e.g. re-seeding a dropped-and-recreated local dev DB). The
+`__pycache__/` folder beside it is generated and untracked.

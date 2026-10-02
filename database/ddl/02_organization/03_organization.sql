@@ -82,6 +82,8 @@ CREATE TABLE IF NOT EXISTS nss.organization
     -- Contact information (operational requirement)
     phone_number VARCHAR(20) NULL,
 
+    country_phone_code VARCHAR(10) NULL,
+
     mobile_number VARCHAR(20) NULL,
 
     email VARCHAR(254) NOT NULL
@@ -136,6 +138,25 @@ CREATE TABLE IF NOT EXISTS nss.organization
     -- short_code format: 3-5 uppercase alphanumeric only
     CONSTRAINT chk_organization_short_code
         CHECK (short_code IS NULL OR short_code ~ '^[A-Z0-9]{3,5}$'),
+
+    -- MBR-CONTACT-02: email format (both the mandatory default contact
+    -- email and the optional org-specific email). Mirrors api.helpers
+    -- EMAIL_PATTERN and NSS.EMAIL_PATTERN (nss-config.js).
+    CONSTRAINT chk_organization_email_format
+        CHECK (email ~ '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$'),
+
+    CONSTRAINT chk_organization_org_email_format
+        CHECK (org_email IS NULL OR org_email ~ '^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$'),
+
+    -- MBR-CONTACT-01: organization dial code format (e.g. +91). The
+    -- country-wise mobile DIGIT-LENGTH rule is enforced in the app layer
+    -- (api.helpers.validate_mobile / NSS.validateMobile) since the DB does
+    -- not pair digit length to a dial code; here we only guard the shape.
+    CONSTRAINT chk_organization_country_phone_code_format
+        CHECK (country_phone_code IS NULL OR country_phone_code ~ '^\+[0-9]{1,4}$'),
+
+    CONSTRAINT chk_organization_mobile_number_format
+        CHECK (mobile_number IS NULL OR mobile_number ~ '^[0-9]{7,15}$'),
 
     -- Foreign keys: classification + lifecycle (now via master_data)
     CONSTRAINT fk_organization_type

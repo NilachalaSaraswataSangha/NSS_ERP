@@ -42,7 +42,7 @@ INSERT INTO nss.organization
      status_master_data_pk, parent_organization_pk,
      organization_code,
      address_line_1, address_line_2, postal_code_pk, country_pk,
-     phone_number, mobile_number)
+     phone_number, country_phone_code, mobile_number)
 SELECT
     'Nilachala Saraswata Sangha',
     ot.master_data_pk,
@@ -54,7 +54,8 @@ SELECT
     pc.postal_code_pk,
     c.country_pk,
     '+91-674-2390055',
-    '+91-9238106823'
+    '+91',
+    '9238106823'
 FROM nss.master_data ot
 JOIN nss.master_category mc_type
      ON mc_type.master_category_pk = ot.master_category_pk
@@ -63,13 +64,14 @@ JOIN nss.master_category mc_status
      ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
+JOIN nss.state s ON s.state_pk = pc.state_pk
 WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND ot.value_code = 'KENDRA'
   AND mc_status.category_code = 'STATUS'
   AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '751022'
-  AND pc.country_pk = c.country_pk
+  AND s.country_pk = c.country_pk
 ON CONFLICT (organization_code) DO UPDATE SET
     organization_name                = EXCLUDED.organization_name,
     organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
@@ -80,7 +82,8 @@ ON CONFLICT (organization_code) DO UPDATE SET
     postal_code_pk                   = EXCLUDED.postal_code_pk,
     country_pk                       = EXCLUDED.country_pk,
     phone_number                     = EXCLUDED.phone_number,
-    mobile_number                    = EXCLUDED.mobile_number;
+    mobile_number                    = EXCLUDED.mobile_number,
+    country_phone_code               = EXCLUDED.country_phone_code;
 
 -- -------------------------------------------------
 -- Nilachala Kutira (Eternal Abode, Puri)
@@ -109,13 +112,14 @@ JOIN nss.master_category mc_status
      ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
+JOIN nss.state s ON s.state_pk = pc.state_pk
 WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND ot.value_code = 'NILACHALA_KUTIRA'
   AND mc_status.category_code = 'STATUS'
   AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '752001'
-  AND pc.country_pk = c.country_pk
+  AND s.country_pk = c.country_pk
 ON CONFLICT (organization_code) DO UPDATE SET
     organization_name                = EXCLUDED.organization_name,
     organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
@@ -155,13 +159,14 @@ JOIN nss.master_category mc_status
      ON mc_status.master_category_pk = os.master_category_pk
 CROSS JOIN nss.country c
 CROSS JOIN nss.postal_code pc
+JOIN nss.state s ON s.state_pk = pc.state_pk
 WHERE mc_type.category_code = 'ORGANIZATION_TYPE'
   AND ot.value_code = 'SMRUTI_MANDIRA'
   AND mc_status.category_code = 'STATUS'
   AND os.value_code = 'ACTIVE'
   AND c.country_code = 'IN'
   AND pc.postal_code = '752001'
-  AND pc.country_pk = c.country_pk
+  AND s.country_pk = c.country_pk
 ON CONFLICT (organization_code) DO UPDATE SET
     organization_name                = EXCLUDED.organization_name,
     organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,

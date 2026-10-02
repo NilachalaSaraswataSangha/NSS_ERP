@@ -4,10 +4,20 @@
 -- File: 03_person_address.sql
 -- Table: nss.person_address
 -- Depth: 3 (depends on person, master_data,
---         city_village_postal_code_map)
--- Version: 2.0
+--         city_village, postal_code)
+-- Version: 3.0 — SOL-ARCH-010 Amendment (2026-10-01):
+--          simplified geographic FK model. The bundled
+--          city_village_postal_code_map_pk FK is replaced by
+--          two direct, independently-nullable FKs
+--          (city_village_pk, postal_code_pk), matching the
+--          pattern already used by nss.organization. The
+--          city_village_postal_code_map junction is retired
+--          (see Foundation 13_city_village_postal_code_map.sql).
+--          This table has no live write path and no seed data
+--          yet, so the change is additive risk-free.
 -- Authority: SOL-PER-001 §37–38, SOL-PER-003
---            PER-BR-064/065/066
+--            PER-BR-064/065/066, SOL-ARCH-010 Amendment
+--            (2026-10-01)
 -- Owner: NSS_ERP_ADMIN
 -- Note: address_type now references Foundation
 --       master_data (category ADDRESS_TYPE) instead
@@ -29,7 +39,9 @@ CREATE TABLE IF NOT EXISTS nss.person_address
 
     landmark VARCHAR(255) NULL,
 
-    city_village_postal_code_map_pk UUID NOT NULL,
+    city_village_pk UUID NULL,
+
+    postal_code_pk UUID NULL,
 
     is_primary BOOLEAN NOT NULL
         DEFAULT FALSE,
@@ -60,10 +72,13 @@ CREATE TABLE IF NOT EXISTS nss.person_address
         FOREIGN KEY (address_type_master_data_pk)
         REFERENCES nss.master_data (master_data_pk),
 
-    CONSTRAINT fk_person_address_location
-        FOREIGN KEY (city_village_postal_code_map_pk)
-        REFERENCES nss.city_village_postal_code_map
-            (city_village_postal_code_map_pk),
+    CONSTRAINT fk_person_address_city_village
+        FOREIGN KEY (city_village_pk)
+        REFERENCES nss.city_village (city_village_pk),
+
+    CONSTRAINT fk_person_address_postal_code
+        FOREIGN KEY (postal_code_pk)
+        REFERENCES nss.postal_code (postal_code_pk),
 
     CONSTRAINT chk_person_address_soft_delete
         CHECK
@@ -82,8 +97,11 @@ CREATE INDEX IF NOT EXISTS idx_person_address_person
 CREATE INDEX IF NOT EXISTS idx_person_address_type
     ON nss.person_address (address_type_master_data_pk);
 
-CREATE INDEX IF NOT EXISTS idx_person_address_location
-    ON nss.person_address (city_village_postal_code_map_pk);
+CREATE INDEX IF NOT EXISTS idx_person_address_city_village
+    ON nss.person_address (city_village_pk);
+
+CREATE INDEX IF NOT EXISTS idx_person_address_postal_code
+    ON nss.person_address (postal_code_pk);
 
 CREATE INDEX IF NOT EXISTS idx_person_address_active
     ON nss.person_address (is_active);
