@@ -373,10 +373,22 @@ class TestPostalCodes:
         if len(data) > 0:
             required = {
                 "postal_code_pk", "country_pk", "state_pk",
-                "state_name", "postal_code", "post_office_name", "is_active",
+                "state_name", "postal_code", "is_active",
             }
             for pc in data:
                 assert required.issubset(pc.keys())
+
+    def test_no_office_level_fields(self, client):
+        """
+        Simplified Geography Model (2026-10-02): nss.post_office is retired,
+        so no office-level field may leak back into the PIN payload.
+        """
+        data = client.get(f"{BASE}/postal-codes").json()
+        if len(data) == 0:
+            pytest.skip("No postal codes seeded")
+        for pc in data:
+            assert "post_office_name" not in pc
+            assert "office_count" not in pc
 
     def test_filter_by_country_pk(self, client):
         """Filtering by country_pk returns 200."""
@@ -395,6 +407,106 @@ class TestPostalCodes:
         assert r.status_code == 200
         for pc in r.json():
             assert pc["state_pk"] == spk
+
+    # ── PIN uniqueness + ?q= (Simplified Geography Model, 2026-10-02) ──
+    #
+    # nss.postal_code is now unique on postal_code ALONE — one row per PIN
+    # globally, carrying a pre-resolved dominant state. There is no
+    # office-level detail any more, so ?q= matches the PIN digits only.
+
+    def test_pin_is_globally_unique(self, client):
+        """No PIN appears twice across the whole list."""
+        data = client.get(f"{BASE}/postal-codes").json()
+        if len(data) == 0:
+            pytest.skip("No postal codes seeded")
+        pins = [pc["postal_code"] for pc in data]
+        assert len(pins) == len(set(pins))
+
+    def test_q_matches_pin_prefix(self, client):
+        """?q= on PIN digits returns only PINs starting with those digits."""
+        data = client.get(f"{BASE}/postal-codes").json()
+        if len(data) == 0:
+            pytest.skip("No postal codes seeded")
+        prefix = data[0]["postal_code"][:3]
+        r = client.get(f"{BASE}/postal-codes", params={"q": prefix})
+        assert r.status_code == 200
+        returned = r.json()
+        assert len(returned) > 0
+        # ?q= is now a pure PIN-prefix match — every row must start with it.
+        assert all(pc["postal_code"].startswith(prefix) for pc in returned)
+
+    def test_q_below_min_length_rejected(self, client):
+        """?q= enforces a 2-character minimum."""
+        r = client.get(f"{BASE}/postal-codes", params={"q": "a"})
+        assert r.status_code == 422
+
+    # ── district scoping resolves through city_village (2026-10-02) ──
+    #
+    # postal_code has no district_pk of its own (a PIN is a state-scoped
+    # postal unit, not a revenue-district one). "PINs in district X" is
+    # answered through nss.city_village, which is now the geography anchor
+    # and carries BOTH district_pk and postal_code_pk directly. The old
+    # coverage gap (751006 etc. invisible under Khordha) is closed by the
+    # 673k-row all-India city_village seed rather than by nss.post_office.
+
+    @staticmethod
+    def _district_with_pins(client):
+        """A (district, pins) pair that actually has postal codes."""
+        districts = client.get(f"{BASE}/districts").json()
+        for d in districts[:25]:
+            r = client.get(
+                f"{BASE}/postal-codes", params={"district_pk": d["district_pk"]}
+            )
+            assert r.status_code == 200
+            pins = r.json()
+            if pins:
+                return d, pins
+        return None
+
+    def test_district_filter_returns_pins(self, client):
+        """A district with anchored city/village rows returns its PINs."""
+        found = self._district_with_pins(client)
+        if not found:
+            pytest.skip("No district resolves to postal codes")
+        _, pins = found
+        assert len(pins) > 0
+
+    def test_district_filtered_pins_are_unique(self, client):
+        """
+        The EXISTS-based district filter must not fan out: a PIN with many
+        city_village rows in the district still appears exactly once.
+        """
+        found = self._district_with_pins(client)
+        if not found:
+            pytest.skip("No district resolves to postal codes")
+        _, pins = found
+        values = [p["postal_code"] for p in pins]
+        assert len(values) == len(set(values))
+
+    def test_district_filtered_pins_have_a_city_village_in_that_district(self, client):
+        """
+        Every PIN returned for a district genuinely has a city/village row
+        anchored to both that district and that PIN — the exact join the
+        filter uses, verified from the other direction via /cities.
+        """
+        found = self._district_with_pins(client)
+        if not found:
+            pytest.skip("No district resolves to postal codes")
+        district, pins = found
+        cities = client.get(
+            f"{BASE}/cities", params={"district_pk": district["district_pk"]}
+        ).json()
+        city_pin_pks = {
+            c["postal_code_pk"] for c in cities if c.get("postal_code_pk")
+        }
+        if not city_pin_pks:
+            pytest.skip("District has no city/village rows with a resolved PIN")
+        for pc in pins[:25]:
+            assert pc["postal_code_pk"] in city_pin_pks, (
+                f"PIN {pc['postal_code']} was returned for district "
+                f"{district.get('district_name')} but no city/village row in "
+                f"that district is anchored to it"
+            )
 
 
 class TestPostalCodeMappings:

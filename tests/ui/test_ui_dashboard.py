@@ -14,6 +14,9 @@ Tests all dashboard features after login:
 Alpine.js app: dashboardApp()
 """
 
+import re
+from pathlib import Path
+
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -247,7 +250,13 @@ class TestPersonalTab:
         # Edit form fields should appear
         mobile_input = admin_page.locator('[x-model="profileForm.mobile_number"]')
         email_input = admin_page.locator('[x-model="profileForm.email"]')
-        dob_input = admin_page.locator('[x-model="profileForm.date_of_birth"]')
+        # DOB is the shared nssDatePicker, not a plain bound input: the model
+        # path lives in x-data/data-nss-dp and the visible input binds
+        # x-model="display". So [x-model="profileForm.date_of_birth"] matches
+        # nothing — locate the picker by its data-nss-dp hook instead.
+        dob_input = admin_page.locator(
+            '[data-nss-dp="profileForm.date_of_birth"] input[x-model="display"]'
+        )
 
         assert mobile_input.count() > 0, "Mobile number input should appear in edit mode"
         assert email_input.count() > 0, "Email input should appear in edit mode"
@@ -452,6 +461,62 @@ class TestMembershipTab:
             "Journey Timeline section should be visible"
         )
 
+    # ── Self-service governance entry points (Darshak / Sakha transfer) ──
+    # These buttons live at the top of the Membership tab. They open a
+    # notice explaining the workflow is handled by the (forthcoming)
+    # Governance module — no backend call yet — so the test asserts the
+    # button is present and that clicking it surfaces that notice.
+
+    def test_apply_darshak_button_visible(self, admin_page: Page):
+        """Membership tab exposes an 'Apply for Darshak' action."""
+        _wait_dashboard_ready(admin_page)
+        _switch_tab(admin_page, "Membership")
+        admin_page.wait_for_timeout(500)
+        btn = admin_page.locator(
+            "[x-show=\"tab === 'membership'\"] button:has-text('Apply for Darshak')"
+        )
+        assert btn.count() > 0, "Apply for Darshak button should be present"
+
+    def test_request_sakha_transfer_button_visible(self, admin_page: Page):
+        """Membership tab exposes a 'Request Sakha Transfer' action."""
+        _wait_dashboard_ready(admin_page)
+        _switch_tab(admin_page, "Membership")
+        admin_page.wait_for_timeout(500)
+        btn = admin_page.locator(
+            "[x-show=\"tab === 'membership'\"] button:has-text('Request Sakha Transfer')"
+        )
+        assert btn.count() > 0, "Request Sakha Transfer button should be present"
+
+    def test_apply_darshak_shows_governance_notice(self, admin_page: Page):
+        """Clicking 'Apply for Darshak' opens the Governance-module notice."""
+        _wait_dashboard_ready(admin_page)
+        _switch_tab(admin_page, "Membership")
+        admin_page.wait_for_timeout(500)
+        admin_page.locator(
+            "[x-show=\"tab === 'membership'\"] button:has-text('Apply for Darshak')"
+        ).first.click()
+        overlay = admin_page.locator("#nss-dialog-overlay")
+        expect(overlay).to_be_visible()
+        message = admin_page.locator("#nss-dialog-message")
+        assert "Governance" in (message.text_content() or ""), (
+            "Darshak notice should mention the Governance module"
+        )
+
+    def test_request_sakha_transfer_shows_governance_notice(self, admin_page: Page):
+        """Clicking 'Request Sakha Transfer' opens the Governance-module notice."""
+        _wait_dashboard_ready(admin_page)
+        _switch_tab(admin_page, "Membership")
+        admin_page.wait_for_timeout(500)
+        admin_page.locator(
+            "[x-show=\"tab === 'membership'\"] button:has-text('Request Sakha Transfer')"
+        ).first.click()
+        overlay = admin_page.locator("#nss-dialog-overlay")
+        expect(overlay).to_be_visible()
+        message = admin_page.locator("#nss-dialog-message")
+        assert "Governance" in (message.text_content() or ""), (
+            "Sakha transfer notice should mention the Governance module"
+        )
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  FAMILY TAB
@@ -476,8 +541,11 @@ class TestFamilyTab:
         _switch_tab(admin_page, "Family")
         admin_page.wait_for_timeout(3000)
 
-        # Option A: Family exists — tree or member list visible
-        tree_area = admin_page.locator(".family-tree, [class*='tree-node'], .gen-divider")
+        # Option A: Family exists — tree or member list visible.
+        # Real markup is .tree-canvas > .tree-container (x-html renders
+        # .tree-node / .gen-divider). There is no ".family-tree" class — the
+        # old selector only ever matched via its [class*='tree-node'] fallback.
+        tree_area = admin_page.locator(".tree-canvas, .tree-node, .gen-divider")
         member_table = admin_page.locator("text=Members")
 
         # Option B: No family — placeholder with create button
@@ -502,9 +570,15 @@ class TestFamilyTab:
         if no_family.count() > 0 and no_family.first.is_visible():
             pytest.skip("No family exists for this user — create-family prompt shown")
 
-        # Family exists — look for member-related content
-        members_section = admin_page.locator(
-            "text=Members, text=Head of Family, text=Family Members"
+        # Family exists — look for member-related content.
+        # NOTE: a single Playwright locator string cannot OR several text=
+        # engines — the old "text=Members, text=Head of Family, text=Family
+        # Members" was parsed as ONE literal string and never matched. Chain
+        # real text locators with .or_() instead. The frontend renders a
+        # "Members (<n>)" heading and a "Head of Family" label ("Family
+        # Members" is not a string the UI ever emits).
+        members_section = admin_page.get_by_text("Members").or_(
+            admin_page.get_by_text("Head of Family")
         )
         assert members_section.count() > 0, (
             "Family tab should show a members section when family exists"
@@ -525,9 +599,13 @@ class TestFamilyTab:
         gen_dividers = admin_page.locator(".gen-divider")
 
         if tree_nodes.count() == 0 and gen_dividers.count() == 0:
-            # Tree may still be loading or family has only one member
-            tree_loading = admin_page.locator("text=Loading family tree")
-            if tree_loading.count() > 0:
+            # Tree may still be loading or family has only one member.
+            # While graphLoading is truthy the family tab shows .skeleton
+            # loaders (there is no "Loading family tree" text in the UI).
+            tree_loading = admin_page.locator(
+                "[x-show=\"tab === 'family'\"] .skeleton"
+            )
+            if tree_loading.count() > 0 and tree_loading.first.is_visible():
                 pytest.skip("Family tree still loading")
             # Single-member family may not render a full tree
             return
@@ -644,6 +722,39 @@ class TestAdminTabs:
         )
         assert admin_nav.count() > 0, "Admin user should see admin tabs"
 
+    def test_super_admin_group_is_exactly_the_three_system_tabs(self, admin_page: Page):
+        """
+        SS1 holds NSS_ERP_ADMIN, whose permission set is a strict superset of
+        the two read-only SYSTEM roles and of every ORGANIZATIONAL role.  Its
+        Administration group must therefore render System Administration,
+        Audit & Compliance and Reports from the start, plus Registration
+        Approvals, and must NOT render any narrower "... Management" tab.
+        """
+        _wait_dashboard_ready(admin_page)
+
+        sysadmin = admin_page.locator(".nav-item:has-text('System Administration')")
+        if sysadmin.count() == 0:
+            pytest.skip("Logged-in user is not a super admin in this dataset")
+
+        for label in ("System Administration", "Audit & Compliance", "Reports"):
+            tab = admin_page.locator(f".nav-item:has-text(\"{label}\")")
+            assert tab.count() > 0, f"Super admin should see the '{label}' tab"
+
+        # Organizational tabs are built by x-for over adminTabs, so a
+        # suppressed one is absent from the DOM entirely, not merely hidden.
+        mgmt = admin_page.locator(".nav-item:has-text('Management')")
+        assert mgmt.count() == 0, (
+            "Super admin should not see organizational '... Management' tabs; "
+            f"found {mgmt.count()}"
+        )
+
+        approvals = admin_page.locator(".nav-item:has-text('Registration Approvals')")
+        assert approvals.count() > 0, "Super admin should see Registration Approvals"
+        assert approvals.first.is_visible(), (
+            "Registration Approvals is x-show gated on canApproveRegistrations; "
+            "a super admin holds ADMIN_USER_MANAGE so it must be visible"
+        )
+
     def test_admin_tab_shows_stats_grid(self, admin_page: Page):
         """Clicking an admin tab shows the stats grid (members, families, etc.)."""
         _wait_dashboard_ready(admin_page)
@@ -726,3 +837,94 @@ class TestDashboardLogout:
         logout_btn.click()
         admin_page.wait_for_url("**/login**", timeout=10000)
         assert "/login" in admin_page.url
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SUPER-ADMIN ADMINISTRATION GROUP (source-level — no browser needed)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# The Administration group in dashboard.html's sidebar is driven entirely by
+# _buildAdminTabs() in dashboard.js. These assert the super-admin contract in
+# source, so they run anywhere and catch a regression the browser tests above
+# can only catch when a server AND the right seed data are both present.
+
+_FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
+_DASHBOARD_JS = _FRONTEND / "assets" / "js" / "dashboard.js"
+_DASHBOARD_HTML = _FRONTEND / "dashboard.html"
+
+# Administrator, Audit, Reports — the whole Administration group for a super
+# admin, in display order.
+_SUPER_ADMIN_ROLES = ["NSS_ERP_ADMIN", "NSS_ERP_AUDITOR", "NSS_ERP_REPORT_VIEWER"]
+
+
+class TestSuperAdminTabs:
+
+    def test_super_admin_tab_order_is_the_three_system_roles(self):
+        js = _DASHBOARD_JS.read_text(encoding="utf-8")
+        block = js.split("const SUPER_ADMIN_TAB_ORDER = [")[1].split("]")[0]
+        found = re.findall(r'"([A-Z_]+)"', block)
+        assert found == _SUPER_ADMIN_ROLES, (
+            "SUPER_ADMIN_TAB_ORDER must stay Administrator -> Audit -> Reports; "
+            f"got {found}"
+        )
+
+    def test_every_super_admin_role_has_a_tab_definition(self):
+        js = _DASHBOARD_JS.read_text(encoding="utf-8")
+        tab_map = js.split("const ADMIN_TAB_MAP = {")[1].split("\n};")[0]
+        for role in _SUPER_ADMIN_ROLES:
+            assert f"{role}:" in tab_map, (
+                f"ADMIN_TAB_MAP has no {role} entry — its tab would render "
+                "with an undefined label"
+            )
+
+    def test_super_admin_branch_returns_before_the_per_role_loop(self):
+        """
+        The super-admin branch must short-circuit, so ORGANIZATIONAL role tabs
+        (Sakha/Kendra/... Management) are never appended for a user whose
+        access already covers every org.
+        """
+        js = _DASHBOARD_JS.read_text(encoding="utf-8")
+        body = js.split("_buildAdminTabs() {")[1].split("\n        },")[0]
+        guard = 'if (this.user.scopes.some(s => s.role_code === "NSS_ERP_ADMIN"))'
+        assert guard in body, "_buildAdminTabs() no longer special-cases the super admin"
+        after_guard = body.split(guard)[1]
+        assert "return;" in after_guard.split("const seen = new Set();")[0], (
+            "the super-admin branch no longer returns early — organizational "
+            "role tabs would be listed alongside the three system tabs again"
+        )
+
+    def test_registration_approvals_is_permission_gated(self):
+        """
+        The Registration Approvals nav item is gated on the same permissions
+        /api/v1/claims requires, so it can never link to a 403.
+        """
+        js = _DASHBOARD_JS.read_text(encoding="utf-8")
+        html = _DASHBOARD_HTML.read_text(encoding="utf-8")
+        assert "get canApproveRegistrations()" in js, (
+            "dashboard.js no longer defines canApproveRegistrations"
+        )
+        perms_block = js.split("const CLAIM_APPROVAL_PERMISSIONS = [")[1].split("]")[0]
+        for perm in ["MEMBERSHIP_APPROVE", "ADMIN_USER_MANAGE"]:
+            assert perm in perms_block, (
+                f"CLAIM_APPROVAL_PERMISSIONS dropped {perm} — it no longer "
+                "mirrors require_any_permission() in api/routers/claim_approval.py"
+            )
+        nav = re.search(
+            r'<a class="nav-item"[^>]*href="/admin#claims"[^>]*>', html
+        )
+        assert nav, "dashboard.html no longer links to the admin claims tab"
+        assert 'x-show="canApproveRegistrations"' in nav.group(0), (
+            "dashboard.html's Registration Approvals nav item is no longer "
+            "permission-gated"
+        )
+
+    def test_stale_admin_tab_falls_back_instead_of_rendering_blank(self):
+        """
+        tab is restored from sessionStorage before /auth/me is read, so it can
+        name a tab _buildAdminTabs() now omits. init() must correct it.
+        """
+        js = _DASHBOARD_JS.read_text(encoding="utf-8")
+        assert 'this.tab.startsWith("admin_")' in js and "!this.adminTabs.some(" in js, (
+            "init() no longer validates a restored admin_* tab against "
+            "adminTabs — a stale session would render an empty content area"
+        )

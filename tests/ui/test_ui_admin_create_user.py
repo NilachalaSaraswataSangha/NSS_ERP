@@ -36,10 +36,15 @@ def _get_create_tab(admin_page):
 
 def _select_first_person(admin_page):
     """
-    Trigger person selection in the Create tab so the credentials
-    section becomes visible.
+    Trigger person selection in the Create tab, then skip Step 2 (Sangha
+    Sevi) so the Step 3 credentials section becomes visible.
 
-    Types a query, waits for results, then clicks Select on the first result.
+    Types a query, waits for results, clicks Select on the first result,
+    then clicks "Skip for now" on Step 2 — the credentials form is gated
+    on `createForm.person_pk && (createForm.sangha_sevi_pk ||
+    createForm.sangha_sevi_skipped)`, so selecting a person alone isn't
+    enough to reach it (the 3-step Person -> Sangha Sevi -> Account
+    Credentials flow sequences Sangha Sevi creation as its own step).
     """
     tab = _get_create_tab(admin_page)
     search_input = tab.locator('[x-model="personSearchQuery"]')
@@ -53,6 +58,21 @@ def _select_first_person(admin_page):
     select_btn = tab.locator('button:has-text("Select")').first
     select_btn.click()
     admin_page.wait_for_timeout(500)
+
+    # Skip Step 2 (Sangha Sevi) to reach Step 3 (Account Credentials)
+    skip_btn = tab.locator('button:has-text("Skip for now")')
+    if skip_btn.count() > 0:
+        skip_btn.first.click()
+        admin_page.wait_for_timeout(500)
+
+
+# The Create tab now carries TWO buttons whose text contains "Create Account":
+# the toolbar's "+ Create Account" (which opens the modal flow) and the inline
+# form's submit button. `.btn-action.primary:has-text(...)` matches both and
+# trips Playwright strict mode, so match the accessible name exactly — only the
+# submit button is named precisely "Create Account".
+def _create_account_submit(page):
+    return page.get_by_role("button", name="Create Account", exact=True)
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +96,7 @@ class TestAdminCreateUser:
         password_field = admin_page.locator('[x-model="createForm.password"]')
         expect(password_field).to_be_visible(timeout=5000)
 
-        create_btn = admin_page.locator(".btn-action.primary:has-text('Create Account')")
+        create_btn = _create_account_submit(admin_page)
         expect(create_btn).to_be_visible()
 
     def test_account_create_requires_password(self, admin_page, base_url):
@@ -94,7 +114,7 @@ class TestAdminCreateUser:
         password_field.fill("")
         admin_page.wait_for_timeout(300)
 
-        create_btn = admin_page.locator(".btn-action.primary:has-text('Create Account')")
+        create_btn = _create_account_submit(admin_page)
         # The button should be disabled or have a disabled attribute/class
         is_disabled = create_btn.is_disabled()
         has_disabled_class = "disabled" in (

@@ -27,9 +27,16 @@ CONFIRM_PASSWORD_SEL = '[x-model="confirmPassword"]'
 ERROR_BOX = ".alert-box"
 STEPPER_DOT = ".stepper-dot"
 
-# DOB uses nssDatePicker — the visible input has x-model="display" inside
-# the datepicker wrapper; format is DD/MM/YYYY (auto-parsed to ISO internally)
-DOB_PICKER_SEL = '[x-data*="nssDatePicker(\'form.date_of_birth\')"]'
+# DOB uses the shared nssDatePicker. The picker root carries a
+# data-nss-dp="<model path>" hook stamped by nss-datepicker.js, and the
+# visible input inside it has x-model="display" (DD/MM/YYYY, auto-parsed
+# to ISO internally).
+#
+# Do NOT match on the x-data text: the picker is declared as
+# nssDatePicker('form.date_of_birth', { maxToday: true }), so a substring
+# ending in "date_of_birth')" never matches and the field silently stays
+# empty — which then blocks the disabled Step 1 Next button.
+DOB_PICKER_SEL = '[data-nss-dp="form.date_of_birth"]'
 DOB_INPUT_SEL = f'{DOB_PICKER_SEL} input[x-model="display"]'
 
 # Step-specific Next buttons — use exact text to avoid picking hidden steps

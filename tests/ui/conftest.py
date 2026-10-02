@@ -18,23 +18,34 @@ Usage:
   pytest tests/ui/ --slowmo 500          # slow down for debugging
 """
 
+import base64
+import json
+import os
+import time
+import warnings
+
 import pytest
 from playwright.sync_api import Page, BrowserContext
 
 
 # ── Configuration ──────────────────────────────────────────────────────
 
-BASE_URL = "http://127.0.0.1:8001"
+# Override to point the suite at a server started specifically for testing
+# (see RATE_LIMIT_ADVICE below — the production rate limit makes a full run
+# unreliable):
+#   NSS_UI_BASE_URL=http://127.0.0.1:8002 python3 -m pytest tests/ui
+BASE_URL = os.environ.get("NSS_UI_BASE_URL", "http://127.0.0.1:8001")
 
 # Test credentials — must exist in the local DB.
-# The bootstrap_admin.py script creates SS1 with NSSAdmin1 and
-# force_password_change = TRUE. On first login the UI forces a
-# password change. We change it to ADMIN_PASSWORD_NEW.
-# On subsequent runs the password is already ADMIN_PASSWORD_NEW,
-# so we try that first, falling back to the bootstrap default.
+# scripts/bootstrap_admin.py seeds SS1 with password Admin@123 and
+# force_password_change = FALSE — login goes straight to /dashboard,
+# no change-password interstitial. ADMIN_PASSWORD_BOOTSTRAP and
+# ADMIN_PASSWORD_NEW are kept as separate names (both currently the same
+# value) so _do_login's retry-with-bootstrap-password fallback still
+# works unchanged if an environment's account ever drifts from this.
 ADMIN_SS_ID = "SS1"
-ADMIN_PASSWORD_BOOTSTRAP = "NSSAdmin1"
-ADMIN_PASSWORD_NEW = "NSSTest@1"
+ADMIN_PASSWORD_BOOTSTRAP = "Admin@123"
+ADMIN_PASSWORD_NEW = "Admin@123"
 
 # Currently only SS1 (admin) exists.
 # Update when a separate member account is bootstrapped.
@@ -71,6 +82,50 @@ def base_url():
     return BASE_URL
 
 
+# ── Rate-limit sanity check ────────────────────────────────────────────
+
+# The API applies slowapi's default_limits (RATE_LIMIT, default "60/minute",
+# keyed on client IP) to EVERY endpoint. One admin page load costs several
+# requests, so a UI run of any length exceeds 60/minute and the server starts
+# answering 429. That is what made whole-suite runs fail where each file passed
+# alone: the failures looked like "nav item never appeared" or an empty table,
+# never like a rate limit. Probe once and say so up front.
+
+RATE_LIMIT_PROBE_REQUESTS = 70
+RATE_LIMIT_ADVICE = (
+    "The API is rate limiting this client (429 after ~60 requests/minute, the "
+    "RATE_LIMIT default). A UI suite run exceeds that easily, which shows up as "
+    "unrelated-looking UI failures. Restart the dev server with a relaxed limit "
+    "for test runs, e.g.:\n"
+    "    RATE_LIMIT=100000/minute python3 -m uvicorn api.main:app --port 8001"
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _rate_limit_warning(base_url):
+    """Warn once per session if the production rate limit is still in force."""
+    import urllib.error
+    import urllib.request
+
+    limited = False
+    for _ in range(RATE_LIMIT_PROBE_REQUESTS):
+        try:
+            urllib.request.urlopen(f"{base_url}/api/v1/auth/me", timeout=5)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 429:
+                limited = True
+                break
+        except Exception:
+            # Server not reachable — the individual tests report that far
+            # better than a probe can.
+            return
+    if limited:
+        warnings.warn(UserWarning(RATE_LIMIT_ADVICE))
+        # The window is per minute; let it roll over so the suite does not
+        # start already throttled.
+        time.sleep(61)
+
+
 @pytest.fixture
 def page(context: BrowserContext, base_url: str) -> Page:
     """
@@ -105,46 +160,62 @@ def _do_login(page: Page, base_url: str, login_id: str, password: str):
     page.goto(f"{base_url}/login")
     page.wait_for_selector('[x-model="login_id"]', state="visible")
 
+    change_form = page.locator('[x-model="newPassword"]')
+    error_el = page.locator('[x-text="error"]')
+
     # Try the post-change password first (works on subsequent runs)
     _attempt_login(page, login_id, password)
+    outcome = _wait_for_login_outcome(page, change_form, error_el)
 
-    # Wait a moment for the response to come back
-    page.wait_for_timeout(1000)
-
-    # Case 1: Already redirected to /dashboard — password was accepted,
-    #         no force_password_change.
-    if "/login" not in page.url:
+    # Case 1: Already redirected — password was accepted, no force change.
+    if outcome == "redirected":
         return
 
     # Case 2: Force password change form appeared
-    change_form = page.locator('[x-model="newPassword"]')
-    if change_form.is_visible():
+    if outcome == "change_form":
         _handle_force_password_change(page)
         return
 
-    # Case 3: Still on /login with an error — maybe wrong password.
-    # If we used the new password, retry with the bootstrap default.
-    error_el = page.locator('[x-text="error"]')
-    if error_el.is_visible() and error_el.text_content():
-        if password != ADMIN_PASSWORD_BOOTSTRAP:
-            # Clear error state and retry with bootstrap password
-            page.fill('[x-model="login_id"]', "")
-            page.wait_for_timeout(200)
-            page.fill('[x-model="login_id"]', login_id)
-            page.fill('[x-model="password"]', ADMIN_PASSWORD_BOOTSTRAP)
-            page.click("button:has-text('Sign In')")
-            page.wait_for_timeout(1000)
+    # Case 3: Error (wrong password) or nothing detected in time — retry
+    # with the bootstrap default, unless we already used it.
+    if password != ADMIN_PASSWORD_BOOTSTRAP:
+        page.fill('[x-model="login_id"]', "")
+        page.wait_for_timeout(200)
+        page.fill('[x-model="login_id"]', login_id)
+        page.fill('[x-model="password"]', ADMIN_PASSWORD_BOOTSTRAP)
+        page.click("button:has-text('Sign In')")
+        outcome = _wait_for_login_outcome(page, change_form, error_el)
 
-            if "/login" not in page.url:
-                return
-
-            # Check for force password change after bootstrap login
-            if change_form.is_visible():
-                _handle_force_password_change(page)
-                return
+        if outcome == "redirected":
+            return
+        if outcome == "change_form":
+            _handle_force_password_change(page)
+            return
 
     # Final fallback: wait for redirect (might just be slow)
     page.wait_for_url(lambda url: "/login" not in url, timeout=10000)
+
+
+def _wait_for_login_outcome(page: Page, change_form, error_el, timeout_ms: int = 8000):
+    """
+    Poll for the first observable outcome of a submitted login attempt:
+    redirect away from /login, the force-password-change form, or a
+    rendered error message. Avoids a fixed wait_for_timeout() racing
+    Alpine's re-render (which silently drops the bootstrap-password retry
+    and causes a plain, unexplained 10s hang further down).
+
+    Returns "redirected", "change_form", "error", or "timeout".
+    """
+    start = time.monotonic()
+    while (time.monotonic() - start) * 1000 < timeout_ms:
+        if "/login" not in page.url:
+            return "redirected"
+        if change_form.is_visible():
+            return "change_form"
+        if error_el.is_visible() and (error_el.text_content() or "").strip():
+            return "error"
+        page.wait_for_timeout(150)
+    return "timeout"
 
 
 def _attempt_login(page: Page, login_id: str, password: str):
@@ -170,35 +241,127 @@ def _handle_force_password_change(page: Page):
     page.wait_for_url(lambda url: "/login" not in url, timeout=15000)
 
 
-@pytest.fixture
-def admin_page(context: BrowserContext, base_url: str) -> Page:
-    """
-    Page pre-authenticated as admin (SS1).
+# ── Session reuse ──────────────────────────────────────────────────────
+#
+# NSSAuth keeps the whole session in localStorage (nss_access_token /
+# nss_refresh_token / nss_user) — no cookies — so a session can be captured
+# once and replayed into any later page on the same origin.
+#
+# This matters for more than speed. pytest-playwright gives each test a fresh
+# context, so a per-test login meant ~220 bcrypt verifications per suite run
+# against the single-worker dev server. Under that load logins started timing
+# out, and the failure surfaced further down the test as "nav item never
+# appeared" — the source of the whole-suite-only failures that every file
+# passed cleanly in isolation. One login per session removes the contention
+# instead of papering over it with longer timeouts.
 
-    Handles force_password_change on first run. On subsequent runs
-    logs in directly with the changed password.
-    Yields the page on /dashboard. Tests can navigate from there.
+SESSION_KEYS = ("nss_access_token", "nss_refresh_token", "nss_user")
+
+# Re-login rather than replay a token this close to (or past) its expiry.
+# Replaying a stale one makes the page refresh it on load, and if the server
+# rotates refresh tokens only the first page to do so wins — every later test
+# gets a 401, bounces to /login, and fails with a misleading "nav item never
+# appeared". Cheaper and far more stable to notice the clock here.
+SESSION_MIN_REMAINING_SECONDS = 120
+
+
+@pytest.fixture(scope="session")
+def _session_cache():
+    """login_id → captured localStorage session, filled on first use."""
+    return {}
+
+
+def _capture_session(page: Page) -> dict:
+    return page.evaluate(
+        "(keys) => Object.fromEntries(keys.map(k => [k, localStorage.getItem(k)]))",
+        list(SESSION_KEYS),
+    )
+
+
+def _token_seconds_left(token: str | None) -> float:
     """
+    Seconds until a JWT's `exp`, or -1 if it cannot be read. Signature is not
+    checked — this only decides whether to reuse or re-login.
+    """
+    if not token:
+        return -1
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        exp = json.loads(base64.urlsafe_b64decode(payload))["exp"]
+        return float(exp) - time.time()
+    except Exception:
+        return -1
+
+
+def _restore_session(page: Page, base_url: str, session: dict) -> bool:
+    """
+    Replay a captured session and confirm it is still accepted.
+
+    /login is a static page on the right origin, so it is the cheapest place
+    to seed localStorage. Returns False if the token no longer holds (aged out,
+    revoked, server restarted), in which case the caller logs in again.
+    """
+    if _token_seconds_left(session.get("nss_access_token")) < \
+            SESSION_MIN_REMAINING_SECONDS:
+        return False
+
+    page.goto(f"{base_url}/login")
+    page.evaluate(
+        "(s) => { for (const [k, v] of Object.entries(s)) "
+        "if (v !== null) localStorage.setItem(k, v); }",
+        session,
+    )
+    page.goto(f"{base_url}/dashboard")
+    try:
+        # Not "did the URL stay put" — the redirect to /login only happens once
+        # /auth/me has answered, so checking too early passes for the wrong
+        # reason. Wait for the authenticated layout to actually render.
+        page.wait_for_selector(".nav-item", state="attached", timeout=10_000)
+    except Exception:
+        return False
+    return "/login" not in page.url
+
+
+def _authenticated_page(context, base_url, cache, login_id) -> Page:
     pg = context.new_page()
     pg.set_default_timeout(10000)
     pg.set_default_navigation_timeout(15000)
-    _do_login(pg, base_url, ADMIN_SS_ID, ADMIN_PASSWORD_NEW)
+
+    cached = cache.get(login_id)
+    if cached and _restore_session(pg, base_url, cached):
+        # Carry forward anything the page rotated while loading.
+        cache[login_id] = _capture_session(pg)
+        return pg
+
+    _do_login(pg, base_url, login_id, ADMIN_PASSWORD_NEW)
+    cache[login_id] = _capture_session(pg)
+    return pg
+
+
+@pytest.fixture
+def admin_page(context: BrowserContext, base_url: str, _session_cache) -> Page:
+    """
+    Page pre-authenticated as admin (SS1).
+
+    Logs in for real once per test session (handling force_password_change),
+    then replays the stored tokens for every later test. Yields the page on
+    /dashboard; tests can navigate from there.
+    """
+    pg = _authenticated_page(context, base_url, _session_cache, ADMIN_SS_ID)
     yield pg
     pg.close()
 
 
 @pytest.fixture
-def member_page(context: BrowserContext, base_url: str) -> Page:
+def member_page(context: BrowserContext, base_url: str, _session_cache) -> Page:
     """
     Page pre-authenticated as a regular member.
 
     Currently uses SS1 (same as admin). Update MEMBER_SS_ID
     when a separate member account exists.
     """
-    pg = context.new_page()
-    pg.set_default_timeout(10000)
-    pg.set_default_navigation_timeout(15000)
-    _do_login(pg, base_url, MEMBER_SS_ID, ADMIN_PASSWORD_NEW)
+    pg = _authenticated_page(context, base_url, _session_cache, MEMBER_SS_ID)
     yield pg
     pg.close()
 
@@ -235,7 +398,47 @@ def get_table_rows(page: Page, table_selector: str = ".admin-table tbody tr"):
     return page.locator(table_selector).count()
 
 
-def click_nav_item(page: Page, tab_name: str):
-    """Click a sidebar navigation item by its display text."""
-    page.click(f".nav-item:has-text('{tab_name}')")
+def click_nav_item(page: Page, tab_name: str, timeout: int = 10000):
+    """
+    Click a sidebar navigation item by its display text.
+
+    Two things this has to cope with:
+
+    * Nav items live inside `<template x-if="!isNavGroupCollapsed('...')">`
+      (admin.html / dashboard.html), so an item in a collapsed group is not
+      hidden — it is absent from the DOM. The collapsed set is persisted in
+      localStorage under `nss_nav_groups_collapsed`, so a test that folds a
+      group (or a seeded session that carries one) makes every later
+      click_nav_item in that page time out. Expand everything first, then look.
+    * A bare page.click() on a missing item fails with nothing but the
+      selector, which is what made the whole-suite failures unreadable. Report
+      the current URL and the nav items that *are* present instead.
+    """
+    page.evaluate(
+        "() => { try { localStorage.removeItem('nss_nav_groups_collapsed'); } "
+        "catch {} }"
+    )
+    nav_item = page.locator(f".nav-item:has-text('{tab_name}')")
+    try:
+        nav_item.first.wait_for(state="visible", timeout=2000)
+    except Exception:
+        # Expand any collapsed group in place (no reload — that would discard
+        # whatever the test has already set up on this page).
+        page.evaluate("""() => {
+            for (const el of document.querySelectorAll('.nav-section-label')) {
+                const chev = el.querySelector('.nav-chevron');
+                if (chev && chev.classList.contains('collapsed')) el.click();
+            }
+        }""")
+        try:
+            nav_item.first.wait_for(state="visible", timeout=timeout)
+        except Exception as exc:
+            present = page.locator(".nav-item").all_text_contents()
+            raise AssertionError(
+                f"nav item '{tab_name}' never appeared (url={page.url}). "
+                f"Nav items present: {[t.strip() for t in present]}. "
+                "An empty list usually means the page bounced to /login — the "
+                "session was not accepted — rather than a selector problem."
+            ) from exc
+    nav_item.first.click()
     page.wait_for_timeout(300)  # Allow Alpine.js reactivity

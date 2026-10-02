@@ -275,9 +275,16 @@ class TestEveryClickableHeaderMapsToARealColumn:
             "sortOrgs": ("frontend/admin.html", _ORG_SORT_COLUMNS),
             "sortPersonDir": ("frontend/admin.html", _PERSON_SORT_COLUMNS),
             "sortMemberDir": ("frontend/admin.html", _MEMBER_SORT_COLUMNS),
-            # Member Search on the dashboard reads the same /admin/users
-            # endpoint as the User Accounts table, so it shares its whitelist.
-            "sortMemberSearch": ("frontend/dashboard.html", _USER_SORT_COLUMNS),
+            # Member Search on the dashboard now reads /membership/search, which
+            # returns relevance-ordered rows with NO server-side sort params —
+            # sortMemberSearch() sorts the returned slice CLIENT-side. So its
+            # headers aren't bound to any endpoint whitelist; they're validated
+            # against the set of fields the client-side sort actually handles
+            # (account_status maps to the membership status_name in the JS).
+            "sortMemberSearch": ("frontend/dashboard.html", {
+                "sangha_sevi_id", "person_name", "organization_name",
+                "local_sakha_erp_id", "account_status",
+            }),
         }
 
     def test_no_header_sends_a_column_the_endpoint_rejects(self):

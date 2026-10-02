@@ -213,6 +213,45 @@ def gender_pk(write_conn):
 
 
 @pytest.fixture(scope="module")
+def india_state_district_pks(write_conn):
+    """
+    India country_pk + an Odisha state_pk/district_pk triple.
+
+    ANCHALIKA_SANGHA/ZILLA_SANGHA/PATHA_CHAKRA require country/state/
+    district (ORG-BR-099 narrowing — administrative jurisdiction, even
+    though these types still can't carry a physical premises address).
+    Shared here so every org-creation test/fixture that needs a throwaway
+    Anchalika doesn't repeat this same India/Odisha lookup.
+    """
+    cur = write_conn.cursor()
+    cur.execute(
+        "SELECT country_pk FROM nss.country WHERE country_code = 'IN' AND is_active = TRUE LIMIT 1"
+    )
+    row = cur.fetchone()
+    country_pk = str(row[0]) if row else None
+
+    cur.execute(
+        "SELECT state_pk FROM nss.state WHERE LOWER(state_name) LIKE '%odisha%' AND is_active = TRUE LIMIT 1"
+    )
+    row = cur.fetchone()
+    state_pk = str(row[0]) if row else None
+
+    district_pk = None
+    if state_pk:
+        cur.execute(
+            "SELECT district_pk FROM nss.district WHERE state_pk = %s AND is_active = TRUE LIMIT 1",
+            (state_pk,),
+        )
+        row = cur.fetchone()
+        district_pk = str(row[0]) if row else None
+
+    if not (country_pk and state_pk and district_pk):
+        pytest.skip("India/Odisha country/state/district reference data is missing.")
+
+    return {"country_pk": country_pk, "state_pk": state_pk, "district_pk": district_pk}
+
+
+@pytest.fixture(scope="module")
 def target_person_pk(write_conn):
     """
     Create a dedicated throwaway person (guaranteed no user account)
@@ -664,6 +703,150 @@ class TestStatusChange:
         assert response.status_code == 422
 
 
+# ── PENDING_APPROVAL + pending claim guard ─────────────────────────────
+#
+# update_status() used to auto-generate a sangha_sevi record when activating
+# a PENDING_APPROVAL account, duplicating (and diverging from — it never
+# created the membership_sakha_affiliation row) claim_approval.py::
+# approve_claim()'s own logic. That auto-generation was removed: a Sangha
+# Sevi is now created in exactly one place. This class covers the new
+# behaviour it was replaced with.
+
+class TestUpdateStatusPendingClaimGuard:
+    """PATCH /api/v1/admin/users/{pk}/status — PENDING_APPROVAL + claim guard."""
+
+    @pytest.fixture(scope="class")
+    def sakha_org_and_type(self, write_conn):
+        cur = write_conn.cursor()
+        cur.execute("""
+            SELECT o.organization_pk
+            FROM nss.organization o
+            JOIN nss.master_data md ON md.master_data_pk = o.organization_type_master_data_pk
+            WHERE md.value_code = 'SAKHA_SANGHA' AND o.is_active = TRUE
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if row is None:
+            pytest.skip("No active SAKHA_SANGHA organization exists.")
+        org_pk = str(row[0])
+
+        cur.execute("""
+            SELECT md.master_data_pk
+            FROM nss.master_data md
+            JOIN nss.master_category mc ON mc.master_category_pk = md.master_category_pk
+            WHERE mc.category_code = 'MEMBERSHIP_TYPE' AND md.value_code = 'REGULAR'
+              AND md.is_active = TRUE
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        if row is None:
+            pytest.skip("MEMBERSHIP_TYPE/REGULAR master data is missing.")
+        return {"org_pk": org_pk, "membership_type_pk": str(row[0])}
+
+    def _make_pending_person_with_claim(self, write_conn, sakha_org_and_type, *, with_claim: bool):
+        """Direct-SQL setup (not via /api/v1/register) — this class only
+        needs the DB state update_status() reacts to, not the registration
+        flow itself (already covered by tests/api/test_registration.py)."""
+        cur = write_conn.cursor()
+        suffix = uuid4().hex[:10].upper()
+        cur.execute(
+            """
+            INSERT INTO nss.person (person_id, first_name, last_name, email)
+            VALUES (%s, %s, %s, %s)
+            RETURNING person_pk
+            """,
+            (f"TPC{suffix}", "TestPendingClaim", suffix, f"tpc.{suffix.lower()}@example.test"),
+        )
+        person_pk = cur.fetchone()[0]
+
+        cur.execute(
+            """
+            INSERT INTO nss.user_account (person_pk, password_hash, account_status)
+            VALUES (%s, 'x', 'PENDING_APPROVAL')
+            RETURNING user_account_pk
+            """,
+            (person_pk,),
+        )
+        user_account_pk = str(cur.fetchone()[0])
+
+        if with_claim:
+            cur.execute(
+                """
+                INSERT INTO nss.registration_claim (
+                    user_account_pk, person_pk, claimed_organization_pk,
+                    claimed_membership_type_master_data_pk,
+                    claimed_local_sakha_number, claim_status
+                ) VALUES (%s, %s, %s, %s, %s, 'PENDING')
+                """,
+                (user_account_pk, person_pk, sakha_org_and_type["org_pk"],
+                 sakha_org_and_type["membership_type_pk"], uuid4().hex[:6]),
+            )
+        return user_account_pk
+
+    def test_activate_pending_approval_with_pending_claim_blocked(
+        self, client, admin_headers, write_conn, sakha_org_and_type
+    ):
+        """Activating a PENDING_APPROVAL account with an outstanding claim
+        must be blocked — the Sangha Sevi is created via Registration
+        Approvals, not by flipping the account status directly."""
+        user_account_pk = self._make_pending_person_with_claim(
+            write_conn, sakha_org_and_type, with_claim=True
+        )
+
+        response = client.patch(
+            f"/api/v1/admin/users/{user_account_pk}/status",
+            headers=admin_headers,
+            json={"account_status": "ACTIVE"},
+        )
+        assert response.status_code == 422
+        assert "registration claim" in response.json()["detail"].lower()
+
+        with write_conn.cursor() as cur:
+            cur.execute(
+                "SELECT account_status FROM nss.user_account WHERE user_account_pk = %s",
+                (user_account_pk,),
+            )
+            assert cur.fetchone()[0] == "PENDING_APPROVAL", "Blocked activation must not mutate status."
+
+            cur.execute(
+                "SELECT COUNT(*) FROM nss.sangha_sevi WHERE person_pk = "
+                "(SELECT person_pk FROM nss.user_account WHERE user_account_pk = %s)",
+                (user_account_pk,),
+            )
+            assert cur.fetchone()[0] == 0, "Blocked activation must not create a sangha_sevi."
+
+    def test_activate_pending_approval_without_claim_succeeds(
+        self, client, admin_headers, write_conn, sakha_org_and_type
+    ):
+        """Activating a PENDING_APPROVAL account with NO claim (e.g. an
+        admin-created account, or has_membership=False at registration)
+        just flips the status — no sangha_sevi is invented for it."""
+        user_account_pk = self._make_pending_person_with_claim(
+            write_conn, sakha_org_and_type, with_claim=False
+        )
+
+        response = client.patch(
+            f"/api/v1/admin/users/{user_account_pk}/status",
+            headers=admin_headers,
+            json={"account_status": "ACTIVE"},
+        )
+        assert response.status_code == 200, f"Activation failed: {response.json()}"
+
+        with write_conn.cursor() as cur:
+            cur.execute(
+                "SELECT account_status FROM nss.user_account WHERE user_account_pk = %s",
+                (user_account_pk,),
+            )
+            assert cur.fetchone()[0] == "ACTIVE"
+
+            cur.execute(
+                "SELECT COUNT(*) FROM nss.sangha_sevi WHERE person_pk = "
+                "(SELECT person_pk FROM nss.user_account WHERE user_account_pk = %s)",
+                (user_account_pk,),
+            )
+            assert cur.fetchone()[0] == 0, "update_status() must never create a sangha_sevi."
+
+
 # ── Delete user tests ─────────────────────────────────────────────────
 
 class TestDeleteUser:
@@ -879,7 +1062,11 @@ _RUN_ID = uuid4().hex[:8]
 # Digits-only run id: nss.person.chk_person_mobile_number_format requires
 # mobile_number to match ^[0-9]{7,15}$, so the hex _RUN_ID cannot be used
 # inside a phone number.
-_RUN_DIGITS = f"{uuid4().int % 10**8:08d}"
+#
+# 7 digits, not 8: callers wrap this in a 2-digit prefix + 1-digit suffix to
+# build a 10-digit number, which is what MBR-CONTACT-01's +91 rule demands
+# (exactly 10 digits, leading 6–9). Widening this breaks validate_mobile().
+_RUN_DIGITS = f"{uuid4().int % 10**7:07d}"
 
 
 class TestAdminCreatePerson:
@@ -897,7 +1084,7 @@ class TestAdminCreatePerson:
                 "date_of_birth": "1990-01-15",
                 "gender_master_data_pk": gender_pk,
                 "country_phone_code": "+91",
-                "mobile_number": f"999{_RUN_DIGITS}1",
+                "mobile_number": f"99{_RUN_DIGITS}1",
                 "email": f"test_person_{_RUN_ID}@test.example",
             },
         )
@@ -938,7 +1125,7 @@ class TestAdminCreatePerson:
 
     def test_create_person_duplicate_mobile_fails(self, client, admin_headers, gender_pk):
         """Duplicate mobile number returns 409."""
-        mobile = f"888{_RUN_DIGITS}2"
+        mobile = f"88{_RUN_DIGITS}2"
         # Create first
         client.post(
             "/api/v1/admin/persons",
@@ -1051,7 +1238,7 @@ class TestCreateOrganization:
         }
 
     @pytest.fixture(scope="class")
-    def parent_anchalika_pk(self, client, admin_headers, write_conn):
+    def parent_anchalika_pk(self, client, admin_headers, write_conn, org_helpers):
         """
         Throwaway ANCHALIKA_SANGHA to act as the parent of the SAKHA_SANGHA
         under test.
@@ -1062,6 +1249,12 @@ class TestCreateOrganization:
         apex org — looked up, never created). Rather than scavenging an
         existing Anchalika, create a fresh one through the same endpoint so
         the parent is known-good; conftest's write_conn rolls it back.
+
+        ANCHALIKA_SANGHA/ZILLA_SANGHA/PATHA_CHAKRA now require
+        country/state/district (ORG-BR-099 narrowing — administrative
+        jurisdiction, even though they still can't carry a physical
+        premises address) — reuses org_helpers rather than a second copy
+        of the India/Odisha lookup.
         """
         cur = write_conn.cursor()
         cur.execute("""
@@ -1084,6 +1277,9 @@ class TestCreateOrganization:
                 "organization_type_code": "ANCHALIKA_SANGHA",
                 "parent_organization_pk": kendra_pk,
                 "organization_code": f"AN{_RUN_ID[:6].upper()}",
+                "country_pk": org_helpers["country_pk"],
+                "state_pk": org_helpers["state_pk"],
+                "district_pk": org_helpers["district_pk"],
             },
         )
         assert resp.status_code == 201, f"Parent Anchalika setup failed: {resp.json()}"
@@ -1166,7 +1362,7 @@ class TestOrgCodeSequencePreview:
     _NEXT_CODE = "/api/v1/admin/organizations/next-code"
 
     def test_preview_is_non_consuming_and_matches_created_code(
-        self, client, admin_headers
+        self, client, admin_headers, india_state_district_pks
     ):
         t = "ANCHALIKA_SANGHA"  # parent auto-resolves to the seeded Kendra
         # Two previews in a row return the SAME value — peeked, not minted.
@@ -1191,6 +1387,9 @@ class TestOrgCodeSequencePreview:
             json={
                 "organization_name": f"Preview Anchalika {_RUN_ID}",
                 "organization_type_code": t,
+                "country_pk": india_state_district_pks["country_pk"],
+                "state_pk": india_state_district_pks["state_pk"],
+                "district_pk": india_state_district_pks["district_pk"],
             },
         )
         assert resp.status_code == 201, resp.json()
@@ -1230,7 +1429,7 @@ class TestKumariSevakInheritsFromParent:
     """
 
     @pytest.fixture(scope="class")
-    def parent_sakha(self, client, admin_headers, write_conn):
+    def parent_sakha(self, client, admin_headers, write_conn, india_state_district_pks):
         """A Sakha with a known code and a full location/contact detail set,
         so the wing's inheritance can be asserted field-by-field."""
         cur = write_conn.cursor()
@@ -1243,12 +1442,9 @@ class TestKumariSevakInheritsFromParent:
             LIMIT 1
         """)
         kendra_pk = str(cur.fetchone()[0])
-        cur.execute("SELECT country_pk FROM nss.country WHERE country_code = 'IN' AND is_active = TRUE LIMIT 1")
-        country_pk = str(cur.fetchone()[0])
-        cur.execute("SELECT state_pk FROM nss.state WHERE LOWER(state_name) LIKE '%odisha%' AND is_active = TRUE LIMIT 1")
-        state_pk = str(cur.fetchone()[0])
-        cur.execute("SELECT district_pk FROM nss.district WHERE state_pk = %s AND is_active = TRUE LIMIT 1", (state_pk,))
-        district_pk = str(cur.fetchone()[0])
+        country_pk = india_state_district_pks["country_pk"]
+        state_pk = india_state_district_pks["state_pk"]
+        district_pk = india_state_district_pks["district_pk"]
 
         an = client.post(
             "/api/v1/admin/organizations",
@@ -1258,6 +1454,9 @@ class TestKumariSevakInheritsFromParent:
                 "organization_type_code": "ANCHALIKA_SANGHA",
                 "parent_organization_pk": kendra_pk,
                 "organization_code": f"WA{_RUN_ID[:6].upper()}",
+                "country_pk": country_pk,
+                "state_pk": state_pk,
+                "district_pk": district_pk,
             },
         )
         assert an.status_code == 201, f"Anchalika setup failed: {an.json()}"
@@ -1276,6 +1475,7 @@ class TestKumariSevakInheritsFromParent:
                 "city_village_name": f"WingVillage{_RUN_ID}",
                 "postal_code_value": "751024",
                 "phone_number": "0674-1112222",
+                "country_phone_code": "+91",
                 "mobile_number": "9800011122",
                 "org_email": "wingparent@example.org",
                 "org_website_url": "https://wingparent.example.org",
@@ -1932,6 +2132,177 @@ class TestCreateSanghaSeviWithAccount:
         assert resp2.json()["user_account_pk"] is None
 
 
+class TestCreateSanghaSeviCredentialNumber:
+    """
+    POST /admin/sangha-sevi — legacy credential document_number handling.
+
+    Decided 2026-10-01: no one, legacy or new, is ever asked to supply a
+    year. The shared credential writer issue_membership_credential() stores
+    a caller-supplied ("legacy", already-issued) document_number verbatim,
+    exactly as written on the old paper register — no format or year is
+    required or validated (MBR-030D retired). A bare sequence like "1" is a
+    perfectly valid legacy number. The auto-generate path (no
+    document_number) is unaffected and still mints a well-formed FY
+    composite.
+    """
+
+    def _make_person(self, write_conn):
+        cur = write_conn.cursor()
+        suffix = uuid4().hex[:10].upper()
+        cur.execute("""
+            INSERT INTO nss.person (person_id, first_name, last_name, email)
+            VALUES (%s, %s, %s, %s) RETURNING person_pk
+        """, (f"TCDN{suffix}", "TestCredDoc", suffix, f"tcdn.{suffix.lower()}@example.test"))
+        person_pk = str(cur.fetchone()[0])
+        cur.close()
+        return person_pk
+
+    def _parichaya_document_number(self, write_conn, person_pk):
+        """The document_number of the Parichaya Patra issued for this person."""
+        cur = write_conn.cursor()
+        cur.execute("""
+            SELECT pp.document_number
+            FROM nss.parichaya_patra pp
+            JOIN nss.sangha_sevi ss ON ss.sangha_sevi_pk = pp.sangha_sevi_pk
+            WHERE ss.person_pk = %s
+        """, (person_pk,))
+        row = cur.fetchone()
+        cur.close()
+        return row[0] if row else None
+
+    # parichaya_patra.document_number is globally UNIQUE and these rows
+    # persist, so the literals cannot be hardcoded or the suite only passes
+    # once per database. Each case is a SHAPE with a run-scoped sequence
+    # substituted for "{s}" — the assertion is verbatim storage, so the shape
+    # is what carries the meaning, not the specific digits.
+    @pytest.mark.parametrize("legacy_shape", [
+        "{s}",                  # bare sequence — the whole point of the fix
+        "{s}345",               # any bare sequence
+        "{s}/2026",             # partial year info is fine too
+        "{s}/25/26",            # two-digit years, fine
+        "abc{s}",               # non-numeric, fine — stored verbatim
+        "{s}/2026/2027/2028",   # extra segment, fine
+        " {s}/2026/2027 ",      # whitespace is just part of the string
+    ])
+    def test_legacy_number_stored_verbatim_no_format_or_year_required(
+        self, client, admin_headers, regular_membership_type_pk, two_sakhas, write_conn, legacy_shape
+    ):
+        if not regular_membership_type_pk or not two_sakhas:
+            pytest.skip("Missing reference data.")
+        legacy_number = legacy_shape.format(s=_RUN_DIGITS)
+        person_pk = self._make_person(write_conn)
+        resp = client.post("/api/v1/admin/sangha-sevi", headers=admin_headers, json={
+            "person_pk": person_pk,
+            "membership_type_pk": regular_membership_type_pk,
+            "organization_pk": two_sakhas[0],
+            "joining_date": "2024-04-01",
+            "credential_document_number": legacy_number,
+        })
+        assert resp.status_code == 201, resp.json()
+        assert self._parichaya_document_number(write_conn, person_pk) == legacy_number
+
+    def test_valid_legacy_number_accepted_and_stored_verbatim(
+        self, client, admin_headers, regular_membership_type_pk, two_sakhas, write_conn
+    ):
+        if not regular_membership_type_pk or not two_sakhas:
+            pytest.skip("Missing reference data.")
+        person_pk = self._make_person(write_conn)
+        # No year requirement (MBR-030D retired, 2026-10-01) — any FY-shaped
+        # number, past, present, or future, is accepted and stored as-is.
+        from datetime import date
+
+        from api.helpers import financial_year_bounds
+
+        fy_start, fy_end, fy_valid_from, fy_valid_to = financial_year_bounds(date.today())
+        # Unique 6-digit sequence so the composite can't collide (409) with
+        # seed data or a sibling test's credential in the same transaction.
+        seq = str(uuid4().int % 900000 + 100000)
+        doc = f"{seq}/{fy_start}/{fy_end}"
+        resp = client.post("/api/v1/admin/sangha-sevi", headers=admin_headers, json={
+            "person_pk": person_pk,
+            "membership_type_pk": regular_membership_type_pk,
+            "organization_pk": two_sakhas[0],
+            "joining_date": "2024-04-01",
+            "credential_document_number": doc,
+            "credential_valid_from": fy_valid_from.isoformat(),
+            "credential_valid_to": fy_valid_to.isoformat(),
+        })
+        assert resp.status_code == 201, resp.json()
+        # REGULAR membership => Parichaya Patra; the number is stored verbatim.
+        assert self._parichaya_document_number(write_conn, person_pk) == doc
+
+    def test_omitted_number_autogenerates_valid_composite(
+        self, client, admin_headers, regular_membership_type_pk, two_sakhas, write_conn
+    ):
+        """No document_number => a well-formed FY composite is auto-generated."""
+        if not regular_membership_type_pk or not two_sakhas:
+            pytest.skip("Missing reference data.")
+        person_pk = self._make_person(write_conn)
+        resp = client.post("/api/v1/admin/sangha-sevi", headers=admin_headers, json={
+            "person_pk": person_pk,
+            "membership_type_pk": regular_membership_type_pk,
+            "organization_pk": two_sakhas[0],
+            "joining_date": "2024-04-01",
+        })
+        assert resp.status_code == 201, resp.json()
+        stored = self._parichaya_document_number(write_conn, person_pk)
+        assert stored is not None, "Parichaya Patra should have been issued"
+        parts = stored.split("/")
+        assert len(parts) == 3, stored
+        assert parts[0].isdigit(), stored
+        assert len(parts[1]) == 4 and parts[1].isdigit(), stored
+        assert len(parts[2]) == 4 and parts[2].isdigit(), stored
+
+    def test_autogenerated_validity_window_follows_dola_purnima(
+        self, client, admin_headers, regular_membership_type_pk, two_sakhas, write_conn
+    ):
+        """
+        SOL-ARCH-013 FC-DECISION-01: valid_from/valid_to are decoupled from
+        the FY-based document_number — they must land on confirmed Dola
+        Purnima dates (the "Dola Purnima membership year"), not on the
+        1 April/31 March financial-year bounds that still govern the
+        document_number itself.
+        """
+        from datetime import date
+
+        from api.helpers import dola_purnima_credential_validity_window
+
+        if not regular_membership_type_pk or not two_sakhas:
+            pytest.skip("Missing reference data.")
+        person_pk = self._make_person(write_conn)
+        resp = client.post("/api/v1/admin/sangha-sevi", headers=admin_headers, json={
+            "person_pk": person_pk,
+            "membership_type_pk": regular_membership_type_pk,
+            "organization_pk": two_sakhas[0],
+            "joining_date": "2024-04-01",
+        })
+        assert resp.status_code == 201, resp.json()
+
+        cur = write_conn.cursor()
+        cur.execute("""
+            SELECT pp.document_number, pp.valid_from, pp.valid_to
+            FROM nss.parichaya_patra pp
+            JOIN nss.sangha_sevi ss ON ss.sangha_sevi_pk = pp.sangha_sevi_pk
+            WHERE ss.person_pk = %s
+        """, (person_pk,))
+        document_number, valid_from, valid_to = cur.fetchone()
+        cur.close()
+
+        # document_number is still FY-based (MBR-030A) ...
+        seq_str, fy_start_str, fy_end_str = document_number.split("/")
+        assert int(fy_end_str) == int(fy_start_str) + 1
+
+        # ... while valid_from/valid_to are the Dola Purnima membership-year
+        # window containing today, independently computed via the same
+        # resolver issue_membership_credential() calls, not the FY bounds.
+        expected_from, expected_to = dola_purnima_credential_validity_window(
+            write_conn.cursor(), date.today(),
+        )
+        assert valid_from == expected_from
+        assert valid_to == expected_to
+        assert valid_to.year == valid_from.year + 1
+
+
 # ── Local Sakha number uniqueness / numbering-space tests ─────────────
 
 class TestLocalSakhaNumberUniqueness:
@@ -1971,9 +2342,13 @@ class TestLocalSakhaNumberUniqueness:
     def num_helpers(self, write_conn):
         """
         Resolve the REGULAR and PROBATIONARY (Darshaka) membership types and
-        a Sakha org that actually has a short_code — compose_local_sakha_erp_id
-        raises 422 when short_code is NULL, which would mask the behaviour
-        under test.
+        a Sakha org that has a short_code — compose_local_sakha_erp_id raises
+        422 when short_code is NULL, which would mask the behaviour under
+        test. The real 175-branch seed leaves short_code NULL by design
+        (admin-assignable via UI), so a fresh build has none set — assign a
+        synthetic one here if needed, scoped to this test transaction only
+        (rolled back by conftest's module SAVEPOINT). Same pattern as
+        test_claim_approval.py::sakha_orgs / test_registration.py::test_org_pk.
         """
         cur = write_conn.cursor()
 
@@ -1988,22 +2363,28 @@ class TestLocalSakhaNumberUniqueness:
         types = {row[0]: str(row[1]) for row in cur.fetchall()}
 
         cur.execute("""
-            SELECT o.organization_pk
+            SELECT o.organization_pk, o.short_code
             FROM nss.organization o
             JOIN nss.master_data md
               ON md.master_data_pk = o.organization_type_master_data_pk
             WHERE md.value_code = 'SAKHA_SANGHA'
               AND o.is_active = TRUE
-              AND o.short_code IS NOT NULL
+            ORDER BY o.short_code IS NOT NULL DESC, o.created_at
             LIMIT 1
         """)
         row = cur.fetchone()
+        org_pk = str(row[0]) if row else None
+        if org_pk and not row[1]:
+            cur.execute(
+                "UPDATE nss.organization SET short_code = 'TLSN' WHERE organization_pk = %s",
+                (org_pk,),
+            )
         cur.close()
 
         return {
             "regular_pk": types.get("REGULAR"),
             "darshaka_pk": types.get("PROBATIONARY"),
-            "organization_pk": str(row[0]) if row else None,
+            "organization_pk": org_pk,
         }
 
     @pytest.fixture

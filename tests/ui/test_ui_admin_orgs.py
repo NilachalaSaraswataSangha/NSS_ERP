@@ -82,7 +82,7 @@ class TestAdminOrgs:
         # After filtering, should show no org cards (or fewer)
         # The org cards are inside x-for="org in orgsList"
         # If no results, orgsList will be empty
-        no_results_text = orgs_div.locator('text="No organizations found"')
+        no_results_text = orgs_div.locator('text="No organizations found."')
         org_cards = orgs_div.locator('.data-card-title')
         # The first card title is always "Organizations" (the heading), so real org cards start after
         # Or simply check that either no-results message shows, or cards reduced

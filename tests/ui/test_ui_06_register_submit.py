@@ -17,9 +17,12 @@ import pytest
 import time
 from playwright.sync_api import Page, expect
 
+from tests.ui.conftest import BASE_URL
+
 pytestmark = pytest.mark.ui
 
-BASE_URL = "http://127.0.0.1:8001"
+# BASE_URL comes from conftest (NSS_UI_BASE_URL-aware) rather than a local
+# copy, so this file follows the suite when it is pointed at a test server.
 
 # ── Selectors ──────────────────────────────────────────────────────────
 
@@ -33,12 +36,20 @@ HAS_MEMBERSHIP_SEL = '[x-model="form.has_membership"]'
 MEMBERSHIP_TYPE_SEL = '[x-model="form.membership_type_master_data_pk"]'
 SAKHA_SEL = '[x-model="form.organization_pk"]'
 LOCAL_SAKHA_NUM_SEL = '[x-model="form.claimed_local_sakha_number"]'
+CREDENTIAL_NUM_SEL = '[x-model="form.claimed_credential_document_number"]'
 DARSHAK_TOGGLE_SEL = '[x-model="form.is_attending_as_darshak"]'
 DARSHAK_ORG_SEL = '[x-model="form.darshak_organization_pk"]'
-# DOB uses nssDatePicker — the visible input has x-model="display" and
-# placeholder="DD/MM/YYYY" inside the datepicker wrapper.
+DARSHAK_LOCAL_NUM_SEL = '[x-model="form.darshak_local_sakha_number"]'
+# DOB uses the shared nssDatePicker. The picker root carries a
+# data-nss-dp="<model path>" hook stamped by nss-datepicker.js; the visible
+# input inside it has x-model="display" and placeholder="DD/MM/YYYY".
 # onInput() auto-formats and writes ISO (YYYY-MM-DD) to form.date_of_birth.
-DOB_PICKER_SEL = '[x-data*="nssDatePicker(\'form.date_of_birth\')"]'
+#
+# Do NOT match on the x-data text: the picker is declared as
+# nssDatePicker('form.date_of_birth', { maxToday: true }), so a substring
+# ending in "date_of_birth')" never matches — _fill_dob() would no-op and
+# every test that leaves Step 1 would fail on the disabled Next button.
+DOB_PICKER_SEL = '[data-nss-dp="form.date_of_birth"]'
 DOB_INPUT_SEL = f'{DOB_PICKER_SEL} input[x-model="display"]'
 COUNTRY_SEL = '[x-model="form.country_pk"]'
 STATE_SEL = '[x-model="form.state_pk"]'
@@ -204,6 +215,59 @@ class TestRegisterStep2Membership:
 
         options = sakha_sel.locator("option")
         assert options.count() > 10, "Sakha dropdown should have many options (175 branches)"
+
+    def test_local_sakha_number_required_marker(self, page: Page):
+        """Local Sakha Number is now required for every membership type,
+        including Darshaka — no longer marked optional once a Sakha is
+        selected (AUTH-BR-086)."""
+        _goto_register(page)
+        _fill_step1(page, _unique_suffix())
+        _advance_step1_to_step2(page)
+
+        toggle = page.locator(HAS_MEMBERSHIP_SEL)
+        if toggle.count() == 0:
+            pytest.skip("Membership toggle not found")
+        toggle.first.check()
+        page.wait_for_timeout(500)
+
+        sakha_sel = page.locator(SAKHA_SEL)
+        if sakha_sel.count() == 0:
+            pytest.skip("Sakha selector not found")
+        sakha_sel.select_option(index=1)
+        page.wait_for_timeout(500)
+
+        local_num = page.locator(LOCAL_SAKHA_NUM_SEL)
+        assert local_num.count() > 0, "Local Sakha Number field should appear once a Sakha is selected"
+
+        credential_num = page.locator(CREDENTIAL_NUM_SEL)
+        assert credential_num.count() > 0, (
+            "Parichaya/Anumati Patra number field should appear once a Sakha is selected"
+        )
+
+    def test_darshak_attendance_reveals_own_local_number(self, page: Page):
+        """Toggling 'Attending another Sangha as Darshak?' reveals a Darshak
+        Sakha selector AND its own Local Sakha Number field — a separate
+        namespace from the home Sakha's number above it."""
+        _goto_register(page)
+        _fill_step1(page, _unique_suffix())
+        _advance_step1_to_step2(page)
+
+        toggle = page.locator(HAS_MEMBERSHIP_SEL)
+        if toggle.count() == 0:
+            pytest.skip("Membership toggle not found")
+        toggle.first.check()
+        page.wait_for_timeout(500)
+
+        darshak_toggle = page.locator(DARSHAK_TOGGLE_SEL)
+        if darshak_toggle.count() == 0:
+            pytest.skip("Darshak attendance toggle not found")
+        darshak_toggle.first.check()
+        page.wait_for_timeout(500)
+
+        assert page.locator(DARSHAK_ORG_SEL).count() > 0, "Darshak Sakha selector should appear"
+        assert page.locator(DARSHAK_LOCAL_NUM_SEL).count() > 0, (
+            "Darshak Sakha's own Local Sakha Number field should appear"
+        )
 
 
 # ── Step 2: Address cascading ─────────────────────────────────────────

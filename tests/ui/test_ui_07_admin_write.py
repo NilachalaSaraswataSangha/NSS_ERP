@@ -20,11 +20,15 @@ from tests.ui.conftest import (
     click_nav_item,
     ADMIN_SS_ID,
     ADMIN_PASSWORD_NEW,
+    BASE_URL,
 )
 
 pytestmark = pytest.mark.ui
 
-BASE_URL = "http://127.0.0.1:8001"
+# NB: BASE_URL is imported, not redefined. A local copy pinned to port 8001
+# silently ignored NSS_UI_BASE_URL, so the fixture authenticated against one
+# origin while these helpers navigated to another — localStorage is per-origin,
+# so every page bounced to /login and the tests failed on unrelated assertions.
 
 
 # ── Helpers ────────────────────────────────────────────────────────────
@@ -36,24 +40,32 @@ def _goto_admin(admin_page: Page):
 
 
 def _navigate_to_tab(admin_page: Page, tab_name: str):
-    """Navigate to admin page and open a specific sidebar tab."""
+    """
+    Navigate to admin page and open a specific sidebar tab.
+
+    The label fallbacks exist because a few tabs have been renamed over time.
+    If none of them matches, re-raise: swallowing the failure left the test to
+    fail later on an unrelated assertion, hiding both the real cause and the
+    diagnostics click_nav_item collects.
+    """
     _goto_admin(admin_page)
-    try:
-        click_nav_item(admin_page, tab_name)
-    except Exception:
-        alternatives = {
-            "Registration Approvals": ["Claims", "Approvals"],
-            "Claims": ["Registration Approvals", "Approvals"],
-            "Organizations": ["Orgs"],
-            "Change Password": ["Password"],
-        }
-        for alt in alternatives.get(tab_name, []):
-            try:
-                click_nav_item(admin_page, alt)
-                break
-            except Exception:
-                continue
-    admin_page.wait_for_timeout(1000)
+    alternatives = {
+        "Registration Approvals": ["Claims", "Approvals"],
+        "Claims": ["Registration Approvals", "Approvals"],
+        "Organizations": ["Orgs"],
+        "Change Password": ["Password"],
+    }
+    last_error = None
+    for label in [tab_name, *alternatives.get(tab_name, [])]:
+        try:
+            click_nav_item(admin_page, label)
+            admin_page.wait_for_timeout(1000)
+            return
+        except Exception as exc:
+            last_error = exc
+    raise AssertionError(
+        f"none of the sidebar labels for '{tab_name}' could be opened"
+    ) from last_error
 
 
 def _open_claims_tab(admin_page: Page):
@@ -139,70 +151,65 @@ class TestAdminClaimActions:
         # Look for success toast or reduced pending count
 
 
-# ── Status change modal ───────────────────────────────────────────────
+# ── Direct status actions (Activate / Lock Account / Delete) ──────────
+# The old "Change Status" button + modal (ACTIVE/LOCKED/INACTIVE dropdown)
+# was removed — replaced with one direct action button per status
+# (Activate, Lock Account, or an inline Reactivate mini-form for INACTIVE),
+# confirmed via the shared NSSDialog overlay instead of a bespoke modal.
 
 
 class TestAdminStatusChange:
-    """Tests for the account status change modal."""
+    """Tests for the direct account status action buttons."""
 
-    def test_status_modal_opens_from_user_list(self, admin_page: Page, base_url: str):
-        """Clicking the status button on a user opens the status change modal."""
+    def test_status_action_opens_confirm_dialog(self, admin_page: Page, base_url: str):
+        """Clicking Activate or Lock Account on a user opens the shared
+        NSSDialog confirm overlay (not the old status-change modal)."""
         _goto_admin(admin_page)
         admin_page.wait_for_timeout(2000)
 
-        # Look for a status change button in the user list
-        status_btns = admin_page.locator('button:has-text("Status")')
-        if status_btns.count() == 0:
-            # Try opening a user detail first
-            rows = admin_page.locator("tbody tr")
-            if rows.count() > 0:
-                rows.first.click()
-                admin_page.wait_for_timeout(1000)
-                status_btns = admin_page.locator('button:has-text("Status")')
+        # `tbody tr` matches every panel's table in admin.html (most of them
+        # hidden), so target the users list's own clickable rows and wait for
+        # the first one instead of trusting a non-auto-waiting count().
+        rows = admin_page.locator("tr.clickable-row")
+        try:
+            rows.first.wait_for(state="visible", timeout=10_000)
+        except Exception:
+            pytest.skip("No users")
+        rows.first.click()
 
-        if status_btns.count() == 0:
-            pytest.skip("No status change button found")
+        # Read the action from the detail panel only: the users list rows carry
+        # their own "Activate"/"Lock" quick actions (admin.html:825-834), so an
+        # unscoped locator matches one per listed user as well.
+        detail_div = admin_page.locator('[x-show="activeTab === \'detail\'"]')
+        detail_div.wait_for(state="visible", timeout=10_000)
+        admin_page.wait_for_timeout(500)
 
-        status_btns.first.click()
-        admin_page.wait_for_timeout(1000)
+        action_btn = detail_div.locator(
+            'button:has-text("Activate"), button:has-text("Lock Account")'
+        )
+        if action_btn.count() == 0:
+            # Only SS1 exists and it's the logged-in admin — no status
+            # action is offered for one's own account.
+            pytest.skip("No status action button found (may be own account)")
 
-        # Modal should appear
-        modal = admin_page.locator('[x-show="showStatusModal"]')
-        if modal.count() > 0 and modal.first.is_visible():
-            expect(modal.first).to_be_visible()
-        else:
-            # May have shown self-change error dialog
-            dialog = admin_page.locator("text=cannot change your own")
-            if dialog.count() > 0:
-                pytest.skip("Only SS1 exists — cannot change own status")
+        action_btn.first.click()
+        admin_page.wait_for_timeout(500)
 
-    def test_status_modal_has_options(self, admin_page: Page, base_url: str):
-        """Status change modal shows ACTIVE/LOCKED/INACTIVE options."""
+        dialog = admin_page.locator("#nss-dialog-overlay")
+        expect(dialog).to_be_visible(timeout=5000)
+
+        # Dismiss without mutating state
+        dialog.locator('button:has-text("Cancel")').first.click()
+
+    def test_no_status_dropdown_modal(self, admin_page: Page, base_url: str):
+        """The old ACTIVE/LOCKED/INACTIVE dropdown modal must not exist."""
         _goto_admin(admin_page)
         admin_page.wait_for_timeout(2000)
 
-        # This test requires a second user account to exist
-        rows = admin_page.locator("tbody tr")
-        if rows.count() < 2:
-            pytest.skip("Need at least 2 users to test status change")
+        assert admin_page.locator('[x-show="showStatusModal"]').count() == 0
+        assert admin_page.locator('select[x-model="statusNewValue"]').count() == 0
+        assert admin_page.locator('h3:has-text("Change Account Status")').count() == 0
 
-        # Click on the second user (not SS1)
-        rows.nth(1).click()
-        admin_page.wait_for_timeout(1000)
-
-        status_btn = admin_page.locator('button:has-text("Status")')
-        if status_btn.count() == 0:
-            pytest.skip("Status button not available for selected user")
-
-        status_btn.first.click()
-        admin_page.wait_for_timeout(1000)
-
-        # Check for status options
-        for status in ["ACTIVE", "LOCKED", "INACTIVE"]:
-            option = admin_page.locator(f"text={status}")
-            if option.count() > 0:
-                return  # Found at least one status option
-        pytest.skip("Status modal options not visible")
 
 
 # ── Role assignment modal ─────────────────────────────────────────────
@@ -323,11 +330,9 @@ class TestAdminDashboardContent:
         if rows.count() == 0:
             pytest.skip("No users")
 
-        # Click the View button inside the first row (not the row itself)
-        view_btn = rows.first.locator('button:has-text("View")')
-        if view_btn.count() == 0:
-            pytest.skip("No View button in user row")
-        view_btn.first.click()
+        # Click the row itself — it's clickable (tr.clickable-row
+        # @click="viewUser(...)"), there's no separate View button.
+        rows.first.click()
 
         # Wait for detail view to load
         detail_div = admin_page.locator('[x-show="activeTab === \'detail\'"]')

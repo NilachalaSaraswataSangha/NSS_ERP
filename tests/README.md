@@ -7,15 +7,15 @@ four categories under separate subdirectories.
 
 ```
 tests/
-├── conftest.py          # Shared fixtures: DB connection, SAVEPOINT rollback, TestClient
+├── conftest.py          # Shared fixtures: DB connection, SAVEPOINT rollback, TestClient, authed/anon clients
 ├── README.md            # This file
 │
 ├── api/                 # API integration tests (FastAPI TestClient, no browser)
-│   ├── test_admin.py         # Tier 5 — admin CRUD, roles, orgs (72 tests)
+│   ├── test_admin.py         # Tier 5 — admin CRUD, roles, orgs (77 tests)
 │   ├── test_audit.py         # Tier 5 — field-change-log viewer (4 tests)
 │   ├── test_auth.py          # Tier 5 — login, refresh, logout, change-password (16 tests)
 │   ├── test_bootstrap.py     # Tier 0 — health, roles, permissions (9 tests)
-│   ├── test_claim_approval.py # Tier 5 — claim detail/edit/scope enforcement (11 tests)
+│   ├── test_claim_approval.py # Tier 5 — claim detail/edit/scope enforcement (13 tests)
 │   ├── test_error_messages.py # Human-readable validation/integrity-error messages (15 tests)
 │   ├── test_family.py        # Tier 4 — family list, detail, members (52 tests)
 │   ├── test_family_ownership.py # Tier 5 — role-less-JWT ownership path: graph, add/remove
@@ -23,13 +23,16 @@ tests/
 │   ├── test_forgot_password.py  # Tier 5 — forgot/reset password (6 tests)
 │   ├── test_foundation.py    # Tier 1 — master data, config, geographic (45 tests)
 │   ├── test_membership.py    # Tier 4 — membership list, search, affiliations (94 tests)
-│   ├── test_organization.py  # Tier 2 — org types, hierarchy, children (58 tests)
+│   ├── test_organization.py  # Tier 2 — org types, hierarchy, children, children-stats, stats (67 tests)
 │   ├── test_person.py        # Tier 3 — person list, detail, search (55 tests)
-│   ├── test_registration.py  # Tier 5 — self-registration, claim approval (14 tests)
+│   ├── test_registration.py  # Tier 5 — self-registration, claim approval (17 tests)
 │   ├── test_sakha_branches.py # Tier 2 — 175 Sakha branch seed data (33 tests)
 │   └── test_sorting.py       # Shared column-sort-whitelist helper (14 tests)
 │
 ├── db/                  # Database integrity tests (direct SQL via write_conn)
+│   ├── test_credential_schema.py # Credential-table schema invariants — document_number
+│   │                          #   uniqueness, one-active-per-member, validity CHECK,
+│   │                          #   credential_sequence_counter uniqueness (4 tests)
 │   └── test_data_integrity.py  # Cross-module entity smoke tests (23 tests)
 │
 ├── security/            # Cross-tier security assertions (added after the api/db/ui split
@@ -38,44 +41,59 @@ tests/
 │   ├── test_audit_security.py         # Audit endpoint auth/RBAC gating (4 tests)
 │   ├── test_auth_security.py          # Auth endpoint auth gating (4 tests)
 │   ├── test_forgot_password_security.py # Forgot-password rate-limit/anti-enumeration (6 tests)
+│   ├── test_organization_stats_security.py # /organizations/{pk}/stats scope enforcement, ADMIN-BR-076 (4 tests)
 │   ├── test_registration_security.py  # Registration endpoint gating (3 tests)
 │   └── test_security_headers.py       # Headers, CSP, rate limiting, CORS, DEBUG_MODE (24 tests)
 │
 └── ui/                  # Browser UI tests (Playwright + Chromium, headless)
-    ├── conftest.py              # Browser/page fixtures, login helpers
+    ├── conftest.py              # Browser/page fixtures (page, admin_page, member_page), login helpers
+    ├── _csp_probe.py            # Throwaway script (not a test, not collected) — loads pages in
+    │                            #   Chromium and reports CSP violations/console errors; run by hand
     │
     │   ── Numbered files run sequentially (DB state cascades) ──
-    ├── test_ui_06_register_submit.py # Registration: membership claim, address, full submission
-    ├── test_ui_07_admin_write.py    # Admin: claim approve, status change, role assign, password
+    ├── test_ui_06_register_submit.py # Registration: membership claim, address, full submission (9 tests)
+    ├── test_ui_07_admin_write.py    # Admin: claim approve, status change, role assign, password (11 tests)
     │
     │   ── Unnumbered files (independent, any order) ──
-    ├── test_ui_login.py             # Login form, validation, force-password-change, redirect
-    ├── test_ui_register.py          # Registration 3-step navigation, field validation
+    ├── test_ui_login.py             # Login form, validation, force-password-change, redirect (8 tests)
+    ├── test_ui_register.py          # Registration 3-step navigation, field validation (9 tests)
     ├── test_ui_dashboard.py         # Dashboard: all tabs, content rendering, edit profile,
-    │                                #   admin tabs, family state, documents, logout (52 tests)
-    ├── test_ui_forgot_password.py   # Forgot/reset password flow
-    ├── test_ui_admin_users.py       # User list, search, filters, detail, INACTIVE styling
-    ├── test_ui_admin_persons.py     # Create person form, mandatory fields
-    ├── test_ui_admin_create_user.py # Create user account, reactivation
-    ├── test_ui_admin_roles.py       # Role assignment modal, dropdowns
-    ├── test_ui_admin_claims.py      # Registration claims tabs, detail view
-    ├── test_ui_admin_status.py      # Status change modal (ACTIVE/LOCKED/INACTIVE)
-    └── test_ui_admin_orgs.py        # Organizations tab, table
+    │                                #   admin tabs, family state, documents, logout (61 tests)
+    ├── test_ui_forgot_password.py   # Forgot/reset password flow (5 tests)
+    ├── test_ui_shared_datepicker.py # Shared nssDatePicker: no hand-written markup left in
+    │                                #   any page, markup injection on every callsite, calendar
+    │                                #   grid vs month/year, day selection, validation (22 tests)
+    ├── test_ui_admin_users.py       # User list, search, filters, detail, INACTIVE styling (11 tests)
+    ├── test_ui_admin_persons.py     # Create person form, mandatory fields (8 tests)
+    ├── test_ui_admin_create_user.py # Create user account, reactivation (3 tests)
+    ├── test_ui_admin_roles.py       # Role assignment modal, dropdowns (6 tests)
+    ├── test_ui_admin_claims.py      # Registration claims tabs, detail view (6 tests)
+    ├── test_ui_admin_status.py      # Status change modal (ACTIVE/LOCKED/INACTIVE) (5 tests)
+    ├── test_ui_admin_orgs.py        # Organizations tab, table (3 tests)
+    ├── test_ui_admin_member_directory.py # Member Directory tab, search, detail panel (4 tests)
+    ├── test_ui_admin_modals.py      # Admin write-path modals and confirm dialogs (4 tests)
+    ├── test_ui_admin_tabs.py        # Admin sidebar tab switching / activeTab panels (2 tests)
+    ├── test_ui_badges.py            # Shared badge system (badges.css) source-level checks (7 tests)
+    ├── test_ui_family_management.py # dashboard.html Family tab management (3 tests)
+    └── test_ui_org_dashboard.py     # Org Dashboard tab (org-dashboard.js), six layouts (11 tests)
 ```
 
-**Current grand total: 733 tests** (AST-counted `test_*` functions) — `tests/api/` (518, across
-16 files), `tests/db/` (23), `tests/security/` (58), `tests/ui/` (134). This corrects a
-previously-stated "620" that predated `test_error_messages.py`/`test_family_ownership.py`/
-`test_sorting.py` (all new) and the growth of `test_admin.py` (38→72), `test_person.py`
-(41→55), and `test_membership.py` (78→94) as their routers gained endpoints. The per-file
-counts above also reflect
-`tests/security/`'s extraction of auth-gating/401/403/RBAC assertions out of `test_admin.py`,
-`test_auth.py`, `test_registration.py`, `test_forgot_password.py`, `test_foundation.py`, and
-`test_audit.py` — that's a move, not lost coverage, plus `test_security_headers.py` is
-genuinely new coverage. The old flat `tests/api/test_security.py` (8 tests) no longer exists,
-fully absorbed into `tests/security/`. `pytest.ini` declares `integration`/`ui`/`db` markers
-only — `tests/security/` files use `pytest.mark.integration`, same as `tests/api/`, so there's
-no separate `security` marker.
+**Current grand total: 824 tests** (AST-counted `test_*` functions, re-verified) — `tests/api/`
+(537, across 16 files), `tests/db/` (27, across 2 files), `tests/security/` (62, across 7 files),
+`tests/ui/` (198, across 20 test files — `conftest.py` and `_csp_probe.py` hold no tests).
+
+**AST count vs. what pytest actually collects** (`pytest --collect-only -q`, verified): the
+per-file "(N tests)" figures in this README are counts of `def test_*` functions, which differs
+from pytest's collected-item count in two ways. (1) Three fixtures are themselves named `test_*`
+and are over-counted by an AST scan — `test_user` in `tests/api/test_auth.py` (16 → 15 collected)
+and `tests/security/test_auth_security.py` (4 → 3), and `test_org_pk` in
+`tests/api/test_registration.py` (17 → 16). (2) `@pytest.mark.parametrize` expands one function
+into many items — used in `test_admin.py`, `test_membership.py`, `test_person.py`,
+`test_sorting.py`, `test_error_messages.py`, `test_credential_schema.py`, and several UI files
+(e.g. `test_ui_shared_datepicker.py`). Collected-item totals: `tests/api/` 622, `tests/db/` 33,
+`tests/security/` 61, `tests/ui/` 236 — **952 items** for a bare `pytest`. `pytest.ini` declares
+`integration`/`ui`/`db` markers only — `tests/security/` files use `pytest.mark.integration`,
+same as `tests/api/`, so there's no separate `security` marker.
 
 ## `conftest.py` — fixture architecture
 
@@ -87,8 +105,49 @@ each module, `ROLLBACK TO SAVEPOINT` undoes every INSERT/UPDATE/DELETE the modul
 made. `_reset_rate_limiter` (autouse, function-scoped) resets `api.main.limiter`'s in-memory
 storage before every test.
 
+Further session-scoped fixtures in the root `conftest.py`:
+
+| Fixture | Purpose |
+|---------|---------|
+| `client` | Plain `TestClient(app)` (used as a context manager, so lifespan runs) — unauthenticated unless a module overrides it |
+| `write_conn` (module-scoped) | The **same** shared connection the API uses, for direct `INSERT`/assertion SQL inside a test or fixture; everything rolls back with the module's SAVEPOINT |
+| `admin_view_token` | Mints (once per session) a JWT for an existing active admin that holds all four of `FOUNDATION_VIEW`/`ORGANIZATION_VIEW`/`PERSON_VIEW`/`MEMBERSHIP_VIEW`, after resetting that account's password inside the transaction; `pytest.skip()`s if no such admin exists (e.g. admin not bootstrapped) |
+| `authed_client` | `TestClient` that sends `admin_view_token` as a Bearer header — how the permission-gated Tier 1-4 read-endpoint tests authenticate |
+| `anon_client` | Explicitly unauthenticated `TestClient`, for negative 401 tests in modules whose `client` was overridden to carry a token |
+
+`authed_client`/`anon_client` are deliberately plain `TestClient(app)` instances (not `with`
+blocks) so they never fire the app's lifespan shutdown, which would close the shared session
+connection.
+
+`tests/ui/conftest.py` is separate: it is **not** SAVEPOINT-wrapped (UI tests drive a real running
+server), defines `page`/`admin_page`/`member_page` fixtures plus helpers (`wait_for_alpine`,
+`wait_for_toast`, `get_table_rows`, `click_nav_item`), logs in as `SS1`/`Admin@123` against
+`http://127.0.0.1:8001`, and auto-applies the `ui` marker. `member_page` currently logs in as
+the **same** `SS1` admin account (no separate member account is bootstrapped yet).
+
 **Implication for anyone adding a test:** don't assume any row already exists — either create
 what you need via `write_conn` inside a fixture, or `pytest.skip()` gracefully.
+
+## Locating date fields in UI tests
+
+Every date field in the app is the **shared** `nssDatePicker`
+(`frontend/assets/js/nss-datepicker.js`). Its markup is *not* written in the HTML pages — the
+page only declares `x-data="nssDatePicker('<model.path>', {...})"` plus a `<label>`, and
+`nssDatePickerExpand()` injects the identical input + popup into every callsite on
+`DOMContentLoaded` (recursing into `<template>` content, since 9 of the 10 callsites are nested
+inside `x-if`/`x-for` templates).
+
+So **never locate a date field by `[x-model="form.some_date"]`** — no such element exists. Use
+the stable hook the injector stamps on the picker root:
+
+```python
+PICKER = '[data-nss-dp="form.date_of_birth"]'      # root, one per callsite
+INPUT  = f'{PICKER} input[x-model="display"]'      # visible DD/MM/YYYY input
+```
+
+The input holds the display value (`DD/MM/YYYY`); the model path holds ISO `YYYY-MM-DD`.
+Because most pickers sit inside templates, Playwright sees them only after you navigate to the
+tab / toggle the form that renders them — unlike a DOM walk, which also sees template content.
 
 ## Running
 
@@ -135,9 +194,10 @@ pytest tests/api/test_bootstrap.py::TestHealth::test_health_returns_ok
   playwright install chromium
   ```
 - Test admin account (SS1) bootstrapped via `scripts/bootstrap_admin.py`
-- **Note:** SS1 has `force_password_change = TRUE` on first login.
-  The test fixtures handle this automatically, changing the password
-  to `NSSTest@1` on the first run.
+- **Note:** SS1 logs in directly with `Admin@123` — `force_password_change = FALSE`,
+  no change-password interstitial. The bootstrap seed is INSERT-only (`WHERE NOT
+  EXISTS` guards), so if the account's local password ever drifts, rebuild the DB
+  (the seed is designed for from-scratch rebuilds, not in-place resets).
 - **Note:** UI tests run against the live database — they are NOT wrapped in
   SAVEPOINT rollback. Tests that create data should clean up after themselves
   or use test-specific identifiers.

@@ -607,3 +607,104 @@ class TestChildrenStats:
         r = client.get(f"{BASE}/organizations/{sakha_pk}/children-stats")
         assert r.status_code == 200
         assert r.json() == []
+
+
+class TestOrgStats:
+    """GET /api/v1/organization/organizations/{pk}/stats — whole-subtree totals.
+
+    Scope enforcement (403 when the org is outside the viewer's scope) is
+    covered in tests/security/test_organization_stats_security.py; this
+    module authenticates as an NSS-wide admin, so every org is in scope.
+    """
+
+    REQUIRED = {
+        "organization_pk", "member_count", "family_count",
+        "parichay_patra_holders", "darshaks",
+        "sakha_sanghas", "mahila_sanghas", "anchalika_sanghas",
+        "zilla_sanghas", "patha_chakras", "paribarik_sanghas",
+        "kumari_sanghas", "sevak_sanghas", "renewals_due",
+        "attendance_pct", "attendance_tracked",
+    }
+
+    def test_stats_returns_200(self, client):
+        pk = _get_kendra_pk(client)
+        if pk is None:
+            pytest.skip("No Kendra organization seeded")
+        r = client.get(f"{BASE}/organizations/{pk}/stats")
+        assert r.status_code == 200
+
+    def test_stats_fake_pk_returns_404(self, client):
+        r = client.get(f"{BASE}/organizations/{FAKE_UUID}/stats")
+        assert r.status_code == 404
+
+    def test_stats_has_required_fields(self, client):
+        pk = _get_kendra_pk(client)
+        if pk is None:
+            pytest.skip("No Kendra organization seeded")
+        data = client.get(f"{BASE}/organizations/{pk}/stats").json()
+        assert self.REQUIRED.issubset(data.keys()), (
+            f"Missing fields: {self.REQUIRED - data.keys()}"
+        )
+
+    def test_stats_counts_non_negative(self, client):
+        pk = _get_kendra_pk(client)
+        if pk is None:
+            pytest.skip("No Kendra organization seeded")
+        data = client.get(f"{BASE}/organizations/{pk}/stats").json()
+        for field in ("member_count", "family_count", "parichay_patra_holders",
+                      "darshaks", "sakha_sanghas", "mahila_sanghas",
+                      "anchalika_sanghas", "zilla_sanghas", "patha_chakras",
+                      "paribarik_sanghas", "kumari_sanghas", "sevak_sanghas",
+                      "renewals_due"):
+            assert data[field] >= 0, field
+
+    def test_stats_member_split_partitions_member_count(self, client):
+        """
+        parichay_patra_holders + darshaks must equal member_count exactly:
+        a Parichay Patra is issued for every MEMBERSHIP_TYPE except
+        PROBATIONARY, and sangha_sevi.membership_type_master_data_pk is
+        NOT NULL, so the two are a complete non-overlapping partition.
+        """
+        pk = _get_kendra_pk(client)
+        if pk is None:
+            pytest.skip("No Kendra organization seeded")
+        d = client.get(f"{BASE}/organizations/{pk}/stats").json()
+        assert d["parichay_patra_holders"] + d["darshaks"] == d["member_count"], (
+            f"{d['parichay_patra_holders']} card-holders + {d['darshaks']} "
+            f"Darshaks != {d['member_count']} members"
+        )
+
+    def test_stats_echoes_requested_pk(self, client):
+        pk = _get_kendra_pk(client)
+        if pk is None:
+            pytest.skip("No Kendra organization seeded")
+        data = client.get(f"{BASE}/organizations/{pk}/stats").json()
+        assert data["organization_pk"] == pk
+
+    def test_stats_attendance_is_untracked(self, client):
+        """No per-meeting session table exists, so attendance is never
+        fabricated: attendance_pct is None and attendance_tracked is False."""
+        pk = _get_kendra_pk(client)
+        if pk is None:
+            pytest.skip("No Kendra organization seeded")
+        data = client.get(f"{BASE}/organizations/{pk}/stats").json()
+        assert data["attendance_pct"] is None
+        assert data["attendance_tracked"] is False
+
+    def test_stats_leaf_sakha_has_no_child_sanghas(self, client):
+        """A leaf Sakha's own subtree contains no Sakha/Mahila child orgs."""
+        sakhas = client.get(f"{BASE}/organizations?type_code=SAKHA_SANGHA").json()
+        if not sakhas:
+            pytest.skip("No Sakha organizations seeded")
+        sakha_pk = sakhas[0]["organization_pk"]
+        r = client.get(f"{BASE}/organizations/{sakha_pk}/stats")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["sakha_sanghas"] >= 0
+        assert data["mahila_sanghas"] >= 0
+
+    def test_stats_requires_authentication(self, anon_client):
+        """The ORGANIZATION_VIEW gate rejects anonymous callers before the
+        404 lookup runs."""
+        r = anon_client.get(f"{BASE}/organizations/{FAKE_UUID}/stats")
+        assert r.status_code in (401, 403)

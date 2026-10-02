@@ -239,7 +239,8 @@ def gender_pk(write_conn):
 
 
 def _register(client, email_suffix, gender_pk, org_pk, membership_type_pk,
-              local_sakha_number=None, darshak_org_pk=None, last_name="Test"):
+              local_sakha_number=None, darshak_org_pk=None, darshak_local_sakha_number=None,
+              last_name="Test"):
     payload = {
         "first_name": "ClaimApproval",
         "last_name": last_name,
@@ -250,12 +251,21 @@ def _register(client, email_suffix, gender_pk, org_pk, membership_type_pk,
         "has_membership": True,
         "membership_type_master_data_pk": membership_type_pk,
         "organization_pk": org_pk,
+        # Local Sakha Number is required for every membership type, incl.
+        # Darshaka (AUTH-BR-086) — not validated at registration, so any
+        # non-empty default is fine for callers that don't care about the
+        # exact value. Must still be unique per call: unlike before this
+        # requirement existed, every registration now actually composes
+        # into nss.membership_sakha_affiliation's local_sakha_erp_id on
+        # approval, which is UNIQUE per (organization_pk, local_sakha_erp_id)
+        # — a fixed default would collide across the many registrations
+        # this module-scoped test class approves against the same org.
+        "claimed_local_sakha_number": local_sakha_number or uuid4().hex[:6],
     }
-    if local_sakha_number:
-        payload["claimed_local_sakha_number"] = local_sakha_number
     if darshak_org_pk:
         payload["is_attending_as_darshak"] = True
         payload["darshak_organization_pk"] = darshak_org_pk
+        payload["darshak_local_sakha_number"] = darshak_local_sakha_number or uuid4().hex[:6]
     resp = client.post("/api/v1/register", json=payload)
     assert resp.status_code == 201, f"Registration failed: {resp.json()}"
     return resp.json()
@@ -475,40 +485,21 @@ class TestApproveNonDarshakaAndDarshak:
             )
             assert cur.fetchone()[0] == 1, "Must not create a duplicate active sangha_sevi row."
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "CONFIRMED BUG (found while writing this test, not yet fixed — needs an "
-            "architecture decision before touching frozen DDL): approve_claim's darshak "
-            "attendance INSERT (api/routers/claim_approval.py, 'Darshak attendance "
-            "affiliation' block) targets nss.membership_sakha_affiliation with "
-            "effective_to left NULL, using 'ON CONFLICT DO NOTHING' with no explicit "
-            "conflict target. That silently matches the partial unique index "
-            "uq_mem_sakha_aff_active ON (sangha_sevi_pk) WHERE effective_to IS NULL — "
-            "'one active affiliation per member at any time', marked FROZEN per "
-            "MEM-PENDING-001 / SOL-MEM-005 §27.1 in "
-            "database/ddl/05_membership/06_membership_sakha_affiliation.sql. Since the "
-            "primary affiliation (created first, same call) already holds that slot for "
-            "this sangha_sevi_pk, the darshak-org INSERT always conflicts and is always "
-            "silently dropped — the Darshak attendance-affiliation feature has never "
-            "actually persisted a second affiliation row for ANY approval, in any "
-            "environment, since this code was written. No exception, no log line "
-            "(the code only logs on the primary-affiliation conflict, not this one) — "
-            "it fails completely silently. Fixing this requires deciding whether the "
-            "uniqueness should be (sangha_sevi_pk, organization_pk) instead of "
-            "(sangha_sevi_pk) alone, or whether darshak affiliations need a distinct "
-            "affiliation_status/type exempted from 'primary active' uniqueness — that's "
-            "a frozen-constraint change needing sign-off, not a one-line code fix, so "
-            "it is NOT changed here. Flip this to a plain assertion once the DDL "
-            "decision is made and the fix lands."
-        ),
-    )
     def test_approve_darshak_creates_attendance_affiliation(
         self, client, admin_tokens, sakha_orgs, darshaka_type_pk, gender_pk, write_conn
     ):
         """Approving a claim with darshak_organization_pk set must create a
         SECOND membership_sakha_affiliation row at the darshak org, in
-        addition to the primary affiliation at the claimed org."""
+        addition to the primary affiliation at the claimed org.
+
+        Previously always failed silently: uq_mem_sakha_aff_active was
+        (sangha_sevi_pk) alone, so this INSERT's ON CONFLICT DO NOTHING
+        always matched the primary affiliation's slot for the same
+        sangha_sevi_pk and the darshak row never persisted. Narrowed to
+        (sangha_sevi_pk, organization_pk) in
+        database/ddl/05_membership/06_membership_sakha_affiliation.sql —
+        a member's home affiliation and a darshak attendance affiliation
+        at a different org are no longer mutually exclusive."""
         person = _register(
             client, "darshakatt", gender_pk, sakha_orgs["org_a"], darshaka_type_pk,
             darshak_org_pk=sakha_orgs["org_b"],
@@ -536,6 +527,58 @@ class TestApproveNonDarshakaAndDarshak:
             org_pks = {str(r[0]) for r in cur.fetchall()}
             assert sakha_orgs["org_a"] in org_pks, "Primary affiliation at claimed org missing."
             assert sakha_orgs["org_b"] in org_pks, "Darshak attendance affiliation at darshak org missing."
+
+
+class TestApproveRequiresLocalSakhaNumber:
+    """approve_claim's own defense-in-depth check (api/routers/claim_approval.py,
+    step 3) — registration.py already requires the number, but a PENDING claim's
+    number can be blanked via PATCH before approval, so approve_claim must catch
+    that too rather than falling back to composing a bogus ID."""
+
+    def test_approve_darshaka_without_local_number_fails(
+        self, client, admin_tokens, sakha_orgs, darshaka_type_pk, gender_pk, write_conn
+    ):
+        person = _register(client, "darkblank", gender_pk, sakha_orgs["org_a"], darshaka_type_pk)
+        claim_pk = _pending_claim_pk(write_conn, person["person_pk"])
+
+        patch_resp = client.patch(
+            f"/api/v1/admin/claims/{claim_pk}",
+            headers={"Authorization": f"Bearer {admin_tokens['access_token']}"},
+            json={"claimed_local_sakha_number": ""},
+        )
+        assert patch_resp.status_code == 200, f"Blanking number failed: {patch_resp.json()}"
+
+        resp = client.post(
+            f"/api/v1/admin/claims/{claim_pk}/approve",
+            headers={"Authorization": f"Bearer {admin_tokens['access_token']}"},
+            json={},
+        )
+        assert resp.status_code == 422
+        assert "Local Sakha Number" in resp.json()["detail"]
+
+    def test_approve_darshak_attendance_without_darshak_local_number_fails(
+        self, client, admin_tokens, sakha_orgs, darshaka_type_pk, gender_pk, write_conn
+    ):
+        person = _register(
+            client, "darkattblank", gender_pk, sakha_orgs["org_a"], darshaka_type_pk,
+            darshak_org_pk=sakha_orgs["org_b"],
+        )
+        claim_pk = _pending_claim_pk(write_conn, person["person_pk"])
+
+        patch_resp = client.patch(
+            f"/api/v1/admin/claims/{claim_pk}",
+            headers={"Authorization": f"Bearer {admin_tokens['access_token']}"},
+            json={"darshak_local_sakha_number": ""},
+        )
+        assert patch_resp.status_code == 200, f"Blanking darshak number failed: {patch_resp.json()}"
+
+        resp = client.post(
+            f"/api/v1/admin/claims/{claim_pk}/approve",
+            headers={"Authorization": f"Bearer {admin_tokens['access_token']}"},
+            json={},
+        )
+        assert resp.status_code == 422
+        assert "darshak_local_sakha_number" in resp.json()["detail"] or "Darshak Sakha" in resp.json()["detail"]
 
 
 # ── Scope enforcement on approve/reject ─────────────────────────────────

@@ -105,8 +105,24 @@ def test_org_pk(write_conn, admin_tokens):
     """
     Get an organization PK that the admin has scope for.
     Falls back to any SAKHA_SANGHA org.
+
+    Claim approval (compose_local_sakha_erp_id) requires the org to have a
+    short_code assigned — the real 175-branch seed leaves short_code NULL
+    (admin-assignable via UI), so tests that approve a claim against this
+    org would otherwise 422. Assign a synthetic one here if missing, scoped
+    to this test transaction only (rolled back by conftest's module
+    SAVEPOINT) — mirrors test_claim_approval.py::sakha_orgs.
     """
     cur = write_conn.cursor()
+
+    def _ensure_short_code(org_pk: str) -> str:
+        cur.execute("SELECT short_code FROM nss.organization WHERE organization_pk = %s", (org_pk,))
+        if not cur.fetchone()[0]:
+            cur.execute(
+                "UPDATE nss.organization SET short_code = 'TREG' WHERE organization_pk = %s",
+                (org_pk,),
+            )
+        return org_pk
 
     # Get the admin's scoped org
     cur.execute("""
@@ -121,7 +137,7 @@ def test_org_pk(write_conn, admin_tokens):
     """, (admin_tokens["user_account_pk"],))
     row = cur.fetchone()
     if row:
-        return str(row[0])
+        return _ensure_short_code(str(row[0]))
 
     # Check if admin is NSS-WIDE scoped
     cur.execute("""
@@ -146,7 +162,7 @@ def test_org_pk(write_conn, admin_tokens):
         """)
         row = cur.fetchone()
         if row:
-            return str(row[0])
+            return _ensure_short_code(str(row[0]))
 
     pytest.skip("No suitable organization found for claim tests.")
 
@@ -205,6 +221,7 @@ class TestRegistration:
             "has_membership": True,
             "membership_type_master_data_pk": darshaka_type_pk,
             "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D1",
         })
         assert response.status_code == 201, f"Registration failed: {response.json()}"
         data = response.json()
@@ -304,6 +321,59 @@ class TestRegistration:
         assert response.status_code == 422
         assert "Local Sakha Number" in response.json()["detail"]
 
+    def test_register_darshaka_requires_local_sakha_number(self, client, test_org_pk, darshaka_type_pk, gender_pk):
+        """Darshaka registration without Local Sakha Number also returns 422 (AUTH-BR-086 —
+        Darshak members get a number in a separate namespace, not no number at all)."""
+        response = client.post("/api/v1/register", json={
+            "first_name": "DarshakaNoNumber",
+            "last_name": "Test",
+            "date_of_birth": TEST_DOB,
+            "gender_master_data_pk": gender_pk,
+            "email": f"{TEST_EMAIL_PREFIX}darkno@test.example",
+            "password": TEST_PASSWORD,
+            "has_membership": True,
+            "membership_type_master_data_pk": darshaka_type_pk,
+            "organization_pk": test_org_pk,
+            # No claimed_local_sakha_number
+        })
+        assert response.status_code == 422
+        assert "Local Sakha Number" in response.json()["detail"]
+
+    def test_register_attending_as_darshak_requires_darshak_local_sakha_number(
+        self, client, test_org_pk, darshaka_type_pk, gender_pk, write_conn
+    ):
+        """is_attending_as_darshak=True without darshak_local_sakha_number returns 422."""
+        with write_conn.cursor() as cur:
+            cur.execute(
+                "SELECT organization_pk FROM nss.organization "
+                "WHERE organization_pk != %s AND organization_type_master_data_pk = "
+                "(SELECT organization_type_master_data_pk FROM nss.organization WHERE organization_pk = %s) "
+                "AND is_active = TRUE LIMIT 1",
+                (test_org_pk, test_org_pk),
+            )
+            row = cur.fetchone()
+            if row is None:
+                pytest.skip("No second Sakha available for darshak attendance test.")
+            other_org_pk = str(row[0])
+
+        response = client.post("/api/v1/register", json={
+            "first_name": "DarshakAttend",
+            "last_name": "NoNumber",
+            "date_of_birth": TEST_DOB,
+            "gender_master_data_pk": gender_pk,
+            "email": f"{TEST_EMAIL_PREFIX}darkattend@test.example",
+            "password": TEST_PASSWORD,
+            "has_membership": True,
+            "membership_type_master_data_pk": darshaka_type_pk,
+            "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D2",
+            "is_attending_as_darshak": True,
+            "darshak_organization_pk": other_org_pk,
+            # No darshak_local_sakha_number
+        })
+        assert response.status_code == 422
+        assert "darshak_local_sakha_number" in response.json()["detail"]
+
 
 # ── Login blocked for PENDING_APPROVAL ──────────────────────────────────
 #
@@ -328,7 +398,8 @@ class TestClaimApproval:
         assert "total" in data
 
     def test_approve_claim(self, client, admin_tokens, test_org_pk, darshaka_type_pk, gender_pk, write_conn):
-        """Admin approves a Darshaka claim → account ACTIVE, sangha_sevi created."""
+        """Admin approves a Darshaka claim → account ACTIVE, sangha_sevi + affiliation +
+        Anumati Patra credential all created."""
         # 1. Register a new person with claim
         reg_resp = client.post("/api/v1/register", json={
             "first_name": "ApproveMe",
@@ -340,6 +411,7 @@ class TestClaimApproval:
             "has_membership": True,
             "membership_type_master_data_pk": darshaka_type_pk,
             "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D3",
         })
         assert reg_resp.status_code == 201
         person_pk = reg_resp.json()["person_pk"]
@@ -390,7 +462,89 @@ class TestClaimApproval:
                 "SELECT sangha_sevi_pk FROM nss.sangha_sevi WHERE person_pk = %s AND is_active = TRUE",
                 (person_pk,),
             )
-            assert cur.fetchone() is not None
+            ss_row = cur.fetchone()
+            assert ss_row is not None
+            ss_pk = ss_row[0]
+
+            # The home affiliation got a real, short_code-namespaced local
+            # ID (MBR-030C) — not the old buggy fallback that just reused
+            # the Sangha Sevi ID when no number was given.
+            cur.execute(
+                "SELECT local_sakha_erp_id FROM nss.membership_sakha_affiliation "
+                "WHERE sangha_sevi_pk = %s AND organization_pk = %s",
+                (ss_pk, test_org_pk),
+            )
+            aff_row = cur.fetchone()
+            assert aff_row is not None
+            assert aff_row[0] != approve_data["sangha_sevi_id"]
+            assert aff_row[0].endswith("D3")
+
+            # A mandatory Anumati Patra credential was issued (MBR-010/019A) —
+            # claim_approval.py now calls issue_membership_credential(), which
+            # it never did before this test was written.
+            cur.execute(
+                "SELECT document_number FROM nss.anumati_patra WHERE sangha_sevi_pk = %s",
+                (ss_pk,),
+            )
+            credential_row = cur.fetchone()
+            assert credential_row is not None
+            assert credential_row[0]
+
+    def test_approve_claim_composes_legacy_credential_number_with_current_fy(
+        self, client, admin_tokens, test_org_pk, darshaka_type_pk, gender_pk, write_conn
+    ):
+        """A registrant-supplied legacy credential number is a plain sequence
+        number (e.g. "789") — the registration form doesn't ask for the FY,
+        so approve_claim must compose the full "<no>/<fy_start>/<fy_end>"
+        Kendra Number itself, using the current financial year."""
+        from datetime import date
+        from api.helpers import financial_year_bounds
+
+        reg_resp = client.post("/api/v1/register", json={
+            "first_name": "LegacyCred",
+            "last_name": TEST_LAST_NAME,
+            "date_of_birth": TEST_DOB,
+            "gender_master_data_pk": gender_pk,
+            "email": f"{TEST_EMAIL_PREFIX}legacycred@test.example",
+            "password": TEST_PASSWORD,
+            "has_membership": True,
+            "membership_type_master_data_pk": darshaka_type_pk,
+            "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D9",
+            "claimed_credential_document_number": "789",
+        })
+        assert reg_resp.status_code == 201
+        person_pk = reg_resp.json()["person_pk"]
+
+        with write_conn.cursor() as cur:
+            cur.execute(
+                "SELECT registration_claim_pk FROM nss.registration_claim WHERE person_pk = %s AND claim_status = 'PENDING'",
+                (person_pk,),
+            )
+            claim_pk = str(cur.fetchone()[0])
+
+        approve_resp = client.post(
+            f"/api/v1/admin/claims/{claim_pk}/approve",
+            headers={"Authorization": f"Bearer {admin_tokens['access_token']}"},
+            json={},
+        )
+        assert approve_resp.status_code == 200, f"Approve failed: {approve_resp.json()}"
+
+        fy_start, fy_end, _, _ = financial_year_bounds(date.today())
+        expected_document_number = f"789/{fy_start}/{fy_end}"
+
+        with write_conn.cursor() as cur:
+            cur.execute(
+                "SELECT document_number FROM nss.anumati_patra WHERE sangha_sevi_pk = "
+                "(SELECT sangha_sevi_pk FROM nss.sangha_sevi WHERE person_pk = %s AND is_active = TRUE)",
+                (person_pk,),
+            )
+            row = cur.fetchone()
+            assert row is not None
+            assert row[0] == expected_document_number, (
+                f"Expected the plain number composed with the current FY "
+                f"({expected_document_number!r}), got {row[0]!r}"
+            )
 
     def test_reject_claim(self, client, admin_tokens, test_org_pk, darshaka_type_pk, gender_pk, write_conn):
         """Admin rejects a claim → claim REJECTED, account stays PENDING_APPROVAL."""
@@ -405,6 +559,7 @@ class TestClaimApproval:
             "has_membership": True,
             "membership_type_master_data_pk": darshaka_type_pk,
             "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D4",
         })
         assert reg_resp.status_code == 201
         person_pk = reg_resp.json()["person_pk"]
@@ -540,6 +695,7 @@ class TestRegistrationWithAddress:
             "has_membership": True,
             "membership_type_master_data_pk": darshaka_type_pk,
             "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D5",
             "country_pk": address_helpers["country_pk"],
             "state_pk": address_helpers["state_pk"],
             "district_pk": address_helpers["district_pk"],
@@ -581,6 +737,7 @@ class TestRegistrationWithAddress:
             "has_membership": True,
             "membership_type_master_data_pk": darshaka_type_pk,
             "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D6",
             "country_pk": address_helpers["country_pk"],
             "state_pk": address_helpers["state_pk"],
             "district_pk": address_helpers["district_pk"],
@@ -603,6 +760,7 @@ class TestRegistrationWithAddress:
             "has_membership": True,
             "membership_type_master_data_pk": darshaka_type_pk,
             "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D7",
         })
         assert response.status_code == 201
 
@@ -636,6 +794,7 @@ class TestRegistrationWithAddress:
             "has_membership": True,
             "membership_type_master_data_pk": darshaka_type_pk,
             "organization_pk": test_org_pk,
+            "claimed_local_sakha_number": "D8",
             "country_pk": address_helpers["country_pk"],
             "state_pk": address_helpers["state_pk"],
             "district_pk": district_pk,

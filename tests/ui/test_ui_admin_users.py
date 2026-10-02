@@ -85,7 +85,10 @@ def test_users_search_by_id(admin_page, base_url):
 
     search_input = admin_page.locator('[x-model="usersSearch"]')
     search_input.fill("SS1")
-    admin_page.locator(".btn-action.primary").first.click()
+    # Target the Search button by name: ".btn-action.primary" also matches
+    # "+ Create Account" (admin.html:727), which sits earlier in DOM order and
+    # would open the create-account modal instead of running the search.
+    admin_page.get_by_role("button", name="Search", exact=True).first.click()
     admin_page.wait_for_timeout(500)
 
     row_count = get_table_rows(admin_page)
@@ -131,13 +134,14 @@ def test_users_status_filter_all(admin_page, base_url):
 
 
 def test_users_view_detail(admin_page, base_url):
-    """Clicking View on a user row opens the user detail view."""
+    """Clicking a user row opens the user detail view."""
     _goto_users_tab(admin_page, base_url)
 
-    # Click the first visible View button (inside user table rows)
-    view_btn = admin_page.locator('button:has-text("View")').first
-    expect(view_btn).to_be_visible()
-    view_btn.click()
+    # Rows are clickable (tr.clickable-row @click="viewUser(...)") — there
+    # is no separate "View" button.
+    row = admin_page.locator("tr.clickable-row").first
+    expect(row).to_be_visible()
+    row.click()
 
     # Detail view: activeTab === 'detail'
     detail_div = admin_page.locator('[x-show="activeTab === \'detail\'"]')
@@ -151,9 +155,9 @@ def test_users_detail_back_to_list(admin_page, base_url):
     """Clicking back from user detail returns to the user list."""
     _goto_users_tab(admin_page, base_url)
 
-    # Open detail view
-    view_btn = admin_page.locator('button:has-text("View")').first
-    view_btn.click()
+    # Open detail view — rows are clickable, no separate "View" button
+    row = admin_page.locator("tr.clickable-row").first
+    row.click()
 
     detail_div = admin_page.locator('[x-show="activeTab === \'detail\'"]')
     detail_div.wait_for(state="visible", timeout=10000)

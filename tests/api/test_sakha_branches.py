@@ -290,22 +290,29 @@ class TestRegistrationPage:
         assert "Darshak" in html
 
     def test_register_js_correct_api_url(self, client):
-        """register.js uses the correct organization API URL."""
+        """register.js loads its Sakha dropdown from the public reference-data
+        endpoint (bundled with countries/master-data into one round trip),
+        not a direct call to the authenticated /organization router."""
         r = client.get("/assets/js/register.js")
         assert r.status_code == 200
         js = r.text
-        assert "/api/v1/organization/organizations?type_code=SAKHA_SANGHA" in js
-        # Should NOT have the old broken URL
-        assert '"/api/v1/organization/?type_code=' not in js
+        assert "/api/v1/register/reference-data" in js
+        # Should NOT call organization.py's endpoint directly — that's
+        # FOUNDATION_VIEW/ORGANIZATION_VIEW-gated and 403s for this page's
+        # anonymous visitors (the exact regression reference-data fixed).
+        assert "/api/v1/organization/organizations" not in js
 
     def test_register_js_requests_sufficient_limit(self, client):
-        """register.js requests enough rows to cover all 175 Sakhas."""
-        r = client.get("/assets/js/register.js")
-        js = r.text
-        # The JS uses NSS.MAX_PAGE_SIZE constant (defined in nss-config.js)
-        # instead of a hardcoded limit=500
-        assert "limit=" in js or "MAX_PAGE_SIZE" in js, (
-            "register.js should use a limit parameter or MAX_PAGE_SIZE to load all Sakhas"
+        """The reference-data endpoint register.js calls requests enough
+        rows to cover all 175 Sakhas — the limit lives server-side
+        (api/routers/registration.py), not as a query param in register.js
+        itself since /reference-data takes no limit argument from the caller."""
+        from pathlib import Path
+        src = Path("api/routers/registration.py").read_text()
+        assert 'type_code="SAKHA_SANGHA"' in src
+        assert "limit=500" in src, (
+            "GET /api/v1/register/reference-data should request enough rows "
+            "(limit=500) to cover all 175 Sakha branches"
         )
 
     def test_register_page_cache_buster_updated(self, client):

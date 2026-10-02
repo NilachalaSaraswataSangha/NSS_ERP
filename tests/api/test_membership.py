@@ -66,6 +66,7 @@ def _list_members(client, **params):
 def _search_members(client, **params):
     """GET /search, returning the `members` array from the envelope."""
     r = client.get(f"{BASE}/search", params=params)
+    assert r.status_code == 200, f"GET /search failed: {r.status_code} {r.json()}"
     return r.json()["members"]
 
 
@@ -572,6 +573,15 @@ class TestMemberSearch:
             pytest.skip("No member with Parichaya Patra seeded")
         kendra_num = pp_data[0]["document_number"]
         prefix = kendra_num.split("/")[0]
+        if len(prefix) < 2:
+            # /search enforces min_length=2 on q. Auto-generated Kendra
+            # numbers are always <seq>/<fy_start>/<fy_end> (seq is never
+            # this short in practice), but a manually-entered legacy
+            # document_number (credential_document_number, admin.py /
+            # claim_approval.py) isn't validated/shaped at all — a
+            # single-digit legacy number would otherwise 422 here instead
+            # of exercising the search path this test is actually for.
+            pytest.skip(f"Kendra number prefix '{prefix}' is too short to search (min 2 chars).")
         data = _search_members(client, q=prefix)
         ids = [r["sangha_sevi_id"] for r in data]
         assert pp_member["sangha_sevi_id"] in ids, (
@@ -987,7 +997,7 @@ class TestAnumatiPatra:
             pytest.skip("No Anumati Patra seeded for PROBATIONARY member — demo seed removed")
 
     def test_ap_document_number_format(self, client):
-        """Anumati Patra document_number follows AP/<year>/<seq> format."""
+        """Anumati Patra document_number is the Kendra Number (<seq>/<FY_start>/<FY_end>)."""
         members = _get_all_members(client)
         if not members:
             pytest.skip("No members seeded")
@@ -1003,7 +1013,10 @@ class TestAnumatiPatra:
         if ap_member is None:
             pytest.skip("No member with Anumati Patra seeded")
         doc = ap_data[0]["document_number"]
-        assert doc.startswith("AP/"), f"Expected AP/ prefix, got: {doc}"
+        # Auto-minted format is <seq>/<FY_start>/<FY_end> (next_credential_document_number);
+        # legacy verbatim numbers vary in shape. Demo/flow data is minted, so assert the
+        # Kendra-number shape — same lenient check as the Parichaya Patra sibling.
+        assert "/" in doc, f"Expected Kendra number format, got: {doc}"
 
     def test_regular_member_has_historical_expired_ap(self, client):
         """

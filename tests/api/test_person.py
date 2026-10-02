@@ -440,7 +440,7 @@ class TestPersonAddresses:
             "address_type_master_data_pk", "address_type_code",
             "address_type_name",
             "address_line_1", "address_line_2", "landmark",
-            "city_village_postal_code_map_pk",
+            "city_village_pk", "postal_code_pk",
             "city_village_name", "postal_code",
             "district_name", "state_name", "country_name",
             "is_primary", "remarks", "is_active",

@@ -26,6 +26,9 @@ EXPECTED_SCOPE_LEVELS = [
     "ANCHALIKA",
     "SAKHA",
     "PATHA_CHAKRA",
+    # One per ORGANIZATIONAL role in role_master — the Kendra Mahila Sangha
+    # admin scopes onto the MAHILA_SANGHA org its Parichalana Mandali governs.
+    "KENDRA MAHILA SANGHA",
 ]
 
 
@@ -36,9 +39,10 @@ def _navigate_to_user_detail(admin_page, base_url):
     click_nav_item(admin_page, "User Accounts")
     admin_page.wait_for_timeout(500)
 
-    # Click "View" on the first user row
-    view_btn = admin_page.locator('button:has-text("View")').first
-    view_btn.click()
+    # Rows are clickable (tr.clickable-row @click="viewUser(...)") — there
+    # is no separate "View" button.
+    row = admin_page.locator("tr.clickable-row").first
+    row.click()
     # Wait for detail view to load
     admin_page.locator('[x-show="activeTab === \'detail\'"]').wait_for(state="visible", timeout=10000)
     admin_page.wait_for_timeout(500)
@@ -102,7 +106,8 @@ class TestAdminRoles:
     def test_role_modal_scope_dropdown(self, admin_page, base_url):
         """
         The scope dropdown should list the organizational hierarchy levels:
-        NSS-WIDE, KENDRA, ZILLA, ANCHALIKA, SAKHA, PATHA_CHAKRA.
+        NSS-WIDE, KENDRA, ZILLA, ANCHALIKA, SAKHA, PATHA_CHAKRA,
+        KENDRA MAHILA SANGHA.
         """
         _navigate_to_user_detail(admin_page, base_url)
 
