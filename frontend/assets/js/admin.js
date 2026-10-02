@@ -6,13 +6,63 @@
  * All API calls use NSSAuth.apiFetch() for automatic JWT handling.
  */
 
+// Scoped-admin role_code -> the org-dashboard tab's tier label for that
+// role's own org (role_code implies org type 1:1 — a Sakha admin's scope
+// org is always a Sakha, etc.). Shared shape with dashboard.js's own copy
+// (no cross-file include mechanism exists in this static frontend).
+const ROLE_ORG_LABELS = {
+    NSS_ERP_KENDRA_ADMIN: "Kendra Dashboard",
+    NSS_ERP_ANCHALIKA_ADMIN: "Anchalika Dashboard",
+    NSS_ERP_ZILLA_ADMIN: "Zilla Dashboard",
+    NSS_ERP_SAKHA_ADMIN: "Sakha Dashboard",
+    NSS_ERP_PATHA_CHAKRA_ADMIN: "Patha Chakra Dashboard",
+    NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN: "Mahila Parichalana Mandali Dashboard",
+};
+
+// The dashboard levels shown in the sidebar's "Dashboards" section, in
+// hierarchy order. These are exactly the six ORGANIZATIONAL roles in
+// role_master (SOL-ADMIN-004 §8.7) — every scoped-admin role has one
+// dashboard, and no dashboard exists without a role that can hold it:
+//
+//   KENDRA               <- NSS_ERP_KENDRA_ADMIN
+//   ANCHALIKA_SANGHA     <- NSS_ERP_ANCHALIKA_ADMIN
+//   ZILLA_SANGHA         <- NSS_ERP_ZILLA_ADMIN
+//   SAKHA_SANGHA         <- NSS_ERP_SAKHA_ADMIN
+//   PATHA_CHAKRA         <- NSS_ERP_PATHA_CHAKRA_ADMIN
+//   MAHILA_SANGHA        <- NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN
+//
+// "Mahila Parichalana Mandali" is the user-facing name for the Mahila
+// body; note it is strictly the *governing body* of a Mahila Sangha in
+// the frozen domain model (MAH-091 — one body, two names), not an
+// organization type of its own. The dashboard is therefore anchored on
+// the MAHILA_SANGHA organization the Mandali governs.
+const DASHBOARD_LEVELS = [
+    { typeCode: "KENDRA", label: "Kendra" },
+    { typeCode: "ANCHALIKA_SANGHA", label: "Anchalika" },
+    { typeCode: "ZILLA_SANGHA", label: "Zilla" },
+    { typeCode: "SAKHA_SANGHA", label: "Sakha" },
+    { typeCode: "PATHA_CHAKRA", label: "Patha Chakra" },
+    { typeCode: "MAHILA_SANGHA", label: "Mahila Parichalana Mandali" },
+];
+
 function adminApp() {
+    // Resolve the initial tab synchronously from the URL hash (e.g.
+    // /admin#orgHierarchy) so the page renders the right tab immediately
+    // on refresh instead of flashing the default "users" tab first while
+    // init() below is still awaiting its network calls. The tab's lazy
+    // data loader (e.g. loadOrgHierarchy()) still has to wait for init(),
+    // since it needs an authenticated NSSAuth.apiFetch.
+    const _initialHash = window.location.hash.replace("#", "");
+    const _initialTab = _initialHash.startsWith("detail/") ? "detail"
+        : _initialHash.startsWith("orgDashboard/") ? "orgDashboard"
+        : (_initialHash || "users");
+
     return {
         // ── Shared layout (sidebar toggle, topbar user info) ──
         ...NSSLayout.mixin(),
 
         // ── Tab navigation ─────────────────────────────────────
-        activeTab: "users",  // users | detail | create | createSS | password | organizations
+        activeTab: _initialTab,  // users | detail | create | createSS | password | organizations | orgDashboard
 
         // ── Users list ─────────────────────────────────────────
         users: [],
@@ -45,13 +95,21 @@ function adminApp() {
         // ── Create Person & Account ──────────────────────────────
         createForm: {
             person_pk: "", password: "", force_password_change: true,
-            // Optional bundled Sangha Sevi creation (mirrors the standalone
-            // Create Sangha Sevi tab — same Sakha auto-select/lock pattern,
-            // ORG-BR-103).
-            create_sangha_sevi: false, membership_type_pk: "",
-            organization_pk: "", joining_date: "", local_sakha_number: "",
+            // Step 2: Sangha Sevi (membership) — its own step/endpoint now
+            // (POST /admin/sangha-sevi), not a checkbox bundled into Step 3
+            // Account Credentials. sangha_sevi_pk is set once created;
+            // sangha_sevi_skipped lets the operator move on without one
+            // (e.g. a person who isn't becoming a member right now).
+            sangha_sevi_pk: "", sangha_sevi_skipped: false,
+            membership_type_pk: "", organization_pk: "",
+            joining_date: "", local_sakha_number: "",
+            // Mandatory credential (MBR-010/014/019A/B) — see
+            // credentialLabelFor(). Same fields/defaults as ssForm above.
+            credential_is_legacy: false, credential_document_number: "",
+            credential_issue_year: new Date().getFullYear(),
         },
         createLoading: false,
+        createSSLoading: false,
         createError: "",
         createSuccess: "",
 
@@ -93,6 +151,12 @@ function adminApp() {
         ssForm: {
             person_pk: "", membership_type_pk: "", organization_pk: "",
             joining_date: "", local_sakha_number: "",
+            // Mandatory credential (MBR-010/014/019A/B) — see
+            // credentialLabelFor(). Leave credential_is_legacy false (the
+            // default) to auto-generate a new FY document number; check it
+            // to record an already-issued legacy credential by hand.
+            credential_is_legacy: false, credential_document_number: "",
+            credential_issue_year: new Date().getFullYear(),
             // Optional bundled login-account creation. Login is by
             // sangha_sevi_id, so the SS flow is the right place to offer it.
             create_user_account: false, password: "", force_password_change: true,
@@ -124,13 +188,17 @@ function adminApp() {
         resetTargetPk: null,
         resetTargetName: "",
 
-        // ── Status change ──────────────────────────────────────
-        statusLoading: false,
-        statusError: "",
-        showStatusModal: false,
-        statusTargetPk: null,
-        statusTargetName: "",
-        statusNewValue: "ACTIVE",
+        // ── Create Account picker (for a Sangha Sevi who has an SS ID
+        // but no login yet) ─────────────────────────────────────────
+        showCreateAccountModal: false,
+        cazSearch: "",
+        cazLoading: false,
+        cazError: "",
+        cazMembers: [],
+        cazSelected: null,        // the AccountlessSanghaSeviResponse chosen from the list
+        cazForm: { password: "", force_password_change: true },
+        cazSubmitLoading: false,
+        cazSubmitError: "",
 
         // ── Role assignment ────────────────────────────────────
         roleForm: { role_code: "", scope_level: "NSS-WIDE", organization_pk: "" },
@@ -140,6 +208,7 @@ function adminApp() {
         showRoleModal: false,
         roleTargetPk: null,
         roleTargetName: "",
+        roleTargetRoles: [],
 
         // ── Available roles (fetched from bootstrap API) ───────
         availableRoles: [],
@@ -186,7 +255,7 @@ function adminApp() {
             has_own_premises: false,
             address_line_1: "", city_village_name: "",
             country_pk: "", state_pk: "", district_pk: "", postal_code_value: "",
-            phone_number: "", mobile_number: "", org_email: "",
+            phone_number: "", country_phone_code: NSS.DEFAULT_COUNTRY_CODE, mobile_number: "", org_email: "",
             org_website_url: "", org_youtube_channel_url: "",
         },
         createOrgLoading: false,
@@ -196,6 +265,7 @@ function adminApp() {
         createOrgCountries: [],
         createOrgStates: [],
         createOrgDistricts: [],
+        createOrgCities: [],
         // Kumari/Sevak Sakha-scoped parent selection (ORG-BR-101/102).
         // { mode: 'choose'|'locked', auto_select_pk, sakhas: [...] }
         kumariSevakScope: { mode: "choose", auto_select_pk: null, sakhas: [] },
@@ -219,6 +289,7 @@ function adminApp() {
         locationCountries: [],
         locationStates: [],
         locationDistricts: [],
+        locationCities: [],
 
         // ── Computed helpers ───────────────────────────────────
         get totalPages() {
@@ -261,6 +332,14 @@ function adminApp() {
                 this.currentUser.permissions.includes("FOUNDATION_MANAGE");
         },
 
+        // SOL-ARCH-013: adding/confirming festival calendar dates is a
+        // narrower authority than general Foundation settings — only
+        // NSS_ERP_ADMIN holds FOUNDATION_CALENDAR_MANAGE.
+        get canManageCalendar() {
+            return this.currentUser &&
+                this.currentUser.permissions.includes("FOUNDATION_CALENDAR_MANAGE");
+        },
+
         get canApproveClaims() {
             return this.currentUser &&
                 (this.currentUser.permissions.includes("MEMBERSHIP_APPROVE"));
@@ -276,10 +355,51 @@ function adminApp() {
             if (!this.currentUser) return false;
             // ORGANIZATION_MANAGE = can edit any org (NSS Admin, Kendra Admin)
             if (this.currentUser.permissions.includes("ORGANIZATION_MANAGE")) return true;
-            // Scoped admins: can edit only orgs matching their scope
+            // Scoped admins: can edit orgs within their own scope SUBTREE
+            // (their org + descendants) — matches the backend's subtree-aware
+            // org_in_scope()/_require_org_in_scope(), not just an exact match
+            // on their own org row (that was the pre-existing gap: a Zilla/
+            // Anchalika admin could edit their own org but the button never
+            // even showed for their child Sakhas).
             if (!this.currentUser.scopes) return false;
             return this.currentUser.scopes.some(
-                s => s.organization_pk && s.organization_pk === org.organization_pk
+                s => s.organization_pk && this.isOrgOrDescendantOf(org, s.organization_pk)
+            );
+        },
+
+        // Walks org's parent chain (via the flat this.organizations list,
+        // loaded in full at init) to check whether ancestorPk is org itself
+        // or one of its ancestors. Mirrors the backend's recursive subtree
+        // CTE (api/services/rbac_service.py::actor_scope_org_pks) client-side.
+        isOrgOrDescendantOf(org, ancestorPk) {
+            let current = org;
+            const seen = new Set();
+            while (current) {
+                if (current.organization_pk === ancestorPk) return true;
+                if (!current.parent_organization_pk || seen.has(current.organization_pk)) return false;
+                seen.add(current.organization_pk);
+                current = this.organizations.find(o => o.organization_pk === current.parent_organization_pk);
+            }
+            return false;
+        },
+
+        // Roles offered in the Assign-Role modal, minus roles that would be a
+        // guaranteed duplicate for this target user. Every role now has a
+        // single fixed scope_level (enforced server-side too — see
+        // assign_role() in api/routers/admin.py), so a SYSTEM role
+        // (NSS_ERP_ADMIN/AUDITOR/REPORT_VIEWER — always NSS-WIDE, no org) can
+        // only ever be held once; offering it again would just 409. An
+        // ORGANIZATIONAL role (e.g. SAKHA_ADMIN) stays offered even if
+        // already held, since the same role at a different org scope is a
+        // legitimate, frozen-by-design assignment (SOL-ADMIN-004 §8.7).
+        get assignableRoles() {
+            const heldSystemRoleCodes = new Set(
+                (this.roleTargetRoles || [])
+                    .filter(r => r.is_active)
+                    .map(r => r.role_code)
+            );
+            return this.availableRoles.filter(role =>
+                role.role_class !== "SYSTEM" || !heldSystemRoleCodes.has(role.role_code)
             );
         },
 
@@ -342,23 +462,52 @@ function adminApp() {
                 this.loadSakhaScope(),
             ]);
 
-            // Handle hash-based tab navigation (e.g. /admin#claims, /admin#detail/uuid)
+            // Handle hash-based tab navigation (e.g. /admin#claims, /admin#detail/uuid).
+            // activeTab itself was already resolved synchronously above
+            // (before Alpine's first render), so this only fires each
+            // tab's lazy data loader — mirroring what its nav item's
+            // @click handler does — since landing here via a refreshed
+            // or shared URL bypassed that click. Without this, e.g. the
+            // Organization Hierarchy tab rendered permanently empty on
+            // refresh because loadOrgHierarchy() never ran.
             const hash = window.location.hash.replace("#", "");
             if (hash.startsWith("detail/")) {
                 const userPk = hash.substring("detail/".length);
-                if (userPk) {
-                    this.activeTab = "detail";
-                    this.viewUser(userPk);
-                }
+                if (userPk) this.viewUser(userPk);
+            } else if (hash.startsWith("orgDashboard/")) {
+                const orgPk = hash.substring("orgDashboard/".length);
+                if (orgPk) this.openOrgDashboard(orgPk);
+            } else if (hash === "orgDashboard") {
+                // Bare #orgDashboard names no org. Land on the top tier this
+                // admin's scope covers (dashboardLevels is hierarchy-ordered),
+                // falling back to their own scope org, so the tab never
+                // renders as a blank "No organization specified."
+                const firstLevel = this.dashboardLevels[0];
+                const orgPk = firstLevel
+                    ? firstLevel.orgs[0].organization_pk
+                    : this.myOrgDashboardPk;
+                if (orgPk) this.openOrgDashboard(orgPk);
             } else if (hash) {
-                this.activeTab = hash;
-                if (hash === "claims") this.loadClaims();
+                const tabLoaders = {
+                    organizations: () => this.loadOrganizations(),
+                    createOrg: () => this.loadCreateOrgData(),
+                    claims: () => { this.loadClaims(); this.loadClaimsPendingCount(); },
+                    personDir: () => this.loadPersonDirectory(),
+                    memberDir: () => this.loadMemberDirectory(),
+                    orgHierarchy: () => this.loadOrgHierarchy(),
+                    assignSakha: () => this.loadAssignSakhaData(),
+                    refData: () => this.loadReferenceData(),
+                    geography: () => this.loadGeography(),
+                    sysSettings: () => this.loadSystemSettings(),
+                };
+                if (tabLoaders[hash]) tabLoaders[hash]();
             }
 
             // Sync tab state to URL hash on every switch
             this.$watch("activeTab", (tab) => {
-                // detail tab hash is managed by viewUser() to include the PK
-                if (tab !== "detail") {
+                // detail/orgDashboard hashes are managed by viewUser()/
+                // openOrgDashboard() to include the target PK
+                if (tab !== "detail" && tab !== "orgDashboard") {
                     history.replaceState(null, "", `#${tab}`);
                 }
             });
@@ -550,6 +699,7 @@ function adminApp() {
         backToList() {
             this.activeTab = "users";
             this.selectedUser = null;
+            this.fetchUsers();
         },
 
         // ── Create user ────────────────────────────────────────
@@ -584,13 +734,21 @@ function adminApp() {
                 has_account: false,
             };
             this.showNewPersonForm = false;
+            // Pre-fill Step 2's Sakha field immediately (scoped admins get
+            // it auto-selected/locked) rather than waiting for the operator
+            // to touch anything.
+            this.applySakhaAutoSelect("createForm");
 
-            // Check if person already has a user account
-            NSSAuth.apiFetch(`/api/v1/admin/users?search=${encodeURIComponent(p.person_id)}&page_size=1`)
+            // Check if person already has a user account. Keyed on
+            // person_pk via a dedicated endpoint — GET /admin/users?search=
+            // only matches sangha_sevi_id/first_name/last_name, so passing
+            // person_id there (the old approach) never matched anything.
+            NSSAuth.apiFetch(`/api/v1/admin/users/check-account/${p.person_pk}`)
                 .then(res => res.ok ? res.json() : null)
                 .then(data => {
-                    if (data && data.users && data.users.some(u => u.person_pk === p.person_pk)) {
+                    if (data && data.has_account) {
                         this.selectedPersonDisplay.has_account = true;
+                        this.selectedPersonDisplay.has_deleted_account = data.is_active === false;
                     }
                 })
                 .catch(() => {});
@@ -613,6 +771,12 @@ function adminApp() {
                 if (!f.last_name.trim()) { this.createError = "Last name is required."; return; }
                 if (!f.date_of_birth) { this.createError = "Date of birth is required."; return; }
                 if (!f.gender_master_data_pk) { this.createError = "Gender is required."; return; }
+
+                // Country-wise mobile + email format — MBR-CONTACT-01/02.
+                const npMobileErr = NSS.validateMobile(f.country_phone_code.trim(), f.mobile_number.trim());
+                if (npMobileErr) { this.createError = npMobileErr; return; }
+                const npEmailErr = NSS.validateEmail(f.email.trim());
+                if (npEmailErr) { this.createError = npEmailErr; return; }
 
                 const payload = {
                     first_name: f.first_name.trim(),
@@ -694,19 +858,66 @@ function adminApp() {
             }
         },
 
-        // Toggling the bundled-SS checkbox on the Create User form: apply
-        // the Sakha lock/auto-select immediately so the field isn't blank
-        // while the admin is looking at it; clear membership fields when
-        // toggled off so a stale pick can't be silently resubmitted later.
-        onToggleCreateSanghaSevi() {
-            if (this.createForm.create_sangha_sevi) {
-                this.applySakhaAutoSelect("createForm");
-            } else {
-                this.createForm.membership_type_pk = "";
-                this.createForm.organization_pk = "";
-                this.createForm.joining_date = "";
-                this.createForm.local_sakha_number = "";
+        // ── Create Person tab, Step 2: Sangha Sevi ──────────────
+        // Its own step against POST /admin/sangha-sevi (person_pk mandatory,
+        // no account) — mirrors the standalone Create Sangha Sevi tab, but
+        // sequenced right after Person so the operator isn't forced into a
+        // separate tab. Step 3 (Account Credentials) follows once this step
+        // resolves, whether by creating one or skipping.
+        // Shared by createSanghaSeviForNewPerson() and createSanghaSevi() —
+        // adds the credential_* fields to a Sangha Sevi creation payload.
+        // The membership year is always sent (the server turns it into the
+        // issue date via that year's Dola Purnima); the legacy number is sent
+        // only when the operator checked "already has one" and typed one.
+        _credentialPayloadFields(form) {
+            const fields = {};
+            const yr = parseInt(form.credential_issue_year, 10);
+            if (Number.isFinite(yr)) fields.credential_issue_year = yr;
+            if (form.credential_is_legacy) {
+                const num = String(form.credential_document_number || "").trim();
+                if (num) fields.credential_document_number = num;
             }
+            return fields;
+        },
+
+        async createSanghaSeviForNewPerson() {
+            this.createError = "";
+            this.createSuccess = "";
+            this.createSSLoading = true;
+            try {
+                const f = this.createForm;
+                const payload = {
+                    person_pk: f.person_pk,
+                    membership_type_pk: f.membership_type_pk,
+                    organization_pk: f.organization_pk,
+                    joining_date: f.joining_date,
+                    ...this._credentialPayloadFields(f),
+                };
+                const num = String(f.local_sakha_number || "").trim();
+                if (num) payload.local_sakha_erp_id = num;
+
+                const res = await NSSAuth.apiFetch("/api/v1/admin/sangha-sevi", {
+                    method: "POST",
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    this.createError = NSS.errorMessage(data, res.status);
+                    return;
+                }
+                const data = await res.json();
+                this.createForm.sangha_sevi_pk = data.sangha_sevi_pk;
+                this.createSuccess = `Sangha Sevi created — ID: ${data.sangha_sevi_id || data.sangha_sevi_pk}. `
+                    + `${data.credential_type === "ANUMATI_PATRA" ? "Anumati Patra" : "Parichaya Patra"} issued: ${data.credential_document_number}.`;
+            } catch (err) {
+                this.createError = err.message || "Failed to create Sangha Sevi.";
+            } finally {
+                this.createSSLoading = false;
+            }
+        },
+
+        skipCreateSanghaSevi() {
+            this.createForm.sangha_sevi_skipped = true;
         },
 
         async createUser() {
@@ -720,17 +931,6 @@ function adminApp() {
                     password: this.createForm.password,
                     force_password_change: this.createForm.force_password_change,
                 };
-
-                // Optional bundled Sangha Sevi creation (ORG-BR-103: same
-                // Sakha auto-select/lock pattern as the standalone tab).
-                if (this.createForm.create_sangha_sevi) {
-                    payload.create_sangha_sevi = true;
-                    payload.membership_type_pk = this.createForm.membership_type_pk;
-                    payload.organization_pk = this.createForm.organization_pk;
-                    payload.joining_date = this.createForm.joining_date;
-                    const num = String(this.createForm.local_sakha_number || "").trim();
-                    if (num) payload.local_sakha_erp_id = num;
-                }
 
                 const res = await NSSAuth.apiFetch("/api/v1/admin/users", {
                     method: "POST",
@@ -749,8 +949,11 @@ function adminApp() {
                 // Reset form
                 this.createForm = {
                     person_pk: "", password: "", force_password_change: true,
-                    create_sangha_sevi: false, membership_type_pk: "",
-                    organization_pk: "", joining_date: "", local_sakha_number: "",
+                    sangha_sevi_pk: "", sangha_sevi_skipped: false,
+                    membership_type_pk: "", organization_pk: "",
+                    joining_date: "", local_sakha_number: "",
+                    credential_is_legacy: false, credential_document_number: "",
+                    credential_issue_year: new Date().getFullYear(),
                 };
                 this.selectedPersonDisplay = {};
                 this.personSearchResults = [];
@@ -886,6 +1089,7 @@ function adminApp() {
                     membership_type_pk: this.ssForm.membership_type_pk,
                     organization_pk: this.ssForm.organization_pk,
                     joining_date: this.ssForm.joining_date,
+                    ...this._credentialPayloadFields(this.ssForm),
                 };
                 // Send raw local number — backend composes <short_code><number>
                 const num = String(this.ssForm.local_sakha_number || "").trim();
@@ -914,14 +1118,17 @@ function adminApp() {
                 }
 
                 const data = await res.json();
+                const credentialNote = `${data.credential_type === "ANUMATI_PATRA" ? "Anumati Patra" : "Parichaya Patra"} issued: ${data.credential_document_number}.`;
                 this.ssSuccess = data.user_account_pk
-                    ? `Sangha Sevi created — ID: ${data.sangha_sevi_id || data.sangha_sevi_pk}. Login account created (login with the Sangha Sevi ID).`
-                    : `Sangha Sevi created — ID: ${data.sangha_sevi_id || data.sangha_sevi_pk}.`;
+                    ? `Sangha Sevi created — ID: ${data.sangha_sevi_id || data.sangha_sevi_pk}. Login account created (login with the Sangha Sevi ID). ${credentialNote}`
+                    : `Sangha Sevi created — ID: ${data.sangha_sevi_id || data.sangha_sevi_pk}. ${credentialNote}`;
 
                 // Reset form
                 this.ssForm = {
                     person_pk: "", membership_type_pk: "", organization_pk: "",
                     joining_date: "", local_sakha_number: "",
+                    credential_is_legacy: false, credential_document_number: "",
+                    credential_issue_year: new Date().getFullYear(),
                     create_user_account: false, password: "", force_password_change: true,
                 };
                 this.ssSelectedPerson = {};
@@ -937,6 +1144,29 @@ function adminApp() {
         },
 
         // ── Reset password modal ───────────────────────────────
+
+        // ── Membership-change entry points (Governance module) ──
+        // Sakha transfer and Darshak-at-another-Sangha are membership-change
+        // workflows whose approval routing and Local Sakha ERP ID handling are
+        // implemented in the Governance module. These announce that so the
+        // action is discoverable now instead of posting to a missing endpoint.
+        // Both take the specific member (mdSelected on the Member Directory
+        // detail card) so the notice names who the request would be for.
+        requestSakhaTransfer(member) {
+            const name = member ? (this.mdMemberName(member) || member.sangha_sevi_id) : "this member";
+            NSSDialog.alert(
+                `Sakha transfer moves ${name}'s affiliation to a receiving Sakha, subject to approval. This workflow is processed through the Governance module (coming soon).`,
+                "Sakha Transfer"
+            );
+        },
+
+        applyDarshak(member) {
+            const name = member ? (this.mdMemberName(member) || member.sangha_sevi_id) : "this member";
+            NSSDialog.alert(
+                `A Darshak attends another Sangha without transferring membership — ${name} would retain their base Sakha and Local Sakha ERP ID. This workflow is processed through the Governance module (coming soon).`,
+                "Apply for Darshak"
+            );
+        },
 
         openResetModal(user) {
             this.resetTargetPk = user.user_account_pk;
@@ -976,54 +1206,165 @@ function adminApp() {
             }
         },
 
-        // ── Status change modal ────────────────────────────────
+        // ── Create Account picker ──────────────────────────────
+        // A Sangha Sevi can be created without ever getting a login (the
+        // Create Sangha Sevi flow's account step is optional, and a
+        // standalone SS can be recorded from a legacy paper register). This
+        // finds those members and lets an admin provision the login they're
+        // missing, without going through the full "new person" wizard.
 
-        openStatusModal(user) {
-            if (user.user_account_pk === this.currentUser?.user_account_pk) {
-                NSSDialog.alert("You cannot change your own account status.");
-                return;
-            }
-            this.statusTargetPk = user.user_account_pk;
-            this.statusTargetName = user.sangha_sevi_id || user.person_name || "User";
-            this.statusNewValue = user.account_status === "ACTIVE" ? "LOCKED" : "ACTIVE";
-            this.statusError = "";
-            this.showStatusModal = true;
+        openCreateAccountModal() {
+            this.cazSearch = "";
+            this.cazMembers = [];
+            this.cazError = "";
+            this.cazSelected = null;
+            this.cazForm = { password: "", force_password_change: true };
+            this.cazSubmitError = "";
+            this.showCreateAccountModal = true;
+            this.searchAccountlessMembers();
         },
 
-        async submitStatusChange() {
-            if (this.statusTargetPk === this.currentUser?.user_account_pk) {
-                this.statusError = "Cannot change your own account status.";
-                return;
+        async searchAccountlessMembers() {
+            this.cazLoading = true;
+            this.cazError = "";
+            try {
+                const params = new URLSearchParams({ page: 1, page_size: 25 });
+                if (this.cazSearch.trim()) params.set("search", this.cazSearch.trim());
+
+                const res = await NSSAuth.apiFetch(`/api/v1/admin/sangha-sevi/without-account?${params}`);
+                if (!res.ok) throw new Error(await NSS.extractError(res));
+                const data = await res.json();
+                this.cazMembers = data.members;
+            } catch (err) {
+                this.cazError = err.message || "Failed to load Sangha Sevis without an account.";
+            } finally {
+                this.cazLoading = false;
             }
-            this.statusError = "";
-            this.statusLoading = true;
+        },
+
+        cazSelectMember(m) {
+            this.cazSelected = m;
+            this.cazForm = { password: "", force_password_change: true };
+            this.cazSubmitError = "";
+        },
+
+        cazBackToPicker() {
+            this.cazSelected = null;
+            this.cazSubmitError = "";
+        },
+
+        async submitCreateAccountForMember() {
+            if (!this.cazSelected) return;
+            this.cazSubmitError = "";
+            this.cazSubmitLoading = true;
 
             try {
-                const res = await NSSAuth.apiFetch(
-                    `/api/v1/admin/users/${this.statusTargetPk}/status`,
-                    {
-                        method: "PATCH",
-                        body: JSON.stringify({ account_status: this.statusNewValue }),
-                    }
-                );
+                const res = await NSSAuth.apiFetch("/api/v1/admin/users", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        person_pk: this.cazSelected.person_pk,
+                        password: this.cazForm.password,
+                        force_password_change: this.cazForm.force_password_change,
+                    }),
+                });
 
                 if (!res.ok) {
                     const data = await res.json().catch(() => ({}));
-                    this.statusError = NSS.errorMessage(data, res.status);
+                    this.cazSubmitError = NSS.errorMessage(data, res.status);
                     return;
                 }
 
-                this.showStatusModal = false;
-                this.showToast(`Status changed to ${this.statusNewValue}.`);
+                this.showCreateAccountModal = false;
+                this.showToast(
+                    `${this.cazSelected.has_deleted_account ? "Access restored" : "Account created"} for ${this.cazSelected.sangha_sevi_id}.`
+                );
                 this.fetchUsers();
-                // Refresh detail if viewing same user
-                if (this.selectedUser && this.selectedUser.user_account_pk === this.statusTargetPk) {
-                    this.viewUser(this.statusTargetPk);
+            } catch (err) {
+                this.cazSubmitError = err.message || "Failed to create account.";
+            } finally {
+                this.cazSubmitLoading = false;
+            }
+        },
+
+        // ── Status change modal ────────────────────────────────
+
+        // Single-purpose status actions (Activate / Reactivate / Lock),
+        // replacing the old generic "Change Status" modal — one direct
+        // action per button instead of a dropdown + confirm step.
+        async setUserStatus(userAccountPk, newStatus, displayName, verb) {
+            if (userAccountPk === this.currentUser?.user_account_pk) {
+                await NSSDialog.alert("You cannot change your own account status.");
+                return;
+            }
+            const ok = await NSSDialog.confirm(
+                `${verb} account for "${displayName}"?`,
+                { title: `${verb} Account`, confirmText: verb }
+            );
+            if (!ok) return;
+
+            try {
+                const res = await NSSAuth.apiFetch(
+                    `/api/v1/admin/users/${userAccountPk}/status`,
+                    { method: "PATCH", body: JSON.stringify({ account_status: newStatus }) }
+                );
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    await NSSDialog.alert(NSS.errorMessage(data, res.status));
+                    return;
+                }
+                this.showToast(`Account status changed to ${newStatus}.`);
+                this.fetchUsers();
+                if (this.selectedUser && this.selectedUser.user_account_pk === userAccountPk) {
+                    this.viewUser(userAccountPk);
                 }
             } catch (err) {
-                this.statusError = err.message || "Failed to update status.";
+                await NSSDialog.alert(err.message || "Failed to update status.");
+            }
+        },
+
+        // A soft-deleted (INACTIVE) account can't be flipped back to ACTIVE
+        // via PATCH /status — delete_user() sets is_active=FALSE, and
+        // update_status() only ever operates on is_active=TRUE rows (a
+        // deliberate guard, not a bug: an INACTIVE row's password/lockout
+        // state is stale and shouldn't just be un-paused). Reactivating goes
+        // through the same POST /users path a fresh account creation would,
+        // which detects the existing soft-deleted row by person_pk and
+        // reactivates it in place with a freshly-set password instead of
+        // erroring on "account already exists".
+        reactivateForm: { password: "", force_password_change: true },
+        reactivateError: "",
+        reactivateLoading: false,
+
+        async reactivateUser(selectedUser) {
+            this.reactivateError = "";
+            const pw = this.reactivateForm.password;
+            if (!pw || pw.length < 8) {
+                this.reactivateError = "Enter a new password (min 8 characters) to reactivate this account.";
+                return;
+            }
+            this.reactivateLoading = true;
+            try {
+                const res = await NSSAuth.apiFetch("/api/v1/admin/users", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        person_pk: selectedUser.person_pk,
+                        password: pw,
+                        force_password_change: this.reactivateForm.force_password_change,
+                    }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    this.reactivateError = NSS.errorMessage(data, res.status);
+                    return;
+                }
+                this.showToast("Account reactivated.");
+                this.reactivateForm = { password: "", force_password_change: true };
+                this.fetchUsers();
+                this.viewUser(selectedUser.user_account_pk);
+            } catch (err) {
+                this.reactivateError = err.message || "Failed to reactivate account.";
             } finally {
-                this.statusLoading = false;
+                this.reactivateLoading = false;
             }
         },
 
@@ -1032,10 +1373,21 @@ function adminApp() {
         openRoleModal(user) {
             this.roleTargetPk = user.user_account_pk;
             this.roleTargetName = user.sangha_sevi_id || user.person_name || "User";
+            this.roleTargetRoles = user.roles || [];
             this.roleForm = { role_code: "", scope_level: "NSS-WIDE", organization_pk: "" };
             this.roleError = "";
             this.roleSuccess = "";
             this.showRoleModal = true;
+        },
+
+        // Each role has exactly one fixed scope_level (role_master.scope_level
+        // — SOL-ADMIN-004 §8.7); the backend now rejects any other value for
+        // that role, so the moment a role is picked its scope is locked to
+        // that fixed value instead of staying a free, independently-set field.
+        onRoleFormRoleChange() {
+            const role = this.availableRoles.find(r => r.role_code === this.roleForm.role_code);
+            this.roleForm.scope_level = role ? role.scope_level : "NSS-WIDE";
+            this.roleForm.organization_pk = "";
         },
 
         async submitAssignRole() {
@@ -1304,8 +1656,11 @@ function adminApp() {
                 organization_name: org.organization_name || "",
                 address_line_1: org.address_line_1 || "",
                 phone_number: org.phone_number || "",
+                country_phone_code: org.country_phone_code || NSS.DEFAULT_COUNTRY_CODE,
                 mobile_number: org.mobile_number || "",
                 org_email: org.org_email || "",
+                org_website_url: org.org_website_url || "",
+                org_youtube_channel_url: org.org_youtube_channel_url || "",
                 country_pk: org.country_pk || "",
                 state_pk: org.state_pk || "",
                 district_pk: org.district_pk || "",
@@ -1318,6 +1673,9 @@ function adminApp() {
             if (org.state_pk) {
                 this.loadLocationDistricts(org.state_pk);
             }
+            if (org.district_pk) {
+                this.loadLocationCities(org.district_pk);
+            }
         },
 
         // ── Org-edit location cascade (shared utility) ──────────────
@@ -1328,6 +1686,7 @@ function adminApp() {
                 countries: 'locationCountries',
                 states: 'locationStates',
                 districts: 'locationDistricts',
+                cities: 'locationCities',
             },
             form: 'editOrgForm',
         }),
@@ -1335,9 +1694,22 @@ function adminApp() {
         async loadLocationCountries() { await this._editLocCascade.loadCountries(this); },
         async loadLocationStates(pk)   { await this._editLocCascade.loadStates(this, pk); },
         async loadLocationDistricts(pk){ await this._editLocCascade.loadDistricts(this, pk); },
+        async loadLocationCities(pk)   { await this._editLocCascade.loadCities(this, pk); },
         onCountryChange()              { this._editLocCascade.onCountryChange(this); },
         onStateChange()                { this._editLocCascade.onStateChange(this); },
         onDistrictChange()             { this._editLocCascade.onDistrictChange(this); },
+
+        // Auto-fill PIN from the city_village→postal_code mapping when an
+        // existing city/village is chosen; leave blank (user types) on a
+        // mapping gap or a brand-new name. Mirrors register.js.
+        onEditOrgCityVillageChange() {
+            const name = (this.editOrgForm.city_village_name || "").trim().toLowerCase();
+            if (!name) return;
+            const match = this.locationCities.find(
+                cv => (cv.city_village_name || "").trim().toLowerCase() === name
+            );
+            if (match && match.postal_code) this.editOrgForm.postal_code_value = match.postal_code;
+        },
 
         cancelEditOrgDetail() {
             this.editOrgDetailPk = null;
@@ -1502,6 +1874,153 @@ function adminApp() {
             ) || null;
         },
 
+        // The admin's own scope org — now a fallback rather than the sidebar's
+        // target (the sidebar lists one entry per tier via dashboardLevels,
+        // and the in-page switcher moves between orgs within a tier). Still
+        // used to resolve a bare #orgDashboard hash. An NSS-WIDE admin
+        // resolves to the Kendra (top-level) view; a scoped admin to the first
+        // org their scope actually names. Null if neither is resolvable yet
+        // (organizations/scopes still loading).
+        get myOrgDashboardPk() {
+            const scopes = this.currentUser?.scopes || [];
+            const isNssWide = this.isNssAdmin || scopes.some(s => s.scope_level === "NSS-WIDE");
+            if (isNssWide) return this.kendraOrg?.organization_pk || null;
+            const scoped = scopes.find(s => s.organization_pk);
+            return scoped ? scoped.organization_pk : null;
+        },
+
+        // The sidebar nav item's own label — matches the org-dashboard tab's
+        // own tier name (role_code implies org type 1:1, see ROLE_ORG_LABELS)
+        // rather than a generic "Org Dashboard", per design request.
+        get myOrgDashboardLabel() {
+            const scopes = this.currentUser?.scopes || [];
+            const isNssWide = this.isNssAdmin || scopes.some(s => s.scope_level === "NSS-WIDE");
+            if (isNssWide) return "Kendra Dashboard";
+            const scoped = scopes.find(s => s.organization_pk);
+            return (scoped && ROLE_ORG_LABELS[scoped.role_code]) || "Org Dashboard";
+        },
+
+        // ── Dashboards section / org switcher ──────────────────
+        // The set of organization_pks this admin may open a dashboard for.
+        // null means "every org" — the client-side mirror of the server's
+        // actor_scope_org_pks() (rbac_service.py): NSS_ERP_ADMIN or an
+        // NSS-WIDE scope is unbounded, any other admin is bounded to the
+        // recursive subtree of each org their scopes name. Walking the tree
+        // here (rather than trusting a flat scope list) matters because a
+        // Zilla admin must reach the Sakha dashboards *under* that Zilla,
+        // not just the Zilla's own.
+        get scopeOrgPkSet() {
+            const scopes = this.currentUser?.scopes || [];
+            if (this.isNssAdmin || scopes.some(s => s.scope_level === "NSS-WIDE")) {
+                return null;
+            }
+            const roots = scopes.filter(s => s.organization_pk).map(s => s.organization_pk);
+            if (!roots.length) return new Set();
+
+            const childrenByParent = new Map();
+            for (const o of this.organizations) {
+                const parent = o.parent_organization_pk;
+                if (!parent) continue;
+                if (!childrenByParent.has(parent)) childrenByParent.set(parent, []);
+                childrenByParent.get(parent).push(o.organization_pk);
+            }
+
+            const inScope = new Set();
+            const stack = [...roots];
+            while (stack.length) {
+                const pk = stack.pop();
+                if (inScope.has(pk)) continue;   // also guards cyclic parents
+                inScope.add(pk);
+                for (const child of childrenByParent.get(pk) || []) stack.push(child);
+            }
+            return inScope;
+        },
+
+        // Every org of one type that this admin may open a dashboard for,
+        // name-sorted. Drives both the sidebar "Dashboards" entries and the
+        // in-page org switcher, so the two can never disagree about what is
+        // reachable.
+        dashboardOrgsFor(typeCode) {
+            if (!typeCode) return [];
+            const inScope = this.scopeOrgPkSet;
+            return this.organizations
+                .filter(o => o.organization_type_code === typeCode)
+                .filter(o => inScope === null || inScope.has(o.organization_pk))
+                .sort((a, b) => (a.organization_name || "").localeCompare(b.organization_name || ""));
+        },
+
+        // The dashboard levels to actually render in the sidebar: one per
+        // org type the admin has at least one in-scope org for. A Sakha
+        // admin therefore sees only "Sakha", while an NSS-WIDE admin sees
+        // every level that exists in the data — which is what "visible to
+        // the admin as per his scope" means.
+        get dashboardLevels() {
+            return DASHBOARD_LEVELS
+                .map(lvl => ({ ...lvl, orgs: this.dashboardOrgsFor(lvl.typeCode) }))
+                .filter(lvl => lvl.orgs.length > 0);
+        },
+
+        // Topbar title for the org-dashboard tab — named after the org
+        // actually on screen, not the admin's own scope, so drilling from a
+        // Zilla into one of its Sakhas retitles the page correctly.
+        get viewingOrgDashboardLabel() {
+            const lvl = DASHBOARD_LEVELS.find(
+                l => l.typeCode === this.viewingOrgTypeCode
+            );
+            return lvl ? `${lvl.label} Dashboard` : this.myOrgDashboardLabel;
+        },
+
+        // Org type of the dashboard currently on screen — drives both the
+        // topbar title above and which sidebar "Dashboards" entry highlights
+        // as active.
+        get viewingOrgTypeCode() {
+            const org = this.organizations.find(
+                o => o.organization_pk === this.viewingOrgPk
+            );
+            return org?.organization_type_code || "";
+        },
+
+        // Opens the Org Dashboard tab on the given org (the admin's own
+        // scope via the sidebar link, or any org via "View Dashboard" on
+        // an Organizations-tab card, or a drill-down from a child Sakha
+        // row inside the tab itself). Forces the nested orgDashboardTab()
+        // component to unmount/remount (via viewingOrgPk toggling through
+        // null) so switching orgs while already on the tab re-fetches.
+        openOrgDashboard(orgPk) {
+            this.activeTab = "orgDashboard";
+            this.viewingOrgPk = null;
+            this.$nextTick(() => { this.viewingOrgPk = orgPk; });
+            history.replaceState(null, "", `#orgDashboard/${orgPk}`);
+        },
+        viewingOrgPk: null,
+
+        // Shared by the "Local Sakha Number" field on both the Create
+        // Person tab's Sangha Sevi step and the standalone Create Sangha
+        // Sevi tab (ssForm) — previously the same lookup expression
+        // duplicated in both templates. '???' matches the pre-existing
+        // fallback shown while short_code hasn't been assigned yet.
+        sakhaShortCode(orgPk) {
+            return (this.sakhaOrgs.find(o => o.organization_pk === orgPk) || {}).short_code || "???";
+        },
+
+        // True when a Sakha is selected but has no short_code yet — drives
+        // the "An NSS admin must set it first" warning in the same two
+        // templates as sakhaShortCode() above.
+        sakhaMissingShortCode(orgPk) {
+            return !!orgPk && !(this.sakhaOrgs.find(o => o.organization_pk === orgPk) || {}).short_code;
+        },
+
+        // Which mandatory credential (MBR-010/014/019A/B) a membership type
+        // requires: PROBATIONARY -> Anumati Patra, everything else ->
+        // Parichaya Patra. Shared by the Sangha Sevi step on both the
+        // Create Person tab (createForm) and the standalone Create Sangha
+        // Sevi tab (ssForm) — same lookup, so the two can't drift.
+        credentialLabelFor(membershipTypePk) {
+            const mt = this.membershipTypes.find(m => m.master_data_pk === membershipTypePk);
+            if (!mt) return "";
+            return mt.value_code === "PROBATIONARY" ? "Anumati Patra" : "Parichaya Patra";
+        },
+
         // Sakha orgs only (for SS creation dropdown), scoped by admin's org
         get sakhaOrgs() {
             const allSakha = this.organizations.filter(
@@ -1640,11 +2159,12 @@ function adminApp() {
         // ── Create-org location cascade (shared utility) ────────────
 
         _createLocCascade: NSSLocation.create({
-            fetchFn: fetch,
+            fetchFn: (...args) => NSSAuth.apiFetch(...args),
             arrays: {
                 countries: 'createOrgCountries',
                 states: 'createOrgStates',
                 districts: 'createOrgDistricts',
+                cities: 'createOrgCities',
             },
             form: 'createOrgForm',
         }),
@@ -1656,9 +2176,19 @@ function adminApp() {
         },
         async loadCreateOrgStates(pk)      { await this._createLocCascade.loadStates(this, pk); },
         async loadCreateOrgDistricts(pk)   { await this._createLocCascade.loadDistricts(this, pk); },
+        async loadCreateOrgCities(pk)      { await this._createLocCascade.loadCities(this, pk); },
         onCreateOrgCountryChange()         { this._createLocCascade.onCountryChange(this); },
         onCreateOrgStateChange()           { this._createLocCascade.onStateChange(this); },
         onCreateOrgDistrictChange()        { this._createLocCascade.onDistrictChange(this); },
+
+        onCreateOrgCityVillageChange() {
+            const name = (this.createOrgForm.city_village_name || "").trim().toLowerCase();
+            if (!name) return;
+            const match = this.createOrgCities.find(
+                cv => (cv.city_village_name || "").trim().toLowerCase() === name
+            );
+            if (match && match.postal_code) this.createOrgForm.postal_code_value = match.postal_code;
+        },
 
         // ── Live duplicate check for organization_code / short_code ──
         // Debounced per field. `field` is "organization_code" or
@@ -1726,6 +2256,27 @@ function adminApp() {
                 this.createOrgError = `Short Code is already used by ${this.shortCodeCheck.conflict.organization_name}.`;
                 return;
             }
+            // ORG-BR-099: Anchalika/Zilla/Patha Chakra have no premises but
+            // must still record their administrative jurisdiction — mirrors
+            // the backend's mandatory check in create_organization().
+            if (this.orgTypeProhibitsAddress && !(
+                this.createOrgForm.country_pk && this.createOrgForm.state_pk && this.createOrgForm.district_pk
+            )) {
+                this.createOrgError = `${this.createOrgForm.organization_type_code} requires country, state, and district.`;
+                return;
+            }
+
+            // MBR-CONTACT-01/02: organization email + country-wise mobile.
+            const orgEmailErr = NSS.validateEmail((this.createOrgForm.org_email || "").trim());
+            if (orgEmailErr) {
+                this.createOrgError = orgEmailErr;
+                return;
+            }
+            const orgMobileErr = NSS.validateMobile((this.createOrgForm.country_phone_code || "").trim(), (this.createOrgForm.mobile_number || "").trim());
+            if (orgMobileErr) {
+                this.createOrgError = orgMobileErr;
+                return;
+            }
 
             this.createOrgLoading = true;
 
@@ -1755,7 +2306,10 @@ function adminApp() {
                     if (f.city_village_name.trim()) payload.city_village_name = f.city_village_name.trim();
                     if (f.postal_code_value.trim()) payload.postal_code_value = f.postal_code_value.trim();
                     if (f.phone_number.trim()) payload.phone_number = f.phone_number.trim();
-                    if (f.mobile_number.trim()) payload.mobile_number = f.mobile_number.trim();
+                    if (f.mobile_number.trim()) {
+                        payload.mobile_number = f.mobile_number.trim();
+                        if (f.country_phone_code.trim()) payload.country_phone_code = f.country_phone_code.trim();
+                    }
                     if (f.org_email.trim()) payload.org_email = f.org_email.trim();
                     if (f.org_website_url.trim()) payload.org_website_url = f.org_website_url.trim();
                     if (f.org_youtube_channel_url.trim()) payload.org_youtube_channel_url = f.org_youtube_channel_url.trim();
@@ -1796,11 +2350,9 @@ function adminApp() {
 
                 // Refresh the organizations list reference data
                 this.fetchOrganizations();
-                // The Organization Hierarchy tab caches its tree for the whole
-                // session (orgTreeLoaded guard) — invalidate it so a newly
-                // created org shows up next time that tab is viewed, instead
-                // of requiring a full page reload.
-                this.orgTreeLoaded = false;
+                // loadOrgHierarchy() now always refetches on tab open (no more
+                // orgTreeLoaded latch), so clearing the cached tree here just
+                // avoids a stale flash if the Hierarchy tab is already visible.
                 this.orgTree = [];
             } catch (err) {
                 this.createOrgError = err.message || "Failed to create organization.";
@@ -1810,6 +2362,17 @@ function adminApp() {
         },
 
         async saveOrgDetail(org) {
+            // MBR-CONTACT-01/02: validate organization email + country-wise mobile.
+            const orgEmailErr = NSS.validateEmail((this.editOrgForm.org_email || "").trim());
+            if (orgEmailErr) {
+                this.showToast(orgEmailErr, "error");
+                return;
+            }
+            const orgMobileErr = NSS.validateMobile((this.editOrgForm.country_phone_code || "").trim(), (this.editOrgForm.mobile_number || "").trim());
+            if (orgMobileErr) {
+                this.showToast(orgMobileErr, "error");
+                return;
+            }
             this.savingOrgDetail = true;
             try {
                 const body = {};
@@ -1845,8 +2408,14 @@ function adminApp() {
                     body.phone_number = this.editOrgForm.phone_number;
                 if (this.editOrgForm.mobile_number !== (org.mobile_number || ""))
                     body.mobile_number = this.editOrgForm.mobile_number;
+                if (this.editOrgForm.country_phone_code !== (org.country_phone_code || ""))
+                    body.country_phone_code = this.editOrgForm.country_phone_code;
                 if (this.editOrgForm.org_email !== (org.org_email || ""))
                     body.org_email = this.editOrgForm.org_email;
+                if (this.editOrgForm.org_website_url !== (org.org_website_url || ""))
+                    body.org_website_url = this.editOrgForm.org_website_url;
+                if (this.editOrgForm.org_youtube_channel_url !== (org.org_youtube_channel_url || ""))
+                    body.org_youtube_channel_url = this.editOrgForm.org_youtube_channel_url;
 
                 if (Object.keys(body).length === 0) {
 
@@ -1889,6 +2458,12 @@ function adminApp() {
                     }
                     this.editOrgDetailPk = null;
                     this.showToast("Organization updated.");
+                    // The Geography tab holds its own cached lists (it is
+                    // x-show, not re-rendered on tab switch), so an org
+                    // rename/relocation here would otherwise show stale on
+                    // that tab until a full re-select. Refresh in place,
+                    // preserving the current drill selections.
+                    this.refreshGeoLists();
                 } else {
                     const err = await res.json().catch(() => ({}));
                     this.showToast(err.detail || "Failed to update.", "error");
@@ -1914,14 +2489,10 @@ function adminApp() {
             return NSS.formatDateTime(iso);
         },
 
-        statusBadgeClass(status) {
-            const map = {
-                ACTIVE: "badge-success",
-                SUSPENDED: "badge-error",
-                DEACTIVATED: "badge-ghost",
-            };
-            return map[status] || "badge-ghost";
-        },
+        // NOTE: no local statusBadgeClass here — badge classes come from
+        // NSS.* helpers in nss-config.js (the single source of truth that
+        // pairs with frontend/assets/css/badges.css). For account_status use
+        // NSS.accountBadgeClass(); for claim_status NSS.claimBadgeClass().
 
         async logout() {
             await NSSAuth.logout();
@@ -2118,7 +2689,9 @@ function adminApp() {
                 claimed_organization_pk: c.claimed_organization_pk || "",
                 claimed_membership_type_master_data_pk: c.claimed_membership_type_master_data_pk || "",
                 claimed_local_sakha_number: c.claimed_local_sakha_number || "",
+                claimed_credential_document_number: c.claimed_credential_document_number || "",
                 claimed_joining_date: c.claimed_joining_date || "",
+                darshak_local_sakha_number: c.darshak_local_sakha_number || "",
                 country_phone_code: c.country_phone_code || NSS.DEFAULT_COUNTRY_CODE,
                 mobile_number: c.mobile_number || "",
                 email: c.email || "",
@@ -2144,6 +2717,12 @@ function adminApp() {
 
         async saveClaimEdit() {
             this.claimEditError = "";
+            // MBR-CONTACT-01/02: validate the effective contact values held by
+            // the edit form before submitting.
+            const ceMobileErr = NSS.validateMobile((this.claimEditForm.country_phone_code || "").trim(), (this.claimEditForm.mobile_number || "").trim());
+            if (ceMobileErr) { this.claimEditError = ceMobileErr; return; }
+            const ceEmailErr = NSS.validateEmail((this.claimEditForm.email || "").trim());
+            if (ceEmailErr) { this.claimEditError = ceEmailErr; return; }
             this.claimEditLoading = true;
             try {
                 const payload = {};
@@ -2156,8 +2735,12 @@ function adminApp() {
                     payload.claimed_membership_type_master_data_pk = f.claimed_membership_type_master_data_pk;
                 if (f.claimed_local_sakha_number !== (c.claimed_local_sakha_number || ""))
                     payload.claimed_local_sakha_number = f.claimed_local_sakha_number;
+                if (f.claimed_credential_document_number !== (c.claimed_credential_document_number || ""))
+                    payload.claimed_credential_document_number = f.claimed_credential_document_number;
                 if (f.claimed_joining_date !== (c.claimed_joining_date || ""))
                     payload.claimed_joining_date = f.claimed_joining_date;
+                if (f.darshak_local_sakha_number !== (c.darshak_local_sakha_number || ""))
+                    payload.darshak_local_sakha_number = f.darshak_local_sakha_number;
 
                 const nameParts = (c.person_name || "").split(/\s+/);
                 const origFirst = nameParts[0] || "";
@@ -2568,12 +3151,15 @@ function adminApp() {
         rdDocuments: [],
         rdDocsLoading: false,
         rdView: "master",   // master | documents
-        rdLoaded: false,
 
         async loadReferenceData() {
-            if (this.rdLoaded) return;
-            this.rdLoaded = true;
+            // Refetches on EVERY tab open. This used to latch on a one-shot
+            // `rdLoaded` flag, so the tab kept showing whatever was fetched
+            // the first time it was opened until the user pressed F5. The
+            // only guard now is against a concurrent in-flight request.
+            if (this.rdLoading) return;
             this.rdLoading = true;
+            this.rdError = "";
             try {
                 const res = await NSSAuth.apiFetch("/api/v1/foundation/categories");
                 if (res.status === 403) { this.rdError = "You do not have permission to view reference data."; return; }
@@ -2582,6 +3168,14 @@ function adminApp() {
                 this.rdError = "Failed to load categories.";
             } finally {
                 this.rdLoading = false;
+            }
+            // Keep the visible pane in step: re-pull whichever sub-view is
+            // on screen, otherwise the categories refresh but the rows below
+            // them stay stale.
+            if (this.rdView === "documents") {
+                await this.loadDocuments();
+            } else if (this.rdSelectedCategory) {
+                await this.loadMasterValues();
             }
         },
 
@@ -2598,7 +3192,9 @@ function adminApp() {
         },
 
         async loadDocuments() {
-            if (this.rdDocuments.length) return;
+            // In-flight guard only — was `if (this.rdDocuments.length) return;`,
+            // which permanently froze the document list after its first load.
+            if (this.rdDocsLoading) return;
             this.rdDocsLoading = true;
             try {
                 const res = await NSSAuth.apiFetch("/api/v1/foundation/documents");
@@ -2738,11 +3334,12 @@ function adminApp() {
         ssSequences: [],
         ssSettingsLoading: false,
         ssError: "",
-        ssLoaded: false,
 
         async loadSystemSettings() {
-            if (this.ssLoaded) return;
-            this.ssLoaded = true;
+            // Always refetch on tab open (was latched behind a one-shot
+            // `ssLoaded`). reloadSettings() already has its own in-flight
+            // flag, so a double-click can't fire two overlapping loads.
+            if (this.ssSettingsLoading) return;
             await this.reloadSettings();
         },
 
@@ -2936,6 +3533,161 @@ function adminApp() {
         },
 
         // ═══════════════════════════════════════════════════════
+        //  FESTIVAL CALENDAR  (SOL-ARCH-013) — nss.festival_calendar_date
+        // ═══════════════════════════════════════════════════════
+        fcDates: [],
+        fcFestivals: [],
+        fcLoading: false,
+        fcError: "",
+        fcFilterYear: "",
+
+        async loadFestivalCalendar() {
+            if (this.fcLoading) return;
+            this.fcLoading = true;
+            this.fcError = "";
+            try {
+                const [fRes, dRes] = await Promise.all([
+                    NSSAuth.apiFetch("/api/v1/foundation/festivals"),
+                    NSSAuth.apiFetch("/api/v1/foundation/festival-calendar-dates"),
+                ]);
+                if (fRes.status === 403 || dRes.status === 403) {
+                    this.fcError = "You do not have permission to view the festival calendar.";
+                    return;
+                }
+                if (fRes.ok) this.fcFestivals = await fRes.json();
+                if (dRes.ok) this.fcDates = await dRes.json();
+            } catch (err) {
+                this.fcError = "Failed to load the festival calendar.";
+            } finally {
+                this.fcLoading = false;
+            }
+        },
+
+        get fcDatesFiltered() {
+            if (!this.fcFilterYear) return this.fcDates;
+            const y = Number(this.fcFilterYear);
+            return this.fcDates.filter(d => d.calendar_year === y);
+        },
+
+        // ── Add/edit modal ──────────────────────────────────────────
+        fcModalOpen: false,
+        fcModalMode: "edit",     // "edit" | "add"
+        fcModalSaving: false,
+        fcModalError: "",
+        fcForm: {
+            festival_calendar_date_pk: null, festival_code: "DOLA_PURNIMA",
+            calendar_year: new Date().getFullYear(), observed_date: "",
+            is_confirmed: false, source_reference: "", remarks: "",
+        },
+
+        openAddFestivalDate() {
+            this.fcModalMode = "add";
+            this.fcModalError = "";
+            this.fcForm = {
+                festival_calendar_date_pk: null, festival_code: "DOLA_PURNIMA",
+                calendar_year: new Date().getFullYear(), observed_date: "",
+                is_confirmed: false, source_reference: "", remarks: "",
+            };
+            this.fcModalOpen = true;
+        },
+
+        openEditFestivalDate(d) {
+            this.fcModalMode = "edit";
+            this.fcModalError = "";
+            this.fcForm = {
+                festival_calendar_date_pk: d.festival_calendar_date_pk,
+                festival_code: d.festival_code,
+                calendar_year: d.calendar_year,
+                observed_date: d.observed_date,
+                is_confirmed: d.is_confirmed,
+                source_reference: d.source_reference || "",
+                remarks: d.remarks || "",
+            };
+            this.fcModalOpen = true;
+        },
+
+        closeFestivalDateModal() {
+            this.fcModalOpen = false;
+        },
+
+        async saveFestivalDate() {
+            this.fcModalError = "";
+            if (!this.fcForm.observed_date) { this.fcModalError = "Observed date is required."; return; }
+            const year = Number(this.fcForm.calendar_year);
+            if (!Number.isInteger(year) || year < 1900 || year > 2200) {
+                this.fcModalError = "Calendar year must be between 1900 and 2200."; return;
+            }
+            this.fcModalSaving = true;
+            try {
+                let res;
+                if (this.fcModalMode === "add") {
+                    res = await NSSAuth.apiFetch("/api/v1/foundation/festival-calendar-dates", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            festival_code: this.fcForm.festival_code,
+                            calendar_year: year,
+                            observed_date: this.fcForm.observed_date,
+                            is_confirmed: !!this.fcForm.is_confirmed,
+                            source_reference: this.fcForm.source_reference.trim() || null,
+                            remarks: this.fcForm.remarks.trim() || null,
+                        }),
+                    });
+                } else {
+                    res = await NSSAuth.apiFetch(
+                        `/api/v1/foundation/festival-calendar-dates/${encodeURIComponent(this.fcForm.festival_calendar_date_pk)}`,
+                        {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                observed_date: this.fcForm.observed_date,
+                                is_confirmed: !!this.fcForm.is_confirmed,
+                                source_reference: this.fcForm.source_reference.trim() || null,
+                                remarks: this.fcForm.remarks.trim() || null,
+                            }),
+                        },
+                    );
+                }
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    this.fcModalError = NSS.errorMessage(data, res.status);
+                    return;
+                }
+                this.fcModalOpen = false;
+                await this.loadFestivalCalendar();
+                this.showToast(this.fcModalMode === "add" ? "Festival date recorded." : "Festival date updated.");
+            } catch (err) {
+                this.fcModalError = err.message || "Failed to save festival date.";
+            } finally {
+                this.fcModalSaving = false;
+            }
+        },
+
+        // One-click confirm from the list row — no need to open the modal
+        // just to flip is_confirmed TRUE once the admin has verified the date.
+        async confirmFestivalDate(d) {
+            try {
+                const res = await NSSAuth.apiFetch(
+                    `/api/v1/foundation/festival-calendar-dates/${encodeURIComponent(d.festival_calendar_date_pk)}`,
+                    {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ is_confirmed: true }),
+                    },
+                );
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    this.showToast(NSS.errorMessage(data, res.status), "error");
+                    return;
+                }
+                await this.loadFestivalCalendar();
+                this.showToast("Festival date confirmed.");
+            } catch (err) {
+                this.showToast("Failed to confirm festival date.", "error");
+            }
+        },
+
+        // ═══════════════════════════════════════════════════════
         //  GEOGRAPHY  (Tier-1 parity — country → state → district → city)
         // ═══════════════════════════════════════════════════════
         geoCountries: [],
@@ -2943,17 +3695,104 @@ function adminApp() {
         geoDistricts: [],
         geoCities: [],
         geoPostalCodes: [],
+        geoSakhas: [],
         geoCountryPk: "",
         geoStatePk: "",
         geoDistrictPk: "",
+        geoCityPk: "",
+        geoPostalCodePk: "",
         geoLoading: false,
         geoError: "",
-        geoLoaded: false,
+        geoPostalCodeQuery: "",
+        geoCityQuery: "",
+        geoSakhaQuery: "",
+        // Set when a PIN filter returned zero cities/villages directly
+        // anchored to it and we fell back to the district-wide list — see
+        // geoSelectPostalCode(). This happens for any multi-PIN city whose
+        // single city_village row is anchored to a different representative
+        // PIN (uq_city_village_district_name forces one row per city per
+        // district, so a city spanning many PINs — e.g. Bhubaneswar across
+        // 751001-751030+ — only "owns" one of them in this table).
+        geoCitiesFallbackNotice: "",
+
+        // PIN search is SERVER-side (2026-10-02). The Simplified Geography
+        // Model retired nss.post_office, so a PIN is now a single
+        // globally-unique, state-scoped row with no office-level detail.
+        // The API's ?q= matches the PIN digits only.
+        geoPostalCodeSearching: false,
+
+        async geoSearchPostalCodes() {
+            // Scope the search to the narrowest selected level. A selected
+            // PIN is deliberately NOT part of the scope — you search to find
+            // a different PIN, so narrowing by the current one is useless.
+            let scope;
+            if (this.geoDistrictPk) scope = `district_pk=${this.geoDistrictPk}`;
+            else if (this.geoStatePk) scope = `state_pk=${this.geoStatePk}`;
+            else if (this.geoCountryPk) scope = `country_pk=${this.geoCountryPk}`;
+            else return;
+            // The API enforces a 2-char minimum; below that just show the
+            // unfiltered scope rather than firing a rejected request.
+            const q = (this.geoPostalCodeQuery || "").trim();
+            const qs = q.length >= 2 ? `${scope}&q=${encodeURIComponent(q)}` : scope;
+            this.geoPostalCodeSearching = true;
+            try {
+                this.geoPostalCodes = await NSSAuth.apiFetch(`/api/v1/foundation/postal-codes?${qs}`)
+                    .then(r => r.ok ? r.json() : []).catch(() => []);
+            } finally {
+                this.geoPostalCodeSearching = false;
+            }
+        },
+
+        // Human-readable label for each level of the active scope, for the
+        // breadcrumb above the three panels.
+        geoScopeLabel(level) {
+            if (level === "country") {
+                const c = this.geoCountries.find(x => x.country_pk === this.geoCountryPk);
+                return c ? c.country_name : "";
+            }
+            if (level === "state") {
+                const s = this.geoStates.find(x => x.state_pk === this.geoStatePk);
+                return s ? s.state_name : "";
+            }
+            if (level === "district") {
+                const d = this.geoDistricts.find(x => x.district_pk === this.geoDistrictPk);
+                return d ? d.district_name : "";
+            }
+            if (level === "pin") {
+                const p = this.geoPostalCodes.find(x => x.postal_code_pk === this.geoPostalCodePk);
+                return p ? p.postal_code : "";
+            }
+            return "";
+        },
+
+        // A single Odisha district can hold thousands of villages
+        // (e.g. Mayurbhanj: ~3,888) — filter by name or type first.
+        geoFilteredCities() {
+            const q = (this.geoCityQuery || "").trim().toLowerCase();
+            if (!q) return this.geoCities;
+            return this.geoCities.filter(c =>
+                (c.city_village_name || "").toLowerCase().includes(q) ||
+                (c.city_village_type || "").toLowerCase().includes(q)
+            );
+        },
+
+        // Sakha branches linked to a PIN in the selected state.
+        geoFilteredSakhas() {
+            const q = (this.geoSakhaQuery || "").trim().toLowerCase();
+            if (!q) return this.geoSakhas;
+            return this.geoSakhas.filter(s =>
+                (s.organization_name || "").toLowerCase().includes(q) ||
+                (s.organization_code || "").toLowerCase().includes(q) ||
+                (s.postal_code || "").toLowerCase().includes(q) ||
+                (s.state_name || "").toLowerCase().includes(q)
+            );
+        },
 
         async loadGeography() {
-            if (this.geoLoaded) return;
-            this.geoLoaded = true;
+            // Always refetch on tab open (was latched behind `geoLoaded`).
+            if (this.geoLoading) return;
             this.geoLoading = true;
+            this.geoError = "";
             try {
                 const res = await NSSAuth.apiFetch("/api/v1/foundation/countries");
                 if (res.status === 403) { this.geoError = "You do not have permission to view geography data."; return; }
@@ -2969,10 +3808,12 @@ function adminApp() {
             this.geoCountryPk = countryPk;
             this.geoStatePk = "";
             this.geoDistrictPk = "";
+            this.geoCityPk = "";
             this.geoStates = [];
             this.geoDistricts = [];
             this.geoCities = [];
             this.geoPostalCodes = [];
+            this.geoSakhas = [];
             if (!countryPk) return;
             // Only load the next level (states). Postal codes wait for a state selection.
             const res = await NSSAuth.apiFetch(`/api/v1/foundation/states?country_pk=${countryPk}`);
@@ -2982,26 +3823,170 @@ function adminApp() {
         async geoSelectState(statePk) {
             this.geoStatePk = statePk;
             this.geoDistrictPk = "";
+            this.geoCityPk = "";
+            this.geoPostalCodePk = "";
             this.geoDistricts = [];
             this.geoCities = [];
             this.geoPostalCodes = [];
+            this.geoSakhas = [];
+            this.geoPostalCodeQuery = "";
+            this.geoCityQuery = "";
+            this.geoSakhaQuery = "";
             if (!statePk) return;
-            // Load this state's districts and its postal codes (scoped to the state).
-            const [dist, pc] = await Promise.all([
+            // Load this state's districts, its postal codes, and the Sakha
+            // branches linked to those PINs (all scoped to the state).
+            const [dist, pc, sk] = await Promise.all([
                 NSSAuth.apiFetch(`/api/v1/foundation/districts?state_pk=${statePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
                 NSSAuth.apiFetch(`/api/v1/foundation/postal-codes?state_pk=${statePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                NSSAuth.apiFetch(`/api/v1/foundation/sakha-postal-codes?state_pk=${statePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
             ]);
             this.geoDistricts = dist;
             this.geoPostalCodes = pc;
+            this.geoSakhas = sk;
         },
 
+        // Picking a district now narrows all three panels together
+        // (Cities/Villages, Postal Codes, Sakha Branches) instead of
+        // leaving Postal Codes/Sakhas at state scope while only Cities
+        // narrowed — the three were not actually "interconnected" before
+        // this fix (SOL-ARCH-010 Amendment, 2026-10-01).
         async geoSelectDistrict(districtPk) {
             this.geoDistrictPk = districtPk;
+            this.geoCityPk = "";
+            this.geoPostalCodePk = "";
             this.geoCities = [];
-            if (!districtPk) return;
-            const res = await NSSAuth.apiFetch(`/api/v1/foundation/cities?district_pk=${districtPk}`);
-            this.geoCities = res.ok ? await res.json() : [];
+            this.geoCityQuery = "";
+            this.geoPostalCodeQuery = "";
+            this.geoCitiesFallbackNotice = "";
+            if (!districtPk) {
+                // Cleared back to state scope — reload state-wide lists.
+                if (this.geoStatePk) {
+                    const [pc, sk] = await Promise.all([
+                        NSSAuth.apiFetch(`/api/v1/foundation/postal-codes?state_pk=${this.geoStatePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                        NSSAuth.apiFetch(`/api/v1/foundation/sakha-postal-codes?state_pk=${this.geoStatePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                    ]);
+                    this.geoPostalCodes = pc;
+                    this.geoSakhas = sk;
+                }
+                return;
+            }
+            const [cv, pc, sk] = await Promise.all([
+                NSSAuth.apiFetch(`/api/v1/foundation/cities?district_pk=${districtPk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                NSSAuth.apiFetch(`/api/v1/foundation/postal-codes?district_pk=${districtPk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                NSSAuth.apiFetch(`/api/v1/foundation/sakha-postal-codes?district_pk=${districtPk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+            ]);
+            this.geoCities = cv;
+            this.geoPostalCodes = pc;
+            this.geoSakhas = sk;
         },
+
+        // Completes the Geography cascade one level further: picking a
+        // postal code (SOL-ARCH-010 Amendment, 2026-10-01 — postal_code_pk
+        // is now the primary location anchor on city_village and on
+        // organization) re-narrows both Cities/Villages and Sakha Branches
+        // to that exact PIN, instead of leaving them at state/district scope.
+        async geoSelectPostalCode(postalCodePk) {
+            this.geoPostalCodePk = postalCodePk;
+            this.geoCityQuery = "";
+            this.geoSakhaQuery = "";
+            this.geoCitiesFallbackNotice = "";
+            if (!postalCodePk) {
+                this.geoCityPk = "";
+                // Cleared back to district/state scope. Defer entirely to
+                // the district handler when a district is selected so all
+                // three panels land back on the same scope together;
+                // otherwise fall back to state-wide postal codes + sakhas.
+                if (this.geoDistrictPk) {
+                    await this.geoSelectDistrict(this.geoDistrictPk);
+                } else {
+                    this.geoCities = [];
+                    if (this.geoStatePk) {
+                        const [pc, sk] = await Promise.all([
+                            NSSAuth.apiFetch(`/api/v1/foundation/postal-codes?state_pk=${this.geoStatePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                            NSSAuth.apiFetch(`/api/v1/foundation/sakha-postal-codes?state_pk=${this.geoStatePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                        ]);
+                        this.geoPostalCodes = pc;
+                        this.geoSakhas = sk;
+                    }
+                }
+                return;
+            }
+            const [cv, sk] = await Promise.all([
+                NSSAuth.apiFetch(`/api/v1/foundation/cities?postal_code_pk=${postalCodePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+                NSSAuth.apiFetch(`/api/v1/foundation/sakha-postal-codes?postal_code_pk=${postalCodePk}`).then(r => r.ok ? r.json() : []).catch(() => []),
+            ]);
+            if (cv.length === 0 && this.geoDistrictPk) {
+                // No city/village row is directly anchored to this exact
+                // PIN. Very common for a multi-PIN city/town — e.g. a PIN
+                // like 751006 (one of Bhubaneswar's many post offices) when
+                // Bhubaneswar's single city_village row is anchored to its
+                // representative PIN 751001 instead. Fall back to the
+                // district-wide list rather than showing a false "empty"
+                // result, and say so.
+                this.geoCities = await NSSAuth.apiFetch(`/api/v1/foundation/cities?district_pk=${this.geoDistrictPk}`)
+                    .then(r => r.ok ? r.json() : []).catch(() => []);
+                this.geoCitiesFallbackNotice =
+                    "No city/village record is anchored to this exact PIN " +
+                    "(common for a locality that spans several post offices) " +
+                    "— showing all cities/villages in the selected district instead.";
+            } else {
+                this.geoCities = cv;
+            }
+            this.geoSakhas = sk;
+        },
+
+        // City/village selector that drives the PIN display: picking a
+        // city/village focuses the whole Geography scope on its PIN —
+        // highlighting that PIN row, listing its post offices, and
+        // narrowing Sakha Branches. Clicking the already-selected
+        // city clears the PIN scope. Cities with no resolved PIN are
+        // inert (nothing to drive).
+        async geoSelectCity(c) {
+            if (!c || !c.postal_code_pk) {
+                this.showToast("No PIN is mapped to this city/village yet.", "error");
+                return;
+            }
+            const clearing = this.geoPostalCodePk === c.postal_code_pk;
+            this.geoCityPk = clearing ? "" : c.city_village_pk;
+            await this.geoSelectPostalCode(clearing ? "" : c.postal_code_pk);
+        },
+
+        // City/Village dropdown (cascade) counterpart to geoSelectCity():
+        // x-model has already written the chosen city_village_pk to
+        // geoCityPk, so resolve it against the loaded list and drive the
+        // same PIN focus. Empty value ("All…") clears the PIN scope.
+        async geoApplyCitySelection() {
+            const pk = this.geoCityPk;
+            if (!pk) {
+                await this.geoSelectPostalCode("");
+                return;
+            }
+            const c = this.geoCities.find(x => x.city_village_pk === pk);
+            if (!c) return;
+            if (!c.postal_code_pk) {
+                this.showToast("No PIN is mapped to this city/village yet.", "error");
+                return;
+            }
+            await this.geoSelectPostalCode(c.postal_code_pk);
+        },
+
+        // Re-fetch the Geography tab's PIN-scoped lists at whatever the
+        // current drill scope is (PIN > district > state), without
+        // disturbing the active selections. Called after an org edit so a
+        // renamed/relocated branch reflects immediately on the Sakha
+        // Branches panel. Cache-busted so a browser-cached GET can't serve
+        // the pre-edit name back.
+        async refreshGeoLists() {
+            if (!this.geoStatePk) return;
+            let scope;
+            if (this.geoPostalCodePk) scope = `postal_code_pk=${this.geoPostalCodePk}`;
+            else if (this.geoDistrictPk) scope = `district_pk=${this.geoDistrictPk}`;
+            else scope = `state_pk=${this.geoStatePk}`;
+            const bust = `&_=${Date.now()}`;
+            this.geoSakhas = await NSSAuth.apiFetch(`/api/v1/foundation/sakha-postal-codes?${scope}${bust}`)
+                .then(r => r.ok ? r.json() : this.geoSakhas).catch(() => this.geoSakhas);
+        },
+
 
         // ═══════════════════════════════════════════════════════
         //  ORGANIZATION HIERARCHY  (Tier-2 parity — full tree)
@@ -3009,16 +3994,21 @@ function adminApp() {
         orgTree: [],
         orgTreeLoading: false,
         orgTreeError: "",
-        orgTreeLoaded: false,
 
         // Drill-down navigation state (breadcrumb of node objects; empty = top level)
         orgDrillPath: [],
         orgDrillSelect: "",
 
         async loadOrgHierarchy() {
-            if (this.orgTreeLoaded) return;
-            this.orgTreeLoaded = true;
+            // Always refetch on tab open. This was latched behind
+            // `orgTreeLoaded`, which two callers then had to manually
+            // invalidate (`orgTreeLoaded = false`) after creating/reassigning
+            // an org — a pattern that only worked for the mutations someone
+            // remembered. Refetching unconditionally removes the need for
+            // any invalidation bookkeeping.
+            if (this.orgTreeLoading) return;
             this.orgTreeLoading = true;
+            this.orgTreeError = "";
             try {
                 const res = await NSSAuth.apiFetch(`/api/v1/organization/hierarchy?limit=${NSS.MAX_PAGE_SIZE}`);
                 if (res.status === 403) { this.orgTreeError = "You do not have permission to view the hierarchy."; return; }
@@ -3062,6 +4052,104 @@ function adminApp() {
         orgDrillTo(index) {
             this.orgDrillPath = index < 0 ? [] : this.orgDrillPath.slice(0, index + 1);
             this.orgDrillSelect = "";
+        },
+
+        // ═══════════════════════════════════════════════════════
+        //  ASSIGN SAKHAS TO ANCHALIKA / ZILLA SANGHA
+        // ═══════════════════════════════════════════════════════
+        assignSakhaList: [],
+        anchalikaZillaOptions: [],
+        assignSakhaTarget: {},      // organization_pk -> selected new parent pk
+        assignSakhaLoading: false,
+        assignSakhaSaving: null,    // organization_pk currently being saved, or null
+        assignSakhaError: "",
+        assignSakhaSuccess: "",
+        assignSakhaSearch: "",
+        assignSakhaOnlyUnassigned: false,
+
+        async loadAssignSakhaData() {
+            // Always refetch on tab open. Latching this behind
+            // `assignSakhaLoaded` meant a Sakha created in the Create
+            // Organization tab never appeared here for the rest of the
+            // session — submitCreateOrg() invalidated the hierarchy tree but
+            // not this list.
+            if (this.assignSakhaLoading) return;
+            this.assignSakhaLoading = true;
+            this.assignSakhaError = "";
+            try {
+                const [sakhaRes, ancRes, zilRes] = await Promise.all([
+                    NSSAuth.apiFetch(`/api/v1/organization/organizations?type_code=SAKHA_SANGHA&limit=${NSS.MAX_PAGE_SIZE}`),
+                    NSSAuth.apiFetch(`/api/v1/organization/organizations?type_code=ANCHALIKA_SANGHA&limit=${NSS.MAX_PAGE_SIZE}`),
+                    NSSAuth.apiFetch(`/api/v1/organization/organizations?type_code=ZILLA_SANGHA&limit=${NSS.MAX_PAGE_SIZE}`),
+                ]);
+                if (!sakhaRes.ok || !ancRes.ok || !zilRes.ok) {
+                    this.assignSakhaError = "Failed to load Sakha/Anchalika/Zilla organizations.";
+                    return;
+                }
+                const [sakhas, ancs, zils] = await Promise.all([
+                    sakhaRes.json(), ancRes.json(), zilRes.json(),
+                ]);
+                this.assignSakhaList = sakhas;
+                this.anchalikaZillaOptions = [...ancs, ...zils].sort(
+                    (a, b) => a.organization_name.localeCompare(b.organization_name)
+                );
+                // Pre-select each row's dropdown to its current parent.
+                const targets = {};
+                for (const s of sakhas) targets[s.organization_pk] = s.parent_organization_pk || "";
+                this.assignSakhaTarget = targets;
+            } catch (err) {
+                this.assignSakhaError = "Failed to load Sakha/Anchalika/Zilla organizations.";
+            } finally {
+                this.assignSakhaLoading = false;
+            }
+        },
+
+        // A Sakha still parented directly under Kendra (i.e. not yet under
+        // any Anchalika/Zilla Sangha) — the seed's initial flat state.
+        isSakhaUnassigned(s) {
+            return !this.anchalikaZillaOptions.some(p => p.organization_pk === s.parent_organization_pk);
+        },
+
+        filteredAssignSakhaList() {
+            const q = this.assignSakhaSearch.trim().toLowerCase();
+            return this.assignSakhaList.filter(s => {
+                if (this.assignSakhaOnlyUnassigned && !this.isSakhaUnassigned(s)) return false;
+                if (!q) return true;
+                return s.organization_name.toLowerCase().includes(q)
+                    || (s.organization_code || "").toLowerCase().includes(q);
+            });
+        },
+
+        async assignSakhaToParent(s) {
+            const newParentPk = this.assignSakhaTarget[s.organization_pk];
+            if (!newParentPk || newParentPk === s.parent_organization_pk) return;
+            this.assignSakhaSaving = s.organization_pk;
+            this.assignSakhaError = "";
+            this.assignSakhaSuccess = "";
+            try {
+                const res = await NSSAuth.apiFetch(`/api/v1/admin/organizations/${s.organization_pk}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ parent_organization_pk: newParentPk }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    this.assignSakhaError = NSS.errorMessage(data, res.status);
+                    return;
+                }
+                const newParent = this.anchalikaZillaOptions.find(p => p.organization_pk === newParentPk);
+                s.parent_organization_pk = newParentPk;
+                s.parent_organization_name = newParent ? newParent.organization_name : s.parent_organization_name;
+                this.assignSakhaSuccess = `${s.organization_name} assigned to ${s.parent_organization_name}.`;
+                // The Organization Hierarchy tab's tree is now stale too;
+                // loadOrgHierarchy() always refetches on tab open, so just
+                // clear the cached tree to avoid a stale flash if it's visible.
+                this.orgTree = [];
+            } catch (err) {
+                this.assignSakhaError = err.message || "Failed to assign organization.";
+            } finally {
+                this.assignSakhaSaving = null;
+            }
         },
     };
 }

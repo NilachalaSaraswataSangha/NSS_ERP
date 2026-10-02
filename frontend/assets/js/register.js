@@ -37,6 +37,7 @@ function registerApp() {
         regCountries: [],
         regStates: [],
         regDistricts: [],
+        regCities: [],
         regPostalCodes: [],
 
         // Form data
@@ -63,8 +64,10 @@ function registerApp() {
             organization_pk: "",
             joining_date: "",
             claimed_local_sakha_number: "",
+            claimed_credential_document_number: "",
             is_attending_as_darshak: false,
             darshak_organization_pk: "",
+            darshak_local_sakha_number: "",
             password: "",
         },
 
@@ -80,42 +83,26 @@ function registerApp() {
             // Redirect if already logged in
             NSSAuth.redirectIfLoggedIn("/dashboard");
 
-            // Load dropdown data in parallel
-            await Promise.all([
-                this.loadMasterData("GENDER", "genders"),
-                this.loadMasterData("MARITAL_STATUS", "maritalStatuses"),
-                this.loadMasterData("BLOOD_GROUP", "bloodGroups"),
-                this.loadMasterData("MEMBERSHIP_TYPE", "membershipTypes"),
-                this.loadSakhas(),
-                this.loadRegCountries(),
-            ]);
+            await this.loadReferenceData();
         },
 
-        async loadMasterData(categoryCode, targetProp) {
+        // Every dropdown this page needs, in one round trip — public,
+        // no auth (this visitor has no JWT yet). See
+        // GET /api/v1/register/reference-data (api/routers/registration.py).
+        async loadReferenceData() {
             try {
-                const res = await fetch(
-                    `/api/v1/foundation/master-data?category_code=${categoryCode}`
-                );
-                if (res.ok) {
-                    this[targetProp] = await res.json();
-                }
-            } catch (err) {
-                console.error(`Failed to load ${categoryCode}:`, err);
-            }
-        },
-
-        async loadSakhas() {
-            try {
-                // Fetch Sakha-type organizations
-                const res = await fetch(
-                    `/api/v1/organization/organizations?type_code=SAKHA_SANGHA&limit=${NSS.MAX_PAGE_SIZE}`
-                );
+                const res = await fetch("/api/v1/register/reference-data");
                 if (res.ok) {
                     const data = await res.json();
-                    this.sakhas = Array.isArray(data) ? data : (data.organizations || []);
+                    this.genders = data.genders;
+                    this.maritalStatuses = data.marital_statuses;
+                    this.bloodGroups = data.blood_groups;
+                    this.membershipTypes = data.membership_types;
+                    this.sakhas = data.sakhas;
+                    this.regCountries = data.countries;
                 }
             } catch (err) {
-                console.error("Failed to load Sakhas:", err);
+                console.error("Failed to load reference data:", err);
             }
         },
 
@@ -123,19 +110,56 @@ function registerApp() {
 
         _locCascade: NSSLocation.create({
             fetchFn: fetch,
+            basePath: '/api/v1/register',
             arrays: {
                 countries: 'regCountries',
                 states: 'regStates',
                 districts: 'regDistricts',
+                cities: 'regCities',
                 postalCodes: 'regPostalCodes',
             },
             form: 'form',
         }),
 
-        async loadRegCountries() { await this._locCascade.loadCountries(this); },
-        onRegCountryChange()     { this._locCascade.onCountryChange(this); },
-        onRegStateChange()       { this._locCascade.onStateChange(this); },
-        onRegDistrictChange()    { this._locCascade.onDistrictChange(this); },
+        onRegCountryChange()     { this._locCascade.onCountryChange(this); this.refreshNearbySakhas(); },
+        onRegStateChange()       { this._locCascade.onStateChange(this); this.refreshNearbySakhas(); },
+        onRegDistrictChange()    { this._locCascade.onDistrictChange(this); this.refreshNearbySakhas(); },
+
+        // When the registrant picks (or types an exact match of) a known
+        // city/village, auto-fill the PIN from the city_village→postal_code
+        // mapping. If the name isn't on file, or the matched record has no
+        // mapped PIN, the field is left untouched for the user to type by
+        // hand (mapping gap — common outside Odisha).
+        onRegCityVillageChange() {
+            const name = (this.form.city_village_name || "").trim().toLowerCase();
+            if (!name) return;
+            const match = this.regCities.find(
+                cv => (cv.city_village_name || "").trim().toLowerCase() === name
+            );
+            if (match && match.postal_code) {
+                this.form.postal_code_value = match.postal_code;
+            }
+        },
+
+        // "Find a Sakha near me" (SOL-ARCH-010 Amendment, 2026-10-01) —
+        // as the registrant narrows their address down the
+        // country→state→district cascade, re-fetch the Sakha list scoped
+        // to that area instead of leaving it as the full static list
+        // loaded once by reference-data. Falls back to the full list
+        // whenever no state is selected.
+        async refreshNearbySakhas() {
+            const statePk = this.form.state_pk;
+            const districtPk = this.form.district_pk;
+            try {
+                const params = new URLSearchParams();
+                if (statePk) params.set("state_pk", statePk);
+                if (districtPk) params.set("district_pk", districtPk);
+                const res = await fetch(`/api/v1/register/sakhas?${params.toString()}`);
+                if (res.ok) this.sakhas = await res.json();
+            } catch (err) {
+                console.error("Failed to load nearby sakhas:", err);
+            }
+        },
 
         // ── Title Case helper ─────────────────────────────────────────
 
@@ -203,28 +227,16 @@ function registerApp() {
                 return;
             }
 
-            // Validate mobile format if provided
-            if (this.form.mobile_number) {
-                if (!this.form.country_phone_code) {
-                    this.error = "Country phone code is required with mobile number.";
-                    return;
-                }
-                if (!/^\+[0-9]{1,4}$/.test(this.form.country_phone_code)) {
-                    this.error = "Invalid country code format (e.g. +91).";
-                    return;
-                }
-                if (!/^[0-9]{7,15}$/.test(this.form.mobile_number)) {
-                    this.error = "Mobile number must be 7–15 digits.";
-                    return;
-                }
+            // Validate mobile (country-wise) + email format — MBR-CONTACT-01/02.
+            const mobileErr = NSS.validateMobile(this.form.country_phone_code, this.form.mobile_number);
+            if (mobileErr) {
+                this.error = mobileErr;
+                return;
             }
-
-            // Validate email format if provided
-            if (this.form.email) {
-                if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.form.email)) {
-                    this.error = "Invalid email format.";
-                    return;
-                }
+            const emailErr = NSS.validateEmail(this.form.email);
+            if (emailErr) {
+                this.error = emailErr;
+                return;
             }
 
             // ── Check for duplicate mobile/email before proceeding ────
@@ -273,18 +285,24 @@ function registerApp() {
                     return;
                 }
 
-                // Non-Darshaka: Local Sakha Number is required (AUTH-BR-086)
-                if (!this.isDarshaka()) {
-                    if (!this.form.claimed_local_sakha_number.trim()) {
-                        this.error = "Local Sakha Number is required for non-Darshaka members.";
-                        return;
-                    }
+                // Local Sakha Number is required for every membership type,
+                // including Darshaka (AUTH-BR-086) — Darshak members get a
+                // number in a separate namespace, not no number at all.
+                if (!this.form.claimed_local_sakha_number.trim()) {
+                    this.error = "Local Sakha Number is required.";
+                    return;
                 }
 
-                // Darshak attendance: must have org selected
-                if (this.form.is_attending_as_darshak && !this.form.darshak_organization_pk) {
-                    this.error = "Select the Sakha you are attending as Darshak.";
-                    return;
+                // Darshak attendance: must have org + its own local number
+                if (this.form.is_attending_as_darshak) {
+                    if (!this.form.darshak_organization_pk) {
+                        this.error = "Select the Sakha you are attending as Darshak.";
+                        return;
+                    }
+                    if (!this.form.darshak_local_sakha_number.trim()) {
+                        this.error = "Local Sakha Number at the Darshak Sakha is required.";
+                        return;
+                    }
                 }
             }
 
@@ -296,9 +314,11 @@ function registerApp() {
         onMembershipTypeChange() {
             // Reset Local Sakha Number when switching types
             this.form.claimed_local_sakha_number = "";
+            this.form.claimed_credential_document_number = "";
             // Reset darshak fields
             this.form.is_attending_as_darshak = false;
             this.form.darshak_organization_pk = "";
+            this.form.darshak_local_sakha_number = "";
         },
 
         // ── Password validation ────────────────────────────────────
@@ -367,10 +387,18 @@ function registerApp() {
                         payload.claimed_local_sakha_number = this.form.claimed_local_sakha_number.trim();
                     }
 
+                    // Existing Parichaya/Anumati Patra number, if already issued
+                    if (this.form.claimed_credential_document_number.trim()) {
+                        payload.claimed_credential_document_number = this.form.claimed_credential_document_number.trim();
+                    }
+
                     // Darshak attendance
                     if (this.form.is_attending_as_darshak && this.form.darshak_organization_pk) {
                         payload.is_attending_as_darshak = true;
                         payload.darshak_organization_pk = this.form.darshak_organization_pk;
+                        if (this.form.darshak_local_sakha_number.trim()) {
+                            payload.darshak_local_sakha_number = this.form.darshak_local_sakha_number.trim();
+                        }
                     }
                 }
 

@@ -58,6 +58,54 @@ const ADMIN_TAB_MAP = {
     },
 };
 
+// The Administration group's contents for a super admin, in fixed display
+// order: Administrator, Audit, Reports. NSS_ERP_ADMIN is the super admin
+// (is_super_admin() gives it unrestricted scope and its permission set is a
+// strict superset of the two read-only SYSTEM roles), so these three are the
+// only tabs that make sense for it — see _buildAdminTabs().
+const SUPER_ADMIN_TAB_ORDER = [
+    "NSS_ERP_ADMIN",
+    "NSS_ERP_AUDITOR",
+    "NSS_ERP_REPORT_VIEWER",
+];
+
+// Permissions that actually back the Registration Approvals view — the exact
+// pair every /api/v1/claims endpoint requires via
+// require_any_permission("MEMBERSHIP_APPROVE", "ADMIN_USER_MANAGE")
+// (api/routers/claim_approval.py). Gating the nav item on the permission
+// rather than on a role list means the link can never point at a 403.
+const CLAIM_APPROVAL_PERMISSIONS = ["MEMBERSHIP_APPROVE", "ADMIN_USER_MANAGE"];
+
+// Scoped-admin role_code -> the org-dashboard tab's tier label for that
+// role's own org (role_code implies org type 1:1 — a Sakha admin's scope
+// org is always a Sakha, etc.). Shared shape with admin.js's own copy (no
+// cross-file include mechanism exists in this static frontend).
+const ROLE_ORG_LABELS = {
+    NSS_ERP_KENDRA_ADMIN: "Kendra Dashboard",
+    NSS_ERP_ANCHALIKA_ADMIN: "Anchalika Dashboard",
+    NSS_ERP_ZILLA_ADMIN: "Zilla Dashboard",
+    NSS_ERP_SAKHA_ADMIN: "Sakha Dashboard",
+    NSS_ERP_PATHA_CHAKRA_ADMIN: "Patha Chakra Dashboard",
+    NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN: "Mahila Parichalana Mandali Dashboard",
+};
+
+// The org-dashboard tiers listed in the sidebar's "Dashboards" group, in
+// hierarchy order — one per ORGANIZATIONAL role in role_master
+// (SOL-ADMIN-004 §8.7). Duplicated from admin.js by necessity: this static
+// frontend has no cross-file include mechanism. Keep the two in step.
+//
+// MAHILA_SANGHA carries the "Mahila Parichalana Mandali" label because the
+// Mandali is that Sangha's governing body (MAH-091 — one body, two names),
+// not an organization type of its own.
+const DASHBOARD_LEVELS = [
+    { typeCode: "KENDRA", label: "Kendra" },
+    { typeCode: "ANCHALIKA_SANGHA", label: "Anchalika" },
+    { typeCode: "ZILLA_SANGHA", label: "Zilla" },
+    { typeCode: "SAKHA_SANGHA", label: "Sakha" },
+    { typeCode: "PATHA_CHAKRA", label: "Patha Chakra" },
+    { typeCode: "MAHILA_SANGHA", label: "Mahila Parichalana Mandali" },
+];
+
 /* ── Tab labels for top bar ────────────────────────────────── */
 const TAB_LABELS = {
     personal: "Personal Information",
@@ -98,6 +146,113 @@ function _avatarClass(gen, isHead, isSpouse) {
         case 2:  return "av-grandchild";
         default: return "av-other";
     }
+}
+
+// Shared by the Family tab (this.treeNodes) and the Family-of-Origin org
+// browser (this.orgTreeNodes) — was previously duplicated wholesale in
+// both places. Builds the couple-tree structure from a flat array of
+// person-like nodes (person_pk, spouse_person_pk, generation,
+// parent_person_pks): pairs each person with their spouse, links parent →
+// child-couple, then grafts any orphaned couple (no parent found in this
+// dataset) onto a matching generation elsewhere in the tree, so an in-law
+// never floats to the top as a spurious extra root.
+function _buildCoupleTree(allPersons) {
+    const personMap = new Map();
+    for (const p of allPersons) personMap.set(p.person_pk, p);
+
+    const usedInCouple = new Set();
+    const coupleMap = new Map();
+    const allCouples = [];
+
+    for (const p of allPersons) {
+        if (usedInCouple.has(p.person_pk)) continue;
+        usedInCouple.add(p.person_pk);
+        let spouse = null;
+        if (p.spouse_person_pk) {
+            const s = personMap.get(p.spouse_person_pk);
+            if (s && !usedInCouple.has(s.person_pk)) {
+                spouse = s;
+                usedInCouple.add(s.person_pk);
+            }
+        }
+        if (!spouse) {
+            for (const s of allPersons) {
+                if (s.spouse_person_pk === p.person_pk && !usedInCouple.has(s.person_pk)) {
+                    spouse = s;
+                    usedInCouple.add(s.person_pk);
+                    break;
+                }
+            }
+        }
+        const couple = {
+            couple: !!spouse,
+            members: spouse ? [p, spouse] : [p],
+            children: [],
+            gen: p.generation,
+        };
+        for (const m of couple.members) coupleMap.set(m.person_pk, couple);
+        allCouples.push(couple);
+    }
+
+    // Parent → child-couple map
+    const childCouplesOf = new Map();
+    const rootCouples = [];
+    for (const c of allCouples) {
+        let parentCouple = null;
+        for (const m of c.members) {
+            for (const ppk of (m.parent_person_pks || [])) {
+                const pc = coupleMap.get(ppk);
+                if (pc && pc !== c) { parentCouple = pc; break; }
+            }
+            if (parentCouple) break;
+        }
+        if (parentCouple) {
+            if (!childCouplesOf.has(parentCouple)) childCouplesOf.set(parentCouple, []);
+            childCouplesOf.get(parentCouple).push(c);
+        } else {
+            rootCouples.push(c);
+        }
+    }
+
+    function attach(node) {
+        const kids = childCouplesOf.get(node) || [];
+        kids.sort((a, b) => (a.members[0].first_name || "").localeCompare(b.members[0].first_name || ""));
+        node.children = kids;
+        for (const kid of kids) attach(kid);
+    }
+    for (const root of rootCouples) attach(root);
+
+    // Orphan rescue: if an orphan couple's generation matches a
+    // non-root level, graft it as a sibling at that level.
+    // This prevents in-laws from floating to the top of the tree.
+    if (rootCouples.length > 1) {
+        const minGen = Math.min(...rootCouples.map(c => c.gen));
+        const trueRoots = [];
+        const orphans = [];
+        for (const c of rootCouples) {
+            if (c.gen <= minGen) trueRoots.push(c);
+            else orphans.push(c);
+        }
+        // For each orphan, find a parent-level couple in the tree
+        // and graft the orphan as their child
+        for (const orphan of orphans) {
+            const targetGen = orphan.gen - 1;
+            let grafted = false;
+            // BFS through tree to find a couple at targetGen
+            const bfsQueue = [...trueRoots];
+            while (bfsQueue.length > 0 && !grafted) {
+                const node = bfsQueue.shift();
+                if (node.gen === targetGen) {
+                    node.children.push(orphan);
+                    grafted = true;
+                }
+                for (const kid of (node.children || [])) bfsQueue.push(kid);
+            }
+            if (!grafted) trueRoots.push(orphan); // fallback: keep as root
+        }
+        return trueRoots;
+    }
+    return rootCouples;
 }
 
 
@@ -178,6 +333,46 @@ function dashboardApp() {
         createFamilyError: "",
         createFamilySakhaList: [],
         createFamilySakhaLoading: false,
+        // Geography filter for "find a Sakha near me" (SOL-ARCH-010
+        // Amendment, 2026-10-01) — narrows createFamilySakhaList by
+        // country/state/district instead of always showing every Sakha in
+        // the system.
+        createFamilyCountries: [],
+        createFamilyStates: [],
+        createFamilyDistricts: [],
+        createFamilyCountryPk: "",
+        createFamilyStatePk: "",
+        createFamilyDistrictPk: "",
+
+        // Find a Sakha / Patha Chakra directory (member dashboard).
+        // Both a browsable directory (unfiltered load on tab open, capped
+        // at NSS.MAX_PAGE_SIZE) and a search — free-text over the loaded
+        // page plus a country/state/district cascade that re-queries the
+        // server (same public-safe /organizations/selectable endpoint
+        // Create Family's Sakha picker uses — authenticated members only,
+        // no ORGANIZATION_VIEW required).
+        findOrgResults: [],
+        findOrgLoading: false,
+        findOrgError: "",
+        findOrgQuery: "",
+        findOrgIncludeSakha: true,
+        findOrgIncludePathaChakra: true,
+        findOrgCountries: [],
+        findOrgStates: [],
+        findOrgDistricts: [],
+        findOrgCountryPk: "",
+        findOrgStatePk: "",
+        findOrgDistrictPk: "",
+
+        // Transfer Head modal — themed replacement for the plain confirm()
+        transferHeadTarget: null,     // the member being made Head, or null = closed
+        transferHeadSubmitting: false,
+        transferHeadError: "",
+
+        // Assign Admin modal — themed replacement for the plain confirm()
+        assignAdminTarget: null,      // the member being made Admin, or null = closed
+        assignAdminSubmitting: false,
+        assignAdminError: "",
 
         // Remove member
         removeMemberLoading: false,
@@ -258,6 +453,8 @@ function dashboardApp() {
         adminTabs: [],
         adminStats: {},
         initials: "",
+        myOrgDashboardPk: null,
+        viewingOrgPk: null,
 
         // ── Init ──────────────────────────────────────────
         async init() {
@@ -285,6 +482,23 @@ function dashboardApp() {
                 this._buildAdminTabs();
                 this._buildAdminStats();
 
+                // tab is restored from sessionStorage before /auth/me has been
+                // read, so it can name an admin tab this user no longer has —
+                // e.g. a super admin whose session still points at
+                // admin_nss_erp_sakha_admin, a tab _buildAdminTabs() now
+                // deliberately omits. Every admin_* block is x-show'd off
+                // adminTabs, so that would render an empty content area with
+                // no way back except a sidebar click. Fall back to the first
+                // tab this user actually has.
+                if (typeof this.tab === "string" && this.tab.startsWith("admin_")
+                    && !this.adminTabs.some(t => t.key === this.tab)) {
+                    this.switchTab(this.adminTabs.length ? this.adminTabs[0].key : "personal");
+                }
+
+                // Own org dashboard link (sidebar) — non-blocking, same
+                // scope-vs-NSS-WIDE resolution as admin.js's myOrgDashboardPk.
+                this._resolveMyOrgDashboardPk();
+
                 // Fetch real dashboard stats (non-blocking)
                 this._loadAdminStats();
 
@@ -309,16 +523,19 @@ function dashboardApp() {
                     fetches.push(Promise.resolve([]));
                 }
 
-                // Membership search by Sangha Sevi ID
-                if (this.user.sangha_sevi_id) {
+                // Membership detail (own record) — direct PK lookup now that
+                // /auth/me exposes sangha_sevi_pk and GET /membership/members/{pk}
+                // has an ownership carve-out, replacing the old /search-by-ID
+                // workaround (which needed MEMBERSHIP_VIEW and 403'd for
+                // regular members with no admin permissions).
+                if (this.user.sangha_sevi_pk) {
                     fetches.push(
-                        NSSAuth.apiFetch(`/api/v1/membership/search?q=${encodeURIComponent(this.user.sangha_sevi_id)}`)
-                            .then(r => r.ok ? r.json() : { members: [] })
-                            .then(data => data.members || [])
-                            .catch(() => [])
+                        NSSAuth.apiFetch(`/api/v1/membership/members/${this.user.sangha_sevi_pk}`)
+                            .then(r => r.ok ? r.json() : null)
+                            .catch(() => null)
                     );
                 } else {
-                    fetches.push(Promise.resolve([]));
+                    fetches.push(Promise.resolve(null));
                 }
 
                 // Person's families
@@ -332,7 +549,7 @@ function dashboardApp() {
                     fetches.push(Promise.resolve([]));
                 }
 
-                const [personData, addressData, memberResults, familiesData] = await Promise.all(fetches);
+                const [personData, addressData, memberData, familiesData] = await Promise.all(fetches);
 
                 // Process person
                 if (personData) {
@@ -343,12 +560,9 @@ function dashboardApp() {
                 // Process addresses
                 this.addresses = Array.isArray(addressData) ? addressData : [];
 
-                // Process membership — find exact match
-                if (Array.isArray(memberResults) && memberResults.length > 0) {
-                    const exact = memberResults.find(
-                        m => m.sangha_sevi_id === this.user.sangha_sevi_id
-                    );
-                    this.member = exact || memberResults[0] || {};
+                // Process membership
+                if (memberData) {
+                    this.member = memberData;
                 }
 
                 // Process family — use first family
@@ -368,6 +582,14 @@ function dashboardApp() {
                 this._fetchMembershipDetail(),
                 this._fetchFamilyDetail(),
             ]);
+
+            // A page refresh can restore straight onto the findOrg tab via
+            // sessionStorage ('nss_dashboard_tab') — switchTab()'s
+            // _refreshTab() only fires on an actual tab change, so cover
+            // the direct-load case here too.
+            if (this.tab === "findOrg") {
+                this._loadFindOrgDirectory();
+            }
         },
 
         // ── Membership sub-data fetch ────────────────────
@@ -529,104 +751,7 @@ function dashboardApp() {
             for (const m of members) allPersons.push(m);
             this._allTreePersons = allPersons;
 
-            const personMap = new Map();
-            for (const p of allPersons) personMap.set(p.person_pk, p);
-
-            // Group into couples
-            const usedInCouple = new Set();
-            const coupleMap = new Map();
-            const allCouples = [];
-
-            for (const p of allPersons) {
-                if (usedInCouple.has(p.person_pk)) continue;
-                usedInCouple.add(p.person_pk);
-                let spouse = null;
-                if (p.spouse_person_pk) {
-                    const s = personMap.get(p.spouse_person_pk);
-                    if (s && !usedInCouple.has(s.person_pk)) {
-                        spouse = s;
-                        usedInCouple.add(s.person_pk);
-                    }
-                }
-                if (!spouse) {
-                    for (const s of allPersons) {
-                        if (s.spouse_person_pk === p.person_pk && !usedInCouple.has(s.person_pk)) {
-                            spouse = s;
-                            usedInCouple.add(s.person_pk);
-                            break;
-                        }
-                    }
-                }
-                const couple = {
-                    couple: !!spouse,
-                    members: spouse ? [p, spouse] : [p],
-                    children: [],
-                    gen: p.generation,
-                };
-                for (const m of couple.members) coupleMap.set(m.person_pk, couple);
-                allCouples.push(couple);
-            }
-
-            // Parent → child-couple map
-            const childCouplesOf = new Map();
-            const rootCouples = [];
-            for (const c of allCouples) {
-                let parentCouple = null;
-                for (const m of c.members) {
-                    for (const ppk of (m.parent_person_pks || [])) {
-                        const pc = coupleMap.get(ppk);
-                        if (pc && pc !== c) { parentCouple = pc; break; }
-                    }
-                    if (parentCouple) break;
-                }
-                if (parentCouple) {
-                    if (!childCouplesOf.has(parentCouple)) childCouplesOf.set(parentCouple, []);
-                    childCouplesOf.get(parentCouple).push(c);
-                } else {
-                    rootCouples.push(c);
-                }
-            }
-
-            function attach(node) {
-                const kids = childCouplesOf.get(node) || [];
-                kids.sort((a, b) => (a.members[0].first_name || "").localeCompare(b.members[0].first_name || ""));
-                node.children = kids;
-                for (const kid of kids) attach(kid);
-            }
-            for (const root of rootCouples) attach(root);
-
-            // Orphan rescue: if an orphan couple's generation matches a
-            // non-root level, graft it as a sibling at that level.
-            // This prevents in-laws from floating to the top of the tree.
-            if (rootCouples.length > 1) {
-                const minGen = Math.min(...rootCouples.map(c => c.gen));
-                const trueRoots = [];
-                const orphans = [];
-                for (const c of rootCouples) {
-                    if (c.gen <= minGen) trueRoots.push(c);
-                    else orphans.push(c);
-                }
-                // For each orphan, find a parent-level couple in the tree
-                // and graft the orphan as their child
-                for (const orphan of orphans) {
-                    const targetGen = orphan.gen - 1;
-                    let grafted = false;
-                    // BFS through tree to find a couple at targetGen
-                    const bfsQueue = [...trueRoots];
-                    while (bfsQueue.length > 0 && !grafted) {
-                        const node = bfsQueue.shift();
-                        if (node.gen === targetGen) {
-                            node.children.push(orphan);
-                            grafted = true;
-                        }
-                        for (const kid of (node.children || [])) bfsQueue.push(kid);
-                    }
-                    if (!grafted) trueRoots.push(orphan); // fallback: keep as root
-                }
-                this.treeNodes = trueRoots;
-            } else {
-                this.treeNodes = rootCouples;
-            }
+            this.treeNodes = _buildCoupleTree(allPersons);
         },
 
         // ── Tree rendering (x-html) ─────────────────────
@@ -635,7 +760,11 @@ function dashboardApp() {
             return this._renderSubtree(this.treeNodes, true);
         },
 
-        _renderSubtree(nodes, isRoot) {
+        // Shared tree-rendering skeleton for _renderSubtree/_renderOrgSubtree
+        // below (previously duplicated wholesale) — parameterized on which
+        // couple-renderer to call, since the Family tab and org browser
+        // render different node markup for an otherwise identical tree shape.
+        _renderGenSubtree(nodes, isRoot, renderCouple, recurse) {
             if (!nodes.length) return "";
             const gen = nodes[0].gen;
             const genLabel = GEN_LABELS[String(gen)] || (gen < 0 ? "Ancestors (" + Math.abs(gen) + ")" : "Descendants (" + gen + ")");
@@ -643,21 +772,29 @@ function dashboardApp() {
             if (!isRoot) h += '<div class="conn-v"></div>';
             h += '<div class="gen-divider"><div class="gen-divider-line"></div><span class="gen-divider-text">' + genLabel + '</span><div class="gen-divider-line"></div></div>';
             if (nodes.length === 1) {
-                h += '<div class="gen-row">' + this._renderCouple(nodes[0]) + '</div>';
-                if (nodes[0].children.length) h += this._renderSubtree(nodes[0].children, false);
+                h += '<div class="gen-row">' + renderCouple(nodes[0]) + '</div>';
+                if (nodes[0].children.length) h += recurse(nodes[0].children, false);
             } else {
                 const w = (nodes.length - 1) * 8;
                 h += '<div class="bracket-wrap"><div class="conn-h" style="width:' + w + 'rem"></div><div class="bracket-row">';
                 for (const node of nodes) {
                     const hasKids = node.children.length > 0;
                     h += '<div class="bracket-item' + (hasKids ? " flex flex-col items-center" : "") + '">';
-                    h += this._renderCouple(node);
-                    if (hasKids) h += this._renderSubtree(node.children, false);
+                    h += renderCouple(node);
+                    if (hasKids) h += recurse(node.children, false);
                     h += '</div>';
                 }
                 h += '</div></div>';
             }
             return h;
+        },
+
+        _renderSubtree(nodes, isRoot) {
+            return this._renderGenSubtree(
+                nodes, isRoot,
+                (n) => this._renderCouple(n),
+                (n, r) => this._renderSubtree(n, r),
+            );
         },
 
         _renderCouple(node) {
@@ -889,7 +1026,7 @@ function dashboardApp() {
                 this.addMemberError = "";
                 try {
                     const res = await NSSAuth.apiFetch(
-                        `/api/v1/person/search?q=${encodeURIComponent(q)}`
+                        `/api/v1/person/search-selectable?q=${encodeURIComponent(q)}`
                     );
                     if (!res.ok) throw new Error("Search failed");
                     const data = await res.json();
@@ -1612,62 +1749,87 @@ function dashboardApp() {
         },
 
         // ── Transfer Head (FAM-049) ─────────────────────
-        async transferHead(personPk) {
+        // Opens the themed Transfer Headship modal (dashboard-styled, matching
+        // Add Member / Create Family) instead of a plain text confirm().
+        transferHead(personPk) {
             if (!this.family) return;
             const member = this.familyMembers.find(m => m.person_pk === personPk);
-            const name = member ? this.formatFamilyName(member) : "this member";
-            const ok = await NSSDialog.confirm(
-                `Transfer Family Head role to ${name}? You will no longer be the Head.`,
-                { title: "Transfer Headship", confirmText: "Transfer", confirmClass: "btn-warning" }
-            );
-            if (!ok) return;
+            if (!member) return;
+            this.transferHeadError = "";
+            this.transferHeadTarget = member;
+        },
 
+        closeTransferHeadModal() {
+            if (this.transferHeadSubmitting) return;
+            this.transferHeadTarget = null;
+            this.transferHeadError = "";
+        },
+
+        async submitTransferHead() {
+            if (!this.family || !this.transferHeadTarget) return;
+            this.transferHeadSubmitting = true;
+            this.transferHeadError = "";
             try {
                 const res = await NSSAuth.apiFetch(
                     `/api/v1/family/families/${this.family.family_group_pk}/transfer-head`,
                     {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ person_pk: personPk }),
+                        body: JSON.stringify({ person_pk: this.transferHeadTarget.person_pk }),
                     }
                 );
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
                     throw new Error(NSS.errorMessage(err, res.status));
                 }
+                this.transferHeadTarget = null;
                 await this._fetchFamilyDetail();
             } catch (err) {
-                await NSSDialog.alert(err.message || "Failed to transfer headship");
+                this.transferHeadError = err.message || "Failed to transfer headship";
+            } finally {
+                this.transferHeadSubmitting = false;
             }
         },
 
         // ── Assign Admin (FAM-046) ──────────────────────
-        async assignAdmin(personPk) {
+        // Opens the themed Assign Admin modal instead of a plain text confirm().
+        assignAdmin(personPk) {
             if (!this.family) return;
             const member = this.familyMembers.find(m => m.person_pk === personPk);
-            const name = member ? this.formatFamilyName(member) : "this member";
-            const ok = await NSSDialog.confirm(
-                `Assign ${name} as Family Admin? Admins can edit family details, add/remove members, and view financial records.`,
-                { title: "Assign Admin", confirmText: "Assign" }
-            );
-            if (!ok) return;
+            if (!member) return;
+            this.assignAdminError = "";
+            this.assignAdminTarget = member;
+        },
 
+        closeAssignAdminModal() {
+            if (this.assignAdminSubmitting) return;
+            this.assignAdminTarget = null;
+            this.assignAdminError = "";
+        },
+
+        async submitAssignAdmin() {
+            if (!this.family || !this.assignAdminTarget) return;
+            this.assignAdminSubmitting = true;
+            this.assignAdminError = "";
             try {
                 const res = await NSSAuth.apiFetch(
                     `/api/v1/family/families/${this.family.family_group_pk}/admins`,
                     {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ person_pk: personPk }),
+                        body: JSON.stringify({ person_pk: this.assignAdminTarget.person_pk }),
                     }
                 );
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
                     throw new Error(NSS.errorMessage(err, res.status));
                 }
+                this.assignAdminTarget = null;
                 await this._fetchFamilyDetail();
             } catch (err) {
-                await NSSDialog.alert(err.message || "Failed to assign admin");
+                this.assignAdminError = err.message || "Failed to assign admin";
+            } finally {
+                this.assignAdminSubmitting = false;
             }
         },
 
@@ -1748,6 +1910,27 @@ function dashboardApp() {
 
         // ── Edit Profile ─────────────────────────────────
 
+        // ── Membership self-service requests ──────────────────
+        // Entry points only. Darshak attendance at another Sangha and Sakha
+        // transfer are both membership-change requests whose eligibility,
+        // approval routing, and Local Sakha ERP ID handling are implemented in
+        // the Governance module — these buttons announce that so the option is
+        // discoverable now, rather than silently submitting to an endpoint
+        // that does not exist yet.
+        applyDarshak() {
+            NSSDialog.alert(
+                "Requesting to attend another Sangha as a Darshak — without transferring your membership, so you keep your current Sakha and Local Sakha ERP ID. This request is processed through the Governance module (coming soon).",
+                "Apply for Darshak"
+            );
+        },
+
+        requestSakhaTransfer() {
+            NSSDialog.alert(
+                "Requesting to transfer your membership to another Sakha Sangha. A transfer moves your affiliation to the receiving Sakha, subject to approval. This request is processed through the Governance module (coming soon).",
+                "Request Sakha Transfer"
+            );
+        },
+
         startEditProfile() {
             this.profileForm = {
                 mobile_number: this.person.mobile_number || "",
@@ -1771,6 +1954,13 @@ function dashboardApp() {
             this.profileError = "";
             this.profileSuccess = "";
             try {
+                // MBR-CONTACT-01/02: validate the effective contact values the
+                // profile form holds before building the PATCH payload.
+                const pfMobileErr = NSS.validateMobile((this.profileForm.country_phone_code || "").trim(), (this.profileForm.mobile_number || "").trim());
+                if (pfMobileErr) { this.profileError = pfMobileErr; this.profileSaving = false; return; }
+                const pfEmailErr = NSS.validateEmail((this.profileForm.email || "").trim());
+                if (pfEmailErr) { this.profileError = pfEmailErr; this.profileSaving = false; return; }
+
                 // Build payload with only changed fields
                 const payload = {};
                 if (this.profileForm.mobile_number !== (this.person.mobile_number || ""))
@@ -1815,11 +2005,37 @@ function dashboardApp() {
         // ── Create Family ───────────────────────────────
 
         async _loadSakhaList() {
-            if (this.createFamilySakhaList.length > 0) return;
+            if (this.createFamilyCountries.length === 0) {
+                try {
+                    // Public /register/* geo endpoints — a regular member does
+                    // NOT hold FOUNDATION_VIEW, so /foundation/countries would
+                    // 403 and the cascade would never populate.
+                    const res = await NSSAuth.apiFetch(`/api/v1/register/countries`);
+                    if (res.ok) this.createFamilyCountries = await res.json();
+                } catch (e) {
+                    console.error("Failed to load countries", e);
+                }
+            }
+            await this._loadFilteredSakhas();
+        },
+
+        // Re-queries the selectable-Sakha list scoped to the chosen
+        // country/state/district, falling back to the unfiltered list when
+        // none is selected. country_pk is always populated on a Sakha org,
+        // so it filters reliably; state_pk/district_pk depend on the PIN
+        // backfill in 05_sakha_branches.sql.
+        async _loadFilteredSakhas() {
             this.createFamilySakhaLoading = true;
             try {
+                const params = new URLSearchParams({
+                    type_code: "SAKHA_SANGHA",
+                    limit: NSS.MAX_PAGE_SIZE,
+                });
+                if (this.createFamilyCountryPk) params.set("country_pk", this.createFamilyCountryPk);
+                if (this.createFamilyStatePk) params.set("state_pk", this.createFamilyStatePk);
+                if (this.createFamilyDistrictPk) params.set("district_pk", this.createFamilyDistrictPk);
                 const res = await NSSAuth.apiFetch(
-                    `/api/v1/organization/organizations?type_code=SAKHA_SANGHA&limit=${NSS.MAX_PAGE_SIZE}`
+                    `/api/v1/organization/organizations/selectable?${params.toString()}`
                 );
                 if (res.ok) {
                     const data = await res.json();
@@ -1830,6 +2046,151 @@ function dashboardApp() {
             } finally {
                 this.createFamilySakhaLoading = false;
             }
+        },
+
+        async onCreateFamilyCountryChange() {
+            this.createFamilyStatePk = "";
+            this.createFamilyDistrictPk = "";
+            this.createFamilyStates = [];
+            this.createFamilyDistricts = [];
+            this.createFamilySakhaPk = "";
+            if (this.createFamilyCountryPk) {
+                try {
+                    const res = await NSSAuth.apiFetch(`/api/v1/register/states?country_pk=${this.createFamilyCountryPk}`);
+                    if (res.ok) this.createFamilyStates = await res.json();
+                } catch (e) {
+                    console.error("Failed to load states", e);
+                }
+            }
+            await this._loadFilteredSakhas();
+        },
+
+        async onCreateFamilyStateChange() {
+            this.createFamilyDistrictPk = "";
+            this.createFamilyDistricts = [];
+            this.createFamilySakhaPk = "";
+            if (this.createFamilyStatePk) {
+                try {
+                    const res = await NSSAuth.apiFetch(`/api/v1/register/districts?state_pk=${this.createFamilyStatePk}`);
+                    if (res.ok) this.createFamilyDistricts = await res.json();
+                } catch (e) {
+                    console.error("Failed to load districts", e);
+                }
+            }
+            await this._loadFilteredSakhas();
+        },
+
+        async onCreateFamilyDistrictChange() {
+            this.createFamilySakhaPk = "";
+            await this._loadFilteredSakhas();
+        },
+
+        // ── Find a Sakha / Patha Chakra (member dashboard directory) ────
+        //
+        // Both a browsable directory and a search: opening the tab loads
+        // every active Sakha Sangha + Patha Chakra (capped at
+        // NSS.MAX_PAGE_SIZE) with no filter, which doubles as the
+        // directory; the type checkboxes + country/state/district cascade
+        // + free-text box narrow it. Reuses the public /register/* geo
+        // endpoints (member-safe, no FOUNDATION_VIEW) and the
+        // authenticated-only /organizations/selectable endpoint — same
+        // pattern as Create Family's Sakha picker.
+
+        async _loadFindOrgDirectory() {
+            if (this.findOrgCountries.length === 0) {
+                try {
+                    const res = await NSSAuth.apiFetch(`/api/v1/register/countries`);
+                    if (res.ok) this.findOrgCountries = await res.json();
+                } catch (e) {
+                    console.error("Failed to load countries", e);
+                }
+            }
+            await this._loadFindOrgResults();
+        },
+
+        // type_code is repeated as separate query-string entries so the
+        // backend's list[str] param picks up an OR match across both
+        // types (organization.py 2026-10-02) — a single-value `type_code`
+        // param would only ever match one type.
+        async _loadFindOrgResults() {
+            if (!this.findOrgIncludeSakha && !this.findOrgIncludePathaChakra) {
+                this.findOrgResults = [];
+                return;
+            }
+            this.findOrgLoading = true;
+            this.findOrgError = "";
+            try {
+                const params = new URLSearchParams({ limit: NSS.MAX_PAGE_SIZE });
+                if (this.findOrgIncludeSakha) params.append("type_code", "SAKHA_SANGHA");
+                if (this.findOrgIncludePathaChakra) params.append("type_code", "PATHA_CHAKRA");
+                if (this.findOrgCountryPk) params.set("country_pk", this.findOrgCountryPk);
+                if (this.findOrgStatePk) params.set("state_pk", this.findOrgStatePk);
+                if (this.findOrgDistrictPk) params.set("district_pk", this.findOrgDistrictPk);
+                const res = await NSSAuth.apiFetch(
+                    `/api/v1/organization/organizations/selectable?${params.toString()}`
+                );
+                if (res.ok) {
+                    this.findOrgResults = await res.json();
+                } else {
+                    this.findOrgError = "Failed to load the directory.";
+                }
+            } catch (e) {
+                console.error("Failed to load Sakha/Patha Chakra directory", e);
+                this.findOrgError = "Failed to load the directory.";
+            } finally {
+                this.findOrgLoading = false;
+            }
+        },
+
+        async onFindOrgTypeToggle() {
+            await this._loadFindOrgResults();
+        },
+
+        async onFindOrgCountryChange() {
+            this.findOrgStatePk = "";
+            this.findOrgDistrictPk = "";
+            this.findOrgStates = [];
+            this.findOrgDistricts = [];
+            if (this.findOrgCountryPk) {
+                try {
+                    const res = await NSSAuth.apiFetch(`/api/v1/register/states?country_pk=${this.findOrgCountryPk}`);
+                    if (res.ok) this.findOrgStates = await res.json();
+                } catch (e) {
+                    console.error("Failed to load states", e);
+                }
+            }
+            await this._loadFindOrgResults();
+        },
+
+        async onFindOrgStateChange() {
+            this.findOrgDistrictPk = "";
+            this.findOrgDistricts = [];
+            if (this.findOrgStatePk) {
+                try {
+                    const res = await NSSAuth.apiFetch(`/api/v1/register/districts?state_pk=${this.findOrgStatePk}`);
+                    if (res.ok) this.findOrgDistricts = await res.json();
+                } catch (e) {
+                    console.error("Failed to load districts", e);
+                }
+            }
+            await this._loadFindOrgResults();
+        },
+
+        async onFindOrgDistrictChange() {
+            await this._loadFindOrgResults();
+        },
+
+        // Client-side free-text narrowing over the already-fetched page —
+        // matches name, code, district/state/country name, or PIN.
+        findOrgFiltered() {
+            const q = (this.findOrgQuery || "").trim().toLowerCase();
+            if (!q) return this.findOrgResults;
+            return this.findOrgResults.filter(o =>
+                [o.organization_name, o.organization_code, o.district_name,
+                 o.state_name, o.country_name, o.postal_code, o.city_village_name]
+                    .filter(Boolean)
+                    .some(v => String(v).toLowerCase().includes(q))
+            );
         },
 
         async submitCreateFamily() {
@@ -1868,6 +2229,11 @@ function dashboardApp() {
                 this.createFamilySakhaPk = "";
                 this.createFamilyFormedDate = "";
                 this.createFamilyRemarks = "";
+                this.createFamilyCountryPk = "";
+                this.createFamilyStatePk = "";
+                this.createFamilyDistrictPk = "";
+                this.createFamilyStates = [];
+                this.createFamilyDistricts = [];
 
                 // Reload family data for dashboard
                 this.family = newFamily;
@@ -1910,15 +2276,40 @@ function dashboardApp() {
             this.memberSearchLoading = true;
             this.memberSearchError = "";
             try {
-                const params = new URLSearchParams({ search: q, page: 1, page_size: 10 });
-                if (this.memberSearchSortBy) {
-                    params.set("sort_by", this.memberSearchSortBy);
-                    params.set("sort_dir", this.memberSearchSortDir);
-                }
-                const res = await NSSAuth.apiFetch(`/api/v1/admin/users?${params}`);
+                // Search the MEMBER (sangha_sevi) population, not user accounts.
+                // /api/v1/membership/search is rooted on nss.sangha_sevi/nss.person
+                // and matches SS ID, Person ID, ERP number, name (trigram), mobile,
+                // email, and Kendra number — and crucially includes members who have
+                // no login account, which the old /admin/users endpoint silently
+                // excluded. Results come back ordered by relevance (trigram
+                // similarity); the endpoint has no sort_by/sort_dir, so header
+                // clicks sort the returned slice client-side below.
+                const params = new URLSearchParams({ q, limit: 10, offset: 0 });
+                const res = await NSSAuth.apiFetch(`/api/v1/membership/search?${params}`);
                 if (!res.ok) throw new Error(await NSS.extractError(res));
                 const data = await res.json();
-                this.memberSearchResults = data.users || [];
+                let results = (data.members || []).map((m) => ({
+                    sangha_sevi_pk: m.sangha_sevi_pk,
+                    person_pk: m.person_pk,
+                    sangha_sevi_id: m.sangha_sevi_id,
+                    person_name: [m.first_name, m.middle_name, m.last_name]
+                        .filter(Boolean).join(" "),
+                    organization_name: m.organization_name,
+                    local_sakha_erp_id: m.local_sakha_erp_id,
+                    // Membership lifecycle status (not an account status).
+                    status_code: m.status_code,
+                    status_name: m.status_name,
+                }));
+                // Client-side sort of the returned slice, honouring the header the
+                // user clicked (the server returns relevance-ordered rows).
+                if (this.memberSearchSortBy) {
+                    const key = this.memberSearchSortBy === "account_status"
+                        ? "status_name" : this.memberSearchSortBy;
+                    const dir = this.memberSearchSortDir === "desc" ? -1 : 1;
+                    results.sort((a, b) =>
+                        dir * String(a[key] ?? "").localeCompare(String(b[key] ?? "")));
+                }
+                this.memberSearchResults = results;
                 if (this.memberSearchResults.length === 0) {
                     this.memberSearchError = "No members found.";
                 }
@@ -1945,7 +2336,7 @@ function dashboardApp() {
             return at && FAMILY_BROWSER_ROLES.has(at.roleCode);
         },
 
-        /** Get the start org scope for the current admin role */
+        /** Get the start org scope for the current admin role (first match). */
         _getAdminOrgScope() {
             const at = this.adminTabs.find(t => t.key === this.tab);
             if (!at) return null;
@@ -1954,13 +2345,75 @@ function dashboardApp() {
             return scope || null;
         },
 
+        /**
+         * ALL org-anchored scopes for the current admin tab's role.
+         *
+         * A user may hold the same organizational role over several sanghas
+         * (one user_role row each — the frozen RBAC allows it). The family
+         * browser must start from every one of them, not just the first, or
+         * a multi-sangha admin only ever sees one sangha's families.
+         * Deduplicated by organization_pk; org-anchored scopes only.
+         */
+        _getAdminOrgScopes() {
+            const at = this.adminTabs.find(t => t.key === this.tab);
+            if (!at) return [];
+            const seen = new Set();
+            const out = [];
+            for (const s of this.user.scopes || []) {
+                if (s.role_code !== at.roleCode) continue;
+                if (!s.organization_pk) continue;
+                if (seen.has(s.organization_pk)) continue;
+                seen.add(s.organization_pk);
+                out.push(s);
+            }
+            return out;
+        },
+
+        /** Map scope rows to the org-card shape the browser renders. */
+        _scopeOrgCards(scopes) {
+            return scopes.map(s => ({
+                organization_pk: s.organization_pk,
+                organization_name: s.organization_name || "Organization",
+                organization_type_name:
+                    s.organization_type_name || s.scope_level || "",
+                organization_type_code:
+                    s.organization_type_code || s.scope_level || "SAKHA_SANGHA",
+                organization_code: s.organization_code || "",
+            }));
+        },
+
         /** Launch the org family browser from an admin tab */
         async openOrgFamilyBrowser() {
             this.orgFamilyBrowser = true;
             this._resetOrgBrowser();
 
-            const scope = this._getAdminOrgScope();
+            const scopes = this._getAdminOrgScopes();
 
+            // No org-anchored scope → NSS-wide: start from the Kendra root.
+            if (!scopes.length) {
+                await this._fetchOrgRoot();
+                return;
+            }
+
+            // More than one scoped org under this role (multi-sangha admin) —
+            // show every scoped sangha as a top-level card so families across
+            // ALL of them are reachable, then drill as usual.
+            if (scopes.length > 1) {
+                this.orgBreadcrumb = [{
+                    organization_pk: null,
+                    organization_name: "My Sanghas",
+                    organization_type_name: "",
+                    organization_type_code: "ROOT",
+                    organization_code: "",
+                    isScopeRoot: true,
+                }];
+                this.orgChildren = this._scopeOrgCards(scopes);
+                this.orgSelectedSakhaCode = null;
+                return;
+            }
+
+            // Single scope — start there.
+            const scope = scopes[0];
             if (scope && scope.organization_pk) {
                 // Role is scoped to a specific org — start there
                 try {
@@ -2155,6 +2608,15 @@ function dashboardApp() {
             this.orgFamilies = [];
             this._resetOrgFamilyDetail();
 
+            // Back to the multi-sangha scope root — re-render the scope cards
+            // (there is no single parent org to fetch children for).
+            if (crumb.isScopeRoot) {
+                this.orgSelectedSakhaCode = null;
+                this.orgChildrenStats = {};
+                this.orgChildren = this._scopeOrgCards(this._getAdminOrgScopes());
+                return;
+            }
+
             // If navigating back to a Sakha, re-fetch families (not children)
             if (crumb.organization_type_code === "SAKHA_SANGHA") {
                 this.orgSelectedSakhaCode = crumb.organization_code || crumb.organization_pk;
@@ -2269,97 +2731,7 @@ function dashboardApp() {
             for (const m of members) allPersons.push(m);
             this._orgAllTreePersons = allPersons;
 
-            const personMap = new Map();
-            for (const p of allPersons) personMap.set(p.person_pk, p);
-
-            const usedInCouple = new Set();
-            const coupleMap = new Map();
-            const allCouples = [];
-
-            for (const p of allPersons) {
-                if (usedInCouple.has(p.person_pk)) continue;
-                usedInCouple.add(p.person_pk);
-                let spouse = null;
-                if (p.spouse_person_pk) {
-                    const s = personMap.get(p.spouse_person_pk);
-                    if (s && !usedInCouple.has(s.person_pk)) {
-                        spouse = s;
-                        usedInCouple.add(s.person_pk);
-                    }
-                }
-                if (!spouse) {
-                    for (const s of allPersons) {
-                        if (s.spouse_person_pk === p.person_pk && !usedInCouple.has(s.person_pk)) {
-                            spouse = s;
-                            usedInCouple.add(s.person_pk);
-                            break;
-                        }
-                    }
-                }
-                const couple = {
-                    couple: !!spouse,
-                    members: spouse ? [p, spouse] : [p],
-                    children: [],
-                    gen: p.generation,
-                };
-                for (const m of couple.members) coupleMap.set(m.person_pk, couple);
-                allCouples.push(couple);
-            }
-
-            const childCouplesOf = new Map();
-            const rootCouples = [];
-            for (const c of allCouples) {
-                let parentCouple = null;
-                for (const m of c.members) {
-                    for (const ppk of (m.parent_person_pks || [])) {
-                        const pc = coupleMap.get(ppk);
-                        if (pc && pc !== c) { parentCouple = pc; break; }
-                    }
-                    if (parentCouple) break;
-                }
-                if (parentCouple) {
-                    if (!childCouplesOf.has(parentCouple)) childCouplesOf.set(parentCouple, []);
-                    childCouplesOf.get(parentCouple).push(c);
-                } else {
-                    rootCouples.push(c);
-                }
-            }
-
-            function attach(node) {
-                const kids = childCouplesOf.get(node) || [];
-                kids.sort((a, b) => (a.members[0].first_name || "").localeCompare(b.members[0].first_name || ""));
-                node.children = kids;
-                for (const kid of kids) attach(kid);
-            }
-            for (const root of rootCouples) attach(root);
-
-            // Orphan rescue
-            if (rootCouples.length > 1) {
-                const minGen = Math.min(...rootCouples.map(c => c.gen));
-                const trueRoots = [];
-                const orphans = [];
-                for (const c of rootCouples) {
-                    if (c.gen <= minGen) trueRoots.push(c);
-                    else orphans.push(c);
-                }
-                for (const orphan of orphans) {
-                    const targetGen = orphan.gen - 1;
-                    let grafted = false;
-                    const bfsQueue = [...trueRoots];
-                    while (bfsQueue.length > 0 && !grafted) {
-                        const node = bfsQueue.shift();
-                        if (node.gen === targetGen) {
-                            node.children.push(orphan);
-                            grafted = true;
-                        }
-                        for (const kid of (node.children || [])) bfsQueue.push(kid);
-                    }
-                    if (!grafted) trueRoots.push(orphan);
-                }
-                this.orgTreeNodes = trueRoots;
-            } else {
-                this.orgTreeNodes = rootCouples;
-            }
+            this.orgTreeNodes = _buildCoupleTree(allPersons);
         },
 
         renderOrgTree() {
@@ -2368,28 +2740,11 @@ function dashboardApp() {
         },
 
         _renderOrgSubtree(nodes, isRoot) {
-            if (!nodes.length) return "";
-            const gen = nodes[0].gen;
-            const genLabel = GEN_LABELS[String(gen)] || (gen < 0 ? "Ancestors (" + Math.abs(gen) + ")" : "Descendants (" + gen + ")");
-            let h = "";
-            if (!isRoot) h += '<div class="conn-v"></div>';
-            h += '<div class="gen-divider"><div class="gen-divider-line"></div><span class="gen-divider-text">' + genLabel + '</span><div class="gen-divider-line"></div></div>';
-            if (nodes.length === 1) {
-                h += '<div class="gen-row">' + this._renderOrgCouple(nodes[0]) + '</div>';
-                if (nodes[0].children.length) h += this._renderOrgSubtree(nodes[0].children, false);
-            } else {
-                const w = (nodes.length - 1) * 8;
-                h += '<div class="bracket-wrap"><div class="conn-h" style="width:' + w + 'rem"></div><div class="bracket-row">';
-                for (const node of nodes) {
-                    const hasKids = node.children.length > 0;
-                    h += '<div class="bracket-item' + (hasKids ? " flex flex-col items-center" : "") + '">';
-                    h += this._renderOrgCouple(node);
-                    if (hasKids) h += this._renderOrgSubtree(node.children, false);
-                    h += '</div>';
-                }
-                h += '</div></div>';
-            }
-            return h;
+            return this._renderGenSubtree(
+                nodes, isRoot,
+                (n) => this._renderOrgCouple(n),
+                (n, r) => this._renderOrgSubtree(n, r),
+            );
         },
 
         _renderOrgCouple(node) {
@@ -2562,9 +2917,136 @@ function dashboardApp() {
             this.tab = newTab;
             this.sidebarOpen = false;
             sessionStorage.setItem('nss_dashboard_tab', newTab);
+            this._refreshTab(newTab);
+        },
+
+        /**
+         * Re-fetch the data a tab renders, on every switch onto it.
+         *
+         * Without this, every tab except orgDashboard showed only what init()
+         * fetched at page load — so a change made elsewhere (or by another
+         * admin) stayed invisible until a manual F5. orgDashboard is excluded
+         * because openOrgDashboard() already forces a remount, which re-runs
+         * its own x-init; calling a loader here as well would double-fetch.
+         *
+         * Fire-and-forget by design: each loader owns its own loading flag and
+         * error handling, and a switch must not block on the network.
+         */
+        _refreshTab(tab) {
+            if (typeof tab !== "string") return;
+            try {
+                if (tab === "membership" || tab === "documents") {
+                    // Both render parichaya/anumati/affiliation/journey data,
+                    // all of which _fetchMembershipDetail() populates.
+                    if (this.member?.sangha_sevi_pk) this._fetchMembershipDetail();
+                } else if (tab === "family") {
+                    if (this.family?.family_group_pk) this._fetchFamilyDetail();
+                } else if (tab === "findOrg") {
+                    this._loadFindOrgDirectory();
+                } else if (tab.startsWith("admin_")) {
+                    this._loadAdminStats();
+                }
+                // personal: the person/address fetch is inline in init() with
+                // no reusable loader, and saveProfile() already re-fetches
+                // after the only edit path on this page — so there is nothing
+                // safe to re-call here without extracting that block first.
+                //
+                // attendance / governance: no endpoint exists yet (no
+                // attendance-session or governance table in the schema), so
+                // there is deliberately nothing to refresh.
+                //
+                // orgDashboard: openOrgDashboard() forces a remount which
+                // re-runs the nested component's x-init; refreshing here too
+                // would double-fetch.
+            } catch (e) {
+                console.warn("[dashboard] Tab refresh failed:", tab, e);
+            }
+        },
+
+        // Opens the Org Dashboard tab on the given org (the admin's own
+        // scope via the sidebar link, or a drill-down from a child Sakha
+        // row inside the tab itself). Forces the nested orgDashboardTab()
+        // component to unmount/remount (via viewingOrgPk toggling through
+        // null) so switching orgs while already on the tab re-fetches.
+        openOrgDashboard(orgPk) {
+            this.viewingOrgPk = null;
+            this.switchTab("orgDashboard");
+            this.$nextTick(() => { this.viewingOrgPk = orgPk; });
+        },
+
+        get myOrgDashboardLabel() {
+            const scopes = this.user?.scopes || [];
+            const isNssWide = scopes.some(s => s.role_code === "NSS_ERP_ADMIN" || s.scope_level === "NSS-WIDE");
+            if (isNssWide) return "Kendra Dashboard";
+            const scoped = scopes.find(s => s.organization_pk);
+            return (scoped && ROLE_ORG_LABELS[scoped.role_code]) || "Org Dashboard";
+        },
+
+        // Orgs of a given type that this user personally administers, used by
+        // the org-switcher dropdown inside the org-dashboard tab. A user may
+        // legitimately hold the same role at several scopes (user_role has no
+        // UNIQUE on (user_account_pk, role_master_pk) — "a user can have the
+        // same role with different scopes"), so more than one entry here is
+        // expected, not an error.
+        //
+        // Unlike admin.js's version this reads straight off /auth/me's scopes
+        // rather than walking the org tree: this page never preloads the full
+        // organization list, and a member-facing switcher only needs the orgs
+        // the user is actually an admin of.
+        dashboardOrgsFor(typeCode) {
+            if (!typeCode) return [];
+            const seen = new Set();
+            return (this.user?.scopes || [])
+                .filter(s => s.organization_pk && s.organization_type_code === typeCode)
+                .filter(s => {
+                    if (seen.has(s.organization_pk)) return false;
+                    seen.add(s.organization_pk);
+                    return true;
+                })
+                .map(s => ({
+                    organization_pk: s.organization_pk,
+                    organization_name: s.organization_name || "(unnamed)",
+                    organization_code: "",
+                }))
+                .sort((a, b) => a.organization_name.localeCompare(b.organization_name));
+        },
+
+        // Sidebar "Dashboards" group: one entry per tier this user actually
+        // administers. NSS-WIDE admins hold no org-scoped admin_scope rows at
+        // all, so nothing would show — for them myOrgDashboardPk has already
+        // resolved the Kendra, which is the correct single entry.
+        get dashboardLevels() {
+            const levels = DASHBOARD_LEVELS
+                .map(lvl => ({ ...lvl, orgs: this.dashboardOrgsFor(lvl.typeCode) }))
+                .filter(lvl => lvl.orgs.length > 0);
+            if (levels.length) return levels;
+            if (this.myOrgDashboardPk) {
+                return [{
+                    typeCode: "KENDRA",
+                    label: "Kendra",
+                    orgs: [{ organization_pk: this.myOrgDashboardPk, organization_name: "Kendra" }],
+                }];
+            }
+            return [];
+        },
+
+        // Topbar title for the org-dashboard tab — tracks the tier actually on
+        // screen (the sidebar can open any tier this admin covers, and the
+        // in-page switcher can move between orgs), falling back to the
+        // role-derived label when the viewed org isn't one of this user's own
+        // scopes (e.g. a drill-down into a child Sakha).
+        get viewingOrgDashboardLabel() {
+            const scope = (this.user?.scopes || []).find(
+                s => s.organization_pk === this.viewingOrgPk
+            );
+            const lvl = scope && DASHBOARD_LEVELS.find(
+                l => l.typeCode === scope.organization_type_code
+            );
+            return lvl ? `${lvl.label} Dashboard` : this.myOrgDashboardLabel;
         },
 
         get currentTabLabel() {
+            if (this.tab === "orgDashboard") return this.viewingOrgDashboardLabel;
             if (TAB_LABELS[this.tab]) return TAB_LABELS[this.tab];
             const at = this.adminTabs.find(t => t.key === this.tab);
             return at ? at.label : "Dashboard";
@@ -2611,8 +3093,78 @@ function dashboardApp() {
             return [person.first_name, person.middle_name, person.last_name].filter(Boolean).join(" ") || null;
         },
 
+        // The org the sidebar's "Org Dashboard" link points at — the
+        // admin's own scope, same resolution as admin.js's
+        // myOrgDashboardPk getter (kept as a resolved value here, not a
+        // computed getter, since the NSS-WIDE case needs an API call to
+        // find the Kendra org rather than a preloaded organizations list).
+        async _resolveMyOrgDashboardPk() {
+            const scopes = this.user.scopes || [];
+            if (scopes.length === 0) return;
+
+            const isNssWide = scopes.some(s => s.role_code === "NSS_ERP_ADMIN" || s.scope_level === "NSS-WIDE");
+            if (isNssWide) {
+                try {
+                    const res = await NSSAuth.apiFetch("/api/v1/organization/organizations?type_code=KENDRA&limit=1");
+                    if (res.ok) {
+                        const orgs = await res.json();
+                        this.myOrgDashboardPk = orgs[0]?.organization_pk || null;
+                    }
+                } catch (_) {
+                    // Non-blocking — sidebar link just stays hidden.
+                }
+                return;
+            }
+
+            const scoped = scopes.find(s => s.organization_pk);
+            this.myOrgDashboardPk = scoped ? scoped.organization_pk : null;
+        },
+
         _buildAdminTabs() {
             if (!this.user.scopes || this.user.scopes.length === 0) { this.adminTabs = []; return; }
+
+            // ── Super admin: exactly three tabs, always, in fixed order ──
+            // NSS_ERP_ADMIN is the super admin. Two consequences, both
+            // deliberate:
+            //
+            // 1. The Audit & Compliance and Reports tabs are built
+            //    unconditionally, not gated on the literal NSS_ERP_AUDITOR /
+            //    NSS_ERP_REPORT_VIEWER role_codes being present in scopes. A
+            //    pure NSS_ERP_ADMIN outranks both but each of those views is
+            //    surfaced by its own role tab, so it previously saw neither.
+            //    Synthesizing them here needs no redundant user_role rows and
+            //    no change to the frozen RBAC (SOL-ADMIN-004 §8.7).
+            // 2. ORGANIZATIONAL role tabs (Kendra/Anchalika/Zilla/Sakha/Patha
+            //    Chakra Management) are dropped. A super admin already has
+            //    unrestricted scope over every one of those orgs, so listing
+            //    "Sakha Management" beside "System Administration" advertises
+            //    a narrower slice of access the user already holds in full —
+            //    noise, not information. The per-org views are still fully
+            //    reachable through the Dashboards group below, which is
+            //    org-driven rather than role-driven.
+            //
+            // Display-only: user_role rows are untouched, and a user WITHOUT
+            // NSS_ERP_ADMIN still gets one tab per role exactly as before.
+            if (this.user.scopes.some(s => s.role_code === "NSS_ERP_ADMIN")) {
+                this.adminTabs = SUPER_ADMIN_TAB_ORDER.map(rc => {
+                    const def = ADMIN_TAB_MAP[rc];
+                    const held = this.user.scopes.some(s => s.role_code === rc);
+                    return {
+                        key: "admin_" + rc.toLowerCase(),
+                        label: def.label,
+                        description: def.description,
+                        adminUrl: def.adminUrl,
+                        roleCode: rc,
+                        // All three SYSTEM roles are fixed at
+                        // scope_level='NSS-WIDE', so the scope never varies —
+                        // only whether this user holds the row directly or
+                        // reaches the view by outranking it.
+                        scopeLabel: held ? "NSS-WIDE" : "NSS-WIDE (via System Administration)",
+                    };
+                });
+                return;
+            }
+
             const seen = new Set();
             const tabs = [];
             for (const scope of this.user.scopes) {
@@ -2623,20 +3175,60 @@ function dashboardApp() {
                 if (scope.scope_level !== "NSS-WIDE" && scope.organization_pk) scopeLabel += " (Organization-scoped)";
                 tabs.push({ key: "admin_" + scope.role_code.toLowerCase(), label: def.label, description: def.description, adminUrl: def.adminUrl, roleCode: scope.role_code, scopeLabel });
             }
-            tabs.sort((a, b) => { if (a.roleCode === "NSS_ERP_ADMIN") return -1; if (b.roleCode === "NSS_ERP_ADMIN") return 1; return a.label.localeCompare(b.label); });
+            tabs.sort((a, b) => a.label.localeCompare(b.label));
             this.adminTabs = tabs;
+        },
+
+        /**
+         * Whether this user may open the Registration Approvals view.
+         * Mirrors the API's own guard on every /api/v1/claims endpoint, so
+         * the nav item appears exactly when the view will actually load.
+         */
+        get canApproveRegistrations() {
+            const perms = this.user?.permissions || [];
+            return CLAIM_APPROVAL_PERMISSIONS.some(p => perms.includes(p));
+        },
+
+        /**
+         * Maps a variable stat card's caption to the /admin/dashboard-stats
+         * field that actually answers it. A caption absent from this map has
+         * no table behind it yet (no session, curriculum, audit-trail,
+         * compliance or export module exists), so _statValue() renders
+         * "Not tracked" instead of inventing a number.
+         */
+        STAT_FIELD_BY_LABEL: {
+            "Sakha Sanghas": "sakha_sanghas",
+            "Mahila Sanghas": "mahila_sanghas",
+            "Anchalika Sanghas": "anchalika_sanghas",
+            "Zilla Sanghas": "zilla_sanghas",
+            "Patha Chakras": "patha_chakras",
+            "Paribarik Sanghas": "paribarik_sanghas",
+            "Renewals Due": "renewals_due",
+            "Attendance %": "attendance_pct",
+        },
+
+        // Extra breakdown tiles rendered below the fixed 4-tile grid, keyed by
+        // role. Only NSS_ERP_ADMIN gets these today — its old single "Total
+        // Organizations" tile was a meaningless catch-all count (NSS/Kendra is
+        // the one apex org; everything else is a child of it), so it is
+        // replaced with a real per-tier breakdown of every org type whose
+        // parent is Kendra. Sakha Sangha's parent is an Anchalika/Zilla (not
+        // Kendra directly), so it stays in the existing "orgs" tile above
+        // instead of moving here.
+        MORE_TILES_BY_ROLE: {
+            NSS_ERP_ADMIN: ["Anchalika Sanghas", "Zilla Sanghas", "Patha Chakras", "Paribarik Sanghas"],
         },
 
         _buildAdminStats() {
             this.adminStats = {
-                NSS_ERP_ADMIN:              { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Total Organizations" },
-                NSS_ERP_KENDRA_ADMIN:       { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Mahila Sanghas" },
-                NSS_ERP_ANCHALIKA_ADMIN:    { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Mahila Sanghas" },
-                NSS_ERP_ZILLA_ADMIN:        { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Renewals Due" },
-                NSS_ERP_SAKHA_ADMIN:        { members: "—", families: "—", orgs: "—", orgsLabel: "Renewals Due",  extra: "—", extraLabel: "Attendance %" },
-                NSS_ERP_PATHA_CHAKRA_ADMIN: { members: "—", families: "—", orgs: "—", orgsLabel: "Sessions",      extra: "—", extraLabel: "Curriculum Items" },
-                NSS_ERP_AUDITOR:            { members: "—", families: "—", orgs: "—", orgsLabel: "Audit Trails",   extra: "—", extraLabel: "Compliance Items" },
-                NSS_ERP_REPORT_VIEWER:      { members: "—", families: "—", orgs: "—", orgsLabel: "Reports Available", extra: "—", extraLabel: "Exports" },
+                NSS_ERP_ADMIN:              { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Mahila Sanghas", moreTiles: [] },
+                NSS_ERP_KENDRA_ADMIN:       { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Mahila Sanghas", moreTiles: [] },
+                NSS_ERP_ANCHALIKA_ADMIN:    { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Mahila Sanghas", moreTiles: [] },
+                NSS_ERP_ZILLA_ADMIN:        { members: "—", families: "—", orgs: "—", orgsLabel: "Sakha Sanghas", extra: "—", extraLabel: "Renewals Due", moreTiles: [] },
+                NSS_ERP_SAKHA_ADMIN:        { members: "—", families: "—", orgs: "—", orgsLabel: "Renewals Due",  extra: "—", extraLabel: "Attendance %", moreTiles: [] },
+                NSS_ERP_PATHA_CHAKRA_ADMIN: { members: "—", families: "—", orgs: "—", orgsLabel: "Sessions",      extra: "—", extraLabel: "Curriculum Items", moreTiles: [] },
+                NSS_ERP_AUDITOR:            { members: "—", families: "—", orgs: "—", orgsLabel: "Audit Trails",   extra: "—", extraLabel: "Compliance Items", moreTiles: [] },
+                NSS_ERP_REPORT_VIEWER:      { members: "—", families: "—", orgs: "—", orgsLabel: "Reports Available", extra: "—", extraLabel: "Exports", moreTiles: [] },
             };
         },
 
@@ -2646,22 +3238,59 @@ function dashboardApp() {
                 if (!res.ok) return;   // silently keep placeholders on auth/permission failure
                 const data = await res.json();
 
-                // Apply fetched numbers to every role tab that the user has
+                // Apply fetched numbers to every role tab that the user has.
+                //
+                // The two variable slots (`orgs` and `extra`) carry a DIFFERENT
+                // label per role, so they must not be fed a fixed field. This
+                // previously assigned `renewals_due` to the slot labelled
+                // "Sakha Sanghas" and `attendance_pct` to slots labelled
+                // "Mahila Sanghas" / "Total Organizations", so those cards
+                // showed a number that had nothing to do with their caption.
+                // Now the label picks the field via STAT_FIELD_BY_LABEL, and
+                // any label with no table behind it renders "Not tracked"
+                // rather than a plausible-looking 0.
                 for (const tab of this.adminTabs) {
                     const rc = tab.roleCode;
                     if (!this.adminStats[rc]) continue;
+                    const cur = this.adminStats[rc];
 
+                    const moreLabels = this.MORE_TILES_BY_ROLE[rc] || [];
                     this.adminStats[rc] = {
-                        ...this.adminStats[rc],
+                        ...cur,
                         members:  data.members  ?? "—",
                         families: data.families ?? "—",
-                        orgs:     data.renewals_due ?? "—",
-                        extra:    data.attendance_pct != null ? `${data.attendance_pct}%` : "—",
+                        orgs:     this._statValue(cur.orgsLabel, data),
+                        extra:    this._statValue(cur.extraLabel, data),
+                        moreTiles: moreLabels.map(label => ({
+                            label,
+                            value: this._statValue(label, data),
+                        })),
                     };
                 }
             } catch (e) {
                 console.warn("[dashboard] Failed to load admin stats:", e);
             }
+        },
+
+
+        /**
+         * Resolve one variable stat card's value from its own caption.
+         * Returns "Not tracked" for captions that no table can answer yet, so
+         * the card never presents an unbacked slot as a real figure.
+         */
+        _statValue(label, data) {
+            const field = this.STAT_FIELD_BY_LABEL[label];
+            if (!field) return "Not tracked";
+
+            if (field === "attendance_pct") {
+                // Explicitly untracked: darshak_attendance_registration is an
+                // approval record, not a per-meeting log, and no session table
+                // exists — so there is no denominator for a percentage.
+                if (data.attendance_tracked === false) return "Not tracked";
+                return data.attendance_pct != null ? `${data.attendance_pct}%` : "—";
+            }
+
+            return data[field] ?? "—";
         },
     };
 }

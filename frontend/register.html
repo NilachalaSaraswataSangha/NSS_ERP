@@ -11,12 +11,12 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 
     <link rel="stylesheet" href="/assets/css/style.css">
-    <link rel="stylesheet" href="/assets/css/nss-layout.css?v=5.9">
-    <link rel="stylesheet" href="/assets/css/nss-datepicker.css?v=5.4">
-    <script src="/assets/js/nss-config.js?v=5.3"></script>
-    <script src="/assets/js/nss-location.js?v=5.2"></script>
-    <script src="/assets/js/auth.js?v=5.2"></script>
-    <script src="/assets/js/nss-datepicker.js?v=5.5"></script>
+    <link rel="stylesheet" href="/assets/css/nss-layout.css">
+    <link rel="stylesheet" href="/assets/css/nss-datepicker.css">
+    <script src="/assets/js/nss-config.js"></script>
+    <script src="/assets/js/nss-location.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/nss-datepicker.js"></script>
     <style>
         /* ── NSS Logo Palette ──────────────────────────────
          * Navy blue:   #1B2A4A  (logo band)
@@ -511,59 +511,8 @@
 
             <!-- DOB + Gender -->
             <div class="form-row" style="margin-bottom: 0.85rem;">
-                <div x-data="nssDatePicker('form.date_of_birth', { maxToday: true })" style="position: relative;">
+                <div x-data="nssDatePicker('form.date_of_birth', { maxToday: true })" style="position: relative;" data-dp-input-class="reg-input" data-dp-disabled="loading">
                     <label class="reg-label">Date of Birth *</label>
-                    <div style="position: relative;">
-                        <input type="text" x-model="display" @click="open = true"
-                               @input="onInput($event)"
-                               placeholder="DD/MM/YYYY" class="reg-input"
-                               :disabled="loading" maxlength="10"
-                               autocomplete="off" style="padding-right: 2.25rem;">
-                        <button type="button" class="eye-btn" @click="open = !open" tabindex="-1"
-                                style="right: 0.5rem;">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem;height:1rem;">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                            </svg>
-                        </button>
-                    </div>
-                    <div x-show="open" x-cloak class="nss-cal-popup" @click.outside="open = false" x-transition>
-                        <div class="nss-cal-header">
-                            <button type="button" @click="prevMonth()" class="nss-cal-nav">&lsaquo;</button>
-                            <div class="nss-cal-selectors">
-                                <select class="nss-cal-select" :value="viewMonth" @change="onMonthChange($event)">
-                                    <option value="0">Jan</option><option value="1">Feb</option>
-                                    <option value="2">Mar</option><option value="3">Apr</option>
-                                    <option value="4">May</option><option value="5">Jun</option>
-                                    <option value="6">Jul</option><option value="7">Aug</option>
-                                    <option value="8">Sep</option><option value="9">Oct</option>
-                                    <option value="10">Nov</option><option value="11">Dec</option>
-                                </select>
-                                <input type="number" class="nss-cal-year" min="1930" max="2100"
-                                       :value="viewYear" @input="onYearInput($event)">
-                            </div>
-                            <button type="button" @click="nextMonth()" class="nss-cal-nav">&rsaquo;</button>
-                        </div>
-                        <div class="nss-cal-weekdays">
-                            <template x-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']">
-                                <span x-text="d"></span>
-                            </template>
-                        </div>
-                        <div class="nss-cal-days">
-                            <template x-for="b in calBlanks" :key="'b'+b">
-                                <span></span>
-                            </template>
-                            <template x-for="day in calDays" :key="'d'+day">
-                                <button type="button" class="nss-cal-day"
-                                        :class="{ 'nss-cal-today': isToday(day), 'nss-cal-selected': isSelected(day) }"
-                                        @click="selectDay(day)" x-text="day"></button>
-                            </template>
-                        </div>
-                        <div class="nss-cal-footer">
-                            <button type="button" class="nss-cal-today-btn" @click="goToday()">Today</button>
-                            <button type="button" class="nss-cal-clear" @click="clearDate()">Clear</button>
-                        </div>
-                    </div>
-                    <div class="reg-hint" x-show="invalid" x-text="errorMsg" style="color:#b91c1c; margin-top:0.2rem; font-size:0.8rem;"></div>
                 </div>
                 <div>
                     <label class="reg-label">Gender *</label>
@@ -682,8 +631,19 @@
                     <label class="reg-label">City / Village</label>
                     <input type="text" x-model="form.city_village_name"
                            placeholder="Type city or village"
-                           class="reg-input"
+                           class="reg-input" list="regCityVillageOptions"
+                           @change="onRegCityVillageChange()"
                            :disabled="loading || !form.district_pk" maxlength="200">
+                    <!-- Suggestions only — free text is still accepted and
+                         resolved/created on the fly server-side
+                         (resolve_or_create_city_village(), registration.py)
+                         so a locality not yet on file never blocks
+                         registration. -->
+                    <datalist id="regCityVillageOptions">
+                        <template x-for="cv in regCities" :key="cv.city_village_pk">
+                            <option :value="cv.city_village_name"></option>
+                        </template>
+                    </datalist>
                 </div>
             </div>
 
@@ -777,6 +737,9 @@
                                 <option :value="s.organization_pk" x-text="s.organization_name"></option>
                             </template>
                         </select>
+                        <p class="pw-requirements" style="margin-top: 0.25rem;" x-show="form.state_pk">
+                            Showing Sakhas near your address<span x-text="form.district_pk ? ' (your district)' : ' (your state)'"></span>.
+                        </p>
                     </div>
 
                     <!-- Local Sakha Number — shown AFTER Sakha is selected (AUTH-BR-085) -->
@@ -784,7 +747,7 @@
                         <div class="form-group">
                             <label class="reg-label">
                                 Local Sakha Number
-                                <span x-show="!isDarshaka()">*</span>
+                                <span>*</span>
                             </label>
                             <input type="text" x-model="form.claimed_local_sakha_number"
                                    placeholder="Your local number in this Sakha"
@@ -793,7 +756,7 @@
                                    maxlength="20">
                             <p class="pw-requirements" style="margin-top: 0.25rem;">
                                 <template x-if="isDarshaka()">
-                                    <span>Optional — enter if your Sakha has assigned you a local number.</span>
+                                    <span>Enter your Darshak (Anumati Patra) number in this Sakha. Your Sakha admin will verify this.</span>
                                 </template>
                                 <template x-if="!isDarshaka()">
                                     <span>Enter the number from your Parichaya Patra. Your Sakha admin will verify this.</span>
@@ -802,59 +765,31 @@
                         </div>
                     </template>
 
+                    <!-- Existing Parichaya/Anumati Patra number — optional, only for
+                         registrants who already hold one (legacy members). Distinct from
+                         Local Sakha Number: this is the annual Kendra/Sakha-wide credential
+                         number, not the Tier 2 per-Sakha identity. -->
+                    <template x-if="form.organization_pk">
+                        <div class="form-group">
+                            <label class="reg-label">
+                                <span x-text="isDarshaka() ? 'Anumati Patra Number' : 'Parichaya Patra Number'"></span>
+                                <span style="font-size: 0.75rem; color: #9ca3af; font-weight: normal;">(if already issued)</span>
+                            </label>
+                            <input type="text" x-model="form.claimed_credential_document_number"
+                                   placeholder="e.g. 345"
+                                   class="reg-input"
+                                   :disabled="loading"
+                                   inputmode="numeric"
+                                   maxlength="30">
+                            <p class="pw-requirements" style="margin-top: 0.25rem;">
+                                <span>Enter just the number — the year is added automatically. Leave blank if you don't have one yet; a new number will be issued when your Sakha admin approves this registration.</span>
+                            </p>
+                        </div>
+                    </template>
+
                     <!-- Joining Date -->
-                    <div class="form-group" x-data="nssDatePicker('form.joining_date')" style="position:relative;">
+                    <div class="form-group" x-data="nssDatePicker('form.joining_date')" style="position:relative;" data-dp-input-class="reg-input" data-dp-disabled="loading">
                         <label class="reg-label">Joining Date</label>
-                        <div style="position: relative;">
-                            <input type="text" x-model="display" @click="open = true"
-                                   @input="onInput($event)"
-                                   placeholder="DD/MM/YYYY" class="reg-input"
-                                   :disabled="loading" maxlength="10"
-                                   autocomplete="off" style="padding-right: 2.25rem;">
-                            <button type="button" class="eye-btn" @click="open = !open" tabindex="-1"
-                                    style="right: 0.5rem;">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem;height:1rem;">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div x-show="open" x-cloak class="nss-cal-popup" @click.outside="open = false" x-transition>
-                            <div class="nss-cal-header">
-                                <button type="button" @click="prevMonth()" class="nss-cal-nav">&lsaquo;</button>
-                                <div class="nss-cal-selectors">
-                                    <select class="nss-cal-select" :value="viewMonth" @change="onMonthChange($event)">
-                                        <option value="0">Jan</option><option value="1">Feb</option>
-                                        <option value="2">Mar</option><option value="3">Apr</option>
-                                        <option value="4">May</option><option value="5">Jun</option>
-                                        <option value="6">Jul</option><option value="7">Aug</option>
-                                        <option value="8">Sep</option><option value="9">Oct</option>
-                                        <option value="10">Nov</option><option value="11">Dec</option>
-                                    </select>
-                                    <input type="number" class="nss-cal-year" min="1930" max="2100"
-                                           :value="viewYear" @input="onYearInput($event)">
-                                </div>
-                                <button type="button" @click="nextMonth()" class="nss-cal-nav">&rsaquo;</button>
-                            </div>
-                            <div class="nss-cal-weekdays">
-                                <template x-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']">
-                                    <span x-text="d"></span>
-                                </template>
-                            </div>
-                            <div class="nss-cal-days">
-                                <template x-for="b in calBlanks" :key="'b'+b">
-                                    <span></span>
-                                </template>
-                                <template x-for="day in calDays" :key="'d'+day">
-                                    <button type="button" class="nss-cal-day"
-                                            :class="{ 'nss-cal-today': isToday(day), 'nss-cal-selected': isSelected(day) }"
-                                            @click="selectDay(day)" x-text="day"></button>
-                                </template>
-                            </div>
-                            <div class="nss-cal-footer">
-                                <button type="button" class="nss-cal-today-btn" @click="goToday()">Today</button>
-                                <button type="button" class="nss-cal-clear" @click="clearDate()">Clear</button>
-                            </div>
-                        </div>
                     </div>
 
                     <!-- ── Darshak Attendance ── -->
@@ -871,15 +806,28 @@
                     </div>
 
                     <template x-if="form.is_attending_as_darshak">
-                        <div class="form-group">
-                            <label class="reg-label">Darshak Sakha *</label>
-                            <select x-model="form.darshak_organization_pk"
-                                    class="nss-select" :disabled="loading">
-                                <option value="">Select Sakha you attend as Darshak...</option>
-                                <template x-for="s in sakhas" :key="'dk_'+s.organization_pk">
-                                    <option :value="s.organization_pk" x-text="s.organization_name"></option>
-                                </template>
-                            </select>
+                        <div>
+                            <div class="form-group">
+                                <label class="reg-label">Darshak Sakha *</label>
+                                <select x-model="form.darshak_organization_pk"
+                                        class="nss-select" :disabled="loading">
+                                    <option value="">Select Sakha you attend as Darshak...</option>
+                                    <template x-for="s in sakhas" :key="'dk_'+s.organization_pk">
+                                        <option :value="s.organization_pk" x-text="s.organization_name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="reg-label">Local Sakha Number at Darshak Sakha *</label>
+                                <input type="text" x-model="form.darshak_local_sakha_number"
+                                       placeholder="Your local number at the Darshak Sakha"
+                                       class="reg-input"
+                                       :disabled="loading"
+                                       maxlength="20">
+                                <p class="pw-requirements" style="margin-top: 0.25rem;">
+                                    <span>Enter the number this Sakha has assigned you as a Darshak. Its admin will verify this.</span>
+                                </p>
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -1066,6 +1014,6 @@
 
     </div>
 
-    <script src="/assets/js/register.js?v=0.12.5"></script>
+    <script src="/assets/js/register.js"></script>
 </body>
 </html>

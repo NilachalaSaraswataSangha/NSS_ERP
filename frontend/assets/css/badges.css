@@ -1,46 +1,130 @@
 /*
  * NSS ERP — Shared Badge Styles (Single Source of Truth)
  *
- * All badge color definitions live here. Individual pages
- * MUST NOT define badge-status-*, badge-type-*, or badge-aff-*
- * classes in inline <style> blocks.
+ * All badge geometry and color definitions live here. Individual pages
+ * MUST NOT define .badge, .badge-xs/sm/md/lg, badge-status-*, badge-type-*,
+ * badge-aff-*, badge-account-*, or badge-claim-* classes in inline <style>
+ * blocks, and MUST NOT set badge colors via inline style= or Tailwind
+ * bg-* text-* utilities.
+ *
+ * Reference: docs/03_Solution/ui/mockups/status_badge_preview.html is the
+ * visual source of truth. The geometry and the lifecycle palette below are
+ * copied from it verbatim (px values included) so the two can be diffed by
+ * eye. If a badge needs to change appearance, change the preview page and
+ * this file together — never a page-local override.
  *
  * Naming convention:
- *   badge-status-{lowercase-code}   — lifecycle status
+ *   badge-status-{lowercase-code}   — lifecycle status (master_data STATUS)
  *   badge-type-{lowercase-code}     — membership type
  *   badge-aff-{lowercase-status}    — affiliation status
+ *   badge-account-{lowercase}       — user_account.account_status
+ *   badge-claim-{lowercase}         — registration_claim.claim_status
+ *   badge-muted                     — non-status annotation (see below)
  *
- * Colors: Tailwind 600-level palette for consistency.
+ * Fill convention (deliberate, load-bearing):
+ *   SOLID fill + white text = a state the record actually holds.
+ *   OUTLINE (.badge-muted)  = metadata/annotation — record counts, "Not
+ *                             implemented" placeholders, data-type hints.
+ *   This keeps real statuses visually dominant instead of drowning them in
+ *   a wall of equally-loud pills.
+ *
  * Authority: NSS Bye-Law + ERP-FROZEN design decisions.
  */
 
-/* ── Badge base overrides (DaisyUI CDN override) ─────────── */
-.badge         { padding: 0.25rem 0.75rem !important; }
-.badge-xs      { padding: 0.125rem 0.4rem !important; height: auto !important; min-height: 1.125rem; font-size: 0.6rem; }
+/* ══════════════════════════════════════════════════════════════
+   BASE GEOMETRY + SIZE SCALE
+   Copied from status_badge_preview.html. !important is required to
+   beat the DaisyUI CDN's own .badge rules.
+   ══════════════════════════════════════════════════════════════ */
+
+.badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 4px 14px !important;          /* preview: .badge         */
+    border-radius: 999px !important;       /* preview: pill           */
+    font-size: 13px !important;            /* preview: 13px           */
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    color: #fff !important;
+    white-space: nowrap !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border: none !important;
+}
+
+.badge-xs { padding: 2px 8px !important;  font-size: 11px !important; }  /* preview: tables  */
+.badge-sm { padding: 3px 10px !important; font-size: 12px !important; }  /* preview: cards   */
+.badge-md { padding: 4px 14px !important; font-size: 13px !important; }  /* preview: default */
+.badge-lg { padding: 6px 18px !important; font-size: 15px !important; }  /* preview: headers */
 
 /* ══════════════════════════════════════════════════════════════
    LIFECYCLE STATUS BADGES (unified ERP-wide)
+   master_data category STATUS — see
+   database/seed/01_foundation/02_master_data.sql (16 values).
    Authority: NSS Bye-Law §D(d), §12, §I, §C
    ══════════════════════════════════════════════════════════════ */
 
-.badge-status-active              { background-color: #16a34a !important; color: #fff !important; }  /* green-600  */
-.badge-status-inactive            { background-color: #6b7280 !important; color: #fff !important; }  /* gray-500   */
-.badge-status-proposed            { background-color: #2563eb !important; color: #fff !important; }  /* blue-600   */
-.badge-status-approved            { background-color: #0d9488 !important; color: #fff !important; }  /* teal-600   */
-.badge-status-suspended           { background-color: #dc2626 !important; color: #fff !important; }  /* red-600    */
-.badge-status-lapsed              { background-color: #d97706 !important; color: #fff !important; }  /* amber-600  */
-.badge-status-transferred         { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600 */
-.badge-status-resigned            { background-color: #9ca3af !important; color: #fff !important; }  /* gray-400   */
-.badge-status-expelled            { background-color: #991b1b !important; color: #fff !important; }  /* red-900    */
-.badge-status-deceased            { background-color: #374151 !important; color: #fff !important; }  /* gray-700   */
-.badge-status-dissolved           { background-color: #78350f !important; color: #fff !important; }  /* amber-900  */
-.badge-status-archived            { background-color: #374151 !important; color: #fff !important; }  /* gray-700   */
-.badge-status-expired             { background-color: #4b5563 !important; color: #fff !important; }  /* gray-600   */
-.badge-status-cancelled           { background-color: #dc2626 !important; color: #fff !important; }  /* red-600    */
-.badge-status-replaced            { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600 */
-.badge-status-renewal-pending     { background-color: #ea580c !important; color: #fff !important; }  /* orange-600 */
-.badge-status-on-hold             { background-color: #2563eb !important; color: #fff !important; }  /* blue-600   */
-.badge-status-disciplinary-review { background-color: #be123c !important; color: #fff !important; }  /* rose-700   */
+.badge-status-active              { background-color: #16a34a !important; }  /* green-600  */
+.badge-status-inactive            { background-color: #6b7280 !important; }  /* gray-500   */
+.badge-status-proposed            { background-color: #2563eb !important; }  /* blue-600   */
+.badge-status-approved            { background-color: #0d9488 !important; }  /* teal-600   */
+.badge-status-suspended           { background-color: #dc2626 !important; }  /* red-600    */
+.badge-status-lapsed              { background-color: #d97706 !important; }  /* amber-600  */
+.badge-status-transferred         { background-color: #7c3aed !important; }  /* violet-600 */
+.badge-status-resigned            { background-color: #9ca3af !important; }  /* gray-400   */
+.badge-status-expelled            { background-color: #991b1b !important; }  /* red-900    */
+.badge-status-deceased            { background-color: #1f2937 !important; }  /* gray-800   */
+.badge-status-dissolved           { background-color: #78350f !important; }  /* amber-900  */
+.badge-status-archived            { background-color: #374151 !important; }  /* gray-700   */
+.badge-status-expired             { background-color: #4b5563 !important; }  /* gray-600   */
+.badge-status-renewal-pending     { background-color: #ea580c !important; }  /* orange-600 */
+.badge-status-on-hold             { background-color: #2563eb !important; }  /* blue-600   */
+.badge-status-disciplinary-review { background-color: #be123c !important; }  /* rose-700   */
+
+/* Credential (Parichaya Patra / Anumati Patra) statuses. Not master_data —
+   hard-coded CHECK constraints in database/ddl/05_membership/09..12. */
+.badge-status-cancelled           { background-color: #dc2626 !important; }  /* red-600    */
+.badge-status-replaced            { background-color: #7c3aed !important; }  /* violet-600 */
+
+/* ══════════════════════════════════════════════════════════════
+   USER ACCOUNT STATUS BADGES
+   user_account.account_status CHECK — ACTIVE, LOCKED, INACTIVE,
+   PENDING_APPROVAL (database/ddl/06_authentication/01_user_account.sql).
+   A separate domain from the lifecycle STATUS category above, so it gets
+   its own prefix rather than borrowing badge-status-* by coincidence.
+   Palette reuses the lifecycle hexes — no new colors introduced.
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-account-active            { background-color: #16a34a !important; }  /* green-600 */
+.badge-account-locked            { background-color: #d97706 !important; }  /* amber-600 */
+.badge-account-inactive          { background-color: #6b7280 !important; }  /* gray-500  */
+.badge-account-pending-approval  { background-color: #2563eb !important; }  /* blue-600  */
+
+/* ══════════════════════════════════════════════════════════════
+   REGISTRATION CLAIM STATUS BADGES
+   registration_claim.claim_status CHECK — PENDING, APPROVED, REJECTED
+   (database/ddl/06_authentication/03_registration_claim.sql).
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-claim-pending   { background-color: #2563eb !important; }  /* blue-600 */
+.badge-claim-approved  { background-color: #0d9488 !important; }  /* teal-600 */
+.badge-claim-rejected  { background-color: #dc2626 !important; }  /* red-600  */
+
+/* ══════════════════════════════════════════════════════════════
+   MUTED / ANNOTATION BADGE
+   Outline, not solid — see the fill convention in the header. Used for
+   record counts, "Not implemented yet" placeholders and data-type hints,
+   which are commentary about a widget rather than a state of a record.
+   Replaces DaisyUI's .badge-ghost, which is unusable here because the
+   base rule above forces white text.
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-muted {
+    background-color: transparent !important;
+    color: #6b7280 !important;                       /* gray-500 */
+    box-shadow: inset 0 0 0 1px #d1d5db !important;  /* gray-300 hairline */
+    font-weight: 500 !important;
+}
 
 /* ══════════════════════════════════════════════════════════════
    MEMBERSHIP TYPE BADGES
@@ -75,6 +159,18 @@
 
 .badge-role-viewer        { background-color: #6366f1 !important; color: #fff !important; }  /* indigo-500 — YOU    */
 .badge-role-head          { background-color: #f59e0b !important; color: #fff !important; }  /* amber-500  — HEAD   */
+.badge-role-admin         { background-color: #7c3aed !important; color: #fff !important; }  /* violet-600 — ADMIN  */
+
+/* ══════════════════════════════════════════════════════════════
+   IDENTITY / CONTEXT CHIPS
+   Same geometry as every other badge, distinct hues so an identifier is
+   never mistaken for a lifecycle status. These exist so pages stop
+   hand-rolling inline style="background:..." on .badge elements.
+   ══════════════════════════════════════════════════════════════ */
+
+.badge-identity           { background-color: #0D7377 !important; color: #fff !important; }  /* NSS teal  — Sangha Sevi ID */
+.badge-org                { background-color: #0284c7 !important; color: #fff !important; }  /* sky-600   — organization    */
+.badge-attention          { background-color: #d97706 !important; color: #fff !important; }  /* amber-600 — needs action    */
 
 /* ══════════════════════════════════════════════════════════════
    DATA DISPLAY CLASSES — identity & membership fields

@@ -12,13 +12,14 @@
 
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="/assets/css/badges.css">
-    <link rel="stylesheet" href="/assets/css/nss-layout.css?v=5.9">
-    <link rel="stylesheet" href="/assets/css/nss-datepicker.css?v=5.4">
-    <script src="/assets/js/nss-config.js?v=5.3"></script>
-    <script src="/assets/js/nss-dialog.js?v=5.1"></script>
-    <script src="/assets/js/auth.js?v=5.1"></script>
-    <script src="/assets/js/nss-layout.js?v=5.1"></script>
-    <script src="/assets/js/nss-datepicker.js?v=5.5"></script>
+    <link rel="stylesheet" href="/assets/css/nss-layout.css">
+    <link rel="stylesheet" href="/assets/css/nss-datepicker.css">
+    <script src="/assets/js/nss-config.js"></script>
+    <script src="/assets/js/nss-dialog.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/nss-layout.js"></script>
+    <script src="/assets/js/nss-datepicker.js"></script>
+    <script src="/assets/js/org-dashboard.js"></script>
     <style>
         /* ── NSS Dashboard Layout ────────────────────────────
          * Palette from login.html (NSS Logo):
@@ -39,18 +40,9 @@
         }
 
         /* ── Sidebar ─────────────────────────────────────── */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            width: 260px;
-            background: #1B2A4A;
-            display: flex;
-            flex-direction: column;
-            z-index: 30;
-            transition: transform 0.25s ease;
-        }
+        /* .sidebar itself is defined once in the shared assets/css/nss-layout.css
+           (loaded above) — duplicating it here just risked the two definitions
+           drifting apart. */
 
         .sidebar-brand {
             display: flex;
@@ -60,78 +52,15 @@
             border-bottom: 1px solid rgba(255,255,255,0.08);
         }
 
-        .sidebar-brand img {
-            width: 36px;
-            height: 36px;
-            object-fit: contain;
-            border-radius: 6px;
-        }
 
-        .sidebar-brand span {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #DC7831;
-            letter-spacing: 0.01em;
-        }
 
-        .sidebar-nav {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0.75rem 0;
-        }
 
-        .nav-section-label {
-            padding: 0.5rem 1.25rem 0.35rem;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: rgba(255,255,255,0.35);
-            margin-top: 0.5rem;
-        }
 
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.6rem 1.25rem;
-            color: rgba(255,255,255,0.65);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            border-left: 3px solid transparent;
-            user-select: none;
-        }
 
-        .nav-item:hover {
-            background: rgba(255,255,255,0.06);
-            color: rgba(255,255,255,0.9);
-        }
 
-        .nav-item.active {
-            background: rgba(13, 115, 119, 0.2);
-            color: #ffffff;
-            border-left-color: #0D7377;
-        }
 
-        .nav-item svg {
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-            opacity: 0.7;
-        }
 
-        .nav-item.active svg {
-            opacity: 1;
-        }
 
-        .nav-divider {
-            height: 1px;
-            background: rgba(255,255,255,0.08);
-            margin: 0.5rem 1.25rem;
-        }
 
         /* Sidebar bottom — user card */
         .sidebar-footer {
@@ -142,60 +71,17 @@
             gap: 0.75rem;
         }
 
-        .sidebar-footer .avatar {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background: #0D7377;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            font-weight: 700;
-            flex-shrink: 0;
-        }
 
-        .sidebar-footer .user-info {
-            flex: 1;
-            min-width: 0;
-        }
 
-        .sidebar-footer .user-name {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.9);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
 
-        .sidebar-footer .user-id {
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.4);
-        }
 
-        .sidebar-footer .logout-btn {
-            background: none;
-            border: none;
-            color: rgba(255,255,255,0.4);
-            cursor: pointer;
-            padding: 0.3rem;
-            border-radius: 4px;
-            transition: all 0.15s;
-        }
 
-        .sidebar-footer .logout-btn:hover {
-            color: #D64A6A;
-            background: rgba(255,255,255,0.06);
-        }
 
         /* ── Main Content ────────────────────────────────── */
-        .main-content {
-            margin-left: 260px;
-            min-height: 100vh;
-            padding: 0;
-        }
+        /* .main-content is defined once in nss-layout.css, including its
+           own mobile media-query override — see admin.html's identical
+           comment for why a duplicate unconditional copy here silently
+           cancelled that override on mobile. */
 
         /* Top bar */
         .topbar {
@@ -210,26 +96,9 @@
             z-index: 20;
         }
 
-        .topbar-title {
-            font-size: 1.05rem;
-            font-weight: 600;
-            color: #1B2A4A;
-        }
 
-        .topbar-breadcrumb {
-            font-size: 0.75rem;
-            color: #9ca3af;
-        }
 
-        /* Mobile hamburger */
-        .mobile-toggle {
-            display: none;
-            background: none;
-            border: none;
-            color: #1B2A4A;
-            cursor: pointer;
-            padding: 0.25rem;
-        }
+        /* Mobile hamburger — .mobile-toggle is shared, see nss-layout.css */
 
         /* Content area */
         .content-area {
@@ -295,9 +164,12 @@
             margin-top: 0.4rem;
         }
 
-        /* Badge base override for dashboard context */
-        .badge         { padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; display: inline-flex; align-items: center; }
-        .badge-xs      { padding: 0.125rem 0.4rem; font-size: 0.65rem; }
+        /* No .badge / .badge-xs overrides here. They used to shrink badges in
+           the dashboard context and fought assets/css/badges.css, giving the
+           same status two different sizes across pages. Badge geometry comes
+           only from badges.css (mirroring
+           docs/03_Solution/ui/mockups/status_badge_preview.html): use
+           badge-xs in tables, badge-sm in cards, badge-md/badge-lg elsewhere. */
 
         .member-header .member-org {
             text-align: right;
@@ -327,7 +199,6 @@
             border-radius: 0.75rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
             margin-bottom: 1rem;
-            overflow: hidden;
         }
 
         .data-card-title {
@@ -440,35 +311,9 @@
         .skeleton-line.w-80 { width: 80%; }
 
         /* ── Mobile Responsive ───────────────────────────── */
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.4);
-            z-index: 25;
-        }
+        /* .sidebar-overlay is shared, see nss-layout.css */
 
         @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar-overlay.open {
-                display: block;
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .mobile-toggle {
-                display: block;
-            }
-
             .card-grid {
                 grid-template-columns: 1fr;
             }
@@ -983,6 +828,13 @@
                 Family
             </a>
 
+            <a class="nav-item" :class="{ active: tab === 'findOrg' }" @click="switchTab('findOrg')">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607ZM15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                </svg>
+                Find a Sakha
+            </a>
+
             <a class="nav-item" :class="{ active: tab === 'attendance' }" @click="switchTab('attendance')">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
@@ -1018,13 +870,42 @@
                             <span x-text="at.label"></span>
                         </a>
                     </template>
-                    <!-- Registration Approvals — always visible in admin section -->
-                    <a class="nav-item" href="/admin#claims">
+                    <!-- Registration Approvals — the fourth entry in this
+                         group. Gated on the same permission pair the API's
+                         /claims endpoints require (MEMBERSHIP_APPROVE or
+                         ADMIN_USER_MANAGE) rather than shown to every admin,
+                         so it is never a link to a 403. A super admin holds
+                         ADMIN_USER_MANAGE, so it is always present there.
+                         Opens the admin page's own claims tab — this view
+                         lives there, it is not duplicated here. -->
+                    <a class="nav-item" href="/admin#claims" x-show="canApproveRegistrations">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
                         </svg>
                         Registration Approvals
                     </a>
+                    <!-- Org dashboards — one entry per tier this admin's own
+                         scope covers (NSS-WIDE -> Kendra). Each opens the
+                         org-dashboard tab on that tier's first org; the
+                         in-page switcher handles the rest when a tier has
+                         more than one. Real tabs, not page navigations —
+                         label/highlight track tab like every other item. -->
+                    <template x-if="dashboardLevels.length">
+                        <div>
+                            <div class="nav-section-label">Dashboards</div>
+                            <template x-for="lvl in dashboardLevels" :key="lvl.typeCode">
+                                <a class="nav-item"
+                                   :class="{ active: tab === 'orgDashboard' && lvl.orgs.some(o => o.organization_pk === viewingOrgPk) }"
+                                   @click="openOrgDashboard(lvl.orgs[0].organization_pk)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+                                    </svg>
+                                    <span x-text="lvl.label"></span>
+                                    <span class="count-badge" x-show="lvl.orgs.length > 1" x-text="lvl.orgs.length"></span>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
                 </div>
             </template>
         </nav>
@@ -1040,14 +921,14 @@
 
         <!-- Top bar -->
         <div class="topbar">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="topbar-left">
                 <button class="mobile-toggle" @click="sidebarOpen = !sidebarOpen">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                     </svg>
                 </button>
-                <div>
-                    <div class="topbar-title" x-text="currentTabLabel"></div>
+                <div class="topbar-heading">
+                    <div class="topbar-title" x-text="currentTabLabel" :title="currentTabLabel"></div>
                     <div class="topbar-breadcrumb">Dashboard</div>
                 </div>
             </div>
@@ -1108,7 +989,7 @@
                             <h1 class="member-name" x-text="person.display_name || user.person_name || '—'"></h1>
                             <p class="member-code" x-text="person.person_id ? ('Person Code: ' + person.person_id) : ''"></p>
                             <div class="badges">
-                                <span class="badge badge-xs" x-text="user.sangha_sevi_id" x-show="user.sangha_sevi_id" style="background:#0D7377;color:#fff;"></span>
+                                <span class="badge badge-xs badge-identity" x-text="user.sangha_sevi_id" x-show="user.sangha_sevi_id"></span>
                                 <span class="badge badge-xs" :class="NSS.typeBadgeClass(member.membership_type_code)" x-text="NSS.typeDisplayName(member.membership_type_code, member.membership_type_name)" x-show="member.membership_type_name"></span>
                                 <span class="badge badge-xs" :class="NSS.statusBadgeClass(member.status_code)" x-text="member.status_name || ''" x-show="member.status_name"></span>
                             </div>
@@ -1199,50 +1080,8 @@
                                             <input type="email" class="form-input" x-model="profileForm.email"
                                                    placeholder="Email address">
                                         </div>
-                                        <div x-data="nssDatePicker('profileForm.date_of_birth', { maxToday: true })" style="position: relative;">
+                                        <div x-data="nssDatePicker('profileForm.date_of_birth', { maxToday: true })" style="position: relative;" data-dp-input-class="form-input nss-dp-input">
                                             <label class="form-label">Date of Birth</label>
-                                            <div class="nss-dp-wrap">
-                                                <input type="text" x-model="display" @click="open = true"
-                                                       @input="onInput($event)"
-                                                       placeholder="DD/MM/YYYY" class="form-input nss-dp-input"
-                                                       maxlength="10" autocomplete="off">
-                                                <button type="button" class="nss-dp-icon" @click="open = !open" tabindex="-1">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem;height:1rem;">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            <div x-show="open" x-cloak class="nss-cal-popup" @click.outside="open = false" x-transition>
-                                                <div class="nss-cal-header">
-                                                    <button type="button" @click="prevMonth()" class="nss-cal-nav">&lsaquo;</button>
-                                                    <div class="nss-cal-selectors">
-                                                        <select class="nss-cal-select" :value="viewMonth" @change="onMonthChange($event)">
-                                                            <option value="0">Jan</option><option value="1">Feb</option>
-                                                            <option value="2">Mar</option><option value="3">Apr</option>
-                                                            <option value="4">May</option><option value="5">Jun</option>
-                                                            <option value="6">Jul</option><option value="7">Aug</option>
-                                                            <option value="8">Sep</option><option value="9">Oct</option>
-                                                            <option value="10">Nov</option><option value="11">Dec</option>
-                                                        </select>
-                                                        <input type="number" class="nss-cal-year" min="1930" max="2100" :value="viewYear" @input="onYearInput($event)">
-                                                    </div>
-                                                    <button type="button" @click="nextMonth()" class="nss-cal-nav">&rsaquo;</button>
-                                                </div>
-                                                <div class="nss-cal-weekdays"><template x-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']"><span x-text="d"></span></template></div>
-                                                <div class="nss-cal-days">
-                                                    <template x-for="b in calBlanks" :key="'b'+b"><span></span></template>
-                                                    <template x-for="day in calDays" :key="'d'+day">
-                                                        <button type="button" class="nss-cal-day"
-                                                                :class="{ 'nss-cal-today': isToday(day), 'nss-cal-selected': isSelected(day) }"
-                                                                @click="selectDay(day)" x-text="day"></button>
-                                                    </template>
-                                                </div>
-                                                <div class="nss-cal-footer">
-                                                    <button type="button" class="nss-cal-today-btn" @click="goToday()">Today</button>
-                                                    <button type="button" class="nss-cal-clear" @click="clearDate()">Clear</button>
-                                                </div>
-                                            </div>
-                                            <div class="form-hint" x-show="invalid" x-text="errorMsg" style="color:#b91c1c; margin-top:0.2rem;"></div>
                                         </div>
                                     </div>
 
@@ -1262,13 +1101,17 @@
                                         <span class="data-label">Sangha Sevi ID</span>
                                         <span class="data-value data-sevi-id" x-text="user.sangha_sevi_id || '—'"></span>
                                     </div>
-                                    <div class="data-row" x-show="member.local_sakha_erp_id">
+                                    <div class="data-row">
                                         <span class="data-label">Sakha Sangha ID</span>
                                         <span class="data-value data-erp-no" x-text="member.local_sakha_erp_id || '—'"></span>
                                     </div>
-                                    <div class="data-row" x-show="parichayaPatras.length > 0">
-                                        <span class="data-label">Parichaya Patra No.</span>
-                                        <span class="data-value data-kendra-no" x-text="parichayaPatras[0]?.document_number || '—'"></span>
+                                    <div class="data-row" x-show="member.darshak_organization_name">
+                                        <span class="data-label">Darshak No. (<span x-text="member.darshak_organization_name"></span>)</span>
+                                        <span class="data-value data-erp-no" x-text="member.darshak_local_sakha_number || '—'"></span>
+                                    </div>
+                                    <div class="data-row">
+                                        <span class="data-label" x-text="member.membership_type_code === 'PROBATIONARY' ? 'Anumati Patra No.' : 'Parichaya Patra No.'"></span>
+                                        <span class="data-value data-kendra-no" x-text="(member.membership_type_code === 'PROBATIONARY' ? anumatiPatras[0]?.document_number : parichayaPatras[0]?.document_number) || '—'"></span>
                                     </div>
                                     <div class="data-row" x-show="member.membership_type_name">
                                         <span class="data-label">Type</span>
@@ -1294,11 +1137,20 @@
                             <div class="data-card">
                                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
                                     <h2 class="data-card-title" style="padding: 0;">Address</h2>
-                                    <span class="badge badge-xs badge-ghost" x-show="addresses.length > 0">Primary</span>
                                 </div>
                                 <div class="data-rows" x-show="addresses.length > 0">
                                     <template x-for="addr in addresses" :key="addr.person_address_pk">
                                         <div>
+                                            <!-- Per-address heading. The type name and the Primary
+                                                 flag are real fields on PersonAddressResponse
+                                                 (api/schemas/person.py:124,139). Previously a single
+                                                 unconditional "Primary" badge sat in the card header
+                                                 while this loop rendered *every* address, so a
+                                                 secondary address was labelled Primary too. -->
+                                            <div class="data-row">
+                                                <span class="data-label" x-text="addr.address_type_name || 'Address'"></span>
+                                                <span class="badge badge-xs badge-muted" x-show="addr.is_primary">Primary</span>
+                                            </div>
                                             <div class="data-row" x-show="addr.address_line_1">
                                                 <span class="data-label">Address</span>
                                                 <span class="data-value" style="text-align: right;" x-html="formatAddress(addr)"></span>
@@ -1330,6 +1182,13 @@
 
                     <!-- ═══ Membership Tab ═══ -->
                     <div x-show="tab === 'membership'">
+                        <!-- Membership self-service actions. The request workflow
+                             (eligibility, approval, ERP-ID handling) is built in the
+                             Governance module; these are the entry points for it. -->
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                            <button class="btn-action" @click="applyDarshak()">Apply for Darshak (at another Sangha)</button>
+                            <button class="btn-action" @click="requestSakhaTransfer()">Request Sakha Transfer</button>
+                        </div>
                         <div class="card-grid">
                             <!-- Membership Details -->
                             <div class="data-card">
@@ -1343,7 +1202,7 @@
                                         <span class="data-label">Person ID</span>
                                         <span class="data-value mono" x-text="member.person_id || '—'"></span>
                                     </div>
-                                    <div class="data-row" x-show="member.local_sakha_erp_id">
+                                    <div class="data-row">
                                         <span class="data-label">Sakha Sangha ID</span>
                                         <span class="data-value data-erp-no" x-text="member.local_sakha_erp_id || '—'"></span>
                                     </div>
@@ -1363,6 +1222,14 @@
                                         <span class="data-label">Current Sakha</span>
                                         <span class="data-value" x-text="member.organization_name || '—'"></span>
                                     </div>
+                                    <div class="data-row" x-show="member.darshak_organization_name">
+                                        <span class="data-label">Currently Attending Sangha (Darshak)</span>
+                                        <span class="data-value" x-text="member.darshak_organization_name"></span>
+                                    </div>
+                                    <div class="data-row" x-show="member.darshak_organization_name">
+                                        <span class="data-label">Darshak Sakha Sangha ID</span>
+                                        <span class="data-value data-erp-no" x-text="member.darshak_local_sakha_number || '—'"></span>
+                                    </div>
                                     <div class="data-row">
                                         <span class="data-label">Joining Date</span>
                                         <span class="data-value" x-text="formatDate(member.joining_date)"></span>
@@ -1381,7 +1248,7 @@
                                     <div class="data-row">
                                         <span class="data-label">Account Status</span>
                                         <span class="data-value">
-                                            <span class="badge badge-xs" :class="NSS.statusBadgeClass(user.account_status)" x-text="user.account_status || '—'"></span>
+                                            <span class="badge badge-xs" :class="NSS.accountBadgeClass(user.account_status)" x-text="user.account_status || '—'"></span>
                                         </span>
                                     </div>
                                     <div class="data-row" x-show="user.last_login_at">
@@ -1404,7 +1271,7 @@
                         <div class="data-card" style="margin-top: 1rem;">
                             <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
                                 <h2 class="data-card-title" style="padding: 0;">Sakha Affiliations</h2>
-                                <span class="badge badge-xs badge-ghost" x-text="affiliations.length + ' record' + (affiliations.length !== 1 ? 's' : '')"></span>
+                                <span class="badge badge-xs badge-muted" x-text="affiliations.length + ' record' + (affiliations.length !== 1 ? 's' : '')"></span>
                             </div>
                             <div class="data-rows" x-show="affiliations.length > 0">
                                 <template x-for="a in affiliations" :key="a.membership_sakha_affiliation_pk">
@@ -1413,7 +1280,7 @@
                                             <span class="data-erp-no" x-text="a.local_sakha_erp_id"></span>
                                             <span class="data-value" x-text="a.organization_name"></span>
                                             <span class="badge badge-xs" :class="NSS.affBadgeClass(a.affiliation_status)" x-text="a.affiliation_status"></span>
-                                            <span class="badge badge-xs badge-ghost" x-text="a.source_event_type" x-show="a.source_event_type"></span>
+                                            <span class="badge badge-xs badge-muted" x-text="a.source_event_type" x-show="a.source_event_type"></span>
                                         </div>
                                         <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
                                             <span x-text="formatDate(a.effective_from)"></span>
@@ -1431,7 +1298,7 @@
                         <div class="data-card" style="margin-top: 1rem;">
                             <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
                                 <h2 class="data-card-title" style="padding: 0;">Journey Timeline</h2>
-                                <span class="badge badge-xs badge-ghost" x-text="journeyEvents.length + ' event' + (journeyEvents.length !== 1 ? 's' : '')"></span>
+                                <span class="badge badge-xs badge-muted" x-text="journeyEvents.length + ' event' + (journeyEvents.length !== 1 ? 's' : '')"></span>
                             </div>
                             <div class="data-rows" x-show="journeyEvents.length > 0">
                                 <template x-for="(ev, idx) in journeyEvents" :key="ev.membership_journey_event_pk">
@@ -1575,7 +1442,7 @@
                                                             <span class="badge badge-xs badge-role-head">HEAD</span>
                                                         </template>
                                                         <template x-if="isMemberAdmin(selectedPerson.person_pk)">
-                                                            <span class="badge badge-xs" style="background:#7c3aed;color:#fff;">ADMIN</span>
+                                                            <span class="badge badge-xs badge-role-admin">ADMIN</span>
                                                         </template>
                                                         <template x-if="selectedPersonDetail && selectedPersonDetail.is_active">
                                                             <span class="badge badge-xs badge-status-active">Active</span>
@@ -1809,7 +1676,7 @@
                                                                 <span class="badge badge-xs badge-role-head">HEAD</span>
                                                             </template>
                                                             <template x-if="isMemberAdmin(m.person_pk)">
-                                                                <span class="badge badge-xs" style="background:#7c3aed;color:#fff;">ADMIN</span>
+                                                                <span class="badge badge-xs badge-role-admin">ADMIN</span>
                                                             </template>
                                                         </div>
                                                         <div class="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -1904,63 +1771,52 @@
                                             <input type="text" x-model="createFamilyName" placeholder="e.g. Panda Paribara" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.85rem;outline:none;box-sizing:border-box;" @focus="this.style.borderColor='#C8960C'" @blur="this.style.borderColor='#d1d5db'">
                                         </div>
 
+                                        <!-- Near-me geography filter (SOL-ARCH-010 Amendment, 2026-10-01) -->
+                                        <div style="margin-bottom:0.75rem;">
+                                            <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem;">Country</label>
+                                            <select x-model="createFamilyCountryPk" @change="onCreateFamilyCountryChange()" class="nss-select">
+                                                <option value="">All countries</option>
+                                                <template x-for="c in createFamilyCountries" :key="c.country_pk">
+                                                    <option :value="c.country_pk" x-text="c.country_name"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div style="margin-bottom:1rem;display:flex;gap:0.5rem;">
+                                            <div style="flex:1;">
+                                                <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem;">State</label>
+                                                <select x-model="createFamilyStatePk" @change="onCreateFamilyStateChange()" class="nss-select" :disabled="!createFamilyCountryPk">
+                                                    <option value="">All states</option>
+                                                    <template x-for="s in createFamilyStates" :key="s.state_pk">
+                                                        <option :value="s.state_pk" x-text="s.state_name"></option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                            <div style="flex:1;">
+                                                <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem;">District</label>
+                                                <select x-model="createFamilyDistrictPk" @change="onCreateFamilyDistrictChange()" class="nss-select" :disabled="!createFamilyStatePk">
+                                                    <option value="">All districts</option>
+                                                    <template x-for="d in createFamilyDistricts" :key="d.district_pk">
+                                                        <option :value="d.district_pk" x-text="d.district_name"></option>
+                                                    </template>
+                                                </select>
+                                            </div>
+                                        </div>
+
                                         <!-- Sakha Selection -->
                                         <div style="margin-bottom:1rem;">
                                             <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem;">Sakha <span style="color:#ef4444;">*</span></label>
                                             <select x-model="createFamilySakhaPk" class="nss-select">
                                                 <option value="">Select Sakha...</option>
                                                 <template x-for="s in createFamilySakhaList" :key="s.organization_pk">
-                                                    <option :value="s.organization_pk" x-text="s.organization_name + ' (' + s.organization_code + ')'"></option>
+                                                    <option :value="s.organization_pk" x-text="s.organization_name"></option>
                                                 </template>
                                             </select>
-                                            <p x-show="createFamilySakhaList.length === 0 && !createFamilySakhaLoading" style="font-size:0.7rem;color:#94a3b8;margin:0.25rem 0 0;">Loading Sakha list...</p>
+                                            <p x-show="createFamilySakhaList.length === 0 && !createFamilySakhaLoading" style="font-size:0.7rem;color:#94a3b8;margin:0.25rem 0 0;">No Sakhas found<span x-text="createFamilyStatePk ? ' in this area.' : '.'"></span></p>
                                         </div>
 
                                         <!-- Formed Date -->
                                         <div style="margin-bottom:1rem;" x-data="nssDatePicker('createFamilyFormedDate')">
                                             <label style="display:block;font-size:0.75rem;font-weight:600;color:#374151;margin-bottom:0.35rem;">Formed Date</label>
-                                            <div class="nss-dp-wrap">
-                                                <input type="text" x-model="display" @click="open = true"
-                                                       @input="onInput($event)"
-                                                       placeholder="DD/MM/YYYY" class="nss-dp-input"
-                                                       maxlength="10" autocomplete="off">
-                                                <button type="button" class="nss-dp-icon" @click="open = !open" tabindex="-1">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem;height:1rem;">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                            <div x-show="open" x-cloak class="nss-cal-popup" @click.outside="open = false" x-transition>
-                                                <div class="nss-cal-header">
-                                                    <button type="button" @click="prevMonth()" class="nss-cal-nav">&lsaquo;</button>
-                                                    <div class="nss-cal-selectors">
-                                                        <select class="nss-cal-select" :value="viewMonth" @change="onMonthChange($event)">
-                                                            <option value="0">Jan</option><option value="1">Feb</option>
-                                                            <option value="2">Mar</option><option value="3">Apr</option>
-                                                            <option value="4">May</option><option value="5">Jun</option>
-                                                            <option value="6">Jul</option><option value="7">Aug</option>
-                                                            <option value="8">Sep</option><option value="9">Oct</option>
-                                                            <option value="10">Nov</option><option value="11">Dec</option>
-                                                        </select>
-                                                        <input type="number" class="nss-cal-year" min="1930" max="2100" :value="viewYear" @input="onYearInput($event)">
-                                                    </div>
-                                                    <button type="button" @click="nextMonth()" class="nss-cal-nav">&rsaquo;</button>
-                                                </div>
-                                                <div class="nss-cal-weekdays"><template x-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']"><span x-text="d"></span></template></div>
-                                                <div class="nss-cal-days">
-                                                    <template x-for="b in calBlanks" :key="'b'+b"><span></span></template>
-                                                    <template x-for="day in calDays" :key="'d'+day">
-                                                        <button type="button" class="nss-cal-day"
-                                                                :class="{ 'nss-cal-today': isToday(day), 'nss-cal-selected': isSelected(day) }"
-                                                                @click="selectDay(day)" x-text="day"></button>
-                                                    </template>
-                                                </div>
-                                                <div class="nss-cal-footer">
-                                                    <button type="button" class="nss-cal-today-btn" @click="goToday()">Today</button>
-                                                    <button type="button" class="nss-cal-clear" @click="clearDate()">Clear</button>
-                                                </div>
-                                            </div>
-                                            <p style="font-size:0.65rem;color:#94a3b8;margin:0.25rem 0 0;">Optional. Defaults to today if left blank.</p>
                                         </div>
 
                                         <!-- Remarks -->
@@ -2036,9 +1892,9 @@
                                             <div>
                                                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">
                                                     <span style="font-size:0.7rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Results</span>
-                                                    <span class="badge badge-xs badge-ghost" x-text="addMemberSearchTotal > addMemberResults.length ? (addMemberResults.length + ' of ' + addMemberSearchTotal + ' — refine to narrow') : (addMemberResults.length + ' results')"></span>
+                                                    <span class="badge badge-xs badge-muted" x-text="addMemberSearchTotal > addMemberResults.length ? (addMemberResults.length + ' of ' + addMemberSearchTotal + ' — refine to narrow') : (addMemberResults.length + ' results')"></span>
                                                 </div>
-                                                <div style="max-height:220px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:0.5rem;">
+                                                <div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1px solid #e2e8f0;border-radius:0.5rem;">
                                                     <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
                                                         <!-- Sorting is client-side: /person/search returns the whole
                                                              result set, so reordering what is on screen reorders all
@@ -2064,7 +1920,7 @@
                                                                     <td style="padding:0.4rem 0.5rem;white-space:nowrap;color:#64748b;" x-text="r.date_of_birth || '—'"></td>
                                                                     <td style="padding:0.4rem 0.5rem;white-space:nowrap;color:#64748b;" x-text="formatPhone(r.country_phone_code, r.mobile_number)"></td>
                                                                     <td style="padding:0.4rem 0.5rem;white-space:nowrap;">
-                                                                        <span class="badge badge-xs" :class="r.is_active ? 'badge-status-active' : 'badge-status-inactive'" x-text="r.is_active ? 'Active' : 'Inactive'" style="font-size:0.6rem;"></span>
+                                                                        <span class="badge badge-xs" :class="r.is_active ? 'badge-status-active' : 'badge-status-inactive'" x-text="r.is_active ? 'Active' : 'Inactive'"></span>
                                                                     </td>
                                                                 </tr>
                                                             </template>
@@ -2271,6 +2127,228 @@
                                 </div>
                             </div>
                         </template>
+
+                        <!-- ═══ Transfer Headship Modal (FAM-049) ═══
+                             Themed replacement for the plain NSSDialog.confirm() —
+                             matches the Add Member / Create Family modal structure
+                             (overlay + card + header/body/footer), accented amber
+                             to match badge-role-head. -->
+                        <template x-if="transferHeadTarget">
+                            <div style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem;">
+                                <!-- Backdrop -->
+                                <div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);" @click="closeTransferHeadModal()"></div>
+
+                                <!-- Modal content -->
+                                <div style="position:relative;width:100%;max-width:420px;background:#fff;border-radius:0.75rem;box-shadow:0 20px 60px rgba(0,0,0,0.15);overflow:hidden;">
+                                    <!-- Header -->
+                                    <div style="display:flex;align-items:center;gap:0.65rem;padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;">
+                                        <div style="width:34px;height:34px;flex-shrink:0;border-radius:999px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;">
+                                            <svg style="width:18px;height:18px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 1.5c-1.5 3-3.75 4.5-6 4.5 0 6 2.25 10.5 6 12 3.75-1.5 6-6 6-12-2.25 0-4.5-1.5-6-4.5Z"/></svg>
+                                        </div>
+                                        <div style="flex:1;min-width:0;">
+                                            <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:#1B2A4A;">Transfer Headship</h3>
+                                            <p style="margin:0.1rem 0 0;font-size:0.72rem;color:#6b7280;">You will no longer be the Head of this family.</p>
+                                        </div>
+                                        <button @click="closeTransferHeadModal()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:0.25rem;flex-shrink:0;">
+                                            <svg style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Body -->
+                                    <div style="padding:1.1rem 1.25rem;">
+                                        <!-- Error -->
+                                        <template x-if="transferHeadError">
+                                            <div style="padding:0.5rem 0.75rem;border-radius:0.375rem;background:#fef2f2;border:1px solid #fecaca;font-size:0.75rem;color:#991b1b;margin-bottom:0.75rem;" x-text="transferHeadError"></div>
+                                        </template>
+
+                                        <!-- Target member card -->
+                                        <div style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.75rem;border-radius:0.5rem;background:#fffbeb;border:1px solid #fde68a;">
+                                            <div style="width:30px;height:30px;flex-shrink:0;border-radius:999px;background:#f59e0b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;" x-text="(transferHeadTarget?.first_name || '?').substring(0,1).toUpperCase()"></div>
+                                            <div style="min-width:0;">
+                                                <div style="font-size:0.82rem;font-weight:700;color:#1e293b;" x-text="transferHeadTarget ? formatFamilyName(transferHeadTarget) : ''"></div>
+                                                <div style="font-size:0.68rem;color:#92400e;">will become the new Head</div>
+                                            </div>
+                                        </div>
+
+                                        <p style="font-size:0.75rem;color:#6b7280;line-height:1.5;margin:0.85rem 0 0;">
+                                            The new Head gains full control over family records, membership, and financial visibility. Your own membership is unaffected.
+                                        </p>
+                                    </div>
+
+                                    <!-- Footer -->
+                                    <div style="display:flex;justify-content:flex-end;gap:0.5rem;padding:0.75rem 1.25rem;border-top:1px solid #f1f5f9;">
+                                        <button @click="closeTransferHeadModal()"
+                                                :disabled="transferHeadSubmitting"
+                                                style="padding:0.5rem 1rem;font-size:0.75rem;font-weight:600;color:#374151;background:#fff;border:1px solid #d1d5db;border-radius:0.375rem;cursor:pointer;">
+                                            Cancel
+                                        </button>
+                                        <button @click="submitTransferHead()"
+                                                :disabled="transferHeadSubmitting"
+                                                style="padding:0.5rem 1.1rem;font-size:0.75rem;font-weight:600;color:#fff;background:linear-gradient(135deg,#d97706,#f59e0b);border:none;border-radius:0.375rem;cursor:pointer;"
+                                                :style="transferHeadSubmitting ? 'opacity:0.6;cursor:not-allowed;' : ''">
+                                            <span x-show="!transferHeadSubmitting">Transfer Headship</span>
+                                            <span x-show="transferHeadSubmitting">Transferring...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ═══ Assign Admin Modal (FAM-046) ═══
+                             Themed replacement for the plain NSSDialog.confirm() —
+                             accented violet to match badge-role-admin. -->
+                        <template x-if="assignAdminTarget">
+                            <div style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem;">
+                                <!-- Backdrop -->
+                                <div style="position:absolute;inset:0;background:rgba(0,0,0,0.4);" @click="closeAssignAdminModal()"></div>
+
+                                <!-- Modal content -->
+                                <div style="position:relative;width:100%;max-width:420px;background:#fff;border-radius:0.75rem;box-shadow:0 20px 60px rgba(0,0,0,0.15);overflow:hidden;">
+                                    <!-- Header -->
+                                    <div style="display:flex;align-items:center;gap:0.65rem;padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;">
+                                        <div style="width:34px;height:34px;flex-shrink:0;border-radius:999px;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;">
+                                            <svg style="width:18px;height:18px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/></svg>
+                                        </div>
+                                        <div style="flex:1;min-width:0;">
+                                            <h3 style="margin:0;font-size:0.95rem;font-weight:700;color:#1B2A4A;">Assign Family Admin</h3>
+                                            <p style="margin:0.1rem 0 0;font-size:0.72rem;color:#6b7280;">Grants management rights over this family.</p>
+                                        </div>
+                                        <button @click="closeAssignAdminModal()" style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:0.25rem;flex-shrink:0;">
+                                            <svg style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Body -->
+                                    <div style="padding:1.1rem 1.25rem;">
+                                        <!-- Error -->
+                                        <template x-if="assignAdminError">
+                                            <div style="padding:0.5rem 0.75rem;border-radius:0.375rem;background:#fef2f2;border:1px solid #fecaca;font-size:0.75rem;color:#991b1b;margin-bottom:0.75rem;" x-text="assignAdminError"></div>
+                                        </template>
+
+                                        <!-- Target member card -->
+                                        <div style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.75rem;border-radius:0.5rem;background:#f5f3ff;border:1px solid #ddd6fe;">
+                                            <div style="width:30px;height:30px;flex-shrink:0;border-radius:999px;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;" x-text="(assignAdminTarget?.first_name || '?').substring(0,1).toUpperCase()"></div>
+                                            <div style="min-width:0;">
+                                                <div style="font-size:0.82rem;font-weight:700;color:#1e293b;" x-text="assignAdminTarget ? formatFamilyName(assignAdminTarget) : ''"></div>
+                                                <div style="font-size:0.68rem;color:#5b21b6;">will become a Family Admin</div>
+                                            </div>
+                                        </div>
+
+                                        <ul style="font-size:0.75rem;color:#6b7280;line-height:1.6;margin:0.85rem 0 0;padding-left:1.1rem;">
+                                            <li>Edit family details</li>
+                                            <li>Add and remove members</li>
+                                            <li>View financial records</li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Footer -->
+                                    <div style="display:flex;justify-content:flex-end;gap:0.5rem;padding:0.75rem 1.25rem;border-top:1px solid #f1f5f9;">
+                                        <button @click="closeAssignAdminModal()"
+                                                :disabled="assignAdminSubmitting"
+                                                style="padding:0.5rem 1rem;font-size:0.75rem;font-weight:600;color:#374151;background:#fff;border:1px solid #d1d5db;border-radius:0.375rem;cursor:pointer;">
+                                            Cancel
+                                        </button>
+                                        <button @click="submitAssignAdmin()"
+                                                :disabled="assignAdminSubmitting"
+                                                style="padding:0.5rem 1.1rem;font-size:0.75rem;font-weight:600;color:#fff;background:linear-gradient(135deg,#6d28d9,#7c3aed);border:none;border-radius:0.375rem;cursor:pointer;"
+                                                :style="assignAdminSubmitting ? 'opacity:0.6;cursor:not-allowed;' : ''">
+                                            <span x-show="!assignAdminSubmitting">Assign Admin</span>
+                                            <span x-show="assignAdminSubmitting">Assigning...</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- ═══ Find a Sakha / Patha Chakra Tab ═══ -->
+                    <div x-show="tab === 'findOrg'">
+                        <div class="data-card">
+                            <div class="data-card-header">
+                                <h2 class="data-card-title">Find a Sakha / Patha Chakra</h2>
+                                <span class="badge badge-xs badge-muted" x-text="findOrgFiltered().length + ' of ' + findOrgResults.length"></span>
+                            </div>
+                            <div class="data-card-body">
+                                <!-- Type toggle -->
+                                <div style="display: flex; gap: 1.25rem; align-items: center; margin-bottom: 0.9rem; flex-wrap: wrap;">
+                                    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #1B2A4A; cursor: pointer;">
+                                        <input type="checkbox" x-model="findOrgIncludeSakha" @change="onFindOrgTypeToggle()">
+                                        Sakha Sangha
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: #1B2A4A; cursor: pointer;">
+                                        <input type="checkbox" x-model="findOrgIncludePathaChakra" @change="onFindOrgTypeToggle()">
+                                        Patha Chakra
+                                    </label>
+                                </div>
+
+                                <!-- Geography cascade + free-text search -->
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-bottom: 1rem;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label">Country</label>
+                                        <select class="nss-select" x-model="findOrgCountryPk" @change="onFindOrgCountryChange()">
+                                            <option value="">All countries</option>
+                                            <template x-for="c in findOrgCountries" :key="c.country_pk">
+                                                <option :value="c.country_pk" x-text="c.country_name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label">State</label>
+                                        <select class="nss-select" x-model="findOrgStatePk" @change="onFindOrgStateChange()" :disabled="!findOrgCountryPk">
+                                            <option value="">All states</option>
+                                            <template x-for="s in findOrgStates" :key="s.state_pk">
+                                                <option :value="s.state_pk" x-text="s.state_name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label">District</label>
+                                        <select class="nss-select" x-model="findOrgDistrictPk" @change="onFindOrgDistrictChange()" :disabled="!findOrgStatePk">
+                                            <option value="">All districts</option>
+                                            <template x-for="d in findOrgDistricts" :key="d.district_pk">
+                                                <option :value="d.district_pk" x-text="d.district_name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label">Search</label>
+                                        <input type="text" class="form-input" placeholder="Name, PIN, district…" x-model="findOrgQuery">
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; align-items: center; justify-content: center; padding: 1.5rem;" x-show="findOrgLoading">
+                                    <div class="spinner"></div>
+                                </div>
+                                <div class="alert-msg alert-error" x-show="findOrgError" x-text="findOrgError"></div>
+
+                                <template x-if="!findOrgLoading && !findOrgError">
+                                    <div>
+                                        <div x-show="!findOrgIncludeSakha && !findOrgIncludePathaChakra" style="padding: 1rem; color: #6b7280; font-size: 0.85rem;">
+                                            Select Sakha Sangha, Patha Chakra, or both to search.
+                                        </div>
+                                        <div x-show="(findOrgIncludeSakha || findOrgIncludePathaChakra) && !findOrgFiltered().length" style="padding: 1rem; color: #6b7280; font-size: 0.85rem;">
+                                            No Sakha Sangha or Patha Chakra matches your filters.
+                                        </div>
+                                        <div class="data-rows">
+                                            <template x-for="o in findOrgFiltered()" :key="o.organization_pk">
+                                                <div class="data-row" style="flex-direction: column; align-items: flex-start; gap: 0.2rem;">
+                                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                                        <span style="font-weight: 600; color: #1B2A4A; font-size: 0.9rem;" x-text="o.organization_name"></span>
+                                                        <span class="badge badge-xs badge-muted" x-text="o.organization_type_name"></span>
+                                                    </div>
+                                                    <div style="font-size: 0.78rem; color: #6b7280;" x-text="[o.city_village_name, o.district_name, o.state_name, o.country_name].filter(Boolean).join(', ')"></div>
+                                                    <div style="font-size: 0.78rem; color: #94a3b8;" x-show="o.postal_code || o.phone_number">
+                                                        <span x-show="o.postal_code" x-text="'PIN ' + o.postal_code"></span>
+                                                        <span x-show="o.postal_code && o.phone_number"> · </span>
+                                                        <span x-show="o.phone_number" x-text="o.phone_number"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- ═══ Attendance Tab ═══ -->
@@ -2301,7 +2379,7 @@
                         <div class="data-card">
                             <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
                                 <h2 class="data-card-title" style="padding: 0;">Parichaya Patra</h2>
-                                <span class="badge badge-xs badge-ghost" x-text="parichayaPatras.length + ' record' + (parichayaPatras.length !== 1 ? 's' : '')"></span>
+                                <span class="badge badge-xs badge-muted" x-text="parichayaPatras.length + ' record' + (parichayaPatras.length !== 1 ? 's' : '')"></span>
                             </div>
                             <div class="data-rows" x-show="parichayaPatras.length > 0">
                                 <template x-for="pp in parichayaPatras" :key="pp.parichaya_patra_pk">
@@ -2309,6 +2387,10 @@
                                         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                             <span style="font-size: 0.8rem; font-weight: 600; color: #1B2A4A;">Kendra #</span>
                                             <span class="data-kendra-no" x-text="pp.document_number"></span>
+                                            <span class="badge badge-xs badge-muted"
+                                                  x-show="pp.valid_from && pp.valid_to"
+                                                  x-text="pp.valid_from.slice(0,4) + '–' + pp.valid_to.slice(2,4)"
+                                                  title="Dola Purnima membership year"></span>
                                             <span class="badge badge-xs" :class="NSS.statusBadgeClass(pp.status)" x-text="pp.status"></span>
                                         </div>
                                         <div class="card-grid" style="margin-top: 0.35rem; gap: 0.5rem;">
@@ -2337,13 +2419,17 @@
                         <div class="data-card" style="margin-top: 1rem;" x-show="NSS.showAnumatiPatra(member.membership_type_code)">
                             <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
                                 <h2 class="data-card-title" style="padding: 0;">Anumati Patra</h2>
-                                <span class="badge badge-xs badge-ghost" x-text="anumatiPatras.length + ' record' + (anumatiPatras.length !== 1 ? 's' : '')"></span>
+                                <span class="badge badge-xs badge-muted" x-text="anumatiPatras.length + ' record' + (anumatiPatras.length !== 1 ? 's' : '')"></span>
                             </div>
                             <div class="data-rows" x-show="anumatiPatras.length > 0">
                                 <template x-for="ap in anumatiPatras" :key="ap.anumati_patra_pk">
                                     <div style="padding: 0.65rem 0; border-bottom: 1px solid #f3f4f6;">
                                         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                             <span class="data-value mono" style="font-weight: 600;" x-text="ap.document_number"></span>
+                                            <span class="badge badge-xs badge-muted"
+                                                  x-show="ap.valid_from && ap.valid_to"
+                                                  x-text="ap.valid_from.slice(0,4) + '–' + ap.valid_to.slice(2,4)"
+                                                  title="Dola Purnima membership year"></span>
                                             <span class="badge badge-xs" :class="NSS.statusBadgeClass(ap.status)" x-text="ap.status"></span>
                                         </div>
                                         <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
@@ -2403,6 +2489,20 @@
                                     <div style="font-size:0.7rem;color:#6b7280;margin-top:0.25rem;" x-text="adminStats[at.roleCode]?.extraLabel ?? 'Renewals Due'"></div>
                                 </div>
                             </div>
+
+                            <!-- Kendra-child-tier breakdown (NSS_ERP_ADMIN only today) — replaces
+                                 the old meaningless "Total Organizations" catch-all count with a
+                                 real per-tier count of every org type whose parent is Kendra. -->
+                            <template x-if="(adminStats[at.roleCode]?.moreTiles || []).length">
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem;margin-top:0.75rem;">
+                                    <template x-for="mt in adminStats[at.roleCode].moreTiles" :key="mt.label">
+                                        <div style="background:#f0fdf4;border-radius:0.75rem;padding:1rem;text-align:center;">
+                                            <div style="font-size:1.75rem;font-weight:700;color:#15803d;" x-text="mt.value ?? '—'"></div>
+                                            <div style="font-size:0.7rem;color:#6b7280;margin-top:0.25rem;" x-text="mt.label"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
 
                             <!-- Quick Actions -->
                             <div class="data-card" style="margin-top:1rem;">
@@ -2473,7 +2573,7 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <template x-for="m in memberSearchResults" :key="m.user_account_pk">
+                                                    <template x-for="m in memberSearchResults" :key="m.sangha_sevi_pk">
                                                         <tr style="border-bottom:1px solid #f3f4f6;">
                                                             <td style="padding:0.5rem 0.75rem;font-family:ui-monospace,monospace;color:#4338ca;" x-text="m.sangha_sevi_id || '—'"></td>
                                                             <td style="padding:0.5rem 0.75rem;font-weight:500;" x-text="m.person_name"></td>
@@ -2481,11 +2581,11 @@
                                                             <td style="padding:0.5rem 0.75rem;font-family:ui-monospace,monospace;" x-text="m.local_sakha_erp_id || '—'"></td>
                                                             <td style="padding:0.5rem 0.75rem;">
                                                                 <span class="badge badge-xs"
-                                                                      :class="m.account_status === 'ACTIVE' ? 'badge-status-active' : m.account_status === 'PENDING_APPROVAL' ? 'badge-status-pending' : 'badge-status-inactive'"
-                                                                      x-text="m.account_status" style="font-size:0.6rem;"></span>
+                                                                      :class="NSS.statusBadgeClass(m.status_code)"
+                                                                      x-text="m.status_name"></span>
                                                             </td>
                                                             <td style="padding:0.5rem 0.75rem;text-align:center;">
-                                                                <a :href="'/admin#detail/' + m.user_account_pk"
+                                                                <a href="/admin#memberDir"
                                                                    style="font-size:0.72rem;color:#4338ca;text-decoration:none;font-weight:500;">
                                                                     View
                                                                 </a>
@@ -2569,7 +2669,6 @@
                                                         <div class="ofb-card-body">
                                                             <div class="ofb-card-name" x-text="org.organization_name"></div>
                                                             <div class="ofb-card-meta">
-                                                                <code x-text="org.organization_code"></code>
                                                                 <span x-text="org.organization_type_name"></span>
                                                             </div>
                                                             <template x-if="getOrgChildStats(org.organization_pk)">
@@ -2626,7 +2725,7 @@
                                                                 <div class="ofb-card-name" x-text="fam.family_name"></div>
                                                                 <div class="ofb-card-meta">
                                                                     <code x-text="fam.family_id"></code>
-                                                                    <span class="badge badge-xs" :class="fam.is_active ? 'badge-status-active' : 'badge-status-inactive'" x-text="fam.status_name" style="font-size:0.55rem;"></span>
+                                                                    <span class="badge badge-xs" :class="fam.is_active ? 'badge-status-active' : 'badge-status-inactive'" x-text="fam.status_name"></span>
                                                                 </div>
                                                                 <div class="ofb-card-stats">
                                                                     <span x-text="'Sakha: ' + (fam.sakha_name || '—')"></span>
@@ -2732,7 +2831,7 @@
                                                                             <div style="font-size:0.75rem;font-family:ui-monospace,monospace;color:#64748b;" x-text="orgSelectedPerson.person_id"></div>
                                                                             <div style="display:flex;align-items:center;gap:0.25rem;margin-top:0.25rem;flex-wrap:wrap;">
                                                                                 <template x-if="orgSelectedPerson.person_pk === orgViewerPersonPk">
-                                                                                    <span class="badge badge-xs badge-role-viewer">HEAD</span>
+                                                                                    <span class="badge badge-xs badge-role-viewer">YOU</span>
                                                                                 </template>
                                                                                 <template x-if="orgSelectedPerson.is_head">
                                                                                     <span class="badge badge-xs badge-role-head">HEAD</span>
@@ -2810,7 +2909,7 @@
                                                                                     <div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.25rem;">
                                                                                         <span class="badge badge-xs" :class="NSS.typeBadgeClass(orgSelectedPersonMembership.membership_type_code)" x-text="NSS.typeDisplayName(orgSelectedPersonMembership.membership_type_code, orgSelectedPersonMembership.membership_type_name)" x-show="orgSelectedPersonMembership.membership_type_name"></span>
                                                                                         <span class="badge badge-xs" :class="NSS.statusBadgeClass(orgSelectedPersonMembership.status_code)" x-text="orgSelectedPersonMembership.status_name" x-show="orgSelectedPersonMembership.status_name"></span>
-                                                                                        <span class="badge badge-xs" style="background:#f0f9ff;color:#0284c7;" x-text="orgSelectedPersonMembership.organization_name" x-show="orgSelectedPersonMembership.organization_name"></span>
+                                                                                        <span class="badge badge-xs badge-org" x-text="orgSelectedPersonMembership.organization_name" x-show="orgSelectedPersonMembership.organization_name"></span>
                                                                                     </div>
                                                                                 </div>
                                                                             </template>
@@ -2844,12 +2943,503 @@
                         </div>
                     </template>
 
+                    <!-- ═══════════════════════════════════════════
+                         VIEW: Org Dashboard (Sakha/Anchalika/Zilla/Kendra)
+                         — a real tab, not a separate page; markup mirrors
+                         the mockups (docs/03_Solution/ui/mockups/03/05/06/02),
+                         all logic shared with admin.html via org-dashboard.js
+                         ═══════════════════════════════════════════ -->
+                    <template x-if="tab === 'orgDashboard' && viewingOrgPk">
+                    <div x-data="orgDashboardTab()" x-init="init(viewingOrgPk)" x-cloak>
+
+                        <div style="display: flex; align-items: center; justify-content: center; padding: 3rem 0;" x-show="loading">
+                            <div class="spinner"></div>
+                        </div>
+                        <div class="alert-msg alert-error" x-show="!loading && error" x-text="error"></div>
+
+                        <template x-if="!loading && !error && org">
+                        <div>
+
+                            <!-- Org switcher — shown only when this user administers
+                                 more than one org of the type on screen (admin_scope
+                                 allows the same role at several scopes). The helpers
+                                 resolve up Alpine's nested-scope chain to the page
+                                 component (dashboard.js). -->
+                            <template x-if="dashboardOrgsFor(org?.organization_type_code).length > 1">
+                                <div class="org-switcher">
+                                    <label class="org-switcher-label" for="orgSwitcherSelectDash">Viewing</label>
+                                    <select id="orgSwitcherSelectDash" class="org-switcher-select"
+                                            @change="openOrgDashboard($event.target.value)">
+                                        <template x-for="o in dashboardOrgsFor(org?.organization_type_code)"
+                                                  :key="o.organization_pk">
+                                            <option :value="o.organization_pk"
+                                                    :selected="o.organization_pk === org?.organization_pk"
+                                                    x-text="o.organization_name"></option>
+                                        </template>
+                                    </select>
+                                    <span class="org-switcher-count"
+                                          x-text="dashboardOrgsFor(org?.organization_type_code).length + ' in your scope'"></span>
+                                </div>
+                            </template>
+
+                            <!-- SAKHA TIER -->
+                            <div x-show="isSakha">
+                                <h1 class="text-2xl font-bold mb-1" x-text="'Sakha Dashboard — ' + org?.organization_name"></h1>
+                                <p class="text-sm text-base-content/60 mb-6">
+                                    <span x-show="org?.parent_organization_name">Anchalika/Zilla: <span x-text="org?.parent_organization_name"></span></span>
+                                    <span x-show="!org?.parent_organization_name">&nbsp;</span>
+                                </p>
+
+                                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                    <div class="bg-indigo-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-indigo-700" x-text="statNum(sakhaTotalMembers)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Total Members</div>
+                                    </div>
+                                    <div class="bg-cyan-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-cyan-700" x-text="statNum(parichayPatraHolderCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Parichay Patra Holders</div>
+                                    </div>
+                                    <div class="bg-violet-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-violet-700" x-text="statNum(sakhaDarshakTotal)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Darshaks (Probationary + Visiting)</div>
+                                    </div>
+                                    <div class="bg-green-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-green-700" x-text="statNum(sakhaFamilyTotal, sakhaFamilyTruncated)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Families</div>
+                                    </div>
+                                    <div class="bg-amber-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-amber-700">—</div>
+                                        <div class="text-xs text-base-content/60 mt-1">Renewals Due</div>
+                                        <span class="badge badge-muted badge-xs mt-1">Not tracked yet</span>
+                                    </div>
+                                    <div class="bg-sky-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-sky-700">—</div>
+                                        <div class="text-xs text-base-content/60 mt-1">Attendance</div>
+                                        <span class="badge badge-muted badge-xs mt-1">Not tracked yet</span>
+                                    </div>
+                                </div>
+
+                                <div class="card bg-blue-50 border border-blue-200 mb-8">
+                                    <div class="card-body p-4">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                                                <h3 class="font-semibold text-blue-800">Darshak</h3>
+                                            </div>
+                                            <span class="badge badge-muted"
+                                                  x-text="'Total Registered: ' + (darshak.home_probationary_count + darshak.attending_from_other_sakha_count)"></span>
+                                        </div>
+                                        <div class="flex gap-6 mt-2 text-sm">
+                                            <span>Probationary Members: <strong x-text="darshak.home_probationary_count"></strong></span>
+                                            <span>Members from other Sakha: <strong x-text="darshak.attending_from_other_sakha_count"></strong></span>
+                                        </div>
+                                        <div class="text-xs text-base-content/50 mt-1">Puja attendance is not tracked yet.</div>
+                                    </div>
+                                </div>
+
+                                <h2 class="text-lg font-semibold mb-3">Recent Members</h2>
+                                <div class="overflow-x-auto bg-base-100 rounded-xl shadow-sm">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Sangha Sevi ID</th>
+                                                <th>Name</th>
+                                                <th>Type</th>
+                                                <th>Status</th>
+                                                <th>Joined</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="m in recentMembers" :key="m.sangha_sevi_pk">
+                                                <tr>
+                                                    <td class="font-mono text-sm" x-text="m.sangha_sevi_id"></td>
+                                                    <td x-text="[m.first_name, m.middle_name, m.last_name].filter(Boolean).join(' ')"></td>
+                                                    <td><span class="badge badge-sm" :class="NSS.typeBadgeClass(m.membership_type_code)" x-text="NSS.typeDisplayName(m.membership_type_code, m.membership_type_name)"></span></td>
+                                                    <td><span class="badge badge-sm" :class="NSS.statusBadgeClass(m.status_code)" x-text="m.status_name"></span></td>
+                                                    <td x-text="formatDate(m.joining_date)"></td>
+                                                </tr>
+                                            </template>
+                                            <tr x-show="recentMembers.length === 0">
+                                                <td colspan="5" class="text-center text-base-content/50 py-6">No members yet</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- ANCHALIKA / ZILLA TIER -->
+                            <div x-show="isChildOverviewTier">
+                                <h1 class="text-2xl font-bold mb-1">
+                                    <span x-text="(isAnchalika ? 'Anchalika Dashboard — ' : 'Zilla Dashboard — ') + org?.organization_name"></span>
+                                </h1>
+                                <p class="text-sm text-base-content/60 mb-6" x-text="'Sakhas under jurisdiction: ' + childStats.length"></p>
+
+                                <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
+                                    <div class="rounded-xl p-4 text-center" :class="isAnchalika ? 'bg-orange-50' : 'bg-violet-50'">
+                                        <div class="text-3xl font-bold" :class="isAnchalika ? 'text-orange-700' : 'text-violet-700'" x-text="childStats.length"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Sakha Sanghas</div>
+                                    </div>
+                                    <div class="bg-indigo-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-indigo-700" x-text="orgMemberTotal"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Total Members</div>
+                                    </div>
+                                    <div class="bg-cyan-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-cyan-700" x-text="statNum(parichayPatraTotal)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Total Parichay Patra</div>
+                                    </div>
+                                    <div class="bg-purple-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-purple-700" x-text="statNum(darshakTotal)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Total Darshak</div>
+                                    </div>
+                                    <div class="bg-green-50 rounded-xl p-4 text-center">
+                                        <div class="text-3xl font-bold text-green-700" x-text="childFamilyTotal"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Families</div>
+                                    </div>
+                                    <div class="bg-amber-50 rounded-xl p-4 text-center" x-show="isZilla">
+                                        <div class="text-3xl font-bold text-amber-700" x-text="statNum(renewalsDue)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Renewals Due</div>
+                                    </div>
+                                    <div class="bg-pink-50 rounded-xl p-4 text-center" x-show="isAnchalika">
+                                        <div class="text-3xl font-bold text-pink-700" x-text="statNum(mahilaCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Mahila Sanghas</div>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-base-content/50 mb-8">
+                                    Total Members = Parichay Patra holders + Darshaks (probationary), counted at
+                                    each member's home Sakha across this jurisdiction. Parichay Patra holders whose
+                                    home Sakha is elsewhere and who only attend here as Darshaks are excluded, so
+                                    nobody is counted twice.
+                                </p>
+
+                                <h2 class="text-lg font-semibold mb-3" x-text="'Sakha Sanghas — ' + org?.organization_name"></h2>
+                                <div class="overflow-x-auto bg-base-100 rounded-xl shadow-sm mb-8">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Sakha Sangha</th>
+                                                <th>Members</th>
+                                                <th>Families</th>
+                                                <th>Attendance</th>
+                                                <th>Renewals Due</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="c in childStats" :key="c.organization_pk">
+                                                <tr>
+                                                    <td class="font-medium">
+                                                        <button type="button" class="link link-hover" @click="openOrgDashboard(c.organization_pk)" x-text="c.organization_name"></button>
+                                                    </td>
+                                                    <td x-text="c.member_count"></td>
+                                                    <td x-text="c.family_count"></td>
+                                                    <td class="text-base-content/40">—</td>
+                                                    <td class="text-base-content/40">—</td>
+                                                </tr>
+                                            </template>
+                                            <tr x-show="childStats.length === 0">
+                                                <td colspan="5" class="text-center text-base-content/50 py-6">No Sakhas under this organization yet</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot x-show="childStats.length > 0">
+                                            <tr class="font-semibold">
+                                                <td>Total</td>
+                                                <td x-text="childMemberTotal"></td>
+                                                <td x-text="childFamilyTotal"></td>
+                                                <td class="text-base-content/40">—</td>
+                                                <td class="text-base-content/40">—</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+
+                                <h2 class="text-lg font-semibold mb-3" x-text="(isAnchalika ? 'Anchalika' : 'Zilla') + ' Insights'"></h2>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4" x-show="childStats.length > 0">
+                                    <div class="card bg-emerald-50 border border-emerald-200">
+                                        <div class="card-body p-4">
+                                            <h3 class="font-semibold text-emerald-800 text-sm">Largest Sakha</h3>
+                                            <p class="text-lg font-bold text-emerald-700" x-text="largestChild?.organization_name + ' — ' + largestChild?.member_count + ' members'"></p>
+                                        </div>
+                                    </div>
+                                    <div class="card bg-blue-50 border border-blue-200">
+                                        <div class="card-body p-4">
+                                            <h3 class="font-semibold text-blue-800 text-sm">Smallest Sakha</h3>
+                                            <p class="text-lg font-bold text-blue-700" x-text="smallestChild?.organization_name + ' — ' + smallestChild?.member_count + ' members'"></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h2 class="text-lg font-semibold mb-3 mt-8">Alerts</h2>
+                                <div class="alert alert-info shadow-sm">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                                    <div>
+                                        <p class="font-medium text-sm">No alerts yet</p>
+                                        <p class="text-xs">Attendance and renewal tracking aren't implemented yet, so no attendance/renewal alerts can be generated.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- KENDRA TIER -->
+                            <div x-show="isKendra">
+                                <h1 class="text-2xl font-bold mb-1">Kendra Dashboard</h1>
+                                <p class="text-sm text-base-content/60 mb-6" x-text="org?.organization_name + ' — Central Administration'"></p>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                    <div class="stat bg-indigo-50 rounded-xl p-4">
+                                        <div class="stat-figure text-indigo-500">
+                                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                                        </div>
+                                        <div class="stat-title text-xs text-base-content/60">Active Members</div>
+                                        <div class="stat-value text-2xl text-indigo-700" x-text="orgMemberTotal"></div>
+                                    </div>
+                                    <div class="stat bg-cyan-50 rounded-xl p-4">
+                                        <div class="stat-figure text-cyan-500">
+                                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zM9 7c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm4 10H5v-1c0-1.33 2.67-2 4-2s4 .67 4 2v1zm3.85-4h1.64L21 16l-1.99 1.99c-.92-.61-1.71-1.45-2.16-2.49H16v-2h.85zM19 9.5V11h-2V9.5h2z"/></svg>
+                                        </div>
+                                        <div class="stat-title text-xs text-base-content/60">Parichay Patra Holders</div>
+                                        <div class="stat-value text-2xl text-cyan-700" x-text="statNum(parichayPatraTotal)"></div>
+                                    </div>
+                                    <div class="stat bg-violet-50 rounded-xl p-4">
+                                        <div class="stat-figure text-violet-500">
+                                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                                        </div>
+                                        <div class="stat-title text-xs text-base-content/60">Darshaks (Probationary)</div>
+                                        <div class="stat-value text-2xl text-violet-700" x-text="statNum(darshakTotal)"></div>
+                                    </div>
+                                    <div class="stat bg-green-50 rounded-xl p-4">
+                                        <div class="stat-figure text-green-500">
+                                            <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                                        </div>
+                                        <div class="stat-title text-xs text-base-content/60">Families</div>
+                                        <div class="stat-value text-2xl text-green-700" x-text="childFamilyTotal"></div>
+                                    </div>
+                                </div>
+
+                                <h2 class="text-lg font-semibold mb-3">Constituent Bodies</h2>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+                                    <div class="bg-orange-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-orange-700" x-text="statNum(anchalikaCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Anchalika Sanghas</div>
+                                    </div>
+                                    <div class="bg-amber-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-amber-700" x-text="statNum(zillaCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Zilla Sanghas</div>
+                                    </div>
+                                    <div class="bg-rose-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-rose-700" x-text="statNum(sakhaCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Sakha Sanghas</div>
+                                    </div>
+                                    <div class="bg-teal-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-teal-700" x-text="statNum(pathaChakraCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Patha Chakras</div>
+                                    </div>
+                                    <div class="bg-lime-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-lime-700" x-text="statNum(paribarikCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Paribarik Sanghas</div>
+                                    </div>
+                                    <div class="bg-fuchsia-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-fuchsia-700" x-text="statNum(kumariCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Kumari Sanghas</div>
+                                    </div>
+                                    <div class="bg-pink-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-pink-700" x-text="statNum(mahilaCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Mahila Sanghas</div>
+                                    </div>
+                                    <div class="bg-sky-50 rounded-xl p-4 text-center">
+                                        <div class="text-2xl font-bold text-sky-700" x-text="statNum(sevakCount)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Sevak Sanghas</div>
+                                    </div>
+                                </div>
+
+                                <h2 class="text-lg font-semibold mb-3">Membership and Renewal</h2>
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+                                    <div class="card bg-amber-50 border border-amber-200">
+                                        <div class="card-body p-4">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <svg class="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                                                <h3 class="font-semibold text-amber-800">Renewal Status</h3>
+                                            </div>
+                                            <p class="text-sm text-base-content/50">Not tracked yet</p>
+                                            <div class="mt-2">
+                                                <span class="badge badge-muted badge-sm">Not implemented</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card bg-sky-50 border border-sky-200">
+                                        <div class="card-body p-4">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <svg class="w-5 h-5 text-sky-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                                <h3 class="font-semibold text-sky-800">Weekly Attendance</h3>
+                                            </div>
+                                            <p class="text-sm text-base-content/50">Not tracked yet</p>
+                                            <div class="mt-2">
+                                                <span class="badge badge-muted badge-sm">Not implemented</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card bg-blue-50 border border-blue-200">
+                                        <div class="card-body p-4">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                                                <h3 class="font-semibold text-blue-800">Darshak</h3>
+                                            </div>
+                                            <p class="text-sm">Probationary Members: <strong x-text="statNum(darshakTotal)"></strong></p>
+                                            <div class="text-xs text-base-content/50 mt-1">
+                                                Aggregated across every Sakha in this Kendra. Card-holders visiting
+                                                another Sakha as Darshaks are counted at their home Sakha only —
+                                                open that Sakha's dashboard for its visiting-Darshak figure.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h2 class="text-lg font-semibold mb-3">Governance</h2>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                    <div class="card bg-violet-50 border border-violet-200">
+                                        <div class="card-body p-4">
+                                            <h3 class="font-semibold text-violet-800">Governing Body</h3>
+                                            <p class="text-sm text-base-content/50">Not implemented yet (Tier 6)</p>
+                                        </div>
+                                    </div>
+                                    <div class="card bg-emerald-50 border border-emerald-200">
+                                        <div class="card-body p-4">
+                                            <h3 class="font-semibold text-emerald-800">Advisory Board</h3>
+                                            <p class="text-sm text-base-content/50">Not implemented yet (Tier 6)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PATHA CHAKRA TIER -->
+                            <!-- Patha Chakra (Study Circle) is a leaf org type parented directly
+                                 under Kendra — it has no descendant orgs, so it cannot reuse the
+                                 children-stats-driven Anchalika/Zilla/Kendra layout above. No
+                                 study-circle attendance/session module exists yet (same honest-
+                                 placeholder pattern used for Renewal/Attendance elsewhere in this
+                                 file), so this tier shows org identity only. -->
+                            <div x-show="isPathaChakra">
+                                <h1 class="text-2xl font-bold mb-1" x-text="'Patha Chakra Dashboard — ' + org?.organization_name"></h1>
+                                <p class="text-sm text-base-content/60 mb-6">
+                                    <span x-show="org?.parent_organization_name">Kendra: <span x-text="org?.parent_organization_name"></span></span>
+                                    <span x-show="!org?.parent_organization_name">&nbsp;</span>
+                                </p>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                                    <div class="stat bg-indigo-50 rounded-xl p-4">
+                                        <div class="stat-title text-xs text-base-content/60">Organization Code</div>
+                                        <div class="stat-value text-2xl text-indigo-700" x-text="org?.organization_code || '—'"></div>
+                                    </div>
+                                    <div class="stat bg-green-50 rounded-xl p-4">
+                                        <div class="stat-title text-xs text-base-content/60">Status</div>
+                                        <div class="stat-value text-2xl text-green-700" x-text="org?.status_name || '—'"></div>
+                                    </div>
+                                    <div class="stat bg-orange-50 rounded-xl p-4">
+                                        <div class="stat-title text-xs text-base-content/60">Type</div>
+                                        <div class="stat-value text-2xl text-orange-700" x-text="org?.organization_type_name || '—'"></div>
+                                    </div>
+                                </div>
+
+                                <h2 class="text-lg font-semibold mb-3">Membership</h2>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-2">
+                                    <div class="rounded-xl p-4 text-center bg-indigo-50">
+                                        <div class="text-3xl font-bold text-indigo-700" x-text="orgMemberTotal"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Total Members</div>
+                                    </div>
+                                    <div class="rounded-xl p-4 text-center bg-cyan-50">
+                                        <div class="text-3xl font-bold text-cyan-700" x-text="statNum(parichayPatraTotal)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Total Parichay Patra</div>
+                                    </div>
+                                    <div class="rounded-xl p-4 text-center bg-purple-50">
+                                        <div class="text-3xl font-bold text-purple-700" x-text="statNum(darshakTotal)"></div>
+                                        <div class="text-xs text-base-content/60 mt-1">Total Darshak</div>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-base-content/50 mb-8">
+                                    A Patha Chakra is a study circle directly under the Kendra — it has no branch
+                                    organizations and members are registered at a Sakha Sangha, never at a Patha
+                                    Chakra. These figures are therefore structurally zero by design, not a sign of
+                                    missing registrations. Per-session participation needs the study-circle
+                                    attendance module below, which does not exist yet.
+                                </p>
+
+                                <div class="card bg-sky-50 border border-sky-200">
+                                    <div class="card-body p-4">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <svg class="w-5 h-5 text-sky-600" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                            <h3 class="font-semibold text-sky-800">Study Circle Sessions &amp; Attendance</h3>
+                                        </div>
+                                        <p class="text-sm text-base-content/50">Not tracked yet — no session/attendance module exists for Patha Chakra.</p>
+                                        <div class="mt-2">
+                                            <span class="badge badge-muted badge-sm">Not implemented</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- MAHILA PARICHALANA MANDALI TIER -->
+                            <!-- Anchored on the MAHILA_SANGHA organization, because the
+                                 Mahila Parichalana Mandali is that Sangha's governing body
+                                 (MAH-091: one body, two names — Mandali / Mahila Governing
+                                 Body), not an organization type of its own. Parent = Kendra
+                                 means the central Mahila Sangha; parent = Sakha Sangha means
+                                 a local one. No mahila or governance DDL module exists yet,
+                                 so composition and membership are honest placeholders. -->
+                            <div x-show="isMahila">
+                                <h1 class="text-2xl font-bold mb-1" x-text="'Mahila Parichalana Mandali — ' + org?.organization_name"></h1>
+                                <p class="text-sm text-base-content/60 mb-6">
+                                    <span x-show="org?.parent_organization_name">
+                                        <span x-text="isCentralMahila ? 'Kendra' : 'Sakha Sangha'"></span>:
+                                        <span x-text="org?.parent_organization_name"></span>
+                                    </span>
+                                    <span x-show="!org?.parent_organization_name">&nbsp;</span>
+                                </p>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                                    <div class="stat bg-pink-50 rounded-xl p-4">
+                                        <div class="stat-title text-xs text-base-content/60">Organization Code</div>
+                                        <div class="stat-value text-2xl text-pink-700" x-text="org?.organization_code || '—'"></div>
+                                    </div>
+                                    <div class="stat bg-green-50 rounded-xl p-4">
+                                        <div class="stat-title text-xs text-base-content/60">Status</div>
+                                        <div class="stat-value text-2xl text-green-700" x-text="org?.status_name || '—'"></div>
+                                    </div>
+                                    <div class="stat bg-purple-50 rounded-xl p-4">
+                                        <div class="stat-title text-xs text-base-content/60">Scope</div>
+                                        <div class="stat-value text-2xl text-purple-700" x-text="isCentralMahila ? 'Central' : 'Local'"></div>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="card bg-rose-50 border border-rose-200">
+                                        <div class="card-body p-4">
+                                            <h3 class="font-semibold text-rose-800 mb-2">Parichalana Mandali Composition</h3>
+                                            <p class="text-sm text-base-content/50">Not tracked yet — no governance-body module exists, so office bearers and terms cannot be shown.</p>
+                                            <div class="mt-2">
+                                                <span class="badge badge-muted badge-sm">Not implemented</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="card bg-sky-50 border border-sky-200">
+                                        <div class="card-body p-4">
+                                            <h3 class="font-semibold text-sky-800 mb-2">Mahila Membership</h3>
+                                            <p class="text-sm text-base-content/50">Not tracked yet — Mahila Sangha membership is not linked in the membership module.</p>
+                                            <div class="mt-2">
+                                                <span class="badge badge-muted badge-sm">Not implemented</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                        </template>
+                    </div>
+                    </template>
+
                 </div>
             </template>
 
         </div>
     </div>
 
-    <script src="/assets/js/dashboard.js?v=5.4"></script>
+    <script src="/assets/js/dashboard.js"></script>
 </body>
 </html>

@@ -155,6 +155,13 @@
 .nss-dp-wrap {
     position: relative;
 }
+/* Any input inside the shared wrap must leave room for the calendar
+ * icon button, not just .nss-dp-input — register.html uses .reg-input
+ * via data-dp-input-class.
+ */
+.nss-dp-wrap > input {
+    padding-right: 2.25rem;
+}
 .nss-dp-input {
     width: 100%;
     padding: 0.5rem 2.25rem 0.5rem 0.75rem;
@@ -182,3 +189,16 @@
     line-height: 1;
 }
 .nss-dp-icon:hover { color: #374151; }
+
+/* ── Validation feedback ──────────────────────────────
+ * Rendered by the shared markup in nss-datepicker.js for every
+ * date field, so a rejected date (future DOB, 31 Feb, out-of-range
+ * year) always surfaces its reason. Previously only the Create
+ * Person DOB field displayed this.
+ */
+.nss-dp-error {
+    color: #b91c1c;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    margin-top: 0.2rem;
+}

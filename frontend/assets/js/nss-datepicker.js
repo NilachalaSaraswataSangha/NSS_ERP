@@ -257,9 +257,145 @@ function nssDatePicker(modelPath, opts) {
     };
 }
 
-/**
- * Reusable calendar popup HTML template.
- * Embed inside a <div x-data="nssDatePicker('...')"> wrapper.
- * Returns the full calendar HTML string for use with x-html or copy-paste.
- */
 var NSS_CAL_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1rem;height:1rem;"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>';
+
+/* ═══════════════════════════════════════════════════════════
+ * SHARED CALENDAR MARKUP — single source of truth
+ *
+ * Previously every date field hand-copied ~30 lines of popup
+ * markup. Ten copies had drifted: only the Create Person DOB
+ * field rendered the validation error, register.html used a
+ * different input class, and some were missing Today/Clear.
+ *
+ * Now the markup lives here once and is injected into every
+ * `x-data="nssDatePicker(...)"` element on DOMContentLoaded —
+ * which runs BEFORE Alpine starts (Alpine is loaded `defer`,
+ * this file is a blocking head script, so our listener is
+ * registered first). Alpine then compiles the injected
+ * directives normally.
+ *
+ * Callsites only declare intent:
+ *   <div x-data="nssDatePicker('form.date_of_birth', { maxToday: true })">
+ *       <label class="form-label">Date of Birth *</label>
+ *   </div>
+ *
+ * Optional per-callsite overrides (data attributes on the root):
+ *   data-dp-input-class : input CSS class   (default nss-dp-input)
+ *   data-dp-disabled    : Alpine expr for :disabled (e.g. "loading")
+ *   data-dp-placeholder : default DD/MM/YYYY
+ * ═══════════════════════════════════════════════════════════ */
+
+var NSS_DP_MONTH_OPTIONS =
+    '<option value="0">Jan</option><option value="1">Feb</option>' +
+    '<option value="2">Mar</option><option value="3">Apr</option>' +
+    '<option value="4">May</option><option value="5">Jun</option>' +
+    '<option value="6">Jul</option><option value="7">Aug</option>' +
+    '<option value="8">Sep</option><option value="9">Oct</option>' +
+    '<option value="10">Nov</option><option value="11">Dec</option>';
+
+/**
+ * Build the canonical input + calendar-popup markup.
+ * @param {Object} cfg - { inputClass, disabledExpr, placeholder }
+ * @returns {string} HTML to append inside the nssDatePicker root.
+ */
+function nssDatePickerMarkup(cfg) {
+    cfg = cfg || {};
+    var inputClass = cfg.inputClass || "nss-dp-input";
+    var placeholder = cfg.placeholder || "DD/MM/YYYY";
+    var disabled = cfg.disabledExpr
+        ? ' :disabled="' + cfg.disabledExpr + '"'
+        : "";
+
+    return '' +
+        '<div class="nss-dp-wrap">' +
+            '<input type="text" class="' + inputClass + '" x-model="display"' +
+                   ' @click="open = true" @input="onInput($event)"' +
+                   ' placeholder="' + placeholder + '" maxlength="10"' +
+                   ' autocomplete="off"' + disabled + '>' +
+            '<button type="button" class="nss-dp-icon" @click="open = !open" tabindex="-1">' +
+                NSS_CAL_ICON_SVG +
+            '</button>' +
+        '</div>' +
+        '<div x-show="open" x-cloak class="nss-cal-popup" @click.outside="open = false" x-transition>' +
+            '<div class="nss-cal-header">' +
+                '<button type="button" @click="prevMonth()" class="nss-cal-nav">&lsaquo;</button>' +
+                '<div class="nss-cal-selectors">' +
+                    '<select class="nss-cal-select" :value="viewMonth" @change="onMonthChange($event)">' +
+                        NSS_DP_MONTH_OPTIONS +
+                    '</select>' +
+                    '<input type="number" class="nss-cal-year" min="1930" max="2100"' +
+                           ' :value="viewYear" @input="onYearInput($event)">' +
+                '</div>' +
+                '<button type="button" @click="nextMonth()" class="nss-cal-nav">&rsaquo;</button>' +
+            '</div>' +
+            '<div class="nss-cal-weekdays">' +
+                '<template x-for="d in [\'Su\',\'Mo\',\'Tu\',\'We\',\'Th\',\'Fr\',\'Sa\']">' +
+                    '<span x-text="d"></span>' +
+                '</template>' +
+            '</div>' +
+            '<div class="nss-cal-days">' +
+                '<template x-for="b in calBlanks" :key="\'b\'+b"><span></span></template>' +
+                '<template x-for="day in calDays" :key="\'d\'+day">' +
+                    '<button type="button" class="nss-cal-day"' +
+                            ' :class="{ \'nss-cal-today\': isToday(day), \'nss-cal-selected\': isSelected(day) }"' +
+                            ' @click="selectDay(day)" x-text="day"></button>' +
+                '</template>' +
+            '</div>' +
+            '<div class="nss-cal-footer">' +
+                '<button type="button" class="nss-cal-today-btn" @click="goToday()">Today</button>' +
+                '<button type="button" class="nss-cal-clear" @click="clearDate()">Clear</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="nss-dp-error" x-show="invalid" x-cloak x-text="errorMsg"></div>';
+}
+
+/**
+ * Expand every nssDatePicker root in `scope` with the shared markup.
+ * Idempotent — a root already carrying data-nss-dp-built is skipped,
+ * so this is safe to re-run after injecting dynamic HTML.
+ *
+ * Also stamps data-nss-dp="<modelPath>" on the root, giving tests and
+ * other code a stable hook that does not depend on the exact x-data
+ * argument spelling.
+ */
+function nssDatePickerExpand(scope) {
+    scope = scope || document;
+
+    var nodes = scope.querySelectorAll('[x-data^="nssDatePicker("]');
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (node.hasAttribute("data-nss-dp-built")) continue;
+
+        // Stable hook: the model path this picker writes to.
+        var match = /nssDatePicker\(\s*['"]([^'"]+)['"]/.exec(
+            node.getAttribute("x-data") || ""
+        );
+        if (match) node.setAttribute("data-nss-dp", match[1]);
+
+        // The popup is absolutely positioned against this root.
+        if (!node.style.position) node.style.position = "relative";
+
+        node.insertAdjacentHTML("beforeend", nssDatePickerMarkup({
+            inputClass: node.getAttribute("data-dp-input-class"),
+            disabledExpr: node.getAttribute("data-dp-disabled"),
+            placeholder: node.getAttribute("data-dp-placeholder"),
+        }));
+
+        node.setAttribute("data-nss-dp-built", "");
+    }
+
+    // Nine of ten date fields live inside Alpine <template x-if/x-for>
+    // blocks. querySelectorAll does NOT descend into template content,
+    // so recurse explicitly. Expanding the template's content fragment
+    // before Alpine starts means every clone Alpine stamps out already
+    // carries the calendar markup.
+    var tpls = scope.querySelectorAll("template");
+    for (var t = 0; t < tpls.length; t++) {
+        if (tpls[t].content) nssDatePickerExpand(tpls[t].content);
+    }
+}
+
+// Runs before Alpine.start() — see the block comment above.
+document.addEventListener("DOMContentLoaded", function () {
+    nssDatePickerExpand(document);
+});

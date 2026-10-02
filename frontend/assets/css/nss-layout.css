@@ -18,8 +18,15 @@ body {
 /* ── Sidebar ─────────────────────────────────────── */
 .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; width: 260px;
+    /* `bottom: 0` on a `position: fixed` element is unreliable on mobile
+       Safari/Chrome once the on-screen address bar shows/hides and resizes
+       the visual viewport — the sidebar can end up clipped short or
+       stretched past it. Pin an explicit height instead, with 100vh as
+       the fallback for browsers that don't support dvh yet. */
+    height: 100vh; height: 100dvh;
     background: #1B2A4A; display: flex; flex-direction: column; z-index: 30;
     transition: transform 0.25s ease;
+    overscroll-behavior: contain;
 }
 .sidebar-brand {
     display: flex; align-items: center; gap: 0.75rem;
@@ -34,6 +41,21 @@ body {
     padding: 0.5rem 1.25rem 0.35rem; font-size: 0.65rem; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.35); margin-top: 0.5rem;
 }
+/* Collapsible section headers — same look as the plain (non-interactive)
+   .nav-section-label divs, but rendered as a <button> with a chevron so
+   groups can be folded to cut down sidebar length. Plain non-collapsible
+   labels keep using the div above untouched. */
+.nav-section-label.collapsible {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; border: none; background: none; margin: 0;
+    font-family: inherit; cursor: pointer; user-select: none;
+}
+.nav-section-label.collapsible:hover { color: rgba(255,255,255,0.6); }
+.nav-section-label.collapsible .nav-chevron {
+    width: 12px; height: 12px; flex-shrink: 0;
+    transition: transform 0.15s ease; opacity: 0.7;
+}
+.nav-section-label.collapsible .nav-chevron.collapsed { transform: rotate(-90deg); }
 .nav-item {
     display: flex; align-items: center; gap: 0.75rem;
     padding: 0.6rem 1.25rem; color: rgba(255,255,255,0.65);
@@ -66,18 +88,39 @@ body {
 .main-content { margin-left: 260px; min-height: 100vh; padding: 0; }
 
 /* ── Top bar ─────────────────────────────────────── */
+/* Two flex children: .topbar-left (toggle + title/breadcrumb) and
+ * .topbar-user-info (identity + role badges). The identity block grows with
+ * the number of role badges, so without explicit flex rules it stole width
+ * from the title and wrapped "System Administration" onto two lines. Fix:
+ * the title never wraps (it ellipsizes instead) and the identity block is the
+ * only side allowed to wrap, right-aligned with a row-gap so a second row of
+ * badges reads as deliberate rather than broken. */
 .topbar {
     background: #ffffff; border-bottom: 1px solid #e5e7eb;
     padding: 0.75rem 1.5rem; display: flex; align-items: center;
-    justify-content: space-between; position: sticky; top: 0; z-index: 20;
+    justify-content: space-between; gap: 1rem;
+    position: sticky; top: 0; z-index: 20;
 }
-.topbar-title { font-size: 1.05rem; font-weight: 600; color: #1B2A4A; }
-.topbar-breadcrumb { font-size: 0.75rem; color: #9ca3af; }
-.mobile-toggle { display: none; background: none; border: none; color: #1B2A4A; cursor: pointer; padding: 0.25rem; }
+.topbar-left {
+    display: flex; align-items: center; gap: 0.75rem;
+    flex: 0 1 auto; min-width: 0;
+}
+/* min-width:0 is what actually lets the title ellipsize — without it this
+ * block's automatic minimum size is its full text width, which is how the
+ * title got pushed onto a second line in the first place. */
+.topbar-heading { min-width: 0; }
+.topbar-title {
+    font-size: 1.05rem; font-weight: 600; color: #1B2A4A;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.topbar-breadcrumb { font-size: 0.75rem; color: #9ca3af; white-space: nowrap; }
+.mobile-toggle { display: none; background: none; border: none; color: #1B2A4A; cursor: pointer; padding: 0.25rem; flex: 0 0 auto; }
 
 /* ── Topbar user info ────────────────────────────── */
 .topbar-user-info {
-    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 0.5rem; row-gap: 0.3rem; flex-wrap: wrap;
+    flex: 1 1 auto; min-width: 0;
 }
 .topbar-user-info .user-name {
     font-size: 0.8rem; font-weight: 600; color: #1B2A4A;
@@ -92,6 +135,7 @@ body {
 .topbar-user-info .role-badge {
     font-size: 0.65rem; padding: 0.15rem 0.5rem;
     background: #dbeafe; color: #1e40af; border-radius: 9999px;
+    white-space: nowrap; flex: 0 0 auto;
 }
 
 /* ── Content area ────────────────────────────────── */
@@ -313,13 +357,18 @@ body {
 .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 
-.status-badge { display: inline-flex; align-items: center; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
-.status-pending  { background: #fef3c7; color: #92400e; }
-.status-approved { background: #dcfce7; color: #166534; }
-.status-rejected { background: #fee2e2; color: #991b1b; }
-.status-active   { background: #dcfce7; color: #166534; }
-.status-locked   { background: #fef3c7; color: #92400e; }
-.status-inactive { background: #f1f5f9; color: #64748b; }
+/* Status badges deliberately do NOT live here.
+   The former .status-badge / .status-pending / .status-approved /
+   .status-rejected / .status-active / .status-locked / .status-inactive
+   rules were a second, pastel badge family that competed with
+   assets/css/badges.css (solid fill + white text, matching
+   docs/03_Solution/ui/mockups/status_badge_preview.html). They were removed
+   so there is exactly one badge system. Use:
+     <span class="badge badge-account-*">   user_account.account_status
+     <span class="badge badge-claim-*">     registration_claim.claim_status
+     <span class="badge badge-status-*">    master_data STATUS lifecycle
+   via NSS.accountBadgeClass() / NSS.claimBadgeClass() /
+   NSS.statusBadgeClass(). Do not reintroduce badge rules in this file. */
 
 /* ── Inactive row treatment ─────────────────────── */
 tr.row-inactive { opacity: 0.55; }
@@ -334,6 +383,35 @@ tr.row-inactive:hover { opacity: 0.75; }
 
 /* ── Count badge ─────────────────────────────────── */
 .count-badge { background: #C8960C; color: #fff; font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 9999px; margin-left: 0.35rem; }
+
+/* ── Org switcher (org-dashboard tab) ─────────────────
+   Shown only when the signed-in admin's scope covers more than one
+   organization of the tier currently on screen. Deliberately understated —
+   it is a context control above the dashboard heading, not a form field. */
+.org-switcher {
+    display: flex; align-items: center; gap: 0.5rem;
+    flex-wrap: wrap; margin-bottom: 1rem;
+}
+.org-switcher-label {
+    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase; color: #64748b;
+}
+.org-switcher-select {
+    font-size: 0.875rem; font-weight: 600; color: #1B2A4A;
+    background: #fff; border: 1px solid #cbd5e1; border-radius: 0.5rem;
+    padding: 0.4rem 0.6rem; max-width: 22rem; cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.org-switcher-select:hover { border-color: #0D7377; }
+.org-switcher-select:focus {
+    outline: none; border-color: #0D7377;
+    box-shadow: 0 0 0 3px rgba(13, 115, 119, 0.15);
+}
+.org-switcher-count { font-size: 0.72rem; color: #94a3b8; }
+
+@media (max-width: 480px) {
+    .org-switcher-select { max-width: 100%; width: 100%; }
+}
 
 @media (max-width: 768px) {
     .detail-grid { grid-template-columns: 1fr; }
@@ -412,7 +490,13 @@ tr.row-inactive:hover { opacity: 0.75; }
 /* ── Sidebar overlay (mobile) ────────────────────── */
 .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 25; }
 @media (max-width: 768px) {
-    .sidebar { transform: translateX(-100%); }
+    .sidebar {
+        transform: translateX(-100%);
+        /* Cap width on narrow phones so the drawer never spans the full
+           screen — always leaves a visible strip of the dimmed backdrop
+           (and its click-to-close target) even at 320px wide. */
+        width: min(260px, 85vw);
+    }
     .sidebar.open { transform: translateX(0); }
     .sidebar-overlay.open { display: block; }
     .main-content { margin-left: 0; }

@@ -91,13 +91,31 @@ const NSS = {
         OTHER:  "badge-gender-other",
     },
 
+    // user_account.account_status — a separate domain from the STATUS
+    // master_data category, so it has its own badge prefix. Values are the
+    // full set allowed by chk_user_account_status.
+    ACCOUNT_BADGE_MAP: {
+        ACTIVE:           "badge-account-active",
+        LOCKED:           "badge-account-locked",
+        INACTIVE:         "badge-account-inactive",
+        PENDING_APPROVAL: "badge-account-pending-approval",
+    },
+
+    // registration_claim.claim_status — full set per
+    // chk_registration_claim_status.
+    CLAIM_BADGE_MAP: {
+        PENDING:  "badge-claim-pending",
+        APPROVED: "badge-claim-approved",
+        REJECTED: "badge-claim-rejected",
+    },
+
     /**
      * Lifecycle status → badge CSS class.
      * @param {string} code - status value_code
      * @returns {string} CSS class
      */
     statusBadgeClass(code) {
-        return this.STATUS_BADGE_MAP[code] || "badge-ghost";
+        return this.STATUS_BADGE_MAP[code] || "badge-muted";
     },
 
     /**
@@ -106,7 +124,7 @@ const NSS = {
      * @returns {string} CSS class
      */
     typeBadgeClass(code) {
-        return this.TYPE_BADGE_MAP[code] || "badge-ghost";
+        return this.TYPE_BADGE_MAP[code] || "badge-muted";
     },
 
     /**
@@ -115,7 +133,7 @@ const NSS = {
      * @returns {string} CSS class
      */
     affBadgeClass(status) {
-        return this.AFF_BADGE_MAP[status] || "badge-ghost";
+        return this.AFF_BADGE_MAP[status] || "badge-muted";
     },
 
     /**
@@ -124,7 +142,25 @@ const NSS = {
      * @returns {string} CSS class
      */
     genderBadgeClass(code) {
-        return this.GENDER_BADGE_MAP[code] || "badge-ghost";
+        return this.GENDER_BADGE_MAP[code] || "badge-muted";
+    },
+
+    /**
+     * User account status → badge CSS class.
+     * @param {string} status - user_account.account_status
+     * @returns {string} CSS class
+     */
+    accountBadgeClass(status) {
+        return this.ACCOUNT_BADGE_MAP[status] || "badge-muted";
+    },
+
+    /**
+     * Registration claim status → badge CSS class.
+     * @param {string} status - registration_claim.claim_status
+     * @returns {string} CSS class
+     */
+    claimBadgeClass(status) {
+        return this.CLAIM_BADGE_MAP[status] || "badge-muted";
     },
 
     /* ── Document visibility rules ──────────────────────────────
@@ -331,6 +367,84 @@ const NSS = {
     formatPhone(code, number) {
         if (!number) return "";
         return code ? `${code} ${number}` : number;
+    },
+
+    /* ── Country-wise mobile rules ──────────────────────────────
+     * MIRRORS api/helpers.py COUNTRY_PHONE_RULES. Keep the two in
+     * sync — there is no build step sharing one source across
+     * Python and the browser. Keyed by dial code (country_phone_code).
+     * Unknown codes fall back to a permissive 7–15 digit range.
+     * Authority: MBR-CONTACT-01.
+     */
+    COUNTRY_PHONE_RULES: {
+        "+91":  { name: "India",        min: 10, max: 10, pattern: /^[6-9]\d{9}$/, hint: "10 digits, starting 6–9" },
+        "+1":   { name: "US/Canada",    min: 10, max: 10, pattern: /^[2-9]\d{9}$/, hint: "10 digits" },
+        "+44":  { name: "UK",           min: 10, max: 10, hint: "10 digits" },
+        "+971": { name: "UAE",          min: 9,  max: 9,  hint: "9 digits" },
+        "+65":  { name: "Singapore",    min: 8,  max: 8,  pattern: /^[689]\d{7}$/, hint: "8 digits" },
+        "+61":  { name: "Australia",    min: 9,  max: 9,  hint: "9 digits" },
+        "+966": { name: "Saudi Arabia", min: 9,  max: 9,  hint: "9 digits" },
+        "+974": { name: "Qatar",        min: 8,  max: 8,  hint: "8 digits" },
+        "+973": { name: "Bahrain",      min: 8,  max: 8,  hint: "8 digits" },
+        "+968": { name: "Oman",         min: 8,  max: 8,  hint: "8 digits" },
+        "+60":  { name: "Malaysia",     min: 9,  max: 10, hint: "9–10 digits" },
+        "+49":  { name: "Germany",      min: 10, max: 11, hint: "10–11 digits" },
+        "+33":  { name: "France",       min: 9,  max: 9,  hint: "9 digits" },
+        "+81":  { name: "Japan",        min: 10, max: 10, hint: "10 digits" },
+        "+86":  { name: "China",        min: 11, max: 11, hint: "11 digits" },
+        "+880": { name: "Bangladesh",   min: 10, max: 10, hint: "10 digits" },
+        "+977": { name: "Nepal",        min: 10, max: 10, hint: "10 digits" },
+        "+94":  { name: "Sri Lanka",    min: 9,  max: 9,  hint: "9 digits" },
+        "+975": { name: "Bhutan",       min: 8,  max: 8,  hint: "8 digits" },
+    },
+    DEFAULT_PHONE_RULE: { name: null, min: 7, max: 15, hint: "7–15 digits" },
+    COUNTRY_PHONE_CODE_PATTERN: /^\+[0-9]{1,4}$/,
+    EMAIL_PATTERN: /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/,
+
+    /**
+     * Validate a mobile number against its country's rule (MBR-CONTACT-01).
+     * No-op when no number is supplied. Returns an error string on an
+     * invalid value, or "" when valid.
+     * @param {string} code - country_phone_code (e.g. "+91")
+     * @param {string} number - national mobile number (digits only)
+     * @returns {string} error message, or "" if valid
+     */
+    validateMobile(code, number) {
+        if (!number) return "";
+        if (!code) return "A country phone code (e.g. +91) is required with a mobile number.";
+        if (!this.COUNTRY_PHONE_CODE_PATTERN.test(code))
+            return `Country phone code "${code}" is invalid — expected a form like +91.`;
+        if (!/^[0-9]+$/.test(number))
+            return "Mobile number must contain digits only (no spaces, dashes, or country code).";
+        const rule = this.COUNTRY_PHONE_RULES[code] || this.DEFAULT_PHONE_RULE;
+        const label = rule.name || "This";
+        const n = number.length;
+        if (n < rule.min || n > rule.max)
+            return `${label} (${code}) mobile number must be ${rule.hint} — got ${n} digits.`;
+        if (rule.pattern && !rule.pattern.test(number))
+            return `"${number}" is not a valid ${label} (${code}) mobile number — expected ${rule.hint}.`;
+        return "";
+    },
+
+    /**
+     * Validate email format (MBR-CONTACT-02). No-op when empty.
+     * @param {string} email
+     * @returns {string} error message, or "" if valid
+     */
+    validateEmail(email) {
+        if (!email) return "";
+        if (email.length > 254 || !this.EMAIL_PATTERN.test(email))
+            return `"${email}" is not a valid email address.`;
+        return "";
+    },
+
+    /**
+     * Hint string for a dial code's expected mobile length (for placeholders).
+     * @param {string} code - country_phone_code
+     * @returns {string}
+     */
+    mobileHint(code) {
+        return (this.COUNTRY_PHONE_RULES[code] || this.DEFAULT_PHONE_RULE).hint;
     },
 
     /**

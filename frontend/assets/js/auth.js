@@ -136,14 +136,21 @@ const NSSAuth = {
             headers["Content-Type"] = "application/json";
         }
 
-        const res = await fetch(url, { ...opts, headers });
+        // `cache: "no-store"` is listed first so an explicit opts.cache can
+        // still override it. The API already sends Cache-Control: no-store
+        // (api/middleware.py), but that only governs a response the browser
+        // has already fetched — it does not stop the browser reusing a
+        // previously cached one, or a bfcache restore replaying stale JSON.
+        // Every call here is authenticated, per-user, scope-filtered data
+        // where showing a stale copy is a correctness bug, not a perf win.
+        const res = await fetch(url, { cache: "no-store", ...opts, headers });
 
         // If 401, try one refresh cycle
         if (res.status === 401) {
             const refreshed = await this.refreshAccessToken();
             if (refreshed) {
                 headers.Authorization = `Bearer ${this.getAccessToken()}`;
-                return fetch(url, { ...opts, headers });
+                return fetch(url, { cache: "no-store", ...opts, headers });
             }
             this.logout();
             throw new Error("Session expired. Please log in again.");
