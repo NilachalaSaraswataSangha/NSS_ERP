@@ -159,15 +159,16 @@ api/
 │   ├── bootstrap.py     4 endpoints under /api/v1/bootstrap — no auth, no ORM, raw
 │   │                    parameterized SQL against nss.role_master/permission_master/
 │   │                    role_permission
-│   ├── foundation.py    23 endpoints under /api/v1/foundation across 11 tables — 17 reads
+│   ├── foundation.py    28 endpoints under /api/v1/foundation — 20 reads
 │   │                    (master data, system config, geography, runtime document metadata,
-│   │                    see below) plus 6 Tier 5 write endpoints (`POST`/`PATCH` on
-│   │                    `/master-data`, `/settings`, `/sequences`). Reads gated by
+│   │                    see below) plus 8 Tier 5 write endpoints (`POST`/`PATCH` on
+│   │                    `/master-data`, `/settings`, `/sequences`, `/festival-calendar-dates`). Reads gated by
 │   │                    `require_permission("FOUNDATION_VIEW")`, writes by
-│   │                    `require_permission("FOUNDATION_MANAGE")` on the Tier 5 branch. Also
+│   │                    `require_permission("FOUNDATION_MANAGE")` (festival-calendar writes:
+│   │                    `FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only) on the Tier 5 branch. Also
 │   │                    exports `fetch_countries()`/`fetch_states()`/`fetch_districts()`/
 │   │                    `fetch_postal_codes()`/`fetch_master_data()`, reused by `registration.py`
-│   ├── organization.py  8 endpoints under /api/v1/organization across 3 tables — reference
+│   ├── organization.py  11 endpoints under /api/v1/organization across 3 tables — reference
 │   │                    data (types, statuses), core organizations (list/detail/children — the
 │   │                    list query is a shared `fetch_organizations()` function, also called by
 │   │                    `registration.py`'s public reference-data endpoints), children-stats
@@ -176,11 +177,15 @@ api/
 │   │                    the requested org, 403s outside the caller's own admin scope via
 │   │                    `require_org_in_scope`, backs the Org Dashboard tab), and a
 │   │                    self-referencing hierarchy tree via `WITH RECURSIVE` (depth guard at 10).
-│   │                    All gated by `require_permission("ORGANIZATION_VIEW")`
-│   ├── person.py        4 endpoints under /api/v1/person across 2 tables — person list
+│   │                    `/organizations/{pk}/wings` + `/wings/{wing_type_code}/members`
+│   │                    (wing-body summary/roster). All gated by `require_permission("ORGANIZATION_VIEW")`
+│   │                    except `/organizations/selectable` (member-facing dropdown lookup;
+│   │                    `get_current_user` only)
+│   ├── person.py        5 endpoints under /api/v1/person across 2 tables — person list
 │   │                    (with gender/marital-status/blood-group filters + pagination) and
 │   │                    trigram-based (`pg_trgm`) search, both gated by
-│   │                    `require_permission("PERSON_VIEW")`; person detail and person addresses
+│   │                    `require_permission("PERSON_VIEW")`; `/search-selectable` (same search,
+│   │                    `get_current_user` only, for the family-head add-member picker); person detail and person addresses
 │   │                    use an ownership model instead (`get_current_user` +
 │   │                    `require_self_or_permission()` — `PERSON_VIEW` holder or the person
 │   │                    themself)
@@ -221,10 +226,10 @@ api/
 │   │                    (re-parenting, backs the "Assign Sakhas" admin tab). Module-level
 │   │                    `_ALLOWED_PARENT_TYPES`/`_NO_ADDRESS_TYPES`/`_SAKHA_GATED_TYPES`
 │   │                    constants are shared by create/update rather than re-defined per function
-│   ├── registration.py  Tier 5 (in progress) — 6 endpoints under /api/v1/register: `POST ""`
-│   │                    self-registration, `GET /check-duplicate`, plus 4 public,
-│   │                    unauthenticated reference-data endpoints (`/reference-data`, `/states`,
-│   │                    `/districts`, `/postal-codes`) that thinly wrap `foundation.py`'s/
+│   ├── registration.py  Tier 5 (in progress) — 9 endpoints under /api/v1/register: `POST ""`
+│   │                    self-registration, `GET /check-duplicate`, plus 7 public,
+│   │                    unauthenticated reference-data endpoints (`/reference-data`, `/countries`,
+│   │                    `/states`, `/districts`, `/cities`, `/postal-codes`, `/sakhas`) that thinly wrap `foundation.py`'s/
 │   │                    `organization.py`'s own shared query functions — fixes a regression where
 │   │                    Tier 5's permission gating had silently emptied every dropdown on the
 │   ��                    public registration page
@@ -457,21 +462,22 @@ not to enforce RBAC.
 
 ## Endpoints (Tier 1)
 
-23 endpoints under `/api/v1/foundation`, across 11 tables — no ORM, raw
-parameterized SQL. 17 reads **gated by `require_permission("FOUNDATION_VIEW")` on the Tier 5
-branch** (read-only/no-auth through Tier 4); 6 new write endpoints (below) gated by
-`require_permission("FOUNDATION_MANAGE")` instead. Grouped by theme:
+28 endpoints under `/api/v1/foundation`, — no ORM, raw
+parameterized SQL. 20 reads **gated by `require_permission("FOUNDATION_VIEW")` on the Tier 5
+branch** (read-only/no-auth through Tier 4); 8 write endpoints (below) gated by
+`require_permission("FOUNDATION_MANAGE")` (festival-calendar writes: `FOUNDATION_CALENDAR_MANAGE`) instead. Grouped by theme:
 
 | Group | Endpoints |
 |-------|-----------|
 | Master data | `/categories`, `/categories/{pk}`, `/master-data` (filter by `category_code`/`category_pk`; `GET`+`POST`), `/master-data/{pk}` (`GET`+`PATCH`) |
 | System config | `/settings` (`GET`+`POST`), `/settings/{setting_key}` (`GET`+`PATCH`), `/sequences` (`GET`+`POST`, excludes `current_value`), `/sequences/{sequence_code}` (`PATCH`) |
-| Geographic | `/countries`, `/countries/{pk}`, `/states`, `/states/{pk}`, `/districts`, `/districts/{pk}`, `/cities`, `/postal-codes`, `/postal-code-mappings` |
+| Geographic | `/countries`, `/countries/{pk}`, `/states`, `/states/{pk}`, `/districts`, `/districts/{pk}`, `/cities`, `/postal-codes`, `/postal-code-mappings`, `/sakha-postal-codes` |
 | Runtime | `/documents` |
+| Festival calendar | `/festivals`, `/festival-calendar-dates` (`GET`+`POST`), `/festival-calendar-dates/{pk}` (`PATCH`) |
 
-The 6 `POST`/`PATCH` endpoints above are new (Tier 5, in progress, uncommitted) —
+The 8 `POST`/`PATCH` endpoints above are new (Tier 5, in progress, uncommitted) —
 `create_master_data`/`update_master_data`, `create_setting`/`update_setting`,
-`create_sequence`/`update_sequence` — each writes via `get_write_connection` and logs through
+`create_sequence`/`update_sequence`, `create_festival_calendar_date`/`update_festival_calendar_date` — each writes via `get_write_connection` and logs through
 `log_audit()`.
 
 `nss.field_change_log` is deliberately not exposed here — it is reachable only through the
@@ -485,7 +491,7 @@ tests (`tests/api/test_foundation.py`; some of the original 59 were extracted in
 
 ## Endpoints (Tier 2)
 
-8 endpoints under `/api/v1/organization` — no ORM,
+11 endpoints under `/api/v1/organization` (table below lists the original 8; `/organizations/selectable`, `/organizations/{pk}/wings`, `/organizations/{pk}/wings/{wing_type_code}/members` are documented in API_CONTRACT.md) — no ORM,
 parameterized SQL. **Gated by `require_permission("ORGANIZATION_VIEW")` on the Tier 5 branch**
 (read-only/no-auth through Tier 4). Organization type values come from Foundation `master_data`
 (category `ORGANIZATION_TYPE`). Status values come from the unified ERP-wide
@@ -513,7 +519,7 @@ integration tests (`tests/api/test_organization.py`; some of the original 72 wer
 
 ## Endpoints (Tier 3)
 
-4 endpoints under `/api/v1/person` — no ORM, raw parameterized SQL. **Gated on the Tier 5
+5 endpoints under `/api/v1/person` (plus `/search-selectable`, see API_CONTRACT.md) — no ORM, raw parameterized SQL. **Gated on the Tier 5
 branch** (read-only/no-auth through Tier 4): `/persons` and `/search` by
 `require_permission("PERSON_VIEW")`; `/persons/{person_pk}` and
 `/persons/{person_pk}/addresses` by `get_current_user` + `require_self_or_permission()` (a

@@ -1017,7 +1017,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -2025,7 +2027,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -3033,7 +3037,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -4041,7 +4047,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -5049,7 +5057,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -6057,7 +6067,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -7065,7 +7077,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -8073,7 +8087,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -9081,7 +9097,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -10089,7 +10107,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -11097,7 +11117,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -12105,7 +12127,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -13113,7 +13137,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -14121,7 +14147,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -15129,7 +15157,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -16137,7 +16167,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -17145,7 +17177,9 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 INSERT INTO nss.postal_code (state_pk, postal_code)
 SELECT s.state_pk, v.pin
@@ -18022,6 +18056,8 @@ FROM (VALUES
 ) AS v(pin, scode)
 JOIN nss.state s ON s.state_code = v.scode
 JOIN nss.country c ON c.country_pk = s.country_pk AND c.country_code = 'IN'
-ON CONFLICT (postal_code) DO NOTHING;
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO NOTHING;
 
 -- END OF DOCUMENT

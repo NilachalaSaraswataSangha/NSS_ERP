@@ -42,11 +42,11 @@ from pydantic import BaseModel, Field
 
 from api.config import settings
 from api.database import get_connection, get_write_connection
-from api.helpers import log_audit, next_id, resolve_or_create_city_village, resolve_or_create_postal_code, check_duplicate_contact, record_password_history, require_sakha_organization, validate_mobile, validate_email
+from api.helpers import log_audit, next_id, resolve_or_create_city_village, resolve_or_create_postal_code, resolve_or_create_post_office, check_duplicate_contact, record_password_history, require_sakha_organization, validate_mobile, validate_email, get_master_data_pk
 from api.services.auth_service import hash_password, validate_password_policy
-from api.routers.foundation import fetch_countries, fetch_states, fetch_districts, fetch_cities, fetch_postal_codes, fetch_master_data
+from api.routers.foundation import fetch_countries, fetch_states, fetch_districts, fetch_cities, fetch_postal_codes, fetch_post_offices, fetch_master_data
 from api.routers.organization import fetch_organizations
-from api.schemas.foundation import CountryResponse, StateResponse, DistrictResponse, CityVillageResponse, PostalCodeResponse, MasterDataResponse
+from api.schemas.foundation import CountryResponse, StateResponse, DistrictResponse, CityVillageResponse, PostalCodeResponse, PostOfficeResponse, MasterDataResponse
 from api.schemas.organization import OrganizationResponse
 
 router = APIRouter(prefix="/api/v1/register", tags=["registration"])
@@ -77,26 +77,47 @@ class RegisterRequest(BaseModel):
     mobile_number: str | None = Field(None, max_length=20)
     email: str | None = Field(None, max_length=255)
 
-    # Address (optional)
-    country_pk: str | None = Field(
-        None, description="UUID of country",
+    # Address — MANDATORY (user decision, 2026-10-03). Previously optional
+    # and, worse, never actually persisted to nss.person_address (only the
+    # geography columns on nss.person were written) — the Address card on
+    # the member dashboard was permanently empty regardless of what a
+    # registrant typed here. Both gaps are fixed together: these fields are
+    # now required, and register() below writes a person_address row.
+    country_pk: str = Field(
+        ..., description="UUID of country",
     )
-    state_pk: str | None = Field(
-        None, description="UUID of state",
+    state_pk: str = Field(
+        ..., description="UUID of state",
     )
-    district_pk: str | None = Field(
-        None, description="UUID of district",
+    district_pk: str = Field(
+        ..., description="UUID of district",
     )
-    city_village_name: str | None = Field(
-        None, max_length=200,
+    city_village_name: str = Field(
+        ..., max_length=200,
         description="City/village name — lookup/create against Foundation table",
     )
     postal_code_pk: str | None = Field(
         None, description="UUID of postal_code (deprecated — use postal_code_value)",
     )
-    postal_code_value: str | None = Field(
-        None, max_length=20,
+    postal_code_value: str = Field(
+        ..., max_length=20,
         description="PIN code as text — lookup/create against Foundation table",
+    )
+    post_office_name: str | None = Field(
+        None, max_length=150,
+        description="Post office name, optional — lookup/create against Foundation table, scoped to the resolved PIN",
+    )
+    address_line_1: str = Field(
+        ..., min_length=1, max_length=255,
+        description="Full address line 1 (house/street) — stored on person_address",
+    )
+    address_line_2: str | None = Field(
+        None, max_length=255,
+        description="Full address line 2, optional",
+    )
+    landmark: str | None = Field(
+        None, max_length=255,
+        description="Nearby landmark, optional",
     )
 
     # Membership claim (optional — "Not Applicable" toggle)
@@ -311,6 +332,22 @@ def get_register_postal_codes(
         return fetch_postal_codes(cur, state_pk, country_pk)
 
 
+@router.get("/post-offices", response_model=list[PostOfficeResponse])
+def get_register_post_offices(
+    postal_code_pk: UUID = Query(..., description="PIN whose post offices to list"),
+    conn=Depends(get_connection),
+) -> list[PostOfficeResponse]:
+    """
+    Public post-offices lookup for the registration page's location
+    cascade — offered as suggestions alongside the Post Office field, not
+    a hard-restricted list: resolve_or_create_post_office() creates a new
+    row on the fly for a name typed that isn't on file (same pattern as
+    cities/postal codes above).
+    """
+    with conn.cursor() as cur:
+        return fetch_post_offices(cur, postal_code_pk)
+
+
 @router.get("/sakhas", response_model=list[OrganizationResponse])
 def get_register_sakhas(
     country_pk: UUID | None = Query(None, description="Filter by country"),
@@ -395,6 +432,28 @@ def register(
                 detail="darshak_local_sakha_number is required when is_attending_as_darshak is True.",
             )
 
+    # ── 3c. Validate address fields (user decision, 2026-10-03) ─────────
+    # Pydantic's `...` only guards presence/type, not a blank string — a UI
+    # bug or a bare {"country_pk": ""} would otherwise sail through.
+    missing_address = []
+    if not body.country_pk or not body.country_pk.strip():
+        missing_address.append("country_pk")
+    if not body.state_pk or not body.state_pk.strip():
+        missing_address.append("state_pk")
+    if not body.district_pk or not body.district_pk.strip():
+        missing_address.append("district_pk")
+    if not body.city_village_name or not body.city_village_name.strip():
+        missing_address.append("city_village_name")
+    if not body.postal_code_value or not body.postal_code_value.strip():
+        missing_address.append("postal_code_value")
+    if not body.address_line_1 or not body.address_line_1.strip():
+        missing_address.append("address_line_1")
+    if missing_address:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Address fields required: {', '.join(missing_address)}",
+        )
+
     with conn.cursor() as cur:
 
         # ── 4. Check duplicate mobile + email ──────────────────────────
@@ -440,6 +499,17 @@ def register(
             if pc_val:
                 resolved_postal_code_pk = resolve_or_create_postal_code(
                     cur, pc_val, body.state_pk, body.country_pk,
+                )
+
+        # ── 6c. Resolve post_office_name → post_office_pk (optional) ───
+        # Scoped to the resolved PIN — a post office cannot exist without
+        # one, so this is skipped entirely until postal_code_pk resolves.
+        resolved_post_office_pk = None
+        if body.post_office_name and resolved_postal_code_pk:
+            po_name = body.post_office_name.strip()
+            if po_name:
+                resolved_post_office_pk = resolve_or_create_post_office(
+                    cur, po_name, resolved_postal_code_pk,
                 )
 
         # ── 7. Insert person ────────────────────────────────────────────
@@ -493,6 +563,52 @@ def register(
             record_pk=str(person_pk),
             module="registration",
             summary=f"Self-registered person {body.first_name} {body.last_name}",
+        )
+
+        # ── 7b. Create the person_address row (user decision, 2026-10-03) ──
+        # The geography picked above (country/state/district/city/PIN) is
+        # stored on person for cascade/lookup purposes, but the FULL postal
+        # address — what actually goes on an envelope — lives on a separate
+        # person_address row, which nothing wrote until now (the Address
+        # card on the dashboard was always empty). address_type defaults to
+        # PERMANENT: registration asks for exactly one address.
+        permanent_address_type_pk = get_master_data_pk(
+            cur, "ADDRESS_TYPE", "PERMANENT",
+        )
+        cur.execute(
+            """
+            INSERT INTO nss.person_address (
+                person_pk,
+                address_type_master_data_pk,
+                address_line_1,
+                address_line_2,
+                landmark,
+                city_village_pk,
+                postal_code_pk,
+                post_office_pk,
+                is_primary
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+            RETURNING person_address_pk
+            """,
+            (
+                str(person_pk),
+                permanent_address_type_pk,
+                body.address_line_1.strip(),
+                body.address_line_2.strip() if body.address_line_2 else None,
+                body.landmark.strip() if body.landmark else None,
+                city_village_pk,
+                resolved_postal_code_pk,
+                resolved_post_office_pk,
+            ),
+        )
+        person_address_pk = cur.fetchone()[0]
+        log_audit(
+            cur,
+            action="CREATE",
+            table_name="person_address",
+            record_pk=str(person_address_pk),
+            module="registration",
+            summary=f"Recorded permanent address for {body.first_name} {body.last_name}",
         )
 
         # ── 8. Create user_account (PENDING_APPROVAL) ──────────────────

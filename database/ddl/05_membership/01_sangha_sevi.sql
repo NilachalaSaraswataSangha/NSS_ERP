@@ -5,10 +5,19 @@
 -- Table: nss.sangha_sevi
 -- Depth: 2 (depends on person, master_data,
 --         organization)
--- Version: 1.1
+-- Version: 1.2
 -- Authority: SOL-MEM-005 §4–§5, SOL-MEM-003
---            MBR-001, MBR-002, MBR-003, MBR-038A
+--            MBR-001, MBR-002, MBR-003, MBR-038A,
+--            MBR-047
 -- Owner: NSS_ERP_ADMIN
+-- v1.2 (2026-10-03): joining_date relaxed to NULL
+--       (MBR-047 — "Sangha Joining Date" is optional
+--       to capture; many legacy and newly-registered
+--       members genuinely do not know the date they
+--       joined. A NULL means "not recorded", NOT
+--       "joined today" — never substitute a default.
+--       UI hides the field entirely when NULL (user,
+--       2026-10-03).
 -- v1.1 (2026-09-26): added is_system_account +
 --       uq_sangha_sevi_system_account partial unique index
 --       (MBR-038A — Sakha-only membership, single system-
@@ -58,7 +67,10 @@ CREATE TABLE IF NOT EXISTS nss.sangha_sevi
 
     -- ── Dates ───────────────────────────────────────────
 
-    joining_date DATE NOT NULL,
+    -- MBR-047: optional. NULL = "joining date not
+    -- recorded" (unknown), which is a distinct and valid
+    -- state — do not coalesce it to a default date.
+    joining_date DATE NULL,
 
     renewal_due_date DATE NULL,
 
@@ -132,6 +144,7 @@ CREATE TABLE IF NOT EXISTS nss.sangha_sevi
         CHECK
         (
             renewal_due_date IS NULL
+            OR joining_date IS NULL
             OR renewal_due_date >= joining_date
         )
 );
@@ -157,7 +170,8 @@ CREATE INDEX IF NOT EXISTS idx_sangha_sevi_is_active
     ON nss.sangha_sevi (is_active);
 
 CREATE INDEX IF NOT EXISTS idx_sangha_sevi_joining_date
-    ON nss.sangha_sevi (joining_date);
+    ON nss.sangha_sevi (joining_date)
+    WHERE joining_date IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_sangha_sevi_renewal_due
     ON nss.sangha_sevi (renewal_due_date)

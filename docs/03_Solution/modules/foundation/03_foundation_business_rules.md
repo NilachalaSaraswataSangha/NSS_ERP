@@ -777,6 +777,13 @@ A UI requirement alone shall not justify creating a new master category.
 
 The underlying business requirement must be established first.
 
+> **Amendment (2026-10-03, SOL-ARCH-010):** This rule continues to hold for
+> *canonical* master values. The member-assisted geographic entry flow
+> (FND-BR-085 — FND-BR-090) does **not** violate it: a value typed by a
+> member is quarantined as PENDING and never becomes a canonical, shared
+> master value until an administrator approves or corrects it. Admin approval
+> is the governance gate — the UI only *proposes*, it does not *create*.
+
 ---
 
 ## FND-BR-058 — Master Catalogue Authority
@@ -1110,7 +1117,138 @@ source takes precedence over informal implementation assumptions.
 
 ---
 
-# 41. Rule Summary
+# 41. Member-Assisted Geographic Entry (SOL-ARCH-010 Amendment, 2026-10-03)
+
+This section governs how members may contribute new geographic reference
+values (district, PIN code, post office, city/village) from the address-entry
+UI without being blocked when their locality is not yet on file, while keeping
+the canonical reference set clean and administrator-controlled.
+
+## FND-BR-085 — Fixed vs. Writable Geographic Levels
+
+**Status:** FROZEN
+**Source:** ERP-DESIGN (decision 2026-10-03)
+
+In the member address-entry UI, geographic levels are either fixed or
+member-writable:
+
+    Country        — FIXED (closed dropdown; India default)
+    State          — FIXED (closed dropdown; seeded set only)
+    District       — WRITABLE (pick, or type a new value)
+    PIN code       — WRITABLE
+    Post office    — WRITABLE
+    City/Village   — WRITABLE
+
+Country and State offer no "type a new value" path — the seeded set is
+complete and must not drift. The four writable levels present a combobox:
+the member may filter and pick an existing value, or, if none matches, keep
+the value they typed.
+
+---
+
+## FND-BR-086 — Quarantine of Member-Submitted Geography
+
+**Status:** FROZEN
+**Source:** ERP-DESIGN (decision 2026-10-03)
+
+A value a member types at a writable level is accepted onto their own address
+immediately (the member is never blocked), but is recorded in the reference
+table with `entry_status = 'PENDING'`.
+
+A PENDING row:
+
+    - is visible to its submitter and in the administrator approval queue,
+    - is NOT offered in the shared dropdown to any other member,
+    - carries the submitting member and their Sakha scope for review routing.
+
+Officially seeded (India Post) reference rows carry `entry_status = 'APPROVED'`
+from the outset. This preserves FND-BR-057: no canonical shared value is
+created directly from the UI.
+
+---
+
+## FND-BR-087 — Approve or Correct, Never Reject
+
+**Status:** FROZEN
+**Source:** ERP-DESIGN (decision 2026-10-03)
+
+An administrator resolves a PENDING geographic entry with exactly one of two
+outcomes — there is no "reject" outcome:
+
+    APPROVE   — the typed value is correct as-is. entry_status becomes
+                'APPROVED' and the value joins the shared dropdown.
+
+    CORRECT   — the typed value is wrong (typo, duplicate, misfiled). The
+                administrator MUST supply the correct canonical value. The
+                PENDING row's entry_status becomes 'CORRECTED' and records
+                the canonical row it was merged into; every member address
+                that pointed at the corrected row is re-pointed to the
+                canonical row automatically.
+
+A correction may never be a blanket discard: the administrator cannot retire a
+member's entry without providing the proper value in its place. No member
+address is ever left pointing at a non-existent or blank location.
+
+---
+
+## FND-BR-088 — Scope-Based Geographic Approval Authority
+
+**Status:** FROZEN
+**Source:** ERP-DESIGN (decision 2026-10-03)
+
+Approving or correcting PENDING geographic entries requires the
+`FOUNDATION_MANAGE` permission, further constrained by scope:
+
+    - A scoped (e.g. Sakha-level) administrator may resolve only entries
+      submitted by members within their own organizational scope — because
+      the local administrator is the one who actually knows local place
+      names.
+
+    - A Kendra-level administrator or the system administrator (NSS-WIDE
+      scope) may resolve any entry anywhere.
+
+No new permission is introduced; geographic reference data already falls under
+`FOUNDATION_MANAGE` (ADMIN + KENDRA roles). Scope is evaluated against the
+submitting member's Sakha, mirroring the organization-scope filtering already
+used by the registration-claim approval queue.
+
+---
+
+## FND-BR-089 — Post Office Reinstated as a Writable Level
+
+**Status:** FROZEN
+**Source:** ERP-DESIGN (decision 2026-10-03)
+
+The post office level, retired under the Simplified Geography Model
+(2026-10-02), is reinstated as a `nss.post_office` reference table so members
+can select and contribute post office names. A post office belongs to a PIN
+code (one PIN code may have many post offices). This amendment knowingly
+reverses the earlier retirement for post office only; PIN-level and
+village-level simplifications otherwise stand.
+
+---
+
+## FND-BR-090 — Canonical Geographic Uniqueness Among Approved Rows
+
+**Status:** FROZEN
+**Source:** ERP-DESIGN (decision 2026-10-03)
+
+Uniqueness of a geographic name/code within its parent is enforced only among
+APPROVED, active rows (via partial unique indexes), not across PENDING rows.
+
+    - district      : one approved district name per state
+    - postal_code   : one approved row per PIN code
+    - post_office   : one approved office name per PIN code
+    - city_village  : one approved locality name per parent (district / PIN)
+
+A member's PENDING value is therefore allowed to coexist temporarily with the
+approved value it may be a near-duplicate of, so the member's save never fails
+on a unique-constraint collision; the duplicate is resolved by APPROVE or
+CORRECT (FND-BR-087).
+
+---
+
+# 42. Rule Summary
 
 | Area | Status |
 |---|---|
@@ -1137,10 +1275,16 @@ source takes precedence over informal implementation assumptions.
 | Complete System Setting Catalogue | PENDING |
 | Geographic Deactivation | PENDING |
 | Geographic Merge Workflow | PENDING |
+| Fixed vs. Writable Geographic Levels | FROZEN |
+| Quarantine of Member-Submitted Geography | FROZEN |
+| Approve or Correct, Never Reject | FROZEN |
+| Scope-Based Geographic Approval | FROZEN |
+| Post Office Reinstated | FROZEN |
+| Canonical Uniqueness Among Approved Rows | FROZEN |
 
 ---
 
-# 42. Core Foundation Principle
+# 43. Core Foundation Principle
 
 The Foundation Module shall provide:
 
@@ -1153,7 +1297,7 @@ without taking ownership of business-domain rules.
 
 ---
 
-# 43. Architectural Model
+# 44. Architectural Model
 
 ```text
                     FOUNDATION
@@ -1176,12 +1320,15 @@ without taking ownership of business-domain rules.
                       ↓
                   District
                       ↓
-               City/Village
+               City/Village  ←──  PIN code  ──<  Post Office
 ```
+
+(District, PIN code, Post Office and City/Village additionally support
+member-assisted entry with administrator approval — see Section 41.)
 
 ---
 
-# 44. Source Alignment
+# 45. Source Alignment
 
 The project source establishes the Foundation as the common layer and
 identifies the eight Foundation tables:
@@ -1223,7 +1370,7 @@ as core project principles.
 
 ---
 
-# 45. Status
+# 46. Status
 
 DOCUMENT STATUS:
 
@@ -1234,8 +1381,13 @@ DRAFT — SOURCE ALIGNED
 VERSION:
 
 ```
-1.0.0
+1.1.0
 ```
+
+> **1.1.0 (2026-10-03):** Added Section 41 (Member-Assisted Geographic Entry,
+> FND-BR-085 — FND-BR-090); amended FND-BR-057 to carve out the
+> propose-then-approve path; reinstated the post office level
+> (SOL-ARCH-010 Amendment).
 
 ---
 

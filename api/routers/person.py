@@ -32,9 +32,9 @@ from api.helpers import (
     row_to_model,
     rows_to_models,
     PERSON_MASTER_DATA_JOINS_SQL,
-    require_self_or_permission,
 )
 from api.services.rbac_service import UserContext
+from api.routers.family import _shares_current_family
 from api.schemas.person import (
     PersonAddressResponse,
     PersonListResponse,
@@ -45,13 +45,24 @@ from api.schemas.person import (
 router = APIRouter(prefix="/api/v1/person", tags=["person"])
 
 
-def _require_person_view(person_pk, user: UserContext) -> None:
+def _require_person_view(conn, person_pk, user: UserContext) -> None:
     """
-    Read access to one person: an administrator holding PERSON_VIEW, or the
-    person themself (e.g. their own Member Dashboard).
+    Read access to one person: an administrator holding PERSON_VIEW, the
+    person themself (e.g. their own Member Dashboard), or a current relative
+    who shares a family with them (e.g. clicking a relative in the family
+    tree). The relative path mirrors _require_person_family_view() in
+    api/routers/family.py so person detail and family/membership context stay
+    consistent — a member who may read a relative's membership summary may
+    also open that relative's person card.
     """
-    require_self_or_permission(
-        person_pk, user.person_pk, "PERSON_VIEW", user,
+    if user.has_permission("PERSON_VIEW"):
+        return
+    if str(person_pk) == str(user.person_pk):
+        return
+    if _shares_current_family(conn, str(user.person_pk), str(person_pk)):
+        return
+    raise HTTPException(
+        status_code=403,
         detail="You do not have access to this person.",
     )
 
@@ -279,7 +290,7 @@ def get_person(
     Access: an administrator holding PERSON_VIEW, or the person themself
     (e.g. their own Member Dashboard).
     """
-    _require_person_view(person_pk, user)
+    _require_person_view(conn, person_pk, user)
     sql = _PERSON_DETAIL_SELECT + " WHERE p.person_pk = %s AND p.is_active = TRUE"
 
     with conn.cursor() as cur:
@@ -313,7 +324,7 @@ def list_person_addresses(
 
     Access: an administrator holding PERSON_VIEW, or the person themself.
     """
-    _require_person_view(person_pk, user)
+    _require_person_view(conn, person_pk, user)
     # Verify the person exists
     with conn.cursor() as cur:
         cur.execute("""

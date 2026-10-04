@@ -643,8 +643,10 @@ api/
 │   ├── bootstrap.py    4 endpoints under `/api/v1/bootstrap` — no auth, no ORM, raw
 │   │                   parameterized SQL against `nss.role_master`/`permission_master`/
 │   │                   `role_permission` (see Key workflows below)
-│   ├── foundation.py   23 endpoints under `/api/v1/foundation` across 11 tables — 17 original
-│   │                   reads plus 6 Tier 5 writes (uncommitted): master data (`/categories`,
+│   ├── foundation.py   28 endpoints under `/api/v1/foundation` — 20 reads (17 original plus
+│   │                   `/sakha-postal-codes`, `/festivals`, `/festival-calendar-dates`) and 8 Tier 5
+│   │                   writes (6 `FOUNDATION_MANAGE` plus festival-calendar `POST`/`PATCH` gated by
+│   │                   `FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only): master data (`/categories`,
 │   │                   `/master-data` — now also `POST`/`PATCH`), system config (`/settings`,
 │   │                   `/sequences` — both now also `POST`/`PATCH`),
 │   │                   geography (`/countries`→`/states`→`/districts`→`/cities`,
@@ -657,7 +659,7 @@ api/
 │   │                   `AUDIT_VIEW`-gated `audit.py` router instead; see Key workflows below and
 │   │                   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` (not yet updated for
 │   │                   the permission gate or the 6 new write endpoints)
-│   ├── organization.py 8 endpoints under `/api/v1/organization` across `nss.organization` plus
+│   ├── organization.py 11 endpoints (8 original plus `/organizations/selectable` [login-only], `/organizations/{pk}/wings`, `/wings/{wing_type_code}/members`) under `/api/v1/organization` across `nss.organization` plus
 │   │                   Foundation's `master_data` — reference (`/types`, `/statuses`, both
 │   │                   querying `master_data` filtered by `master_category.category_code`
 │   │                   `ORGANIZATION_TYPE`/`STATUS` — 13 types, incl. Tier 4's
@@ -686,7 +688,7 @@ api/
 │   │                   Key workflows below and
 │   │                   `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` (documents the
 │   │                   original 7, not yet updated for `/stats`)
-│   ├── person.py       4 endpoints under `/api/v1/person` across `nss.person` +
+│   ├── person.py       5 endpoints (incl. login-only `/search-selectable`) under `/api/v1/person` across `nss.person` +
 │   │                   `nss.person_address` plus Foundation's `master_data` — core (`/persons`
 │   │                   list with optional `gender_code`/`marital_status_code`/
 │   │                   `blood_group_code` filters + `limit`/`offset` pagination,
@@ -916,7 +918,7 @@ api/
 │   │                     `sangha_sevi` row auto-generates one from that user's most recent
 │   │                     `registration_claim` (or a hardcoded Kendra/first-membership-type
 │   │                     fallback if there's no claim)
-│   ├── registration.py   `/api/v1/register` — `POST ""` (self-registration): creates `person` +
+│   ├── registration.py   `/api/v1/register` (9 public endpoints: `POST ""`, `/check-duplicate`, `/reference-data`, and `/countries`/`/states`/`/districts`/`/cities`/`/postal-codes`/`/sakhas` lookups) — `POST ""` (self-registration): creates `person` +
 │   │                     `user_account(PENDING_APPROVAL)` + optional `registration_claim` in one
 │   │                     transaction; **no `sangha_sevi`/`membership_sakha_affiliation` row is
 │   │                     created at registration time** — those are created later, on claim
@@ -1580,7 +1582,7 @@ summarize the full sequence from a clean machine to a running API.
    through Tier 4);
    see `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` for the full catalogue (not yet updated
    for the permission gate).
-   Tier 2 endpoints — 8 endpoints under `/api/v1/organization/*` (**now gated by
+   Tier 2 endpoints — 8 original endpoints (11 today, see Architecture) under `/api/v1/organization/*` (**now gated by
    `require_permission("ORGANIZATION_VIEW")` on the Tier 5 branch**)
    (`/types`, `/statuses`, `/organizations`, `/organizations/{organization_pk}`,
    `/organizations/{organization_pk}/children`, `/organizations/{organization_pk}/children-stats`,
@@ -1588,7 +1590,7 @@ summarize the full sequence from a clean machine to a running API.
    Org Dashboard), `/hierarchy`); see
    `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` for the full catalogue (not yet updated
    for the permission gate or `/stats`).
-   Tier 3 endpoints — 4 endpoints under `/api/v1/person/*` (**`/persons` and `/search` gated by
+   Tier 3 endpoints — 4 original endpoints (5 today, incl. `/search-selectable`) under `/api/v1/person/*` (**`/persons` and `/search` gated by
    `require_permission("PERSON_VIEW")`; `/persons/{pk}` and `/persons/{pk}/addresses` use
    `get_current_user` + `require_self_or_permission()`**)
    (`/persons`, `/persons/{person_pk}`, `/persons/{person_pk}/addresses`, `/search`); see
@@ -2166,7 +2168,7 @@ fixed in v0.10.4). The performance-hardening pass on top of this release, **v0.1
 covered above — see Gotchas.
 
 ### 7. Foundation API — master data, geography, config, runtime (implemented, Tier 1)
-`api/routers/foundation.py` (~980 lines today, 23 endpoints; prefix `/api/v1/foundation`) originally exposed 17 read-only GET
+`api/routers/foundation.py` (~1340 lines today, 28 endpoints; prefix `/api/v1/foundation`) originally exposed 17 read-only GET
 endpoints across 11 of the 12 Foundation tables — the same raw-`psycopg2`/`Depends(get_connection)`
 pattern as Tier 0, plus new Tier-1 conventions (query-param filtering instead of nested paths,
 e.g. `?category_code=`/`?country_pk=`; hierarchical drill-down Country→State→District→

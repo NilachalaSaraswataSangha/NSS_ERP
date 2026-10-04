@@ -5,6 +5,12 @@
 -- Table: city_village
 -- Depth: 3 (depends on district, postal_code)
 -- Sequence: #32 of 87
+-- Version: 3.0 — SOL-ARCH-010 Amendment (Member-Assisted
+--          Geographic Entry, 2026-10-03): city_village is a
+--          member-writable level. Added the shared member-
+--          assisted columns (§16.8) and converted the three
+--          UNIQUE constraints to partial unique indexes scoped
+--          to APPROVED, active rows (FND-BR-090).
 -- Version: 2.0 — SOL-ARCH-010 Amendment (2026-10-01):
 --          simplified geographic FK model for all-India scale.
 --          district_pk is now OPTIONAL (best-effort name match;
@@ -42,6 +48,21 @@ CREATE TABLE IF NOT EXISTS nss.city_village
     display_order INTEGER NOT NULL
         DEFAULT 0,
 
+    -- ── Member-Assisted Geographic Entry (§16.8) ────────
+
+    entry_status VARCHAR(20) NOT NULL
+        DEFAULT 'APPROVED',
+
+    submitted_by_sangha_sevi_pk UUID NULL,
+
+    reviewed_by_sangha_sevi_pk UUID NULL,
+
+    reviewed_at TIMESTAMPTZ NULL,
+
+    admin_remarks TEXT NULL,
+
+    corrected_into_city_village_pk UUID NULL,
+
     created_at TIMESTAMPTZ NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
 
@@ -60,14 +81,22 @@ CREATE TABLE IF NOT EXISTS nss.city_village
         FOREIGN KEY (postal_code_pk)
         REFERENCES nss.postal_code (postal_code_pk),
 
-    CONSTRAINT uq_city_village_district_code
-        UNIQUE (district_pk, city_village_code),
+    CONSTRAINT fk_city_village_corrected_into
+        FOREIGN KEY (corrected_into_city_village_pk)
+        REFERENCES nss.city_village (city_village_pk),
 
-    CONSTRAINT uq_city_village_district_name
-        UNIQUE (district_pk, city_village_name),
+    CONSTRAINT chk_city_village_entry_status
+        CHECK (entry_status IN ('PENDING', 'APPROVED', 'CORRECTED')),
 
-    CONSTRAINT uq_city_village_postal_code_name
-        UNIQUE (postal_code_pk, city_village_name),
+    CONSTRAINT chk_city_village_correction
+        CHECK
+        (
+            (entry_status = 'CORRECTED'
+                AND corrected_into_city_village_pk IS NOT NULL)
+            OR
+            (entry_status <> 'CORRECTED'
+                AND corrected_into_city_village_pk IS NULL)
+        ),
 
     CONSTRAINT chk_city_village_type
         CHECK
@@ -98,5 +127,21 @@ CREATE INDEX IF NOT EXISTS idx_city_village_postal_code
 CREATE INDEX IF NOT EXISTS idx_city_village_active
     ON nss.city_village (is_active);
 
+CREATE INDEX IF NOT EXISTS idx_city_village_entry_status
+    ON nss.city_village (entry_status);
+
 CREATE INDEX IF NOT EXISTS idx_city_village_name
     ON nss.city_village USING gin (city_village_name gin_trgm_ops);
+
+-- ── Canonical Uniqueness Among Approved Rows (FND-BR-090) ─
+CREATE UNIQUE INDEX IF NOT EXISTS uq_city_village_district_code_approved
+    ON nss.city_village (district_pk, city_village_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_city_village_district_name_approved
+    ON nss.city_village (district_pk, city_village_name)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_city_village_postal_code_name_approved
+    ON nss.city_village (postal_code_pk, city_village_name)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE;

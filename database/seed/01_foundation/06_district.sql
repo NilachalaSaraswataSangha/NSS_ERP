@@ -20,7 +20,9 @@ CROSS JOIN (VALUES
     ('602', 'South Andamans', 3)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'AN'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -60,7 +62,9 @@ CROSS JOIN (VALUES
     ('504', 'Y.S.R. Kadapa', 28)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'AP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -99,7 +103,9 @@ CROSS JOIN (VALUES
     ('243', 'West Siang', 27)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'AR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -146,7 +152,9 @@ CROSS JOIN (VALUES
     ('710', 'West Karbi Anglong', 35)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'AS'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -196,7 +204,9 @@ CROSS JOIN (VALUES
     ('224', 'Vaishali', 38)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'BR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -241,7 +251,9 @@ CROSS JOIN (VALUES
     ('381', 'Uttar Bastar Kanker', 33)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'CG'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -254,7 +266,9 @@ CROSS JOIN (VALUES
     ('44', 'Chandigarh', 1)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'CH'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -284,7 +298,9 @@ CROSS JOIN (VALUES
     ('671', 'Shahdara', 14)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'DL'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -299,7 +315,9 @@ CROSS JOIN (VALUES
     ('464', 'Diu', 3)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'DN'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -314,7 +332,9 @@ CROSS JOIN (VALUES
     ('552', 'South Goa', 3)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'GA'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -360,7 +380,9 @@ CROSS JOIN (VALUES
     ('789', 'Vav-Tharad', 34)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'GJ'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -384,7 +406,9 @@ CROSS JOIN (VALUES
     ('26', 'Una', 12)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'HP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -419,7 +443,9 @@ CROSS JOIN (VALUES
     ('76', 'Yamunanagar', 23)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'HR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -455,7 +481,9 @@ CROSS JOIN (VALUES
     ('343', 'West Singhbhum', 24)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'JH'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -487,7 +515,9 @@ CROSS JOIN (VALUES
     ('14', 'Udhampur', 20)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'JK'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -530,7 +560,9 @@ CROSS JOIN (VALUES
     ('635', 'Yadgir', 31)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'KA'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -556,7 +588,9 @@ CROSS JOIN (VALUES
     ('567', 'Wayanad', 14)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'KL'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -570,7 +604,9 @@ CROSS JOIN (VALUES
     ('9', 'Leh Ladakh', 2)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'LA'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -583,7 +619,9 @@ CROSS JOIN (VALUES
     ('553', 'Lakshadweep District', 1)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'LD'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -631,7 +669,9 @@ CROSS JOIN (VALUES
     ('500', 'Yavatmal', 36)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'MH'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -655,7 +695,9 @@ CROSS JOIN (VALUES
     ('279', 'West Khasi Hills', 12)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'ML'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -683,7 +725,9 @@ CROSS JOIN (VALUES
     ('260', 'Ukhrul', 16)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'MN'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -750,7 +794,9 @@ CROSS JOIN (VALUES
     ('437', 'Vidisha', 55)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'MP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -773,7 +819,9 @@ CROSS JOIN (VALUES
     ('267', 'Siaha', 11)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'MZ'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -802,7 +850,9 @@ CROSS JOIN (VALUES
     ('251', 'Zunheboto', 17)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'NL'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -844,7 +894,9 @@ CROSS JOIN (VALUES
     ('373', 'Sundaragada', 30)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'OD'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -879,7 +931,9 @@ CROSS JOIN (VALUES
     ('609', 'Tarn Taran', 23)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'PB'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -893,7 +947,9 @@ CROSS JOIN (VALUES
     ('600', 'Puducherry', 2)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'PY'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -946,7 +1002,9 @@ CROSS JOIN (VALUES
     ('117', 'Udaipur', 41)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'RJ'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -964,7 +1022,9 @@ CROSS JOIN (VALUES
     ('742', 'Soreng', 6)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'SK'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -1014,7 +1074,9 @@ CROSS JOIN (VALUES
     ('597', 'Virudhunagar', 38)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'TN'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -1034,7 +1096,9 @@ CROSS JOIN (VALUES
     ('272', 'West Tripura', 8)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'TR'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -1079,7 +1143,9 @@ CROSS JOIN (VALUES
     ('697', 'Yadadri Bhuvanagiri', 33)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'TS'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -1104,7 +1170,9 @@ CROSS JOIN (VALUES
     ('57', 'Uttarkashi', 13)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'UK'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -1191,7 +1259,9 @@ CROSS JOIN (VALUES
     ('187', 'Varanasi', 75)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'UP'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 
@@ -1226,7 +1296,9 @@ CROSS JOIN (VALUES
     ('311', 'Uttar Dinajpur', 23)
 ) AS v(dcode, dname, ord)
 WHERE s.state_code = 'WB'
-ON CONFLICT (state_pk, district_code) DO UPDATE SET
+ON CONFLICT (state_pk, district_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     district_name = EXCLUDED.district_name,
     display_order = EXCLUDED.display_order;
 

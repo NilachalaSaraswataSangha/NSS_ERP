@@ -231,32 +231,57 @@ def test_validity_window_raises_422_when_dates_missing(write_conn, test_festival
     """
     cur = write_conn.cursor()
     with pytest.raises(HTTPException) as exc_info:
-        dola_purnima_credential_validity_window(cur, date(2099, 1, 1))
+        dola_purnima_credential_validity_window(cur, date(2099, 1, 1), "ANUMATI_PATRA")
     assert exc_info.value.status_code == 422
 
 
-def test_validity_window_resolves_dola_purnima_membership_year(write_conn):
+def test_validity_window_anumati_mid_year_application(write_conn):
     """
-    A credential issued just after the 2026 Dola Purnima (2026-03-03) must
-    get a validity window of [2027 Dola Purnima, 2028 Dola Purnima) —
-    i.e. valid_from is the NEXT occurrence on/after issue_date, and
-    valid_to is the occurrence one year after that. Exercises the real
-    (now fully confirmed 2024-2028) seed data end-to-end.
+    Anumati Patra: issue_date is a real (non-festival) application date, so
+    valid_from is that date itself, and valid_to is the first Dola Purnima
+    at least one year later — applying 2026-03-10 means one year on is
+    2027-03-10, which is still before Dola Purnima 2027 (2027-03-22), so
+    that is the window close.
     """
     cur = write_conn.cursor()
     valid_from, valid_to = dola_purnima_credential_validity_window(
-        cur, date(2026, 3, 10),
+        cur, date(2026, 3, 10), "ANUMATI_PATRA",
+    )
+    assert valid_from == date(2026, 3, 10)
+    assert valid_to == date(2027, 3, 22)
+
+
+def test_validity_window_anumati_skips_a_too_close_dola_purnima(write_conn):
+    """
+    An Anumati Patra applicant close enough to an upcoming Dola Purnima
+    that it is LESS than a year away must skip it and wait for the one
+    after — no mid-year renewal. Applying 2024-03-26 (the day after Dola
+    Purnima 2024): one year on is 2025-03-26, which is already past Dola
+    Purnima 2025 (2025-03-14, only 353 days after application), so that
+    one is too soon to count and the window must run to the NEXT Dola
+    Purnima after that, 2026-03-03.
+    """
+    cur = write_conn.cursor()
+    valid_from, valid_to = dola_purnima_credential_validity_window(
+        cur, date(2024, 3, 26), "ANUMATI_PATRA",
+    )
+    assert valid_from == date(2024, 3, 26)
+    assert valid_to == date(2026, 3, 3)
+
+
+def test_validity_window_parichaya_takes_the_very_next_dola_purnima(write_conn):
+    """
+    Parichaya Patra: issue_date is itself a Dola Purnima (the caller always
+    resolves it to one). valid_to is simply the NEXT Dola Purnima — not
+    "+1 year, then next Dola" — because consecutive Dola Purnimas are not
+    always ~365 days apart (lunar drift): 2027-03-22 -> 2028-03-11 is only
+    354 days, which a "+1 year" rule would wrongly skip past, landing on
+    2029 instead of 2028.
+    """
+    cur = write_conn.cursor()
+    valid_from, valid_to = dola_purnima_credential_validity_window(
+        cur, date(2027, 3, 22), "PARICHAYA_PATRA",
     )
     assert valid_from == date(2027, 3, 22)
     assert valid_to == date(2028, 3, 11)
 
-
-def test_validity_window_issue_date_on_the_festival_itself(write_conn):
-    """Issuing exactly on the Dola Purnima date counts as on/after — the
-    window starts that same day, not the following year."""
-    cur = write_conn.cursor()
-    valid_from, valid_to = dola_purnima_credential_validity_window(
-        cur, date(2027, 3, 22),
-    )
-    assert valid_from == date(2027, 3, 22)
-    assert valid_to == date(2028, 3, 11)

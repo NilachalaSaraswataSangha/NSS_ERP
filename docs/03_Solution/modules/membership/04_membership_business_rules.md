@@ -499,6 +499,60 @@ financial-year numbering is explicitly UNCHANGED and stays decoupled from
 
 ---
 
+## MBR-030H — Patra Number Entry, Year Normalization and Admin Correction
+
+AUTHORITY: user decision, 2026-10-03. SUPERSEDES the 2026-10-01 note
+"no one, legacy or new, is ever asked to supply a year", which is hereby
+retired. Applies identically to **Parichaya Patra** and **Anumati Patra**.
+
+Nobody is ever *required* to type a year. Whoever enters a Patra number —
+member, Sangha Sevi, or admin, at registration, claim approval, or member
+creation — may type either form:
+
+```text
+Number only       1              -> stored as 1/2026/2027
+Number with year  1/2026/2027    -> validated, then stored as given
+```
+
+### Year pair derivation
+
+The authoritative year pair is derived from the Patra's **issue date**:
+
+```text
+year_pair = <issue_date.calendar_year>/<issue_date.calendar_year + 1>
+```
+
+A Patra issued any time in 2026 — including a March 2026 Dola Purnima —
+carries `2026/2027`. This is deliberate: a March-issued Parichaya Patra
+opens the INCOMING membership year, not the outgoing financial year its
+March date happens to fall in.
+
+### Entry rules
+
+1. **Number only** — the backend appends the derived year pair. No error.
+2. **Number with a year pair** — the supplied years MUST equal the derived
+   year pair. On mismatch, REJECT with a message naming the expected year,
+   so the entrant can supply that year's Patra number instead. Never
+   silently rewrite a supplied year.
+3. **Number omitted entirely** — unchanged behaviour: auto-mint the next
+   sequence number for the scope and financial year (MBR-030A).
+4. A supplied number is **trusted as typed** — it is not replaced by the
+   counter's next value. Correctness of a supplied number is the
+   *approving admin's* responsibility (see below). Genuine duplicates are
+   still refused by the uniqueness constraint.
+
+### Admin correction
+
+A Patra number is correctable after issuance, by admin only. The
+correcting admin supplies a replacement number subject to the same two
+entry rules above. Every correction is audit-logged with the old and new
+value. No other role may change an issued Patra number.
+
+Stored on: `parichaya_patra.document_number`,
+`anumati_patra.document_number`
+
+---
+
 ## MBR-030B — Three-Tier Identity Summary
 
 Every NSS Member is identified by three distinct identity tiers:

@@ -9,6 +9,11 @@
 #
 # Authority: SOL-ARCH-010 (DDL Creation Order),
 #            SOL-ARCH-011 (Bootstrap Architecture)
+# Version: 2.6  — reinstate post_office (SOL-ARCH-010 Amendment,
+#            2026-10-03: Member-Assisted Geographic Entry). A PIN
+#            can hold many post offices; post_office is one of the
+#            four member-writable geographic levels. Supersedes the
+#            v2.5 retirement note below.
 # Version: 2.5  — drop post_office (retired 2026-10-02:
 #            Simplified Geography Model — district now lives on
 #            city_village, not a separate office-grain table)
@@ -31,7 +36,7 @@
 #
 # Implemented phases:
 #   Phase 0  — Bootstrap RBAC (3 tables + seed)
-#   Phase 1  — Foundation DDL (13 tables: 02-12 + 16-17; system_event_log is
+#   Phase 1  — Foundation DDL (14 tables: 02-13 + 16-17; system_event_log is
 #              created separately in Phase 14)
 #   Phase 2  — Foundation seed data (incl. ORGANIZATION_TYPE
 #              category and unified STATUS category in master_data)
@@ -154,7 +159,7 @@ echo ""
 #       enumerates pg_tables at execution time) still
 #       attaches to them.
 # -------------------------------------------------
-echo -e "${CYAN}[Phase 1] Foundation — DDL (13 tables)${NC}"
+echo -e "${CYAN}[Phase 1] Foundation — DDL (14 tables)${NC}"
 FOUNDATION_DDL=(
     "master_category|02_master_category.sql"
     "system_setting|03_system_setting.sql"
@@ -166,6 +171,7 @@ FOUNDATION_DDL=(
     "state|09_state.sql"
     "district|10_district.sql"
     "postal_code|12_postal_code.sql"
+    "post_office|13_post_office.sql"
     "city_village|11_city_village.sql"
     "festival_master|16_festival_master.sql"
     "festival_calendar_date|17_festival_calendar_date.sql"
@@ -193,6 +199,7 @@ FOUNDATION_SEED=(
     "system_setting (seed)|07_system_setting.sql"
     "postal_code (seed)|08_postal_code.sql"
     "postal_code bulk (seed)|08b_postal_code_bulk.sql"
+    "post_office bulk (seed)|08c_post_office_bulk.sql"
     "festival_calendar (seed)|10_festival_calendar.sql"
     "city_village (seed)|11_city_village.sql"
     "city_village urban recovery (seed)|11b_city_village_urban_recovery.sql"
@@ -276,6 +283,19 @@ run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_p
 run_sql "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
 run_sql "sakha_only_membership_trigger"  "${DDL_BASE}/05_membership/14_sakha_only_membership_trigger.sql"
 run_sql "credential_sequence_counter"    "${DDL_BASE}/05_membership/15_credential_sequence_counter.sql"
+echo ""
+
+# -------------------------------------------------
+# Phase 7b: Deferred Foundation Audit FKs
+# Wires the real FK constraints on district/postal_code/
+# post_office/city_village's submitted_by/reviewed_by
+# columns to sangha_sevi, now that sangha_sevi exists.
+# Not a migration — runs every full rebuild against four
+# brand-new, empty tables (see file header for the
+# circular-dependency rationale).
+# -------------------------------------------------
+echo -e "${CYAN}[Phase 7b] Deferred Foundation Audit FKs${NC}"
+run_sql "foundation_audit_fk" "${DDL_BASE}/05_membership/16_foundation_audit_fk.sql"
 echo ""
 
 # -------------------------------------------------

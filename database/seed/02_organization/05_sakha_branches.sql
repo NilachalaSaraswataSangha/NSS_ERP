@@ -32,6 +32,15 @@
 --       Country: IN for Indian, US for America Sangha.
 --       short_code: NULL (admin-assignable via UI).
 --
+--       Geography (country_pk/state_pk/district_pk) is backfilled after
+--       the INSERT. Primary source is the explicit "Dist-<Name>" token
+--       in each branch address (165 of 175), resolved through an
+--       explicit alias list onto the numeric LGD district_code; the
+--       PIN→modal-district derivation is the fallback for the 10
+--       metro/overseas branches with no token. SKH16 is special-cased.
+--       Only SKH164 (USA) is left without a district. See the comment
+--       blocks on each pass below. (Decision 2026-10-04)
+--
 --       Depends on: 09_sakha_postal_codes.sql (Foundation)
 --
 --       Idempotent: ON CONFLICT (organization_code) DO UPDATE.
@@ -277,9 +286,14 @@ ON CONFLICT (organization_code) DO UPDATE SET
 -- its PIN, then take the state from that district.
 --
 -- Branches with a NULL postal_code_pk (PIN not resolvable from the
--- directory, ~54 of 175) stay NULL and simply won't appear when the
--- cascade is narrowed to a state/district — correct, since their
--- location is genuinely unknown. (SOL-ARCH-010 Amendment, 2026-10-01)
+-- directory, ~54 of 175) are not reached by this pass.
+-- (SOL-ARCH-010 Amendment, 2026-10-01)
+--
+-- NOTE: this pass is no longer the primary district source. The
+-- address-token pass immediately below supersedes it wherever the
+-- address states a district explicitly, and also covers the 54
+-- PIN-less branches. This pass now only serves as the fallback for
+-- the 10 metro/overseas branches that carry no "Dist-" token.
 -- ---------------------------------------------------------------------
 UPDATE nss.organization o
 SET    district_pk = pin_geo.district_pk,
@@ -295,6 +309,140 @@ FROM (
 JOIN   nss.district d ON d.district_pk = pin_geo.district_pk
 WHERE  o.postal_code_pk = pin_geo.postal_code_pk
   AND  o.organization_code LIKE 'SKH%';
+
+-- ---------------------------------------------------------------------
+-- Backfill country_pk / state_pk / district_pk from the address's
+-- explicit "Dist-<Name>" token — AUTHORITATIVE over the PIN pass above.
+--
+-- The PIN pass derives district *statistically* (the modal city_village
+-- district for that PIN), which is wrong wherever a PIN straddles two
+-- districts, and fires for only 121 of 175 branches. The other 54 carry
+-- no resolvable PIN at all, so their district_pk/state_pk stayed NULL
+-- and they were invisible to every district-filtered Sakha lookup —
+-- notably GET /api/v1/register/sakhas on the registration form, which
+-- is the whole point of mapping them.
+--
+-- The address, by contrast, states the district explicitly: 165 of 175
+-- branches carry a "Dist-<Name>" token, written by the Sangha itself.
+-- That is a direct assertion rather than a statistical inference, so it
+-- WINS wherever present; the PIN-modal pass above remains the fallback
+-- for the 10 metro/overseas branches with no token. (Decision 2026-10-04)
+--
+-- Name matching uses an EXPLICIT alias list, not trigram similarity.
+-- The branch directory uses common English spellings while nss.district
+-- is LGD/Odia-transliterated, so 15 of the 26 Odisha spellings differ
+-- (119 of 165 branches). An explicit list is deterministic, reviewable,
+-- and cannot silently mismap. Each alias resolves to the numeric LGD
+-- district_code, which is globally unique (06_district.sql v5.0) — so
+-- the join needs no state scoping, and the Raigad/Maharashtra vs
+-- Raigarh/Chhattisgarh name collision cannot occur by construction.
+--
+-- state_pk and country_pk are taken from the matched district so the
+-- country → state → district chain stays internally consistent.
+--
+-- Must run BEFORE the city_village passes below, which read district_pk.
+-- Idempotent: only (re)sets SKH% rows, derived from static address text.
+-- ---------------------------------------------------------------------
+UPDATE nss.organization o
+SET    district_pk = d.district_pk,
+       state_pk    = s.state_pk,
+       country_pk  = s.country_pk
+FROM   ( VALUES
+             -- address spelling   LGD code      canonical district_name
+             ('angul',            '344'),  -- Anugola          (OD)
+             ('balangir',         '345'),  -- Balangir         (OD)
+             ('balasore',         '346'),  -- Baleshwar        (OD)
+             ('baragarh',         '347'),  -- Baragada         (OD)
+             ('bhadrak',          '348'),  -- Bhadrak          (OD)
+             ('boudh',            '349'),  -- Boudh            (OD)
+             ('cuttack',          '350'),  -- Kataka           (OD)
+             ('dhenkanal',        '352'),  -- Dhenkanal        (OD)
+             ('gajapati',         '353'),  -- Gajapati         (OD)
+             ('ganjam',           '354'),  -- Ganjam           (OD)
+             ('jagatsinghpur',    '355'),  -- Jagatsinghapur   (OD)
+             ('jajpur',           '356'),  -- Jajpur           (OD)
+             ('jharasuguda',      '357'),  -- Jharsuguda       (OD)
+             ('kandhamal',        '359'),  -- Kandhamala       (OD)
+             ('kendrapara',       '360'),  -- Kendrapada       (OD)
+             ('keonjhar',         '361'),  -- Kendujhar        (OD)
+             ('khurda',           '362'),  -- Khordha          (OD)
+             ('koraput',          '363'),  -- Koraput          (OD)
+             ('malkanagiri',      '364'),  -- Malkangiri       (OD)
+             ('mayurbhanja',      '365'),  -- Mayurbhanj       (OD)
+             ('nabarangpur',      '366'),  -- Nabarangpur      (OD)
+             ('nayagarh',         '367'),  -- Nayagada         (OD)
+             ('nuapara',          '368'),  -- Nuapada          (OD)
+             ('puri',             '369'),  -- Puri             (OD)
+             ('sambalpur',        '371'),  -- Sambalpur        (OD)
+             ('sundargarh',       '373'),  -- Sundaragada      (OD)
+             ('pune',             '490'),  -- Pune             (MH)
+             ('raigad',           '491'),  -- Raigad           (MH)
+             ('medak',            '513')   -- Medak            (TS)
+       ) AS dist_alias(addr_name, dcode)
+JOIN   nss.district d ON d.district_code = dist_alias.dcode
+JOIN   nss.state    s ON s.state_pk      = d.state_pk
+WHERE  o.organization_code LIKE 'SKH%'
+  AND  lower((regexp_match(o.address_line_1,
+                           '[Dd]ist[-.][ ]*([A-Za-z]+)'))[1]) = dist_alias.addr_name;
+
+-- ---------------------------------------------------------------------
+-- SKH16 Cuttack Saraswata Sangha — explicit special case.
+--
+-- Its address ('Sri Sri Nigamananda Smrutikutira, Cuttack-3') carries
+-- neither a PIN nor a "Dist-" token, so neither pass above reaches it.
+-- "Cuttack-3" is a Cuttack city postal locality, which places it in
+-- Kataka district (LGD 350) — confirmed by the Sangha. Treated as an
+-- explicit assertion, same tier as a Dist- token. (Decision 2026-10-04)
+--
+-- SKH164 America Saraswata Sangha is deliberately NOT special-cased:
+-- it is a US address and has no Indian district. It stays NULL.
+-- ---------------------------------------------------------------------
+UPDATE nss.organization o
+SET    district_pk = d.district_pk,
+       state_pk    = s.state_pk,
+       country_pk  = s.country_pk
+FROM   nss.district d
+JOIN   nss.state s ON s.state_pk = d.state_pk
+WHERE  o.organization_code = 'SKH16'
+  AND  d.district_code     = '350';
+
+-- ---------------------------------------------------------------------
+-- SKH166 / SKH173 — explicit special cases (post-rebuild verification,
+-- 2026-10-04). Neither carries a "Dist-" token, and the PIN-modal
+-- fallback found no city_village rows for their PINs (both outside the
+-- Odisha-heavy city_village seed), so both stayed NULL after the two
+-- passes above. Resolved from the address text directly:
+--
+--   SKH166 Bangalore Saraswata Sangha — address names "Hosakote Taluk,
+--   Bengaluru-562114". The postal town "Bengaluru" is NOT the district:
+--   PIN 562114 / Hoskote Taluk falls in Bengaluru Rural (LGD 526), not
+--   Bengaluru Urban (525) — confirmed against India Post / Wikipedia.
+--   Deliberately NOT added to the alias list, since a bare "bengaluru"
+--   token would silently mismap every future Bengaluru Urban address.
+--
+--   SKH173 Jamshedpur Sakha Sangha — address names only the city
+--   "Jamshedpur-831005"; Jamshedpur sits in East Singhbum district,
+--   Jharkhand (LGD 327 — seed spelling omits the middle "h": "Singhbum",
+--   not "Singhbhum"). No district name appears in the address at all,
+--   so this cannot be a generic alias entry either.
+-- ---------------------------------------------------------------------
+UPDATE nss.organization o
+SET    district_pk = d.district_pk,
+       state_pk    = s.state_pk,
+       country_pk  = s.country_pk
+FROM   nss.district d
+JOIN   nss.state s ON s.state_pk = d.state_pk
+WHERE  o.organization_code = 'SKH166'
+  AND  d.district_code     = '526';
+
+UPDATE nss.organization o
+SET    district_pk = d.district_pk,
+       state_pk    = s.state_pk,
+       country_pk  = s.country_pk
+FROM   nss.district d
+JOIN   nss.state s ON s.state_pk = d.state_pk
+WHERE  o.organization_code = 'SKH173'
+  AND  d.district_code     = '327';
 
 -- ---------------------------------------------------------------------
 -- Backfill city_village_pk from each branch's address, where possible.

@@ -9,6 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from api.schemas.auth import UpdateProfileRequest
+
 
 # ── Request schemas ──────────────────────────────────────────────────────
 
@@ -94,6 +96,46 @@ class UpdateStatusRequest(BaseModel):
     )
 
 
+class UpdatePersonProfileRequest(UpdateProfileRequest):
+    """PATCH /api/v1/admin/persons/{person_pk}
+
+    Admin counterpart to PATCH /api/v1/auth/profile. Same field set and
+    PATCH semantics as UpdateProfileRequest (apply_person_profile_update()
+    is the single shared validation path for both surfaces — SOL-PERSON,
+    2026-10-03), plus an optional *reason* that is folded into the audit
+    log summary rather than stored on nss.person itself.
+    """
+    reason: str | None = Field(
+        None, max_length=500,
+        description="Why the profile is being corrected (recorded in the audit log).",
+    )
+
+
+class PersonProfileResponse(BaseModel):
+    """GET /api/v1/admin/persons/{person_pk}
+
+    Raw editable field values for the Profile Details edit card — the
+    read counterpart to UpdatePersonProfileRequest/apply_person_profile_update().
+    Deliberately mirrors that field set 1:1 so the form can be pre-filled
+    and PATCHed back with no translation layer.
+    """
+    person_pk: UUID
+    first_name: str
+    middle_name: str | None = None
+    last_name: str | None = None
+    date_of_birth: date | None = None
+    gender_master_data_pk: UUID | None = None
+    marital_status_master_data_pk: UUID | None = None
+    blood_group_master_data_pk: UUID | None = None
+    country_phone_code: str | None = None
+    mobile_number: str | None = None
+    email: str | None = None
+    emergency_contact_name: str | None = None
+    emergency_contact_phone: str | None = None
+    emergency_relationship_master_data_pk: UUID | None = None
+    remarks: str | None = None
+
+
 class AssignRoleRequest(BaseModel):
     """POST /api/v1/admin/users/{user_account_pk}/roles"""
     role_code: str = Field(
@@ -134,8 +176,13 @@ class CreateSanghaSeviRequest(BaseModel):
             "must supply it."
         ),
     )
-    joining_date: str = Field(
-        ..., description="Joining date ISO (YYYY-MM-DD)",
+    joining_date: str | None = Field(
+        None,
+        description=(
+            "Sangha Joining Date, ISO (YYYY-MM-DD). OPTIONAL (MBR-047) — "
+            "omit when the date is not known. NULL means 'not recorded', "
+            "not 'joined today'; it is never defaulted."
+        ),
     )
     local_sakha_erp_id: str | None = Field(
         None, max_length=30,

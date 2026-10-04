@@ -153,11 +153,36 @@ class MessageResponse(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
-    """PATCH /api/v1/auth/profile — update own profile."""
+    """PATCH /api/v1/auth/profile — update own profile.
+
+    All fields optional; only non-None fields are applied (PATCH semantics).
+    Name, demographics, emergency contact and remarks are now self-editable
+    (SOL-PERSON — full personal-info edit, 2026-10-03). Aadhaar and photo are
+    deliberately excluded — they are sensitive / have dedicated flows.
+
+    Clearing semantics: free-text fields clear to NULL when sent as "" (empty
+    after strip); first_name may not be blanked (NOT NULL). Master-data FKs
+    cannot be cleared via this endpoint (omit = leave unchanged).
+    """
+    # Contact (pre-existing)
     mobile_number: str | None = Field(None, max_length=20)
     country_phone_code: str | None = Field(None, max_length=10)
     email: str | None = Field(None, max_length=255)
     date_of_birth: str | None = Field(None)
+    # Name
+    first_name: str | None = Field(None, max_length=100)
+    middle_name: str | None = Field(None, max_length=100)
+    last_name: str | None = Field(None, max_length=100)
+    # Demographics (master_data FKs)
+    gender_master_data_pk: UUID | None = Field(None)
+    marital_status_master_data_pk: UUID | None = Field(None)
+    blood_group_master_data_pk: UUID | None = Field(None)
+    # Emergency contact
+    emergency_contact_name: str | None = Field(None, max_length=150)
+    emergency_contact_phone: str | None = Field(None, max_length=20)
+    emergency_relationship_master_data_pk: UUID | None = Field(None)
+    # Misc
+    remarks: str | None = Field(None)
 
 
 class ForgotPasswordResponse(BaseModel):

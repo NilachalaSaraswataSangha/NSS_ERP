@@ -68,7 +68,7 @@ from api.error_handlers import (
 )
 from api.middleware import add_security_headers
 from api.routers import bootstrap, foundation, organization, person, family, membership
-from api.routers import auth, admin, registration, claim_approval, audit
+from api.routers import auth, admin, registration, claim_approval, audit, geo_approval
 
 _FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -238,6 +238,7 @@ app.include_router(admin.router)
 app.include_router(registration.router)
 app.include_router(claim_approval.router)
 app.include_router(audit.router)
+app.include_router(geo_approval.router)
 
 # ── Frontend ─────────────────────────────────────────────────────────────
 # Serve static assets at /assets/*, index.html at /

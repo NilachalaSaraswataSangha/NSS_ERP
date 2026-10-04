@@ -5,6 +5,14 @@
 -- Table: nss.person_address
 -- Depth: 3 (depends on person, master_data,
 --         city_village, postal_code)
+-- Version: 4.0 — SOL-ARCH-010 Amendment (Member-Assisted
+--          Geographic Entry, 2026-10-03): added a nullable
+--          post_office_pk FK so a saved address can pin the
+--          member-chosen post office (post_office reinstated,
+--          Foundation 13_post_office.sql). On admin CORRECTION
+--          of a geographic value, the API re-points the
+--          affected FK here to the canonical survivor row
+--          (FND-BR-087).
 -- Version: 3.0 — SOL-ARCH-010 Amendment (2026-10-01):
 --          simplified geographic FK model. The bundled
 --          city_village_postal_code_map_pk FK is replaced by
@@ -43,6 +51,8 @@ CREATE TABLE IF NOT EXISTS nss.person_address
 
     postal_code_pk UUID NULL,
 
+    post_office_pk UUID NULL,
+
     is_primary BOOLEAN NOT NULL
         DEFAULT FALSE,
 
@@ -80,6 +90,10 @@ CREATE TABLE IF NOT EXISTS nss.person_address
         FOREIGN KEY (postal_code_pk)
         REFERENCES nss.postal_code (postal_code_pk),
 
+    CONSTRAINT fk_person_address_post_office
+        FOREIGN KEY (post_office_pk)
+        REFERENCES nss.post_office (post_office_pk),
+
     CONSTRAINT chk_person_address_soft_delete
         CHECK
         (
@@ -102,6 +116,9 @@ CREATE INDEX IF NOT EXISTS idx_person_address_city_village
 
 CREATE INDEX IF NOT EXISTS idx_person_address_postal_code
     ON nss.person_address (postal_code_pk);
+
+CREATE INDEX IF NOT EXISTS idx_person_address_post_office
+    ON nss.person_address (post_office_pk);
 
 CREATE INDEX IF NOT EXISTS idx_person_address_active
     ON nss.person_address (is_active);

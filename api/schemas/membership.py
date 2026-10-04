@@ -71,7 +71,10 @@ class MemberResponse(BaseModel):
     darshak_local_sakha_number: str | None = None
 
     # Dates
-    joining_date: date
+    # joining_date is nullable (MBR-047): the Sangha Joining Date is optional
+    # to capture, and NULL means "not recorded". Typing this as a required
+    # `date` made the whole member-list response 500 on any such row.
+    joining_date: date | None = None
     renewal_due_date: date | None
 
     remarks: str | None

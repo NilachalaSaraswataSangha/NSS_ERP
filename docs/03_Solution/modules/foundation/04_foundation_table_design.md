@@ -22,8 +22,10 @@ The Foundation Module provides:
 
 The current frozen Foundation schema contains exactly eight original tables,
 two shared-infrastructure tables added by architectural decisions, two
-PIN code geographic tables added by the SOL-ARCH-010 amendment, and two
-festival reference-calendar tables added by the SOL-ARCH-013 amendment:
+PIN code geographic tables added by the SOL-ARCH-010 amendment (one of them
+reinstated by the 2026-10-03 Member-Assisted Geographic Entry amendment),
+and two festival reference-calendar tables added by the SOL-ARCH-013
+amendment:
 
     master_category
     master_data
@@ -35,8 +37,8 @@ festival reference-calendar tables added by the SOL-ARCH-013 amendment:
     city_village
     document_master                (DOC-ARCH-001 — shared document registry)
     field_change_log               (Data Change Architecture — shared change log)
-    postal_code                    (PIN Code Geographic Model)
-    city_village_postal_code_map   (PIN Code Geographic Model)
+    postal_code                    (Simplified Geography Model, 2026-10-02)
+    post_office                    (reinstated — SOL-ARCH-010 Amendment, 2026-10-03)
     festival_master                (SOL-ARCH-013 — festival identity reference)
     festival_calendar_date         (SOL-ARCH-013 — per-year authoritative observed date)
 
@@ -76,8 +78,8 @@ The database build plan identifies the implementation sequence as:
 | 8 | `city_village` | City/village/locality master |
 | 9 | `document_master` | Shared document registry (DOC-ARCH-001, moved from Person) |
 | 10 | `field_change_log` | Shared field-change tracking (Data Change Architecture) |
-| 11 | `postal_code` | PIN code / postal code master (PIN Code Geographic Model) |
-| 12 | `city_village_postal_code_map` | M:N mapping between city_village and postal_code (PIN Code Geographic Model) |
+| 11 | `postal_code` | PIN code / postal code master (Simplified Geography Model — unique on PIN alone, direct `state_pk`) |
+| 12 | `post_office` | Post office master under a PIN code (reinstated 2026-10-03, SOL-ARCH-010 Amendment) |
 | 13 | `festival_master` | Festival identity master (e.g. Dola Purnima) — SOL-ARCH-013 |
 | 14 | `festival_calendar_date` | Per-year authoritative observed date for a festival — SOL-ARCH-013 |
 
@@ -734,18 +736,27 @@ State
 Active State
 ```
 
+> **Amendment (2026-10-03):** `district` is a **writable** geographic level
+> (FND-BR-085). It additionally carries the shared member-assisted-entry
+> columns defined in §16.8: `entry_status`, `reviewed_by_sangha_sevi_pk`,
+> `reviewed_at`, `admin_remarks`, `corrected_into_district_pk`.
+
 Exact physical columns remain subject to final SQL approval.
 
 ---
 
 ## 15.5 District Uniqueness
 
-A district code should be unique within its state.
+A district code should be unique within its state, among **approved, active**
+rows only (partial unique index — see §16.8). A PENDING district proposal is
+not held to this uniqueness so a member's save never fails on a collision
+with the canonical row it may turn out to duplicate.
 
 Logical uniqueness:
 
 ```
-state + district_code
+state + district_code      (WHERE entry_status = 'APPROVED')
+state + district_name      (WHERE entry_status = 'APPROVED')
 ```
 
 ---
@@ -770,21 +781,28 @@ city_village_pk UUID PRIMARY KEY
 
 ## 16.3 Parent Relationship
 
-Required logical relationship:
+**As actually implemented (`11_city_village.sql`, SOL-ARCH-010 Amendment
+2026-10-01 — supersedes the single-parent model below):**
 
 ```
-city_village
-     ↓
-district
+city_village.district_pk    → district.district_pk     (NULLABLE — best-effort
+                                                           name match; India's
+                                                           census/post
+                                                           romanizations drift
+                                                           at district level)
+
+city_village.postal_code_pk → postal_code.postal_code_pk (NULLABLE — primary
+                                                           location anchor:
+                                                           village → PIN →
+                                                           state)
 ```
 
-Conceptually:
-
-```
-district_pk
-    ↑
-city_village.district_pk
-```
+A village is reached primarily through its PIN code; `district_pk` is
+best-effort and may be absent. There is no M:N mapping table — the formerly
+documented `city_village_postal_code_map` junction (§39 of the original
+design) was retired because villages are effectively 1:1 with a PIN (one
+representative PIN is stored directly, same HO/PO/BO dedup rule as
+`postal_code`).
 
 ---
 
@@ -795,19 +813,140 @@ The table requires:
 ```
 City/Village Code
 City/Village Name
-District
-Locality Type
+District        (optional FK)
+Postal Code      (optional FK — primary anchor)
+Locality Type     (CITY | TOWN | VILLAGE)
 Active State
 ```
 
-The exact physical column definition remains pending final location design.
+> **Amendment (2026-10-03):** `city_village` is a **writable** geographic
+> level (FND-BR-085). It additionally carries the shared member-assisted-entry
+> columns defined in §16.8.
 
 ---
 
 ## 16.5 City/Village Uniqueness
 
-The final design shall prevent duplicate geographic records representing the
-same locality within the same parent context.
+As implemented, among **approved, active** rows only:
+
+```
+district_pk + city_village_code       (WHERE entry_status = 'APPROVED')
+district_pk + city_village_name       (WHERE entry_status = 'APPROVED')
+postal_code_pk + city_village_name    (WHERE entry_status = 'APPROVED')
+```
+
+---
+
+## 16.6 `postal_code`
+
+**Purpose.** PIN code / postal code master. One row per PIN nationally.
+
+**As actually implemented (`12_postal_code.sql`, Simplified Geography Model
+2026-10-02):**
+
+```
+postal_code_pk UUID PRIMARY KEY
+state_pk        UUID NOT NULL  → state.state_pk
+postal_code     VARCHAR(20) NOT NULL
+```
+
+`country_pk` and `post_office_name` were dropped from this table in the
+2026-10-02 amendment — `country_pk` is redundant (reachable via
+`state_pk → state.country_pk`), and office-level detail now lives in the
+reinstated `post_office` table (§16.7) rather than as a column here.
+`postal_code` has no `district_pk` of its own — PIN → District is not 1:1
+(over 2,000 PINs legitimately span 2+ districts) — so district is reached
+only through `city_village`.
+
+**Uniqueness.** One **approved** row per PIN nationally:
+
+```
+postal_code    (WHERE entry_status = 'APPROVED')
+```
+
+> **Amendment (2026-10-03):** `postal_code` is a **writable** geographic
+> level (FND-BR-085). It additionally carries the shared member-assisted-entry
+> columns defined in §16.8.
+
+---
+
+## 16.7 `post_office` (reinstated 2026-10-03, SOL-ARCH-010 Amendment)
+
+**Purpose.** Post office master. A PIN code may have multiple post offices
+(Head Office, Sub Office, Branch Office).
+
+**Status note.** `post_office` was retired under the 2026-10-02 Simplified
+Geography Model and is reinstated here per the 2026-10-03 ERP-DESIGN decision
+(FND-BR-089) to let members select and contribute post office names. This is
+a deliberate, scoped reversal of that one retirement — the PIN-level and
+village-level simplifications it was part of otherwise still stand.
+
+**Table shape:**
+
+```
+post_office_pk   UUID PRIMARY KEY
+postal_code_pk    UUID NOT NULL  → postal_code.postal_code_pk
+post_office_name  VARCHAR(150) NOT NULL
+display_order     INTEGER NOT NULL DEFAULT 0
+created_at / updated_at / deleted_at / is_active   (standard audit)
+```
+
+plus the shared member-assisted-entry columns (§16.8).
+
+**Uniqueness.** One **approved** office name per PIN code:
+
+```
+postal_code_pk + post_office_name    (WHERE entry_status = 'APPROVED')
+```
+
+---
+
+## 16.8 Member-Assisted Geographic Entry — Shared Columns
+
+Per FND-BR-086/087/088/090, the four writable geographic levels — `district`,
+`postal_code`, `post_office`, `city_village` — each additionally carry:
+
+```
+entry_status                   VARCHAR(20) NOT NULL DEFAULT 'APPROVED'
+                                CHECK (entry_status IN
+                                    ('PENDING', 'APPROVED', 'CORRECTED'))
+
+submitted_by_sangha_sevi_pk     UUID NULL   → sangha_sevi.sangha_sevi_pk
+                                (who proposed this row; NULL for seeded data)
+
+reviewed_by_sangha_sevi_pk      UUID NULL   → sangha_sevi.sangha_sevi_pk
+
+reviewed_at                     TIMESTAMPTZ NULL
+
+admin_remarks                   TEXT NULL
+
+corrected_into_<table>_pk       UUID NULL   → self-FK to the canonical row
+                                this entry was merged into when
+                                entry_status = 'CORRECTED'
+```
+
+Seed-loaded rows (India Post data) are inserted with `entry_status =
+'APPROVED'` and no submitter. A member-typed value is inserted with
+`entry_status = 'PENDING'` and `submitted_by_sangha_sevi_pk` set to the
+submitting member.
+
+Resolution (FND-BR-087):
+
+```
+APPROVE  → entry_status = 'APPROVED', reviewed_by/_at/remarks set.
+           Row now appears in the shared dropdown.
+
+CORRECT  → entry_status = 'CORRECTED', reviewed_by/_at/remarks set,
+           corrected_into_<table>_pk points at the canonical row.
+           Every nss.person_address row referencing the CORRECTED row
+           is re-pointed to the canonical row (API-level, not a DB
+           cascade — mirrors how claim approval performs its
+           side-effect creates in claim_approval.py).
+```
+
+Approval/correction authority (FND-BR-088): `FOUNDATION_MANAGE`, scoped to
+the submitter's organization unless the actor holds NSS-WIDE scope
+(Kendra-level / nssadmin).
 
 ---
 
@@ -820,10 +959,21 @@ country
    │
    └──< state
            │
-           └──< district
+           ├──< district
+           │        │
+           │        └──< city_village
+           │
+           └──< postal_code
                     │
-                    └──< city_village
+                    ├──< post_office
+                    │
+                    └──< city_village   (direct anchor; district_pk
+                                          on city_village is optional)
 ```
+
+District, Postal Code, Post Office and City/Village additionally support
+member-assisted entry under administrator approval (§16.8, FND-BR-085 —
+FND-BR-090 in the business rules document).
 
 ---
 
@@ -840,9 +990,21 @@ district.state_pk
         →
 state.state_pk
 
-city_village.district_pk
+city_village.district_pk           (NULLABLE, best-effort)
         →
 district.district_pk
+
+postal_code.state_pk
+        →
+state.state_pk
+
+post_office.postal_code_pk
+        →
+postal_code.postal_code_pk
+
+city_village.postal_code_pk        (NULLABLE, primary anchor)
+        →
+postal_code.postal_code_pk
 ```
 
 ---
@@ -856,7 +1018,10 @@ Examples:
 ```
 State → valid Country
 District → valid State
-City/Village → valid District
+Postal Code → valid State
+Post Office → valid Postal Code
+City/Village → valid District (when present)
+City/Village → valid Postal Code (when present)
 ```
 
 ---
@@ -872,6 +1037,8 @@ Geography:
 Country
 State
 District
+Postal Code
+Post Office
 City/Village
 ```
 
@@ -1068,8 +1235,8 @@ rather than create an equivalent category.
 | `city_village`                 | Locality reference                 |
 | `document_master`              | Shared document registry (DOC-ARCH-001) |
 | `field_change_log`             | Shared field-change tracking       |
-| `postal_code`                  | PIN code / postal code reference   |
-| `city_village_postal_code_map` | City/village ↔ postal code mapping |
+| `postal_code`                  | PIN code / postal code reference (Simplified Geography Model) |
+| `post_office`                  | Post office reference under a PIN code (reinstated 2026-10-03) |
 | `festival_master`              | Festival identity reference (SOL-ARCH-013) |
 | `festival_calendar_date`       | Per-year authoritative observed festival date, admin-maintained only — NSS_ERP_ADMIN (SOL-ARCH-013) |
 
@@ -1104,6 +1271,8 @@ business modules:
 country
 state
 district
+postal_code
+post_office
 city_village
 ```
 
@@ -1209,15 +1378,18 @@ GEOGRAPHY
 
 country
    │
-   ├──< state
-   │       │
-   │       └──< district
-   │                │
-   │                └──< city_village
-   │                          │
-   └──< postal_code           │
-            │                 │
-            └──< city_village_postal_code_map (M:N)
+   └──< state
+           │
+           ├──< district ─────────────────┐
+           │                              │
+           └──< postal_code ──< post_office
+                    │                     │
+                    └──────────< city_village
+                           (district_pk and postal_code_pk both
+                            nullable/best-effort on city_village)
+
+district, postal_code, post_office and city_village additionally support
+member-assisted entry (entry_status / review columns — §16.8).
 
 
 SHARED INFRASTRUCTURE
@@ -1240,7 +1412,7 @@ festival_master
 Current count:
 
 ```
-14 tables
+15 tables
 ```
 
 ```text
@@ -1254,11 +1426,17 @@ Current count:
 8. city_village
 9. document_master              (DOC-ARCH-001)
 10. field_change_log            (Data Change Architecture)
-11. postal_code                 (PIN Code Geographic Model)
-12. city_village_postal_code_map (PIN Code Geographic Model)
+11. postal_code                 (Simplified Geography Model, 2026-10-02)
+12. post_office                 (reinstated — SOL-ARCH-010 Amendment, 2026-10-03)
 13. festival_master              (SOL-ARCH-013)
 14. festival_calendar_date       (SOL-ARCH-013)
 ```
+
+> **Note (2026-10-03):** the formerly-listed `city_village_postal_code_map`
+> (M:N bridge table) is retired — see §16.3. `post_office` replaces it in
+> the count. district, postal_code, post_office and city_village each gained
+> the member-assisted-entry columns in §16.8 (no new table for that; shared
+> columns on the four existing writable tables).
 
 ---
 
@@ -1274,10 +1452,14 @@ gate. Their logical column designs are defined by Person
 (for `document_master`) and the Data Change Architecture (for
 `field_change_log`); Foundation owns the physical DDL.
 
-Two PIN code geographic tables (`postal_code`, `city_village_postal_code_map`)
-were added by the SOL-ARCH-010 amendment (PIN Code Geographic Model).
-`postal_code` is a country+state-scoped postal reference;
-`city_village_postal_code_map` is the M:N bridge to `city_village`.
+Two PIN code geographic tables (`postal_code`, `post_office`) were added by
+the SOL-ARCH-010 amendment (Simplified Geography Model, 2026-10-02, and the
+Member-Assisted Geographic Entry amendment, 2026-10-03). `postal_code` is a
+state-scoped postal reference, unique on the PIN alone; `post_office` is a
+writable child of `postal_code` (reinstated 2026-10-03 — see FND-BR-089).
+The earlier `city_village_postal_code_map` M:N bridge table described in a
+prior revision of this document is retired; `city_village` now anchors
+directly to `postal_code` via a nullable `postal_code_pk` FK (§16.2).
 
 The database build plan confirms:
 
@@ -1293,6 +1475,8 @@ groups:
 country
 state
 district
+postal_code
+post_office
 city_village
 ```
 
@@ -1315,7 +1499,28 @@ DRAFT — SOURCE ALIGNED
 VERSION:
 
 ```
-1.1.0
+1.2.0
+```
+
+CHANGELOG:
+
+```
+1.2.0 (2026-10-03) — Member-Assisted Geographic Entry (SOL-ARCH-010 Amendment)
+  - Rewrote §15.4/§15.5 (district) and §16 (city_village) to match the real
+    DDL (nullable district_pk/postal_code_pk on city_village, no M:N map).
+  - Added §16.6 (postal_code, Simplified Geography Model) and §16.7
+    (post_office — reinstated, writable child of postal_code).
+  - Added §16.8 (shared member-assisted entry columns: entry_status,
+    submitted_by_sangha_sevi_pk, reviewed_by_sangha_sevi_pk, reviewed_at,
+    admin_remarks, corrected_into_<table>_pk) applied to district,
+    postal_code, post_office, city_village.
+  - Rewrote §17 Geographic Hierarchy, §18/§19 Geographic FKs and
+    Referential Integrity, §20 Geographic Hierarchy Is Not Organization,
+    and §34 No Duplicate Location Model to reflect the above.
+  - Rewrote §39 Final Logical Schema, §40 Foundation Table Count (14→15
+    tables), and §41 Source Alignment to remove the retired
+    `city_village_postal_code_map` and reflect `postal_code` + `post_office`.
+1.1.0 — prior Simplified Geography Model revision (2026-10-02).
 ```
 
 ---

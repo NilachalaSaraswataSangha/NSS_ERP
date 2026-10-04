@@ -39,6 +39,12 @@ function registerApp() {
         regDistricts: [],
         regCities: [],
         regPostalCodes: [],
+        regPostOffices: [],
+        regPostOfficesLoading: false,
+        // The postal_code_pk resolved client-side from regPostalCodes once
+        // the typed postal_code_value exactly matches a known PIN — scopes
+        // the Post Office field, which has no meaning without a real PIN.
+        regMatchedPostalCodePk: "",
 
         // Form data
         form: {
@@ -58,6 +64,10 @@ function registerApp() {
             district_pk: "",
             city_village_name: "",
             postal_code_value: "",
+            post_office_name: "",
+            address_line_1: "",
+            address_line_2: "",
+            landmark: "",
             // Membership
             has_membership: false,
             membership_type_master_data_pk: "",
@@ -121,8 +131,8 @@ function registerApp() {
             form: 'form',
         }),
 
-        onRegCountryChange()     { this._locCascade.onCountryChange(this); this.refreshNearbySakhas(); },
-        onRegStateChange()       { this._locCascade.onStateChange(this); this.refreshNearbySakhas(); },
+        onRegCountryChange()     { this._locCascade.onCountryChange(this); this.onRegPostalCodeChange(); this.refreshNearbySakhas(); },
+        onRegStateChange()       { this._locCascade.onStateChange(this); this.onRegPostalCodeChange(); this.refreshNearbySakhas(); },
         onRegDistrictChange()    { this._locCascade.onDistrictChange(this); this.refreshNearbySakhas(); },
 
         // When the registrant picks (or types an exact match of) a known
@@ -138,6 +148,39 @@ function registerApp() {
             );
             if (match && match.postal_code) {
                 this.form.postal_code_value = match.postal_code;
+            }
+            this.onRegPostalCodeChange();
+        },
+
+        // When the typed PIN exactly matches a known postal_code row,
+        // resolve its postal_code_pk client-side (the submit payload still
+        // sends postal_code_value as text — this is only to scope the Post
+        // Office suggestions, which have no meaning without a real PIN).
+        // No match (a brand-new PIN) just clears Post Office — it will be
+        // created without one, same as resolve_or_create_postal_code()
+        // creating the PIN itself on submit.
+        onRegPostalCodeChange() {
+            const code = (this.form.postal_code_value || "").trim();
+            const match = code
+                ? this.regPostalCodes.find(pc => (pc.postal_code || "").trim() === code)
+                : null;
+            this.regMatchedPostalCodePk = match ? match.postal_code_pk : "";
+            this.form.post_office_name = "";
+            this.loadRegPostOffices();
+        },
+
+        async loadRegPostOffices() {
+            this.regPostOffices = [];
+            if (!this.regMatchedPostalCodePk) return;
+            this.regPostOfficesLoading = true;
+            try {
+                const res = await fetch(`/api/v1/register/post-offices?postal_code_pk=${this.regMatchedPostalCodePk}`);
+                if (res.ok) this.regPostOffices = await res.json();
+            } catch (_) {
+                // Suggestions only — a failed fetch just leaves the Post
+                // Office field as free text with no datalist options.
+            } finally {
+                this.regPostOfficesLoading = false;
             }
         },
 
@@ -367,12 +410,20 @@ function registerApp() {
                 }
                 if (this.form.email) payload.email = this.form.email.trim();
 
-                // Address
-                if (this.form.country_pk) payload.country_pk = this.form.country_pk;
-                if (this.form.state_pk) payload.state_pk = this.form.state_pk;
-                if (this.form.district_pk) payload.district_pk = this.form.district_pk;
-                if (this.form.city_village_name.trim()) payload.city_village_name = this.form.city_village_name.trim();
-                if (this.form.postal_code_value.trim()) payload.postal_code_value = this.form.postal_code_value.trim();
+                // Address — mandatory (MBR-030H-adjacent user decision, 2026-10-03):
+                // country/state/district/city/PIN plus Address Line 1 are all
+                // required at registration; goStep1Next()'s disabled-check on
+                // the Next button already gates on these, but send them
+                // unconditionally so the backend's own 422 is the single
+                // source of truth if that gate is ever bypassed.
+                payload.country_pk = this.form.country_pk;
+                payload.state_pk = this.form.state_pk;
+                payload.district_pk = this.form.district_pk;
+                payload.city_village_name = this.form.city_village_name.trim();
+                payload.postal_code_value = this.form.postal_code_value.trim();
+                payload.address_line_1 = this.form.address_line_1.trim();
+                if (this.form.address_line_2.trim()) payload.address_line_2 = this.form.address_line_2.trim();
+                if (this.form.landmark.trim()) payload.landmark = this.form.landmark.trim();
 
                 // Membership claim
                 if (this.form.has_membership) {

@@ -19,12 +19,12 @@
 
 # 1. Overview
 
-The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **108 endpoints** across 11
+The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **120 endpoints** across 11
 routers. Tiers 0-4 were originally read-only and unauthenticated; the **Tier 5 branch
 (`feature/tier5-authentication-administration`, in progress, uncommitted — not merged or
 released)** added JWT authentication, RBAC, write endpoints, and gated almost everything:
 
-- **Only the 4 Tier 0 `bootstrap.py` endpoints and the 6 `/api/v1/register` endpoints (public
+- **Only the 4 Tier 0 `bootstrap.py` endpoints and the 9 `/api/v1/register` endpoints (public
   self-registration + its reference-data lookups) plus `POST /auth/login|refresh|forgot-password|
   reset-password` are reachable without a JWT.** Everything else needs
   `Authorization: Bearer <access token>`.
@@ -164,8 +164,13 @@ are now seeded, so `/permissions` and `/roles/{pk}/permissions` return real rows
 | 50 | PATCH | `/settings/{key}` | — | Edit a system setting (`FOUNDATION_MANAGE`) | `SettingResponse` |
 | 51 | POST | `/sequences` | — | Add an ID sequence (`FOUNDATION_MANAGE`, 201) | `SequenceResponse` |
 | 52 | PATCH | `/sequences/{sequence_code}` | — | Edit an ID sequence (`FOUNDATION_MANAGE`) | `SequenceResponse` |
+| 109 | GET | `/sakha-postal-codes` | `state_pk`, `district_pk`, `postal_code_pk` | Sakha-to-postal-code links (`FOUNDATION_VIEW`) | `list[SakhaPostalCodeResponse]` |
+| 110 | GET | `/festivals` | — | Active festivals that can carry calendar dates (`FOUNDATION_VIEW`) | `list[FestivalMasterResponse]` |
+| 111 | GET | `/festival-calendar-dates` | `festival_code`, `calendar_year` | Observed festival dates, newest year first (`FOUNDATION_VIEW`) | `list[FestivalCalendarDateResponse]` |
+| 112 | POST | `/festival-calendar-dates` | — | Record a festival/year date (`FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only, 201) | `FestivalCalendarDateResponse` |
+| 113 | PATCH | `/festival-calendar-dates/{pk}` | — | Edit an observed date (`FOUNDATION_CALENDAR_MANAGE`) | `FestivalCalendarDateResponse` |
 
-Endpoints 47-52 are numbered out of sequence (after the Tier 4 numbering) for the same reason as
+Endpoints 47-52 and 109-113 are numbered out of sequence (after the Tier 4 numbering) for the same reason as
 `/children-stats` below. See `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` §3.4.
 
 ---
@@ -184,6 +189,9 @@ Endpoints 47-52 are numbered out of sequence (after the Tier 4 numbering) for th
 | 26 | GET | `/organizations/{pk}/children` | — | Direct children of org | `list[OrganizationResponse]` |
 | 27 | GET | `/hierarchy` | `limit`, `offset` | Recursive org tree | `list[OrganizationHierarchyNodeResponse]` |
 | 43 | GET | `/organizations/{pk}/children-stats` | — | Per-direct-child family/member/person counts (dynamic Sakha majority rule, FAM-036) | `list[OrgChildStatsResponse]` |
+| 114 | GET | `/organizations/selectable` | `type_code` (repeatable), `country_pk`, `state_pk`, `district_pk`, `postal_code_pk`, `limit`, `offset` | Member-facing active-org lookup for dropdowns; auth only, not `ORGANIZATION_VIEW` | `list[OrganizationResponse]` |
+| 115 | GET | `/organizations/{pk}/wings` | — | Wing-body summary (member count per wing; only MAHILA_SANGHA reports a count) (`ORGANIZATION_VIEW`) | `OrgWingSummaryResponse` |
+| 116 | GET | `/organizations/{pk}/wings/{wing_type_code}/members` | `limit`, `offset` | Wing roster across the subtree; 422 for KUMARI_SANGHA/SEVAK_SANGHA (`ORGANIZATION_VIEW`) | `WingMemberListResponse` |
 | 53 | GET | `/organizations/{pk}/stats` | — | Whole-subtree totals for the org itself (`member_count`, `family_count`, `sakha_sanghas`, `mahila_sanghas`, `renewals_due`; member/family counts use the same FAM-036 majority rule as `/children-stats`); 403 if the org is outside the caller's admin scope (ADMIN-BR-076); backs the Org Dashboard | `OrgStatsResponse` |
 
 **Note:** `/children-stats` (Tier 4, added on top of Family + Membership) is numbered out of
@@ -201,6 +209,7 @@ table; see `docs/03_Solution/api/ORGANIZATION_API_CONTRACT.md` §3.2.4 for the f
 | 28 | GET | `/persons` | `gender_code`, `marital_status_code`, `blood_group_code`, `limit`, `offset` | List persons (summary) | `PersonListResponse` (`{persons, total}`, see §2.1) |
 | 29 | GET | `/persons/{pk}` | — | Person detail (with aadhaar_last4) | `PersonDetailResponse` |
 | 30 | GET | `/persons/{pk}/addresses` | — | Person addresses | `list[PersonAddressResponse]` |
+| 120 | GET | `/search-selectable?q=` | `q` (min 2 chars, required), `limit` (default 50), `offset` | Same search as #31 but gated on authentication only, for the family-head add-member picker | `PersonListResponse` |
 | 31 | GET | `/search?q=` | `q` (min 2 chars, required), `limit` (default 50), `offset` | Trigram + prefix search across name + ID + contact | `PersonListResponse` (`{persons, total}`, see §2.1) |
 
 **Auth:** list (#28) and search (#31) require `require_permission("PERSON_VIEW")`; detail (#29)
@@ -359,7 +368,7 @@ logout); Argon2 password hashing; 5-attempt/30-second login lockout.
 
 # 10. Tier 5 — Registration (public)
 
-**Router prefix:** `/api/v1/register` — 6 endpoints, all deliberately unauthenticated (the
+**Router prefix:** `/api/v1/register` — 9 endpoints, all deliberately unauthenticated (the
 registration page has no JWT yet). Creates `person` + `user_account(PENDING_APPROVAL)` + optional
 `registration_claim`; **no `sangha_sevi` is created until an admin approves the claim.**
 
@@ -370,7 +379,10 @@ registration page has no JWT yet). Creates `person` + `user_account(PENDING_APPR
 | 74 | GET | `/reference-data` | Countries, gender/marital-status/blood-group/membership-type master data and the Sakha list in one call |
 | 75 | GET | `/states` | States for a country |
 | 76 | GET | `/districts` | Districts for a state |
-| 77 | GET | `/postal-codes` | Postal codes for a district |
+| 77 | GET | `/postal-codes` | Postal codes (`state_pk`, `country_pk` filters) |
+| 117 | GET | `/countries` | Countries, so authenticated member screens can avoid the admin-only `FOUNDATION_VIEW` |
+| 118 | GET | `/cities` | Cities/villages for a district (suggestions, not a hard-restricted list) |
+| 119 | GET | `/sakhas` | "Find my Sakha": active Sakha Sangha list filtered by `country_pk`/`state_pk`/`district_pk`/`postal_code_pk` (max 500) |
 
 ---
 
@@ -475,20 +487,20 @@ Frontend routes are excluded from OpenAPI schema (`include_in_schema=False`).
 | Tier | Module | Endpoints |
 |---|---|---|
 | 0 | Bootstrap | 4 |
-| 1 | Foundation | 23 (17 read + 6 write) |
-| 2 | Organization | 8 |
-| 3 | Person | 4 |
+| 1 | Foundation | 28 (20 read + 8 write) |
+| 2 | Organization | 11 |
+| 3 | Person | 5 |
 | 4 | Family | 16 (7 original read + 9 Tier 5) |
 | 4 | Membership | 8 |
 | 5 | Authentication | 8 |
-| 5 | Registration | 6 |
+| 5 | Registration | 9 |
 | 5 | Claim Approval | 5 |
 | 5 | Administration | 25 |
 | 5 | Audit | 1 |
-| **Total** | | **108** |
+| **Total** | | **120** |
 
 The endpoint numbers in the tables above are stable identifiers, not path order: #1-#46 are the
-original Tier 0-4 set; #47-#108 were appended as Tier 5 endpoints landed.
+original Tier 0-4 set; #47-#120 were appended as Tier 5 endpoints landed.
 
 ---
 

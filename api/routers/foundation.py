@@ -10,13 +10,21 @@ Endpoint groups:
   - Master Data:      categories, master-data
   - System Config:    settings, sequences
   - Geographic:       countries, states, districts, cities, postal-codes,
-                      postal-code-mappings
+                      post-offices, postal-code-mappings
+  - Member-Assisted:  districts/postal-codes/post-offices/city-villages
+                      "propose" endpoints (SOL-ARCH-010 Amendment,
+                      2026-10-03) — any authenticated member may submit a
+                      value the system hasn't seen yet; it lands PENDING
+                      and is invisible to the Geographic lookups above
+                      until a FOUNDATION_MANAGE admin reviews it (see
+                      api/routers/geo_approval.py).
   - Runtime:          documents
 
 field_change_log is intentionally excluded from Tier 1 — audit data
 requires authentication. Deferred to Tier 5.
 """
 
+import re
 from uuid import UUID
 
 import json
@@ -25,6 +33,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from api.database import get_connection, get_write_connection
+from api.dependencies.auth import get_current_user
 from api.dependencies.rbac import require_permission
 from api.helpers import log_audit, row_to_model, rows_to_models
 from api.services.rbac_service import UserContext
@@ -41,8 +50,17 @@ from api.schemas.foundation import (
     FestivalCalendarDateResponse,
     FestivalMasterResponse,
     MasterDataResponse,
+    PendingCityVillageResponse,
+    PendingDistrictResponse,
+    PendingPostalCodeResponse,
+    PendingPostOfficeResponse,
     PostalCodeMappingResponse,
     PostalCodeResponse,
+    PostOfficeResponse,
+    ProposeCityVillageRequest,
+    ProposeDistrictRequest,
+    ProposePostalCodeRequest,
+    ProposePostOfficeRequest,
     SakhaPostalCodeResponse,
     SequenceResponse,
     SettingResponse,
@@ -132,6 +150,7 @@ def fetch_districts(cur, state_pk=None):
         JOIN   nss.state s ON s.state_pk = d.state_pk
         WHERE  d.is_active = TRUE
           AND  s.is_active = TRUE
+          AND  d.entry_status = 'APPROVED'
     """
     params: list = []
     if state_pk is not None:
@@ -159,6 +178,7 @@ def fetch_cities(cur, district_pk=None, postal_code_pk=None):
         LEFT JOIN nss.district d ON d.district_pk = cv.district_pk
         LEFT JOIN nss.postal_code pc ON pc.postal_code_pk = cv.postal_code_pk
         WHERE  cv.is_active = TRUE
+          AND  cv.entry_status = 'APPROVED'
           AND  (d.district_pk IS NULL OR d.is_active = TRUE)
     """
     params: list = []
@@ -201,6 +221,7 @@ def fetch_postal_codes(cur, state_pk=None, country_pk=None, district_pk=None, q=
         FROM   nss.postal_code pc
         JOIN   nss.state s ON s.state_pk = pc.state_pk
         WHERE  pc.is_active = TRUE
+          AND  pc.entry_status = 'APPROVED'
     """
     params: list = []
     if district_pk is not None:
@@ -209,6 +230,7 @@ def fetch_postal_codes(cur, state_pk=None, country_pk=None, district_pk=None, q=
                 SELECT 1 FROM nss.city_village cv
                 WHERE  cv.postal_code_pk = pc.postal_code_pk
                   AND  cv.is_active = TRUE
+                  AND  cv.entry_status = 'APPROVED'
                   AND  cv.district_pk = %s
             )
         """
@@ -225,6 +247,33 @@ def fetch_postal_codes(cur, state_pk=None, country_pk=None, district_pk=None, q=
     base_sql += " ORDER BY pc.postal_code"
     cur.execute(base_sql, tuple(params))
     return rows_to_models(cur, PostalCodeResponse)
+
+
+def fetch_post_offices(cur, postal_code_pk):
+    """
+    Post offices under a PIN (Member-Assisted Geographic Entry,
+    SOL-ARCH-010 Amendment 2026-10-03): nss.post_office is reinstated — a
+    single PIN can carry several post offices (one HO + several SO/BO).
+    Only APPROVED, active rows are returned — PENDING/CORRECTED rows stay
+    quarantined until an admin reviews them (api/routers/geo_approval.py).
+    """
+    cur.execute(
+        """
+        SELECT po.post_office_pk, po.postal_code_pk,
+               pc.postal_code,
+               po.post_office_name, po.display_order, po.is_active
+        FROM   nss.post_office po
+        JOIN   nss.postal_code pc ON pc.postal_code_pk = po.postal_code_pk
+        WHERE  po.is_active = TRUE
+          AND  po.entry_status = 'APPROVED'
+          AND  pc.is_active = TRUE
+          AND  pc.entry_status = 'APPROVED'
+          AND  po.postal_code_pk = %s
+        ORDER BY po.display_order, po.post_office_name
+        """,
+        (str(postal_code_pk),),
+    )
+    return rows_to_models(cur, PostOfficeResponse)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -910,6 +959,7 @@ def get_district(
             WHERE  d.district_pk = %s
               AND  d.is_active = TRUE
               AND  s.is_active = TRUE
+              AND  d.entry_status = 'APPROVED'
         """, (str(district_pk),))
         result = row_to_model(cur, DistrictResponse)
         if result is None:
@@ -959,6 +1009,23 @@ def list_postal_codes(
         return fetch_postal_codes(cur, state_pk, country_pk, district_pk, q)
 
 
+@router.get("/post-offices", response_model=list[PostOfficeResponse])
+def list_post_offices(
+    postal_code_pk: UUID = Query(..., description="PIN to list post offices under"),
+    conn=Depends(get_connection),
+    user: UserContext = Depends(require_permission("FOUNDATION_VIEW")),
+) -> list[PostOfficeResponse]:
+    """
+    List active, APPROVED post offices under a PIN.
+
+    Post offices were reinstated by the Member-Assisted Geographic Entry
+    amendment (SOL-ARCH-010, 2026-10-03) — a PIN can carry several post
+    offices (one HO + several SO/BO).
+    """
+    with conn.cursor() as cur:
+        return fetch_post_offices(cur, postal_code_pk)
+
+
 @router.get("/postal-code-mappings", response_model=list[PostalCodeMappingResponse])
 def list_postal_code_mappings(
     city_village_pk: UUID | None = Query(None, description="Filter by city/village"),
@@ -981,6 +1048,9 @@ def list_postal_code_mappings(
         FROM   nss.city_village cv
         JOIN   nss.postal_code pc ON pc.postal_code_pk = cv.postal_code_pk
         WHERE  cv.is_active = TRUE
+          AND  cv.entry_status = 'APPROVED'
+          AND  pc.is_active = TRUE
+          AND  pc.entry_status = 'APPROVED'
     """
     conditions: list[str] = []
     params: list = []
@@ -1040,6 +1110,7 @@ def list_sakha_postal_codes(
                 SELECT 1 FROM nss.city_village cv
                 WHERE  cv.postal_code_pk = pc.postal_code_pk
                   AND  cv.is_active = TRUE
+                  AND  cv.entry_status = 'APPROVED'
                   AND  cv.district_pk = %s
             )
         """
@@ -1340,4 +1411,330 @@ def update_festival_calendar_date(
 
         cur.execute(_FESTIVAL_CALENDAR_DATE_SELECT, (str(festival_calendar_date_pk),))
         return row_to_model(cur, FestivalCalendarDateResponse)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 6. MEMBER-ASSISTED GEOGRAPHIC ENTRY — PROPOSE (SOL-ARCH-010 Amendment,
+#    2026-10-03 — SOL-FND-004 §16.8, FND-BR-085 .. FND-BR-090)
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Any authenticated member (not just FOUNDATION_MANAGE admins) may submit a
+# district / postal-code / post-office / city-village value the system has
+# not seen yet. The row lands as entry_status='PENDING', which the lookup
+# endpoints above now filter out, so it is invisible to every other member
+# until a FOUNDATION_MANAGE admin approves or corrects it (see
+# api/routers/geo_approval.py, FND-BR-087/088).
+#
+# "Current member" resolution: UserContext.sangha_sevi_pk, exactly as
+# auth.py / membership.py already use it — resolved once in
+# rbac_service.load_user_context() from the active nss.sangha_sevi row for
+# the logged-in person. A user with no active Sangha Sevi record (e.g. an
+# account mid-registration) has nothing to anchor submitted_by to, so
+# propose is refused with a clean 403 rather than inserting a NULL actor.
+#
+# Double-submit guard: rather than an ON CONFLICT against the
+# approved-only partial unique index (which a PENDING insert can never
+# hit), each handler does a cheap pre-check for an existing PENDING row
+# with the same logical value and, if found, returns that one instead of
+# inserting a duplicate. This is deliberately simple — it does not try to
+# dedupe near-miss spellings, only an exact (case-insensitive) resubmission.
+
+
+def _derive_provisional_code(name: str) -> str:
+    """
+    Provisional *_code for a member-submitted name (district / city-village).
+
+    Uppercases, strips everything but letters/digits, and truncates to 20
+    chars to fit the column. This is explicitly PROVISIONAL — it exists
+    only so the NOT NULL *_code column has a value while the row sits
+    PENDING. It is never shown to other members (PENDING rows are excluded
+    from every lookup) and is fully superseded the moment an admin corrects
+    the proposal into a canonical row via POST .../correct, which carries
+    its own authoritative code.
+    """
+    return re.sub(r"[^A-Za-z0-9]", "", name).upper()[:20]
+
+
+def _require_submitter_sangha_sevi_pk(user: UserContext) -> str:
+    """
+    403 unless the current user has an active Sangha Sevi record to anchor
+    submitted_by_sangha_sevi_pk to (every propose endpoint needs this).
+    """
+    if not user.sangha_sevi_pk:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only an active Sangha Sevi may propose a new geographic value.",
+        )
+    return str(user.sangha_sevi_pk)
+
+
+@router.post(
+    "/districts/propose",
+    response_model=PendingDistrictResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def propose_district(
+    body: ProposeDistrictRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(get_current_user),
+) -> PendingDistrictResponse:
+    """
+    Submit a district name the system has not seen yet for *state_pk*.
+
+    Lands as entry_status='PENDING' with a provisional district_code
+    derived from the name (see _derive_provisional_code) — superseded on
+    admin correction. A duplicate PENDING submission for the same
+    (state, name) returns the existing PENDING row rather than creating a
+    second one.
+    """
+    submitter_pk = _require_submitter_sangha_sevi_pk(user)
+    district_name = body.district_name.strip()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT district_pk, state_pk, district_code, district_name,
+                   entry_status, submitted_by_sangha_sevi_pk, is_active
+            FROM   nss.district
+            WHERE  state_pk = %s
+              AND  LOWER(district_name) = LOWER(%s)
+              AND  entry_status = 'PENDING'
+              AND  is_active = TRUE
+            LIMIT 1
+            """,
+            (str(body.state_pk), district_name),
+        )
+        existing = row_to_model(cur, PendingDistrictResponse)
+        if existing is not None:
+            return existing
+
+        provisional_code = _derive_provisional_code(district_name)
+        cur.execute(
+            """
+            INSERT INTO nss.district (
+                state_pk, district_code, district_name,
+                entry_status, submitted_by_sangha_sevi_pk
+            ) VALUES (%s, %s, %s, 'PENDING', %s)
+            RETURNING district_pk, state_pk, district_code, district_name,
+                      entry_status, submitted_by_sangha_sevi_pk, is_active
+            """,
+            (str(body.state_pk), provisional_code, district_name, submitter_pk),
+        )
+        new_row = row_to_model(cur, PendingDistrictResponse)
+
+        log_audit(
+            cur, action="CREATE", table_name="district", record_pk=str(new_row.district_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Member-proposed district '{district_name}' (PENDING)",
+        )
+        return new_row
+
+
+@router.post(
+    "/postal-codes/propose",
+    response_model=PendingPostalCodeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def propose_postal_code(
+    body: ProposePostalCodeRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(get_current_user),
+) -> PendingPostalCodeResponse:
+    """
+    Submit a 6-digit PIN the system has not seen yet, under *state_pk*.
+
+    Lands as entry_status='PENDING'. No code-derivation needed — the PIN
+    itself is the value. A duplicate PENDING submission for the same PIN
+    returns the existing PENDING row.
+    """
+    submitter_pk = _require_submitter_sangha_sevi_pk(user)
+    pin = body.postal_code.strip()
+    if not re.fullmatch(r"\d{6}", pin):
+        raise HTTPException(status_code=422, detail="postal_code must be exactly 6 digits.")
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT postal_code_pk, state_pk, postal_code,
+                   entry_status, submitted_by_sangha_sevi_pk, is_active
+            FROM   nss.postal_code
+            WHERE  postal_code = %s
+              AND  entry_status = 'PENDING'
+              AND  is_active = TRUE
+            LIMIT 1
+            """,
+            (pin,),
+        )
+        existing = row_to_model(cur, PendingPostalCodeResponse)
+        if existing is not None:
+            return existing
+
+        cur.execute(
+            """
+            INSERT INTO nss.postal_code (
+                state_pk, postal_code, entry_status, submitted_by_sangha_sevi_pk
+            ) VALUES (%s, %s, 'PENDING', %s)
+            RETURNING postal_code_pk, state_pk, postal_code,
+                      entry_status, submitted_by_sangha_sevi_pk, is_active
+            """,
+            (str(body.state_pk), pin, submitter_pk),
+        )
+        new_row = row_to_model(cur, PendingPostalCodeResponse)
+
+        log_audit(
+            cur, action="CREATE", table_name="postal_code", record_pk=str(new_row.postal_code_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Member-proposed postal code '{pin}' (PENDING)",
+        )
+        return new_row
+
+
+@router.post(
+    "/post-offices/propose",
+    response_model=PendingPostOfficeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def propose_post_office(
+    body: ProposePostOfficeRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(get_current_user),
+) -> PendingPostOfficeResponse:
+    """
+    Submit a post office name the system has not seen yet, under
+    *postal_code_pk*. Lands as entry_status='PENDING'. No code-derivation
+    needed — post_office has no code column. A duplicate PENDING
+    submission for the same (PIN, name) returns the existing PENDING row.
+    """
+    submitter_pk = _require_submitter_sangha_sevi_pk(user)
+    post_office_name = body.post_office_name.strip()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT 1 FROM nss.postal_code WHERE postal_code_pk = %s AND is_active = TRUE",
+            (str(body.postal_code_pk),),
+        )
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Postal code not found.")
+
+        cur.execute(
+            """
+            SELECT post_office_pk, postal_code_pk, post_office_name,
+                   entry_status, submitted_by_sangha_sevi_pk, is_active
+            FROM   nss.post_office
+            WHERE  postal_code_pk = %s
+              AND  LOWER(post_office_name) = LOWER(%s)
+              AND  entry_status = 'PENDING'
+              AND  is_active = TRUE
+            LIMIT 1
+            """,
+            (str(body.postal_code_pk), post_office_name),
+        )
+        existing = row_to_model(cur, PendingPostOfficeResponse)
+        if existing is not None:
+            return existing
+
+        cur.execute(
+            """
+            INSERT INTO nss.post_office (
+                postal_code_pk, post_office_name,
+                entry_status, submitted_by_sangha_sevi_pk
+            ) VALUES (%s, %s, 'PENDING', %s)
+            RETURNING post_office_pk, postal_code_pk, post_office_name,
+                      entry_status, submitted_by_sangha_sevi_pk, is_active
+            """,
+            (str(body.postal_code_pk), post_office_name, submitter_pk),
+        )
+        new_row = row_to_model(cur, PendingPostOfficeResponse)
+
+        log_audit(
+            cur, action="CREATE", table_name="post_office", record_pk=str(new_row.post_office_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Member-proposed post office '{post_office_name}' (PENDING)",
+        )
+        return new_row
+
+
+@router.post(
+    "/city-villages/propose",
+    response_model=PendingCityVillageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def propose_city_village(
+    body: ProposeCityVillageRequest,
+    conn=Depends(get_write_connection),
+    user: UserContext = Depends(get_current_user),
+) -> PendingCityVillageResponse:
+    """
+    Submit a city/village name the system has not seen yet, anchored to at
+    least one of *district_pk* / *postal_code_pk* (city_village allows both
+    to be NULL at the schema level, but a propose with neither anchor is
+    not actionable for an admin to review, so it is rejected here).
+
+    Lands as entry_status='PENDING' with a provisional city_village_code
+    derived from the name — superseded on admin correction. A duplicate
+    PENDING submission for the same (anchors, name) returns the existing
+    PENDING row.
+    """
+    if body.district_pk is None and body.postal_code_pk is None:
+        raise HTTPException(
+            status_code=422,
+            detail="At least one of district_pk or postal_code_pk is required.",
+        )
+    cv_type = body.city_village_type.strip().upper()
+    if cv_type not in ("CITY", "TOWN", "VILLAGE"):
+        raise HTTPException(status_code=422, detail="city_village_type must be CITY, TOWN, or VILLAGE.")
+
+    submitter_pk = _require_submitter_sangha_sevi_pk(user)
+    cv_name = body.city_village_name.strip()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT city_village_pk, district_pk, postal_code_pk,
+                   city_village_code, city_village_name, city_village_type,
+                   entry_status, submitted_by_sangha_sevi_pk, is_active
+            FROM   nss.city_village
+            WHERE  entry_status = 'PENDING'
+              AND  is_active = TRUE
+              AND  LOWER(city_village_name) = LOWER(%s)
+              AND  district_pk IS NOT DISTINCT FROM %s
+              AND  postal_code_pk IS NOT DISTINCT FROM %s
+            LIMIT 1
+            """,
+            (
+                cv_name,
+                str(body.district_pk) if body.district_pk else None,
+                str(body.postal_code_pk) if body.postal_code_pk else None,
+            ),
+        )
+        existing = row_to_model(cur, PendingCityVillageResponse)
+        if existing is not None:
+            return existing
+
+        provisional_code = _derive_provisional_code(cv_name)
+        cur.execute(
+            """
+            INSERT INTO nss.city_village (
+                district_pk, postal_code_pk, city_village_code, city_village_name,
+                city_village_type, entry_status, submitted_by_sangha_sevi_pk
+            ) VALUES (%s, %s, %s, %s, %s, 'PENDING', %s)
+            RETURNING city_village_pk, district_pk, postal_code_pk,
+                      city_village_code, city_village_name, city_village_type,
+                      entry_status, submitted_by_sangha_sevi_pk, is_active
+            """,
+            (
+                str(body.district_pk) if body.district_pk else None,
+                str(body.postal_code_pk) if body.postal_code_pk else None,
+                provisional_code, cv_name, cv_type, submitter_pk,
+            ),
+        )
+        new_row = row_to_model(cur, PendingCityVillageResponse)
+
+        log_audit(
+            cur, action="CREATE", table_name="city_village", record_pk=str(new_row.city_village_pk),
+            actor_pk=user.actor_pk, actor_user_account_pk=str(user.user_account_pk),
+            module="foundation", summary=f"Member-proposed city/village '{cv_name}' (PENDING)",
+        )
+        return new_row
+
 

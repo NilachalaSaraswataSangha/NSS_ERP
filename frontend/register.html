@@ -13,10 +13,12 @@
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="/assets/css/nss-layout.css">
     <link rel="stylesheet" href="/assets/css/nss-datepicker.css">
+    <link rel="stylesheet" href="/assets/css/nss-combobox.css">
     <script src="/assets/js/nss-config.js"></script>
     <script src="/assets/js/nss-location.js"></script>
     <script src="/assets/js/auth.js"></script>
     <script src="/assets/js/nss-datepicker.js"></script>
+    <script src="/assets/js/nss-combobox.js"></script>
     <style>
         /* ── NSS Logo Palette ──────────────────────────────
          * Navy blue:   #1B2A4A  (logo band)
@@ -591,12 +593,12 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                     </svg>
                 </span>
-                Address (Optional)
+                Address
             </div>
 
             <div class="form-row" style="margin-bottom: 0.85rem;">
                 <div>
-                    <label class="reg-label">Country</label>
+                    <label class="reg-label">Country *</label>
                     <select x-model="form.country_pk" @change="onRegCountryChange()" class="nss-select" :disabled="loading">
                         <option value="">Select...</option>
                         <template x-for="c in regCountries" :key="c.country_pk">
@@ -605,7 +607,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="reg-label">State</label>
+                    <label class="reg-label">State *</label>
                     <select x-model="form.state_pk" @change="onRegStateChange()" class="nss-select"
                             :disabled="loading || !form.country_pk">
                         <option value="">Select...</option>
@@ -618,7 +620,7 @@
 
             <div class="form-row" style="margin-bottom: 0.85rem;">
                 <div>
-                    <label class="reg-label">District</label>
+                    <label class="reg-label">District *</label>
                     <select x-model="form.district_pk" @change="onRegDistrictChange()" class="nss-select"
                             :disabled="loading || !form.state_pk">
                         <option value="">Select...</option>
@@ -628,7 +630,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="reg-label">City / Village</label>
+                    <label class="reg-label">City / Village *</label>
                     <input type="text" x-model="form.city_village_name"
                            placeholder="Type city or village"
                            class="reg-input" list="regCityVillageOptions"
@@ -648,15 +650,61 @@
             </div>
 
             <div class="form-group">
-                <label class="reg-label">PIN Code</label>
+                <label class="reg-label">PIN Code *</label>
                 <input type="text" x-model="form.postal_code_value" class="reg-input"
-                       placeholder="e.g. 751024" maxlength="10"
+                       placeholder="e.g. 751024" maxlength="10" list="regPostalCodeOptions"
+                       @change="onRegPostalCodeChange()"
                        :disabled="loading || !form.state_pk">
+                <!-- Suggestions only — free text is still accepted and
+                     resolved/created on the fly server-side
+                     (resolve_or_create_postal_code(), registration.py). -->
+                <datalist id="regPostalCodeOptions">
+                    <template x-for="pc in regPostalCodes" :key="pc.postal_code_pk">
+                        <option :value="pc.postal_code"></option>
+                    </template>
+                </datalist>
+            </div>
+
+            <div class="form-group">
+                <label class="reg-label">Post Office</label>
+                <input type="text" x-model="form.post_office_name" class="reg-input"
+                       placeholder="Optional — e.g. Kalpana Square S.O" maxlength="150"
+                       list="regPostOfficeOptions"
+                       :disabled="loading || !regMatchedPostalCodePk">
+                <!-- Scoped to the matched PIN above; a typed value not on
+                     file is resolved/created on the fly server-side
+                     (resolve_or_create_post_office(), registration.py). -->
+                <datalist id="regPostOfficeOptions">
+                    <template x-for="po in regPostOffices" :key="po.post_office_pk">
+                        <option :value="po.post_office_name"></option>
+                    </template>
+                </datalist>
+                <p class="reg-hint" x-show="!regMatchedPostalCodePk" style="margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                    Enter a known PIN code above to see post offices.
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label class="reg-label">Address Line 1 *</label>
+                <input type="text" x-model="form.address_line_1" class="reg-input"
+                       placeholder="House / street" maxlength="255" :disabled="loading">
+            </div>
+
+            <div class="form-group">
+                <label class="reg-label">Address Line 2</label>
+                <input type="text" x-model="form.address_line_2" class="reg-input"
+                       placeholder="Optional" maxlength="255" :disabled="loading">
+            </div>
+
+            <div class="form-group">
+                <label class="reg-label">Landmark</label>
+                <input type="text" x-model="form.landmark" class="reg-input"
+                       placeholder="Optional" maxlength="255" :disabled="loading">
             </div>
 
             <!-- Next button -->
             <button class="btn-gold" @click="goStep2()"
-                    :disabled="!form.first_name.trim() || !form.last_name.trim() || !form.date_of_birth || !form.gender_master_data_pk || (!form.mobile_number && !form.email)">
+                    :disabled="!form.first_name.trim() || !form.last_name.trim() || !form.date_of_birth || !form.gender_master_data_pk || (!form.mobile_number && !form.email) || !form.country_pk || !form.state_pk || !form.district_pk || !form.city_village_name.trim() || !form.postal_code_value.trim() || !form.address_line_1.trim()">
                 Next: Membership Details →
             </button>
 

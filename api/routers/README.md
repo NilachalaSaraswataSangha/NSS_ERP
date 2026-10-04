@@ -1,20 +1,20 @@
 # api/routers/
 
-One FastAPI `APIRouter` per module, all included by `api/main.py`. **11 routers, 108 endpoints**
+One FastAPI `APIRouter` per module, all included by `api/main.py`. **11 routers, 120 endpoints**
 (AST-counted decorators). Raw parameterized psycopg2 SQL, no ORM; response models live in
 `api/schemas/`. See `api/README.md` for the per-endpoint tables.
 
 | File | Prefix | Endpoints | Auth |
 |------|--------|-----------|------|
 | `bootstrap.py` | `/api/v1/bootstrap` | 4 | none |
-| `foundation.py` | `/api/v1/foundation` | 23 (17 reads, 6 writes) | `FOUNDATION_VIEW` / `FOUNDATION_MANAGE` |
-| `organization.py` | `/api/v1/organization` | 8 | `ORGANIZATION_VIEW` |
-| `person.py` | `/api/v1/person` | 4 | `PERSON_VIEW` (list, search); self-or-`PERSON_VIEW` (detail, addresses) |
+| `foundation.py` | `/api/v1/foundation` | 28 (20 reads, 8 writes) | `FOUNDATION_VIEW` / `FOUNDATION_MANAGE` (festival-calendar writes: `FOUNDATION_CALENDAR_MANAGE`) |
+| `organization.py` | `/api/v1/organization` | 11 | `ORGANIZATION_VIEW`; `/organizations/selectable` needs login only |
+| `person.py` | `/api/v1/person` | 5 | `PERSON_VIEW` (list, search); login only (`/search-selectable`); self-or-`PERSON_VIEW` (detail, addresses) |
 | `family.py` | `/api/v1/family` | 16 | `get_current_user` + ownership checks; `FAMILY_VIEW`/`FAMILY_MANAGE` override |
 | `membership.py` | `/api/v1/membership` | 8 | `MEMBERSHIP_VIEW` (list, search, darshak-summary); self-or-`MEMBERSHIP_VIEW` (per-member) |
 | `auth.py` | `/api/v1/auth` | 8 | none for login/refresh/forgot/reset; JWT for the rest |
 | `admin.py` | `/api/v1/admin` | 25 | `require_any_permission(...)` per endpoint, plus scope checks |
-| `registration.py` | `/api/v1/register` | 6 | none (public) |
+| `registration.py` | `/api/v1/register` | 9 | none (public) |
 | `claim_approval.py` | `/api/v1/admin/claims` | 5 | `MEMBERSHIP_APPROVE` or `ADMIN_USER_MANAGE`, scope-filtered |
 | `audit.py` | `/api/v1/audit` | 1 | `AUDIT_VIEW` |
 

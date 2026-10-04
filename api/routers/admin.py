@@ -27,6 +27,7 @@ Tier 5 endpoints (all require authentication + appropriate permissions):
   POST   /api/v1/admin/organizations                        — Create organization (NSS_ERP_ADMIN only)
   PATCH  /api/v1/admin/organizations/{pk}                   — Update org details (ORGANIZATION_MANAGE or scoped admin)
   GET    /api/v1/admin/dashboard-stats                       — Aggregated stats for admin dashboard cards
+  PATCH  /api/v1/admin/patra/{patra_type}/{patra_pk}/document-number — Correct an issued Parichaya/Anumati Patra number (MBR-030H)
 
 Authority: SOL-ADMIN-001 through SOL-ADMIN-004,
            Tier 5 design decisions (2026-09-15, 2026-09-20)
@@ -35,6 +36,7 @@ Authority: SOL-ADMIN-001 through SOL-ADMIN-004,
 from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
+import psycopg2
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
@@ -43,6 +45,7 @@ from api.dependencies.rbac import require_any_permission, require_permission
 from api.helpers import (
     next_id, peek_next_id, resolve_or_create_city_village, resolve_or_create_postal_code,
     get_active_status_pk, compose_local_sakha_erp_id, log_audit,
+    apply_person_profile_update,
     insert_sakha_affiliation, is_probationary_membership_type,
     require_entity, check_duplicate_contact, record_password_history,
     validate_and_hash_password,
@@ -53,6 +56,7 @@ from api.helpers import (
     issue_membership_credential, USER_ACCOUNT_MEMBERSHIP_JOINS_SQL,
     validate_mobile, validate_email,
     fetch_person_date_of_birth,
+    parse_optional_date, normalize_patra_document_number,
 )
 from api.schemas.admin import (
     AccountlessSanghaSeviListResponse,
@@ -64,6 +68,8 @@ from api.schemas.admin import (
     ResetPasswordRequest,
     RoleAssignmentResponse,
     UpdateStatusRequest,
+    UpdatePersonProfileRequest,
+    PersonProfileResponse,
     UserAccountResponse,
     UserDetailResponse,
     UserListResponse,
@@ -550,8 +556,8 @@ def create_user(
         missing = []
         if not body.membership_type_pk:
             missing.append("membership_type_pk")
-        if not body.joining_date:
-            missing.append("joining_date")
+        # joining_date is NOT required (MBR-047): the Sangha Joining Date is
+        # optional to capture and NULL means "not recorded".
         # organization_pk is NOT required here: a single-Sakha admin has it
         # auto-resolved below (resolve_scoped_sakha). An NSS-wide/multi-Sakha
         # admin who omits it still gets a clear 422 from the resolver.
@@ -680,6 +686,11 @@ def create_user(
             _require_org_in_scope(cur, user, body.organization_pk, "create accounts")
 
             generated_ss_id = next_id(cur, "SANGHA_SEVI", actor_pk=actor)
+            # MBR-047: optional. "" from an untouched UI field becomes NULL,
+            # and a malformed value becomes a 422 instead of a 500.
+            joining_date_val = parse_optional_date(
+                body.joining_date, "Sangha Joining Date",
+            )
             cur.execute(
                 """
                 INSERT INTO nss.sangha_sevi (
@@ -696,7 +707,7 @@ def create_user(
                     body.membership_type_pk,
                     str(active_status_pk),
                     body.organization_pk,
-                    body.joining_date,
+                    joining_date_val,
                 ),
             )
             ss_pk = cur.fetchone()[0]
@@ -711,7 +722,7 @@ def create_user(
                     sangha_sevi_pk=str(ss_pk),
                     organization_pk=body.organization_pk,
                     local_number=body.local_sakha_erp_id,
-                    effective_from=body.joining_date,
+                    effective_from=joining_date_val,
                     is_darshak=is_probationary_membership_type(
                         cur, body.membership_type_pk
                     ),
@@ -737,7 +748,7 @@ def create_user(
                     issue_year=body.credential_issue_year,
                     valid_from=date.fromisoformat(body.credential_valid_from) if body.credential_valid_from else None,
                     valid_to=date.fromisoformat(body.credential_valid_to) if body.credential_valid_to else None,
-                    joining_date=date.fromisoformat(body.joining_date) if body.joining_date else None,
+                    joining_date=joining_date_val,
                     date_of_birth=fetch_person_date_of_birth(cur, body.person_pk),
                 )
             )
@@ -851,6 +862,10 @@ def create_sangha_sevi(
         # Generate SS ID and insert
         actor = user.actor_pk
         ss_id = next_id(cur, "SANGHA_SEVI", actor_pk=actor)
+        # MBR-047: Sangha Joining Date is optional; "" becomes NULL.
+        joining_date_val = parse_optional_date(
+            body.joining_date, "Sangha Joining Date",
+        )
         cur.execute(
             """
             INSERT INTO nss.sangha_sevi (
@@ -867,7 +882,7 @@ def create_sangha_sevi(
                 body.membership_type_pk,
                 str(active_status_pk),
                 body.organization_pk,
-                body.joining_date,
+                joining_date_val,
             ),
         )
         ss_pk = cur.fetchone()[0]
@@ -889,7 +904,7 @@ def create_sangha_sevi(
             issue_year=body.credential_issue_year,
             valid_from=date.fromisoformat(body.credential_valid_from) if body.credential_valid_from else None,
             valid_to=date.fromisoformat(body.credential_valid_to) if body.credential_valid_to else None,
-            joining_date=date.fromisoformat(body.joining_date) if body.joining_date else None,
+            joining_date=joining_date_val,
             date_of_birth=fetch_person_date_of_birth(cur, body.person_pk),
         )
         log_audit(cur, action="CREATE", table_name=credential_type.lower(), record_pk=credential_pk,
@@ -903,7 +918,7 @@ def create_sangha_sevi(
                 sangha_sevi_pk=str(ss_pk),
                 organization_pk=body.organization_pk,
                 local_number=body.local_sakha_erp_id,
-                effective_from=body.joining_date,
+                effective_from=joining_date_val,
                 is_darshak=is_probationary_membership_type(
                     cur, body.membership_type_pk
                 ),
@@ -1433,6 +1448,120 @@ def update_status(
     return MessageResponse(message=f"Account status changed to {body.account_status}.")
 
 
+# ── GET /persons/{pk} ────────────────────────────────────────────────
+
+@router.get("/persons/{person_pk}", response_model=PersonProfileResponse)
+def get_person_profile(
+    person_pk: UUID,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_connection),
+) -> PersonProfileResponse:
+    """
+    Fetch the raw editable field values for the Profile Details edit card.
+
+    Read counterpart to PATCH /api/v1/admin/persons/{pk} — same field set,
+    1:1, so the admin UI can pre-fill the edit form and PATCH it straight
+    back. Requires: ADMIN_USER_MANAGE or PERSON_MANAGE, bounded to the
+    actor's scope (ADMIN-BR-076), same as the write side.
+    """
+    with conn.cursor() as cur:
+        _require_person_in_scope(cur, user, str(person_pk), "view profile details")
+
+        cur.execute(
+            """
+            SELECT person_pk, first_name, middle_name, last_name, date_of_birth,
+                   gender_master_data_pk, marital_status_master_data_pk,
+                   blood_group_master_data_pk, country_phone_code, mobile_number,
+                   email, emergency_contact_name, emergency_contact_phone,
+                   emergency_relationship_master_data_pk, remarks
+            FROM nss.person
+            WHERE person_pk = %s AND is_active = TRUE
+            """,
+            (str(person_pk),),
+        )
+        row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Person not found.",
+        )
+
+    return PersonProfileResponse(
+        person_pk=row[0], first_name=row[1], middle_name=row[2], last_name=row[3],
+        date_of_birth=row[4], gender_master_data_pk=row[5],
+        marital_status_master_data_pk=row[6], blood_group_master_data_pk=row[7],
+        country_phone_code=row[8], mobile_number=row[9], email=row[10],
+        emergency_contact_name=row[11], emergency_contact_phone=row[12],
+        emergency_relationship_master_data_pk=row[13], remarks=row[14],
+    )
+
+
+# ── PATCH /persons/{pk} ─────────────────────────────────────────────────
+
+@router.patch("/persons/{person_pk}", response_model=MessageResponse)
+def update_person_profile(
+    person_pk: UUID,
+    body: UpdatePersonProfileRequest,
+    user: UserContext = Depends(
+        require_any_permission("ADMIN_USER_MANAGE", "PERSON_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+) -> MessageResponse:
+    """
+    Admin correction of a member's personal-info fields.
+
+    Admin counterpart to PATCH /api/v1/auth/profile — same field set, same
+    validation rules, same PATCH semantics (only non-None fields applied).
+    Both surfaces are delegated to helpers.apply_person_profile_update(),
+    the single shared code path, so admin corrections and self-service
+    edits can never drift apart.
+
+    Requires: ADMIN_USER_MANAGE or PERSON_MANAGE, bounded to the actor's
+    scope (ADMIN-BR-076) — the same dual-gate already used by the sibling
+    Detail-view actions (status change, delete account) on this screen.
+
+    Every change is captured twice: nss.person.updated_at /
+    updated_by_sangha_sevi_pk record who/when, the DB-level audit trigger
+    records the full before/after field diff automatically, and this
+    endpoint additionally writes an explicit log_audit() entry carrying
+    the optional *reason* (there is no reason column on nss.person itself
+    — a reason belongs to the edit event, not the row).
+    """
+    with conn.cursor() as cur:
+        _require_person_in_scope(cur, user, str(person_pk), "edit profile details")
+
+        changed = apply_person_profile_update(
+            cur,
+            person_pk=str(person_pk),
+            body=body,
+            updated_by_sangha_sevi_pk=user.actor_pk,
+        )
+        if not changed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No fields to update.",
+            )
+
+        log_audit(
+            cur,
+            action="UPDATE",
+            table_name="person",
+            record_pk=str(person_pk),
+            actor_pk=user.actor_pk,
+            actor_user_account_pk=str(user.user_account_pk),
+            module="admin",
+            summary=(
+                "Corrected profile details"
+                + (f" — {body.reason.strip()}" if body.reason and body.reason.strip() else "")
+            ),
+        )
+
+    return MessageResponse(message="Profile updated.")
+
+
 # ── DELETE /users/{pk} ────────────────────────────────────────────────
 
 @router.delete(
@@ -1913,8 +2042,8 @@ _ORG_SORT_COLUMNS: dict[str, str | list[str]] = {
     "short_code": "o.short_code",
     "type_name": "ot.value_name",
     "city_village_name": "cv.city_village_name",
-    "district_name": "dt.district_name",
-    "state_name": "st.state_name",
+    "district_name": "d.district_name",
+    "state_name": "s.state_name",
 }
 
 
@@ -3356,17 +3485,23 @@ def dashboard_stats(
         # Sakha they visit, inflating the figure. Home scoping counts each member exactly
         # once and keeps this card consistent with the dedicated Kendra dashboard
         # (/organizations/{pk}/stats member_count), which scopes the same way.
+        # The reserved system account (is_system_account = TRUE, MBR-038A — e.g.
+        # nssadmin) is NOT a real member and is excluded from both scopes, so it
+        # never inflates the count on the NSS-wide rollup where no org filter
+        # would otherwise exclude it.
         if is_nss_wide:
             cur.execute("""
                 SELECT COUNT(DISTINCT ss.sangha_sevi_pk)
                 FROM nss.sangha_sevi ss
                 WHERE ss.is_active = TRUE
+                  AND ss.is_system_account = FALSE
             """)
         else:
             cur.execute(f"""
                 SELECT COUNT(DISTINCT ss.sangha_sevi_pk)
                 FROM nss.sangha_sevi ss
                 WHERE ss.is_active = TRUE
+                  AND ss.is_system_account = FALSE
                   AND ss.organization_pk IN ({placeholders})
             """, scoped_org_pks)
         members = cur.fetchone()[0]
@@ -3486,3 +3621,169 @@ def dashboard_stats(
         "attendance_pct": attendance_pct,
         "attendance_tracked": attendance_tracked,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+#  Patra number correction (MBR-030H)
+# ═══════════════════════════════════════════════════════════════
+
+_PATRA_TABLES = {
+    "parichaya": ("parichaya_patra", "PARICHAYA_PATRA", "affiliated_organization_pk"),
+    "anumati": ("anumati_patra", "ANUMATI_PATRA", "issuing_organization_pk"),
+}
+
+
+class CorrectPatraNumberRequest(BaseModel):
+    document_number: str = Field(
+        ..., max_length=30,
+        description=(
+            "Corrected Patra number. Either the bare number (e.g. 1) — the "
+            "year is attached automatically — or the full number with its "
+            "year (e.g. 1/2026/2027), which is verified against the Patra's "
+            "issue date (MBR-030H)."
+        ),
+    )
+    reason: str | None = Field(
+        None, max_length=500,
+        description="Why the number is being corrected (recorded in the audit log).",
+    )
+
+
+class CorrectPatraNumberResponse(BaseModel):
+    patra_type: str
+    patra_pk: str
+    previous_document_number: str
+    document_number: str
+
+
+@router.patch(
+    "/patra/{patra_type}/{patra_pk}/document-number",
+    response_model=CorrectPatraNumberResponse,
+)
+def correct_patra_document_number(
+    patra_type: str,
+    patra_pk: UUID,
+    body: CorrectPatraNumberRequest,
+    user: UserContext = Depends(
+        require_any_permission("MEMBERSHIP_MANAGE", "ADMIN_USER_MANAGE")
+    ),
+    conn=Depends(get_write_connection),
+) -> CorrectPatraNumberResponse:
+    """
+    Correct the number on an already-issued Parichaya or Anumati Patra.
+
+    MBR-030H (user decision, 2026-10-03). A supplied Patra number is trusted
+    as typed at entry time, on the understanding that the approving admin
+    verifies it and can fix it afterwards — this is that path. Before this
+    existed, a mis-entered number was permanently immutable through the API.
+
+    *patra_type* is "parichaya" or "anumati".
+
+    The replacement number obeys the same entry rules as initial issuance: a
+    bare number gets the correct year pair appended, and a number supplied
+    with a year must match the Patra's own issue date. Admin only; every
+    correction is audit-logged with the old and new value.
+
+    Requires: MEMBERSHIP_MANAGE or ADMIN_USER_MANAGE, and the Patra's Sakha
+    must fall inside the actor's scope (ADMIN-BR-076).
+    """
+    key = patra_type.strip().lower()
+    if key not in _PATRA_TABLES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="patra_type must be 'parichaya' or 'anumati'.",
+        )
+    table, card_type, org_column = _PATRA_TABLES[key]
+    label = card_type.replace("_", " ").title()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT document_number, issue_date, {org_column}, status
+            FROM nss.{table}
+            WHERE {table}_pk = %s
+            """,
+            (str(patra_pk),),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"{label} not found.",
+            )
+        previous_document_number, issue_date, org_pk, patra_status = row
+
+        # ADMIN-BR-076: only inside the actor's scope subtree.
+        # parichaya_patra.affiliated_organization_pk is nullable (the card
+        # snapshot may predate Sakha tracking); with no Sakha to scope
+        # against, only a globally-authorized actor may correct it.
+        if org_pk is not None:
+            _require_org_in_scope(
+                cur, user, str(org_pk), f"correct {label} numbers",
+            )
+        elif _actor_scope_org_pks(cur, user) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"This {label} has no Sakha recorded on it, so only an "
+                    f"NSS-wide administrator can correct its number."
+                ),
+            )
+
+        # Same normalization/validation as issuance — the year is checked
+        # against this Patra's own issue_date, not today.
+        new_document_number = normalize_patra_document_number(
+            body.document_number, issue_date, card_type,
+        )
+        if not new_document_number:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"A {label} number is required.",
+            )
+
+        if new_document_number == previous_document_number:
+            return CorrectPatraNumberResponse(
+                patra_type=key,
+                patra_pk=str(patra_pk),
+                previous_document_number=previous_document_number,
+                document_number=new_document_number,
+            )
+
+        actor = user.actor_pk
+        cur.execute(f"SAVEPOINT {table}_correct")
+        try:
+            cur.execute(
+                f"""
+                UPDATE nss.{table}
+                SET document_number = %s,
+                    updated_at = NOW()
+                WHERE {table}_pk = %s
+                """,
+                (new_document_number, str(patra_pk)),
+            )
+        except psycopg2.errors.UniqueViolation:
+            cur.execute(f"ROLLBACK TO SAVEPOINT {table}_correct")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{label} number '{new_document_number}' is already in use.",
+            )
+        cur.execute(f"RELEASE SAVEPOINT {table}_correct")
+
+        log_audit(
+            cur, action="UPDATE", table_name=table, record_pk=str(patra_pk),
+            actor_pk=actor, actor_user_account_pk=str(user.user_account_pk),
+            module="admin",
+            summary=(
+                f"Corrected {label} number from "
+                f"'{previous_document_number}' to '{new_document_number}'"
+                f" (status {patra_status})"
+                + (f" — {body.reason.strip()}" if body.reason and body.reason.strip() else "")
+            ),
+        )
+
+    return CorrectPatraNumberResponse(
+        patra_type=key,
+        patra_pk=str(patra_pk),
+        previous_document_number=previous_document_number,
+        document_number=new_document_number,
+    )

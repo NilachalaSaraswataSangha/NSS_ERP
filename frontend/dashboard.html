@@ -14,11 +14,13 @@
     <link rel="stylesheet" href="/assets/css/badges.css">
     <link rel="stylesheet" href="/assets/css/nss-layout.css">
     <link rel="stylesheet" href="/assets/css/nss-datepicker.css">
+    <link rel="stylesheet" href="/assets/css/nss-combobox.css">
     <script src="/assets/js/nss-config.js"></script>
     <script src="/assets/js/nss-dialog.js"></script>
     <script src="/assets/js/auth.js"></script>
     <script src="/assets/js/nss-layout.js"></script>
     <script src="/assets/js/nss-datepicker.js"></script>
+    <script src="/assets/js/nss-combobox.js"></script>
     <script src="/assets/js/org-dashboard.js"></script>
     <style>
         /* ── NSS Dashboard Layout ────────────────────────────
@@ -997,7 +999,7 @@
                         <div class="member-org" x-show="member.organization_name">
                             <p class="org-label">Sakha Sangha</p>
                             <p class="org-name" x-text="member.organization_name || ''"></p>
-                            <p class="join-date" x-text="member.joining_date ? ('Joined: ' + formatDate(member.joining_date)) : ''"></p>
+                            <p class="join-date" x-show="member.joining_date" x-text="'Sangha Joining Date: ' + formatDate(member.joining_date)"></p>
                         </div>
                     </div>
 
@@ -1230,8 +1232,8 @@
                                         <span class="data-label">Darshak Sakha Sangha ID</span>
                                         <span class="data-value data-erp-no" x-text="member.darshak_local_sakha_number || '—'"></span>
                                     </div>
-                                    <div class="data-row">
-                                        <span class="data-label">Joining Date</span>
+                                    <div class="data-row" x-show="member.joining_date">
+                                        <span class="data-label">Sangha Joining Date</span>
                                         <span class="data-value" x-text="formatDate(member.joining_date)"></span>
                                     </div>
                                     <div class="data-row" x-show="member.renewal_due_date">
@@ -2387,10 +2389,6 @@
                                         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                             <span style="font-size: 0.8rem; font-weight: 600; color: #1B2A4A;">Kendra #</span>
                                             <span class="data-kendra-no" x-text="pp.document_number"></span>
-                                            <span class="badge badge-xs badge-muted"
-                                                  x-show="pp.valid_from && pp.valid_to"
-                                                  x-text="pp.valid_from.slice(0,4) + '–' + pp.valid_to.slice(2,4)"
-                                                  title="Dola Purnima membership year"></span>
                                             <span class="badge badge-xs" :class="NSS.statusBadgeClass(pp.status)" x-text="pp.status"></span>
                                         </div>
                                         <div class="card-grid" style="margin-top: 0.35rem; gap: 0.5rem;">
@@ -2426,10 +2424,6 @@
                                     <div style="padding: 0.65rem 0; border-bottom: 1px solid #f3f4f6;">
                                         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                             <span class="data-value mono" style="font-weight: 600;" x-text="ap.document_number"></span>
-                                            <span class="badge badge-xs badge-muted"
-                                                  x-show="ap.valid_from && ap.valid_to"
-                                                  x-text="ap.valid_from.slice(0,4) + '–' + ap.valid_to.slice(2,4)"
-                                                  title="Dola Purnima membership year"></span>
                                             <span class="badge badge-xs" :class="NSS.statusBadgeClass(ap.status)" x-text="ap.status"></span>
                                         </div>
                                         <div style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">

@@ -14,12 +14,14 @@
     <link rel="stylesheet" href="/assets/css/badges.css">
     <link rel="stylesheet" href="/assets/css/nss-layout.css">
     <link rel="stylesheet" href="/assets/css/nss-datepicker.css">
+    <link rel="stylesheet" href="/assets/css/nss-combobox.css">
     <script src="/assets/js/nss-config.js"></script>
     <script src="/assets/js/nss-location.js"></script>
     <script src="/assets/js/nss-dialog.js"></script>
     <script src="/assets/js/auth.js"></script>
     <script src="/assets/js/nss-layout.js"></script>
     <script src="/assets/js/nss-datepicker.js"></script>
+    <script src="/assets/js/nss-combobox.js"></script>
     <script src="/assets/js/org-dashboard.js"></script>
     <style>
         /* ── NSS Admin Layout — mirrors dashboard.html ────────
@@ -647,6 +649,15 @@
                         Geography
                     </a>
 
+                    <a class="nav-item" :class="{ active: activeTab === 'geoApprovals' }"
+                       @click="activeTab = 'geoApprovals'; loadGeoEntries()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                        </svg>
+                        Location Approvals
+                        <span class="count-badge" x-show="geoEntriesPendingCount > 0" x-text="geoEntriesPendingCount"></span>
+                    </a>
+
                     <a class="nav-item" :class="{ active: activeTab === 'sysSettings' }"
                        @click="activeTab = 'sysSettings'; loadSystemSettings(); loadFestivalCalendar()">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -1010,6 +1021,183 @@
                                     </div>
                                 </div>
 
+                                <!-- Profile Details (editable personal-info fields) -->
+                                <div class="data-card">
+                                    <div class="data-card-header">
+                                        <h3 class="data-card-title">Profile Details</h3>
+                                        <button class="btn-action" x-show="canManageUsers && !profileEdit.editing"
+                                                :disabled="profileEdit.loading"
+                                                @click="startEditProfile()">Edit</button>
+                                        <button class="btn-action" x-show="canManageUsers && profileEdit.editing"
+                                                @click="cancelEditProfile()">Cancel</button>
+                                    </div>
+                                    <div class="data-card-body">
+                                        <template x-if="profileEdit.loading">
+                                            <div style="display: flex; justify-content: center; padding: 1.5rem 0;">
+                                                <div class="spinner"></div>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="profileEdit.error">
+                                            <div class="alert-msg alert-error" x-text="profileEdit.error"></div>
+                                        </template>
+
+                                        <!-- Read-only view -->
+                                        <template x-if="!profileEdit.loading && !profileEdit.error && !profileEdit.editing">
+                                            <div class="data-rows">
+                                                <div class="data-row">
+                                                    <span class="data-label">Full Name</span>
+                                                    <span class="data-value" x-text="[profileEdit.form.first_name, profileEdit.form.middle_name, profileEdit.form.last_name].filter(Boolean).join(' ') || '—'"></span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Date of Birth</span>
+                                                    <span class="data-value" x-text="formatDate(profileEdit.form.date_of_birth) || '—'"></span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Gender</span>
+                                                    <span class="data-value" x-text="(genders.find(g => g.master_data_pk === profileEdit.form.gender_master_data_pk) || {}).value_name || '—'"></span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Marital Status</span>
+                                                    <span class="data-value" x-text="(maritalStatuses.find(g => g.master_data_pk === profileEdit.form.marital_status_master_data_pk) || {}).value_name || '—'"></span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Blood Group</span>
+                                                    <span class="data-value" x-text="(bloodGroups.find(g => g.master_data_pk === profileEdit.form.blood_group_master_data_pk) || {}).value_name || '—'"></span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Mobile</span>
+                                                    <span class="data-value mono" x-text="profileEdit.form.mobile_number ? (profileEdit.form.country_phone_code + ' ' + profileEdit.form.mobile_number) : '—'"></span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Email</span>
+                                                    <span class="data-value" x-text="profileEdit.form.email || '—'"></span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Emergency Contact</span>
+                                                    <span class="data-value">
+                                                        <span x-text="profileEdit.form.emergency_contact_name || '—'"></span>
+                                                        <template x-if="profileEdit.form.emergency_contact_phone">
+                                                            <span class="mono" x-text="' (' + profileEdit.form.emergency_contact_phone + ')'"></span>
+                                                        </template>
+                                                        <template x-if="profileEdit.form.emergency_relationship_master_data_pk">
+                                                            <span style="font-size: 0.75rem; color: #6b7280;" x-text="' — ' + ((relationships.find(g => g.master_data_pk === profileEdit.form.emergency_relationship_master_data_pk) || {}).value_name || '')"></span>
+                                                        </template>
+                                                    </span>
+                                                </div>
+                                                <div class="data-row">
+                                                    <span class="data-label">Remarks</span>
+                                                    <span class="data-value" x-text="profileEdit.form.remarks || '—'"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <!-- Edit form -->
+                                        <template x-if="!profileEdit.loading && profileEdit.editing">
+                                            <div>
+                                                <template x-if="profileEdit.saveError">
+                                                    <div class="alert-msg alert-error" x-text="profileEdit.saveError"></div>
+                                                </template>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">First Name *</label>
+                                                        <input type="text" class="form-input" x-model="profileEdit.form.first_name">
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Middle Name</label>
+                                                        <input type="text" class="form-input" x-model="profileEdit.form.middle_name">
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Last Name</label>
+                                                        <input type="text" class="form-input" x-model="profileEdit.form.last_name">
+                                                    </div>
+                                                </div>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-top: 0.25rem;">
+                                                    <div class="form-group" style="margin-bottom: 0.25rem; position: relative;" x-data="nssDatePicker('profileEdit.form.date_of_birth', { maxToday: true })">
+                                                        <label class="form-label">Date of Birth</label>
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Gender</label>
+                                                        <select class="nss-select" x-model="profileEdit.form.gender_master_data_pk">
+                                                            <option value="">Select...</option>
+                                                            <template x-for="g in genders" :key="g.master_data_pk">
+                                                                <option :value="g.master_data_pk" x-text="g.value_name"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Marital Status</label>
+                                                        <select class="nss-select" x-model="profileEdit.form.marital_status_master_data_pk">
+                                                            <option value="">Select...</option>
+                                                            <template x-for="g in maritalStatuses" :key="g.master_data_pk">
+                                                                <option :value="g.master_data_pk" x-text="g.value_name"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-top: 0.25rem;">
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Blood Group</label>
+                                                        <select class="nss-select" x-model="profileEdit.form.blood_group_master_data_pk">
+                                                            <option value="">Select...</option>
+                                                            <template x-for="g in bloodGroups" :key="g.master_data_pk">
+                                                                <option :value="g.master_data_pk" x-text="g.value_name"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Country Code</label>
+                                                        <input type="text" class="form-input" x-model="profileEdit.form.country_phone_code" placeholder="+91">
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Mobile</label>
+                                                        <input type="text" class="form-input" x-model="profileEdit.form.mobile_number">
+                                                    </div>
+                                                </div>
+                                                <div style="display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-top: 0.25rem;">
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Email</label>
+                                                        <input type="email" class="form-input" x-model="profileEdit.form.email">
+                                                    </div>
+                                                </div>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; margin-top: 0.25rem;">
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Emergency Contact Name</label>
+                                                        <input type="text" class="form-input" x-model="profileEdit.form.emergency_contact_name">
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Emergency Contact Phone</label>
+                                                        <input type="text" class="form-input" x-model="profileEdit.form.emergency_contact_phone">
+                                                    </div>
+                                                    <div class="form-group" style="margin-bottom: 0.25rem;">
+                                                        <label class="form-label">Relationship</label>
+                                                        <select class="nss-select" x-model="profileEdit.form.emergency_relationship_master_data_pk">
+                                                            <option value="">Select...</option>
+                                                            <template x-for="g in relationships" :key="g.master_data_pk">
+                                                                <option :value="g.master_data_pk" x-text="g.value_name"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="form-group" style="margin-bottom: 0.25rem; margin-top: 0.25rem;">
+                                                    <label class="form-label">Remarks</label>
+                                                    <textarea class="form-input" rows="2" x-model="profileEdit.form.remarks"></textarea>
+                                                </div>
+                                                <div class="form-group" style="margin-bottom: 0.25rem; margin-top: 0.25rem;">
+                                                    <label class="form-label">Reason for Correction (optional, recorded in audit log)</label>
+                                                    <input type="text" class="form-input" x-model="profileEdit.reason" placeholder="e.g. corrected spelling per Aadhaar">
+                                                </div>
+                                                <button class="btn-action primary" style="margin-top: 0.5rem;"
+                                                        :disabled="profileEdit.saving || !profileEdit.form.first_name.trim()"
+                                                        @click="saveProfile()">
+                                                    <div class="spinner-sm" x-show="profileEdit.saving"></div>
+                                                    Save
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
                                 <!-- Role assignments -->
                                 <div class="data-card">
                                     <div class="data-card-header">
@@ -1287,7 +1475,7 @@
                                                 <p class="form-hint" x-show="sakhaScope.mode === 'locked'">Auto-selected — this is the only Sakha in your scope.</p>
                                             </div>
                                             <div class="form-group" x-data="nssDatePicker('createForm.joining_date')" style="position: relative;">
-                                                <label class="form-label">Joining Date *</label>
+                                                <label class="form-label">Sangha Joining Date</label>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label">Local Sakha Number</label>
@@ -1316,22 +1504,9 @@
                                                 <input type="checkbox" class="nss-checkbox" x-model="createForm.credential_is_legacy">
                                                 <span x-text="'This member already has a ' + credentialLabelFor(createForm.membership_type_pk) + ' (legacy — enter its number)'"></span>
                                             </label>
-                                            <!-- Membership year — asked for BOTH the auto-generated
-                                                 and legacy paths. The issue date itself is never asked:
-                                                 the server sets it to this year's Dola Purnima
-                                                 (SOL-ARCH-013 FC-DECISION-01). If that Dola Purnima is
-                                                 still in the future, the credential is "not issued till now". -->
-                                            <div class="form-group" style="margin-top: 0.5rem;">
-                                                <label class="form-label">Membership Year *</label>
-                                                <input type="number" class="form-input" x-model.number="createForm.credential_issue_year"
-                                                       :placeholder="new Date().getFullYear()" min="1900" :max="new Date().getFullYear() + 1" step="1">
-                                                <p class="form-hint">
-                                                    Issued effective that year's Dola Purnima — no issue date is entered by hand.
-                                                </p>
-                                            </div>
                                             <template x-if="!createForm.credential_is_legacy">
                                                 <p class="form-hint">
-                                                    A new <span x-text="credentialLabelFor(createForm.membership_type_pk)"></span> number will be auto-generated for the current financial year on submit.
+                                                    A new <span x-text="credentialLabelFor(createForm.membership_type_pk)"></span> number will be auto-generated on submit. Validity runs Dola Purnima to Dola Purnima (SOL-ARCH-013 FC-DECISION-01) — no issue date or year is entered by hand.
                                                 </p>
                                             </template>
                                             <template x-if="createForm.credential_is_legacy">
@@ -1346,7 +1521,7 @@
                                         <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                                             <button class="btn-action primary"
                                                     @click="createSanghaSeviForNewPerson()"
-                                                    :disabled="createSSLoading || !createForm.membership_type_pk || !createForm.organization_pk || !createForm.joining_date || (createForm.credential_is_legacy && !createForm.credential_document_number.trim())">
+                                                    :disabled="createSSLoading || !createForm.membership_type_pk || !createForm.organization_pk || (createForm.credential_is_legacy && !createForm.credential_document_number.trim())">
                                                 <div class="spinner-sm" x-show="createSSLoading"></div>
                                                 <span x-text="createSSLoading ? 'Creating...' : 'Create Sangha Sevi'"></span>
                                             </button>
@@ -1548,7 +1723,7 @@
                                                 <p class="form-hint" x-show="sakhaScope.mode === 'locked'">Auto-selected — this is the only Sakha in your scope.</p>
                                             </div>
                                             <div class="form-group" x-data="nssDatePicker('ssForm.joining_date')" style="position: relative;">
-                                                <label class="form-label">Joining Date *</label>
+                                                <label class="form-label">Sangha Joining Date</label>
                                             </div>
                                             <div class="form-group">
                                                 <label class="form-label">Local Sakha Number</label>
@@ -1577,22 +1752,9 @@
                                                 <input type="checkbox" class="nss-checkbox" x-model="ssForm.credential_is_legacy">
                                                 <span x-text="'This member already has a ' + credentialLabelFor(ssForm.membership_type_pk) + ' (legacy — enter its number)'"></span>
                                             </label>
-                                            <!-- Membership year — asked for BOTH the auto-generated
-                                                 and legacy paths. The issue date itself is never asked:
-                                                 the server sets it to this year's Dola Purnima
-                                                 (SOL-ARCH-013 FC-DECISION-01). If that Dola Purnima is
-                                                 still in the future, the credential is "not issued till now". -->
-                                            <div class="form-group" style="margin-top: 0.5rem;">
-                                                <label class="form-label">Membership Year *</label>
-                                                <input type="number" class="form-input" x-model.number="ssForm.credential_issue_year"
-                                                       :placeholder="new Date().getFullYear()" min="1900" :max="new Date().getFullYear() + 1" step="1">
-                                                <p class="form-hint">
-                                                    Issued effective that year's Dola Purnima — no issue date is entered by hand.
-                                                </p>
-                                            </div>
                                             <template x-if="!ssForm.credential_is_legacy">
                                                 <p class="form-hint">
-                                                    A new <span x-text="credentialLabelFor(ssForm.membership_type_pk)"></span> number will be auto-generated for the current financial year on submit.
+                                                    A new <span x-text="credentialLabelFor(ssForm.membership_type_pk)"></span> number will be auto-generated on submit. Validity runs Dola Purnima to Dola Purnima (SOL-ARCH-013 FC-DECISION-01) — no issue date or year is entered by hand.
                                                 </p>
                                             </template>
                                             <template x-if="ssForm.credential_is_legacy">
@@ -1640,7 +1802,7 @@
 
                                         <button class="btn-action primary" style="margin-top: 0.5rem;"
                                                 @click="createSanghaSevi()"
-                                                :disabled="ssLoading || !ssForm.person_pk || !ssForm.membership_type_pk || !ssForm.organization_pk || !ssForm.joining_date ||
+                                                :disabled="ssLoading || !ssForm.person_pk || !ssForm.membership_type_pk || !ssForm.organization_pk ||
                                                            (ssForm.create_user_account && !ssForm.password) ||
                                                            (ssForm.credential_is_legacy && !ssForm.credential_document_number.trim())">
                                             <div class="spinner-sm" x-show="ssLoading"></div>
@@ -2835,7 +2997,7 @@
                                                                 <div class="data-row" x-show="mdSelected && mdSelected.local_sakha_erp_id"><span class="data-label">Local Sakha No.</span><span class="data-value mono" x-text="mdSelected && mdSelected.local_sakha_erp_id"></span></div>
                                                                 <div class="data-row" x-show="mdSelected && mdSelected.mobile_number"><span class="data-label">Mobile</span><span class="data-value mono" x-text="mdSelected ? ((mdSelected.country_phone_code || '') + ' ' + (mdSelected.mobile_number || '')) : ''"></span></div>
                                                                 <div class="data-row" x-show="mdSelected && mdSelected.email"><span class="data-label">Email</span><span class="data-value" x-text="mdSelected && mdSelected.email"></span></div>
-                                                                <div class="data-row" x-show="mdSelected && mdSelected.joining_date"><span class="data-label">Joining Date</span><span class="data-value" x-text="mdSelected && NSS.formatDate ? NSS.formatDate(mdSelected.joining_date) : (mdSelected && mdSelected.joining_date)"></span></div>
+                                                                <div class="data-row" x-show="mdSelected && mdSelected.joining_date"><span class="data-label">Sangha Joining Date</span><span class="data-value" x-text="mdSelected && NSS.formatDate ? NSS.formatDate(mdSelected.joining_date) : (mdSelected && mdSelected.joining_date)"></span></div>
                                                                 <div class="data-row" x-show="mdSelected && mdSelected.renewal_due_date"><span class="data-label">Renewal Due</span><span class="data-value" x-text="mdSelected && NSS.formatDate ? NSS.formatDate(mdSelected.renewal_due_date) : (mdSelected && mdSelected.renewal_due_date)"></span></div>
                                                             </div>
 
@@ -2871,12 +3033,35 @@
                                                                 <template x-for="p in mdParichaya" :key="p.parichaya_patra_pk">
                                                                     <div class="data-card" style="margin-bottom: 0.5rem;">
                                                                         <div class="data-card-body" style="padding: 0.6rem 0.9rem; font-size: 0.8rem;">
-                                                                            <div style="display: flex; justify-content: space-between;">
+                                                                            <div style="display: flex; justify-content: space-between; align-items: center;">
                                                                                 <span class="mono" style="font-weight: 600;" x-text="p.document_number"></span>
-                                                                                <span class="badge badge-xs" :class="NSS.statusBadgeClass(p.status)" x-text="p.status"></span>
+                                                                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                                                                    <span class="badge badge-xs" :class="NSS.statusBadgeClass(p.status)" x-text="p.status"></span>
+                                                                                    <button type="button" class="btn-action" style="font-size: 0.7rem;" title="Correct number (admin)"
+                                                                                            @click="openPatraCorrect('parichaya', p)">✎ Correct</button>
+                                                                                </div>
                                                                             </div>
                                                                             <div style="color:#64748b;" x-text="'Valid ' + p.valid_from + ' to ' + p.valid_to"></div>
                                                                             <div style="color:#64748b;" x-show="p.affiliated_organization_name" x-text="p.affiliated_organization_name"></div>
+
+                                                                            <!-- Inline correction form (MBR-030H, admin-only) -->
+                                                                            <div x-show="patraCorrect.type === 'parichaya' && patraCorrect.pk === p.parichaya_patra_pk"
+                                                                                 style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0;">
+                                                                                <label class="form-label" style="font-size: 0.72rem;">Corrected Parichaya Patra Number</label>
+                                                                                <input type="text" class="form-input" style="font-family: monospace; font-size: 0.8rem;"
+                                                                                       x-model="patraCorrect.value" maxlength="30" placeholder="e.g. 12/2026/2027">
+                                                                                <label class="form-label" style="font-size: 0.72rem; margin-top: 0.3rem;">Reason (optional)</label>
+                                                                                <input type="text" class="form-input" style="font-size: 0.8rem;"
+                                                                                       x-model="patraCorrect.reason" maxlength="500">
+                                                                                <p class="form-hint" style="color:#dc2626;" x-show="patraCorrect.error" x-text="patraCorrect.error"></p>
+                                                                                <div style="display:flex; gap:0.4rem; margin-top:0.4rem;">
+                                                                                    <button type="button" class="btn-action primary" style="font-size: 0.7rem;" :disabled="patraCorrect.loading || !patraCorrect.value.trim()"
+                                                                                            @click="savePatraCorrect()">
+                                                                                        <span x-text="patraCorrect.loading ? 'Saving...' : 'Save'"></span>
+                                                                                    </button>
+                                                                                    <button type="button" class="btn-action" style="font-size: 0.7rem;" @click="cancelPatraCorrect()" :disabled="patraCorrect.loading">Cancel</button>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </template>
@@ -2888,11 +3073,34 @@
                                                                 <template x-for="p in mdAnumati" :key="p.anumati_patra_pk">
                                                                     <div class="data-card" style="margin-bottom: 0.5rem;">
                                                                         <div class="data-card-body" style="padding: 0.6rem 0.9rem; font-size: 0.8rem;">
-                                                                            <div style="display: flex; justify-content: space-between;">
+                                                                            <div style="display: flex; justify-content: space-between; align-items: center;">
                                                                                 <span class="mono" style="font-weight: 600;" x-text="p.document_number"></span>
-                                                                                <span class="badge badge-xs" :class="NSS.statusBadgeClass(p.status)" x-text="p.status"></span>
+                                                                                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                                                                    <span class="badge badge-xs" :class="NSS.statusBadgeClass(p.status)" x-text="p.status"></span>
+                                                                                    <button type="button" class="btn-action" style="font-size: 0.7rem;" title="Correct number (admin)"
+                                                                                            @click="openPatraCorrect('anumati', p)">✎ Correct</button>
+                                                                                </div>
                                                                             </div>
                                                                             <div style="color:#64748b;" x-text="'Valid ' + p.valid_from + ' to ' + p.valid_to"></div>
+
+                                                                            <!-- Inline correction form (MBR-030H, admin-only) -->
+                                                                            <div x-show="patraCorrect.type === 'anumati' && patraCorrect.pk === p.anumati_patra_pk"
+                                                                                 style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0;">
+                                                                                <label class="form-label" style="font-size: 0.72rem;">Corrected Anumati Patra Number</label>
+                                                                                <input type="text" class="form-input" style="font-family: monospace; font-size: 0.8rem;"
+                                                                                       x-model="patraCorrect.value" maxlength="30" placeholder="e.g. 12/2026/2027">
+                                                                                <label class="form-label" style="font-size: 0.72rem; margin-top: 0.3rem;">Reason (optional)</label>
+                                                                                <input type="text" class="form-input" style="font-size: 0.8rem;"
+                                                                                       x-model="patraCorrect.reason" maxlength="500">
+                                                                                <p class="form-hint" style="color:#dc2626;" x-show="patraCorrect.error" x-text="patraCorrect.error"></p>
+                                                                                <div style="display:flex; gap:0.4rem; margin-top:0.4rem;">
+                                                                                    <button type="button" class="btn-action primary" style="font-size: 0.7rem;" :disabled="patraCorrect.loading || !patraCorrect.value.trim()"
+                                                                                            @click="savePatraCorrect()">
+                                                                                        <span x-text="patraCorrect.loading ? 'Saving...' : 'Save'"></span>
+                                                                                    </button>
+                                                                                    <button type="button" class="btn-action" style="font-size: 0.7rem;" @click="cancelPatraCorrect()" :disabled="patraCorrect.loading">Cancel</button>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </template>
@@ -3234,32 +3442,63 @@
                                         <div x-show="geoStatePk && !geoPostalCodes.length && !geoDistricts.length" style="padding: 1.5rem 0.25rem; color: #6b7280; font-size: 0.85rem;">No districts or postal codes found for this state.</div>
 
                                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem;">
-                                            <div x-show="geoCities.length">
+                                            <div x-show="geoCities.length || geoPostalCodePk">
                                                 <div class="nav-section-label" style="padding-left: 0;">Cities / Villages</div>
                                                 <div class="alert-msg alert-info" style="font-size: 0.78rem; margin-bottom: 0.5rem;"
                                                      x-show="geoCitiesFallbackNotice" x-text="geoCitiesFallbackNotice"></div>
-                                                <div class="form-group" style="margin: 0 0 0.5rem;">
-                                                    <input type="text" class="form-input" placeholder="Search by name or type…" x-model="geoCityQuery" style="width: 100%; max-width: 280px;">
+                                                <div class="form-group" style="margin: 0 0 0.5rem;" x-show="!geoPostalCodePk">
+                                                    <input type="text" class="form-input" placeholder="Search by name…" x-model="geoCityQuery" style="width: 100%; max-width: 280px;">
                                                 </div>
-                                                <div class="nss-dir-sortbar">
-                                                    <span class="sortbar-label">Sort by</span>
-                                                    <span class="sortable" @click="sortList('geoCities', 'city_village_name')" :aria-sort="NSS.sortAria(clientSortKey('geoCities'), clientSortDir('geoCities'), 'city_village_name')">Name<span class="sort-ind" x-text="NSS.sortIcon(clientSortKey('geoCities'), clientSortDir('geoCities'), 'city_village_name')"></span></span>
-                                                    <span class="sortable" @click="sortList('geoCities', 'city_village_type')" :aria-sort="NSS.sortAria(clientSortKey('geoCities'), clientSortDir('geoCities'), 'city_village_type')">Type<span class="sort-ind" x-text="NSS.sortIcon(clientSortKey('geoCities'), clientSortDir('geoCities'), 'city_village_type')"></span></span>
-                                                    <span style="margin-left: auto; font-size: 0.75rem; color: #94a3b8;" x-text="geoFilteredCities().length + ' of ' + geoCities.length"></span>
-                                                </div>
-                                                <div style="padding: 0.4rem 0.1rem; font-size: 0.72rem; color: #0369a1; display: flex; align-items: center; gap: 0.4rem;">
-                                                    <span>Click a city/village to show its PIN &amp; post offices.</span>
-                                                    <a x-show="geoPostalCodePk" href="#" @click.prevent="geoSelectPostalCode('')" style="color: #0ea5e9; text-decoration: underline;">Clear PIN</a>
-                                                </div>
-                                                <div class="data-rows" style="max-height: 420px; overflow-y: auto;">
-                                                    <template x-for="c in sortedList('geoCities', geoFilteredCities())" :key="c.city_village_pk">
-                                                        <div class="data-row" :style="(c.postal_code_pk && geoPostalCodePk === c.postal_code_pk) ? 'background: #e0f2fe; cursor: pointer;' : (c.postal_code_pk ? 'cursor: pointer;' : '')" @click="geoSelectCity(c)" :title="c.postal_code_pk ? 'Click to show this city/village\'s PIN and its post offices' : 'No PIN mapped for this city/village'">
-                                                            <span class="data-label" x-text="c.city_village_name"></span>
-                                                            <span class="data-value" style="font-size: 0.78rem; color: #64748b;" x-text="c.city_village_type || ''"></span>
+                                                <!-- PIN selected: one de-duplicated list of every unique
+                                                     location name under that PIN — city/village names merged
+                                                     with post-office names, office-type suffixes (S.O/B.O/H.O)
+                                                     stripped so "Kalpana Square S.O" collapses into the
+                                                     city/village "Kalpana Square". No type tag.
+                                                     (user decision, 2026-10-04) -->
+                                                <template x-if="geoPostalCodePk">
+                                                    <div>
+                                                        <div style="padding: 0.4rem 0.1rem; font-size: 0.72rem; color: #0369a1; display: flex; align-items: center; gap: 0.4rem;">
+                                                            <span x-text="'Names under PIN ' + geoScopeLabel('pin') + ' — ' + geoUniqueNames().length + ' unique'"></span>
+                                                            <a href="#" @click.prevent="geoSelectPostalCode('')" style="color: #0ea5e9; text-decoration: underline;">Clear PIN</a>
                                                         </div>
-                                                    </template>
-                                                    <div x-show="!geoFilteredCities().length" style="padding: 1rem; color: #94a3b8; font-size: 0.8rem;">No cities / villages match your search.</div>
-                                                </div>
+                                                        <div x-show="geoPostOfficesLoading" style="padding: 0.5rem 0.1rem; font-size: 0.78rem; color: #94a3b8;">Loading…</div>
+                                                        <template x-if="!geoPostOfficesLoading">
+                                                            <div class="data-rows" style="max-height: 420px; overflow-y: auto;">
+                                                                <div x-show="!geoUniqueNames().length" style="padding: 1rem; color: #94a3b8; font-size: 0.8rem;">No names recorded for this PIN yet.</div>
+                                                                <template x-for="name in geoUniqueNames()" :key="name">
+                                                                    <div class="data-row">
+                                                                        <span class="data-label" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                                                            <span style="color: #0ea5e9;">•</span>
+                                                                            <span x-text="name"></span>
+                                                                        </span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <!-- No PIN selected: browse the district/state city-village
+                                                     list (names only — type tag dropped per 2026-10-04). -->
+                                                <template x-if="!geoPostalCodePk">
+                                                    <div>
+                                                        <div class="nss-dir-sortbar">
+                                                            <span class="sortbar-label">Sort by</span>
+                                                            <span class="sortable" @click="sortList('geoCities', 'city_village_name')" :aria-sort="NSS.sortAria(clientSortKey('geoCities'), clientSortDir('geoCities'), 'city_village_name')">Name<span class="sort-ind" x-text="NSS.sortIcon(clientSortKey('geoCities'), clientSortDir('geoCities'), 'city_village_name')"></span></span>
+                                                            <span style="margin-left: auto; font-size: 0.75rem; color: #94a3b8;" x-text="geoFilteredCities().length + ' of ' + geoCities.length"></span>
+                                                        </div>
+                                                        <div style="padding: 0.4rem 0.1rem; font-size: 0.72rem; color: #0369a1;">
+                                                            <span>Click a city/village to show its PIN &amp; post offices.</span>
+                                                        </div>
+                                                        <div class="data-rows" style="max-height: 420px; overflow-y: auto;">
+                                                            <template x-for="c in sortedList('geoCities', geoFilteredCities())" :key="c.city_village_pk">
+                                                                <div class="data-row" :style="c.postal_code_pk ? 'cursor: pointer;' : ''" @click="geoSelectCity(c)" :title="c.postal_code_pk ? 'Click to show this city/village\'s PIN and its post offices' : 'No PIN mapped for this city/village'">
+                                                                    <span class="data-label" x-text="c.city_village_name"></span>
+                                                                </div>
+                                                            </template>
+                                                            <div x-show="!geoFilteredCities().length" style="padding: 1rem; color: #94a3b8; font-size: 0.8rem;">No cities / villages match your search.</div>
+                                                        </div>
+                                                    </div>
+                                                </template>
                                             </div>
                                             <div x-show="geoPostalCodes.length || geoPostalCodeQuery">
                                                 <div class="nav-section-label" style="padding-left: 0;">Postal Codes</div>
@@ -3286,16 +3525,30 @@
                                                 <div class="data-rows" style="max-height: 420px; overflow-y: auto;">
                                                     <template x-for="p in sortedList('geoPostalCodes', geoPostalCodes)" :key="p.postal_code_pk || p.postal_code">
                                                         <div>
-                                                            <div class="data-row" style="cursor: pointer;" :style="geoPostalCodePk === p.postal_code_pk ? 'background: #e0f2fe;' : ''" @click="geoSelectPostalCode(geoPostalCodePk === p.postal_code_pk ? '' : p.postal_code_pk)" :title="'PIN ' + p.postal_code + ' — ' + (p.state_name || '') + '. Click to narrow the other panels.'">
+                                                            <div class="data-row" style="cursor: pointer;" :style="geoPostalCodePk === p.postal_code_pk ? 'background: #e0f2fe;' : ''" @click="geoSelectPostalCode(geoPostalCodePk === p.postal_code_pk ? '' : p.postal_code_pk)" :title="'PIN ' + p.postal_code + ' — ' + (p.state_name || '') + '. Click to show its post offices.'">
                                                                 <span class="data-label mono" style="display: inline-flex; align-items: center; gap: 0.35rem;">
                                                                     <span style="color: #94a3b8; font-size: 0.7rem;" x-text="geoPostalCodePk === p.postal_code_pk ? '▾' : '▸'"></span>
                                                                     <span x-text="p.postal_code"></span>
                                                                 </span>
-                                                                <!-- Simplified Geography Model (2026-10-02): a PIN is one
-                                                                     globally-unique, state-scoped row. There is no
-                                                                     office-level detail any more, so show the dominant
-                                                                     state instead of an office name/count. -->
                                                                 <span class="data-value" style="font-size: 0.78rem; color: #64748b;" x-text="p.state_name || ''"></span>
+                                                            </div>
+                                                            <!-- Post offices under this PIN (SOL-ARCH-010 Amendment,
+                                                                 2026-10-03 — nss.post_office reinstated: a PIN can carry
+                                                                 several offices). All of them are shown here, not just one. -->
+                                                            <div x-show="geoPostalCodePk === p.postal_code_pk" style="padding: 0.3rem 0 0.5rem 1.4rem; border-left: 2px solid #e0f2fe; margin-left: 0.5rem;">
+                                                                <div x-show="geoPostOfficesLoading" style="font-size: 0.72rem; color: #94a3b8;">Loading post offices…</div>
+                                                                <template x-if="!geoPostOfficesLoading">
+                                                                    <div>
+                                                                        <div x-show="!geoPostOffices.length" style="font-size: 0.72rem; color: #94a3b8;">No approved post offices recorded for this PIN yet.</div>
+                                                                        <div x-show="geoPostOffices.length" x-text="geoPostOffices.length + ' post office' + (geoPostOffices.length !== 1 ? 's' : '')" style="padding: 0.1rem 0.4rem; font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.03em;"></div>
+                                                                        <template x-for="po in geoPostOffices" :key="po.post_office_pk">
+                                                                            <div style="display: flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.4rem; font-size: 0.78rem;">
+                                                                                <span style="color: #0ea5e9;">•</span>
+                                                                                <span x-text="po.post_office_name"></span>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </template>
                                                             </div>
                                                         </div>
                                                     </template>
@@ -3324,6 +3577,121 @@
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══════════════════════════════════════════
+                         VIEW: Location Approvals  (geo-entry review)
+                         Member-proposed geographic values awaiting review
+                         (SOL-ARCH-010 Amendment). FOUNDATION_MANAGE.
+                         ═══════════════════════════════════════════ -->
+                    <div x-show="activeTab === 'geoApprovals'" x-cloak>
+                        <div class="data-card">
+                            <div class="data-card-header">
+                                <h2 class="data-card-title">Location Approvals</h2>
+                            </div>
+                            <div class="data-card-body">
+                                <p style="color: var(--text-secondary); margin: 0 0 1rem;">
+                                    Review and correct geographic entries that members added while registering.
+                                </p>
+
+                                <!-- Entity + status filters -->
+                                <div style="display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1rem;">
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label">Type</label>
+                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <template x-for="ent in [['post-office','Post Offices'],['city-village','Cities / Villages'],['postal-code','PIN Codes'],['district','Districts']]" :key="ent[0]">
+                                                <button type="button" class="btn btn-sm"
+                                                        :class="geoEntryEntity === ent[0] ? 'btn-primary' : 'btn-secondary'"
+                                                        @click="setGeoEntryEntity(ent[0])" x-text="ent[1]"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="form-group" style="margin: 0;">
+                                        <label class="form-label">Status</label>
+                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                            <template x-for="st in ['PENDING','APPROVED','CORRECTED']" :key="st">
+                                                <button type="button" class="btn btn-sm"
+                                                        :class="geoEntryStatus === st ? 'btn-primary' : 'btn-secondary'"
+                                                        @click="setGeoEntryStatus(st)" x-text="st.charAt(0) + st.slice(1).toLowerCase()"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; align-items: center; justify-content: center; padding: 2rem;" x-show="geoEntriesLoading">
+                                    <div class="spinner"></div>
+                                </div>
+                                <div class="alert-msg alert-error" x-show="geoEntriesError" x-text="geoEntriesError"></div>
+
+                                <template x-if="!geoEntriesLoading && !geoEntriesError">
+                                    <div>
+                                        <div class="empty-state" x-show="!geoEntries.length" style="padding: 2rem; text-align: center; color: var(--text-secondary);">
+                                            No <span x-text="geoEntryStatus.toLowerCase()"></span> entries of this type.
+                                        </div>
+
+                                        <table class="data-table" x-show="geoEntries.length">
+                                            <thead>
+                                                <tr>
+                                                    <th>Value</th>
+                                                    <th>Proposed by</th>
+                                                    <th>Submitted</th>
+                                                    <th style="text-align: right;">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="e in geoEntries" :key="e.entry_pk">
+                                                    <tr>
+                                                        <td style="font-weight: 500;" x-text="geoEntryLabel(e)"></td>
+                                                        <td x-text="(e.submitted_by_organization_name || '—')"></td>
+                                                        <td x-text="e.created_at ? new Date(e.created_at).toLocaleDateString('en-GB') : '—'"></td>
+                                                        <td style="text-align: right;">
+                                                            <template x-if="geoEntryStatus === 'PENDING' && geoCorrect.pk !== e.entry_pk">
+                                                                <div style="display: inline-flex; gap: 0.5rem;">
+                                                                    <button type="button" class="btn btn-sm btn-primary"
+                                                                            @click="approveGeoEntry(e)"
+                                                                            :disabled="geoApproveBusyPk === e.entry_pk"
+                                                                            x-text="geoApproveBusyPk === e.entry_pk ? 'Approving…' : 'Approve'"></button>
+                                                                    <button type="button" class="btn btn-sm btn-secondary"
+                                                                            @click="openGeoCorrect(e)">Correct</button>
+                                                                </div>
+                                                            </template>
+                                                            <template x-if="geoEntryStatus !== 'PENDING'">
+                                                                <span class="badge" x-text="e.entry_status"></span>
+                                                            </template>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+
+                                        <!-- Inline correction panel -->
+                                        <template x-if="geoCorrect.pk">
+                                            <div class="data-card" style="margin-top: 1rem; border: 1px solid var(--border-color);">
+                                                <div class="data-card-body">
+                                                    <h3 style="margin: 0 0 0.75rem; font-size: 1rem;">Correct entry</h3>
+                                                    <div class="alert-msg alert-error" x-show="geoCorrect.error" x-text="geoCorrect.error"></div>
+                                                    <div class="form-group">
+                                                        <label class="form-label">Corrected value</label>
+                                                        <input type="text" class="nss-input" x-model="geoCorrect.value" placeholder="Correct spelling / name">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="form-label">Reason (required)</label>
+                                                        <input type="text" class="nss-input" x-model="geoCorrect.remarks" placeholder="Why is this being corrected?">
+                                                    </div>
+                                                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                                                        <button type="button" class="btn btn-sm btn-secondary" @click="cancelGeoCorrect()">Cancel</button>
+                                                        <button type="button" class="btn btn-sm btn-primary"
+                                                                @click="saveGeoCorrect(geoEntries.find(x => x.entry_pk === geoCorrect.pk))"
+                                                                :disabled="geoCorrect.loading"
+                                                                x-text="geoCorrect.loading ? 'Saving…' : 'Save correction'"></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
                                 </template>
                             </div>

@@ -264,6 +264,22 @@ class CityVillageResponse(BaseModel):
     is_active: bool
 
 
+class PostOfficeResponse(BaseModel):
+    """
+    Post office under a PIN (Member-Assisted Geographic Entry,
+    SOL-ARCH-010 Amendment 2026-10-03): nss.post_office is reinstated —
+    one PIN can carry several post offices (one HO + several SO/BO).
+    Only APPROVED, active rows are returned to lookup callers.
+    """
+
+    post_office_pk: UUID
+    postal_code_pk: UUID
+    postal_code: str
+    post_office_name: str
+    display_order: int
+    is_active: bool
+
+
 class PostalCodeResponse(BaseModel):
     """
     Postal code with parent state context.
@@ -313,6 +329,102 @@ class SakhaPostalCodeResponse(BaseModel):
     postal_code: str
     state_pk: UUID
     state_name: str
+
+
+# ---------------------------------------------------------------------------
+# Member-Assisted Geographic Entry — Propose endpoints
+# (SOL-ARCH-010 Amendment, 2026-10-03 — SOL-FND-004 §16.8, FND-BR-085..090)
+#
+# Any authenticated member may propose a district/postal-code/post-office/
+# city-village value the system has not seen yet. The row lands as
+# entry_status='PENDING' and is invisible to the public lookup endpoints
+# above (which now filter to APPROVED only) until a FOUNDATION_MANAGE
+# admin approves or corrects it via api/routers/geo_approval.py.
+# ---------------------------------------------------------------------------
+
+class ProposeDistrictRequest(BaseModel):
+    """POST /api/v1/foundation/districts/propose."""
+
+    state_pk: UUID
+    district_name: str = Field(..., min_length=1, max_length=100)
+
+
+class ProposePostalCodeRequest(BaseModel):
+    """POST /api/v1/foundation/postal-codes/propose."""
+
+    state_pk: UUID
+    postal_code: str = Field(..., min_length=6, max_length=6, description="6-digit PIN")
+
+
+class ProposePostOfficeRequest(BaseModel):
+    """POST /api/v1/foundation/post-offices/propose."""
+
+    postal_code_pk: UUID
+    post_office_name: str = Field(..., min_length=1, max_length=150)
+
+
+class ProposeCityVillageRequest(BaseModel):
+    """
+    POST /api/v1/foundation/city-villages/propose.
+
+    At least one of district_pk/postal_code_pk is required (validated in
+    the router — a Pydantic cross-field check would need a model_validator,
+    and the router already has the HTTPException machinery for a clear
+    422 message).
+    """
+
+    district_pk: UUID | None = None
+    postal_code_pk: UUID | None = None
+    city_village_name: str = Field(..., min_length=1, max_length=150)
+    city_village_type: str = Field(..., description="CITY | TOWN | VILLAGE")
+
+
+class PendingDistrictResponse(BaseModel):
+    """Response shape for a just-created PENDING district proposal."""
+
+    district_pk: UUID
+    state_pk: UUID
+    district_code: str
+    district_name: str
+    entry_status: str
+    submitted_by_sangha_sevi_pk: UUID | None
+    is_active: bool
+
+
+class PendingPostalCodeResponse(BaseModel):
+    """Response shape for a just-created PENDING postal-code proposal."""
+
+    postal_code_pk: UUID
+    state_pk: UUID
+    postal_code: str
+    entry_status: str
+    submitted_by_sangha_sevi_pk: UUID | None
+    is_active: bool
+
+
+class PendingPostOfficeResponse(BaseModel):
+    """Response shape for a just-created PENDING post-office proposal."""
+
+    post_office_pk: UUID
+    postal_code_pk: UUID
+    post_office_name: str
+    entry_status: str
+    submitted_by_sangha_sevi_pk: UUID | None
+    is_active: bool
+
+
+class PendingCityVillageResponse(BaseModel):
+    """Response shape for a just-created PENDING city/village proposal."""
+
+    city_village_pk: UUID
+    district_pk: UUID | None
+    postal_code_pk: UUID | None
+    city_village_code: str
+    city_village_name: str
+    city_village_type: str
+    entry_status: str
+    submitted_by_sangha_sevi_pk: UUID | None
+    is_active: bool
 
 
 # ---------------------------------------------------------------------------

@@ -106,7 +106,6 @@ function adminApp() {
             // Mandatory credential (MBR-010/014/019A/B) — see
             // credentialLabelFor(). Same fields/defaults as ssForm above.
             credential_is_legacy: false, credential_document_number: "",
-            credential_issue_year: new Date().getFullYear(),
         },
         createLoading: false,
         createSSLoading: false,
@@ -146,6 +145,24 @@ function adminApp() {
 
         // ── Reference data (loaded on init) ──────────────────
         genders: [],
+        maritalStatuses: [],
+        bloodGroups: [],
+        relationships: [],
+
+        // ── Profile Details edit (admin Detail view) ──────────
+        profileEdit: {
+            loading: false, saving: false, editing: false,
+            error: null, saveError: null,
+            form: {
+                first_name: "", middle_name: "", last_name: "",
+                date_of_birth: "", gender_master_data_pk: "",
+                marital_status_master_data_pk: "", blood_group_master_data_pk: "",
+                country_phone_code: "", mobile_number: "", email: "",
+                emergency_contact_name: "", emergency_contact_phone: "",
+                emergency_relationship_master_data_pk: "", remarks: "",
+            },
+            reason: "",
+        },
 
         // ── Create Sangha Sevi ────────────────────────────────
         ssForm: {
@@ -156,7 +173,6 @@ function adminApp() {
             // default) to auto-generate a new FY document number; check it
             // to record an already-issued legacy credential by hand.
             credential_is_legacy: false, credential_document_number: "",
-            credential_issue_year: new Date().getFullYear(),
             // Optional bundled login-account creation. Login is by
             // sangha_sevi_id, so the SS flow is the right place to offer it.
             create_user_account: false, password: "", force_password_change: true,
@@ -459,7 +475,11 @@ function adminApp() {
                 this.loadClaimsPendingCount(),
                 this.loadClaimSakhas(),
                 this.loadGenders(),
+                this.loadMaritalStatuses(),
+                this.loadBloodGroups(),
+                this.loadRelationships(),
                 this.loadSakhaScope(),
+                this.loadGeoEntriesPendingCount(),
             ]);
 
             // Handle hash-based tab navigation (e.g. /admin#claims, /admin#detail/uuid).
@@ -498,6 +518,7 @@ function adminApp() {
                     assignSakha: () => this.loadAssignSakhaData(),
                     refData: () => this.loadReferenceData(),
                     geography: () => this.loadGeography(),
+                    geoApprovals: () => this.loadGeoEntries(),
                     sysSettings: () => this.loadSystemSettings(),
                 };
                 if (tabLoaders[hash]) tabLoaders[hash]();
@@ -689,6 +710,7 @@ function adminApp() {
                 const res = await NSSAuth.apiFetch(`/api/v1/admin/users/${userAccountPk}`);
                 if (!res.ok) throw new Error(await NSS.extractError(res));
                 this.selectedUser = await res.json();
+                this.loadProfileEdit(this.selectedUser.person_pk);
             } catch (err) {
                 this.detailError = err.message || "Failed to load user detail.";
             } finally {
@@ -866,13 +888,13 @@ function adminApp() {
         // resolves, whether by creating one or skipping.
         // Shared by createSanghaSeviForNewPerson() and createSanghaSevi() —
         // adds the credential_* fields to a Sangha Sevi creation payload.
-        // The membership year is always sent (the server turns it into the
-        // issue date via that year's Dola Purnima); the legacy number is sent
-        // only when the operator checked "already has one" and typed one.
+        // The operator is never asked for an issue date or membership year:
+        // the server resolves the issue date itself (a Parichaya Patra on the
+        // governing Dola Purnima, an Anumati Patra on the day of application —
+        // SOL-ARCH-013 FC-DECISION-01). Only the legacy number is sent, and
+        // only when the operator checked "already has one" and typed it in.
         _credentialPayloadFields(form) {
             const fields = {};
-            const yr = parseInt(form.credential_issue_year, 10);
-            if (Number.isFinite(yr)) fields.credential_issue_year = yr;
             if (form.credential_is_legacy) {
                 const num = String(form.credential_document_number || "").trim();
                 if (num) fields.credential_document_number = num;
@@ -953,7 +975,6 @@ function adminApp() {
                     membership_type_pk: "", organization_pk: "",
                     joining_date: "", local_sakha_number: "",
                     credential_is_legacy: false, credential_document_number: "",
-                    credential_issue_year: new Date().getFullYear(),
                 };
                 this.selectedPersonDisplay = {};
                 this.personSearchResults = [];
@@ -1128,7 +1149,6 @@ function adminApp() {
                     person_pk: "", membership_type_pk: "", organization_pk: "",
                     joining_date: "", local_sakha_number: "",
                     credential_is_legacy: false, credential_document_number: "",
-                    credential_issue_year: new Date().getFullYear(),
                     create_user_account: false, password: "", force_password_change: true,
                 };
                 this.ssSelectedPerson = {};
@@ -1549,6 +1569,119 @@ function adminApp() {
                 const res = await NSSAuth.apiFetch("/api/v1/foundation/master-data?category_code=GENDER");
                 if (res.ok) this.genders = await res.json();
             } catch { /* non-critical */ }
+        },
+
+        async loadMaritalStatuses() {
+            try {
+                const res = await NSSAuth.apiFetch("/api/v1/foundation/master-data?category_code=MARITAL_STATUS");
+                if (res.ok) this.maritalStatuses = await res.json();
+            } catch { /* non-critical */ }
+        },
+
+        async loadBloodGroups() {
+            try {
+                const res = await NSSAuth.apiFetch("/api/v1/foundation/master-data?category_code=BLOOD_GROUP");
+                if (res.ok) this.bloodGroups = await res.json();
+            } catch { /* non-critical */ }
+        },
+
+        async loadRelationships() {
+            try {
+                const res = await NSSAuth.apiFetch("/api/v1/foundation/master-data?category_code=RELATIONSHIP");
+                if (res.ok) this.relationships = await res.json();
+            } catch { /* non-critical */ }
+        },
+
+        // ── Profile Details edit (admin Detail view) ──────────
+
+        async loadProfileEdit(personPk) {
+            this.profileEdit.loading = true;
+            this.profileEdit.error = null;
+            this.profileEdit.editing = false;
+            try {
+                const res = await NSSAuth.apiFetch(`/api/v1/admin/persons/${personPk}`);
+                if (!res.ok) throw new Error(await NSS.extractError(res));
+                const p = await res.json();
+                this.profileEdit.form = {
+                    first_name: p.first_name || "",
+                    middle_name: p.middle_name || "",
+                    last_name: p.last_name || "",
+                    date_of_birth: p.date_of_birth || "",
+                    gender_master_data_pk: p.gender_master_data_pk || "",
+                    marital_status_master_data_pk: p.marital_status_master_data_pk || "",
+                    blood_group_master_data_pk: p.blood_group_master_data_pk || "",
+                    country_phone_code: p.country_phone_code || NSS.DEFAULT_COUNTRY_CODE,
+                    mobile_number: p.mobile_number || "",
+                    email: p.email || "",
+                    emergency_contact_name: p.emergency_contact_name || "",
+                    emergency_contact_phone: p.emergency_contact_phone || "",
+                    emergency_relationship_master_data_pk: p.emergency_relationship_master_data_pk || "",
+                    remarks: p.remarks || "",
+                };
+                this.profileEdit.reason = "";
+            } catch (err) {
+                this.profileEdit.error = err.message || "Failed to load profile details.";
+            } finally {
+                this.profileEdit.loading = false;
+            }
+        },
+
+        startEditProfile() {
+            this.profileEdit.editing = true;
+            this.profileEdit.saveError = null;
+        },
+
+        cancelEditProfile() {
+            this.profileEdit.editing = false;
+            this.profileEdit.saveError = null;
+            if (this.selectedUser) this.loadProfileEdit(this.selectedUser.person_pk);
+        },
+
+        async saveProfile() {
+            if (!this.selectedUser) return;
+            const f = this.profileEdit.form;
+            if (!f.first_name || !f.first_name.trim()) {
+                this.profileEdit.saveError = "First name is required.";
+                return;
+            }
+            this.profileEdit.saving = true;
+            this.profileEdit.saveError = null;
+            try {
+                const payload = {
+                    first_name: f.first_name,
+                    middle_name: f.middle_name,
+                    last_name: f.last_name,
+                    date_of_birth: f.date_of_birth || null,
+                    gender_master_data_pk: f.gender_master_data_pk || null,
+                    marital_status_master_data_pk: f.marital_status_master_data_pk || null,
+                    blood_group_master_data_pk: f.blood_group_master_data_pk || null,
+                    country_phone_code: f.country_phone_code,
+                    mobile_number: f.mobile_number,
+                    email: f.email,
+                    emergency_contact_name: f.emergency_contact_name,
+                    emergency_contact_phone: f.emergency_contact_phone,
+                    emergency_relationship_master_data_pk: f.emergency_relationship_master_data_pk || null,
+                    remarks: f.remarks,
+                    reason: this.profileEdit.reason || null,
+                };
+                const res = await NSSAuth.apiFetch(`/api/v1/admin/persons/${this.selectedUser.person_pk}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                if (!res.ok) throw new Error(await NSS.extractError(res));
+                this.profileEdit.editing = false;
+                // Name/contact also surface on the Account Details card and
+                // the Users list — viewUser() refreshes both, and triggers
+                // loadProfileEdit() itself for this card too.
+                await this.viewUser(this.selectedUser.user_account_pk);
+                this.fetchUsers();
+                this.showToast("Profile updated.");
+            } catch (err) {
+                this.profileEdit.saveError = err.message || "Failed to save profile.";
+            } finally {
+                this.profileEdit.saving = false;
+            }
         },
 
         async fetchOrganizations() {
@@ -2934,6 +3067,11 @@ function adminApp() {
         mdJourney: [],
         mdOptionsLoaded: false,
 
+        // Patra number correction (MBR-030H, admin-only). type is
+        // 'parichaya' or 'anumati'; pk is that record's own PK, used to
+        // key which inline form (if any) is open across both lists.
+        patraCorrect: { type: null, pk: null, value: "", reason: "", loading: false, error: "" },
+
         // Member Directory sorting — server-side for the same reason as the
         // Person Directory: the response is capped, so the browser never
         // holds the whole list.
@@ -3104,6 +3242,7 @@ function adminApp() {
 
         async viewMember(member) {
             // Toggle: clicking the already-selected row closes it.
+            this.cancelPatraCorrect();
             if (this.mdSelected && this.mdSelected.sangha_sevi_pk === member.sangha_sevi_pk) {
                 this.mdSelected = null;
                 this.mdAffiliations = [];
@@ -3137,6 +3276,48 @@ function adminApp() {
 
         mdMemberName(m) {
             return [m.first_name, m.middle_name, m.last_name].filter(Boolean).join(" ");
+        },
+
+        // ── Patra number correction (MBR-030H, admin-only) ──────────────
+        // Reaches PATCH /api/v1/admin/patra/{type}/{pk}/document-number
+        // (api/routers/admin.py). The backend re-validates the number
+        // against the Patra's own issue_date and enforces the actor's
+        // scope — this form just surfaces that capability.
+        openPatraCorrect(type, p) {
+            const pk = type === "parichaya" ? p.parichaya_patra_pk : p.anumati_patra_pk;
+            this.patraCorrect = { type, pk, value: p.document_number || "", reason: "", loading: false, error: "" };
+        },
+
+        cancelPatraCorrect() {
+            this.patraCorrect = { type: null, pk: null, value: "", reason: "", loading: false, error: "" };
+        },
+
+        async savePatraCorrect() {
+            const { type, pk, value, reason } = this.patraCorrect;
+            if (!value.trim()) return;
+            this.patraCorrect.loading = true;
+            this.patraCorrect.error = "";
+            try {
+                const res = await NSSAuth.apiFetch(`/api/v1/admin/patra/${type}/${pk}/document-number`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        document_number: value.trim(),
+                        reason: reason.trim() ? reason.trim() : null,
+                    }),
+                });
+                if (!res.ok) throw new Error(await NSS.extractError(res));
+                const updated = await res.json();
+                const list = type === "parichaya" ? this.mdParichaya : this.mdAnumati;
+                const pkField = type === "parichaya" ? "parichaya_patra_pk" : "anumati_patra_pk";
+                const row = list.find(p => p[pkField] === pk);
+                if (row) row.document_number = updated.document_number;
+                this.cancelPatraCorrect();
+            } catch (err) {
+                this.patraCorrect.error = err.message || "Failed to correct the number.";
+            } finally {
+                this.patraCorrect.loading = false;
+            }
         },
 
         // ═══════════════════════════════════════════════════════
@@ -3715,11 +3896,151 @@ function adminApp() {
         // 751001-751030+ — only "owns" one of them in this table).
         geoCitiesFallbackNotice: "",
 
-        // PIN search is SERVER-side (2026-10-02). The Simplified Geography
-        // Model retired nss.post_office, so a PIN is now a single
-        // globally-unique, state-scoped row with no office-level detail.
-        // The API's ?q= matches the PIN digits only.
+        // PIN search is SERVER-side. The API's ?q= matches the PIN digits only.
         geoPostalCodeSearching: false,
+
+        // Post offices under the selected PIN (SOL-ARCH-010 Amendment,
+        // 2026-10-03 — nss.post_office was reinstated: one PIN can carry
+        // several offices, one HO plus several SO/BO). Loaded whenever a
+        // PIN row is expanded; cleared when it's collapsed/deselected.
+        geoPostOffices: [],
+        geoPostOfficesLoading: false,
+
+        async geoLoadPostOffices(postalCodePk) {
+            if (!postalCodePk) { this.geoPostOffices = []; return; }
+            this.geoPostOfficesLoading = true;
+            try {
+                this.geoPostOffices = await NSSAuth.apiFetch(`/api/v1/foundation/post-offices?postal_code_pk=${postalCodePk}`)
+                    .then(r => r.ok ? r.json() : []).catch(() => []);
+            } finally {
+                this.geoPostOfficesLoading = false;
+            }
+        },
+
+        // ── Location (geo-entry) approvals — FOUNDATION_MANAGE ──────────
+        // Reviews member-proposed geographic values that landed PENDING via
+        // the foundation "propose" endpoints (SOL-ARCH-010 Amendment).
+        // Backend: api/routers/geo_approval.py, /api/v1/admin/geo-entries/{entity}.
+        geoEntryEntity: "post-office",   // district | postal-code | post-office | city-village
+        geoEntryStatus: "PENDING",       // PENDING | APPROVED | CORRECTED
+        geoEntries: [],
+        geoEntriesTotal: 0,
+        geoEntriesLoading: false,
+        geoEntriesError: "",
+        geoEntriesPendingCount: 0,
+        geoApproveBusyPk: null,
+        geoCorrect: { pk: null, value: "", remarks: "", loading: false, error: "" },
+
+        async loadGeoEntries() {
+            this.geoEntriesLoading = true;
+            this.geoEntriesError = "";
+            this.cancelGeoCorrect();
+            try {
+                const res = await NSSAuth.apiFetch(
+                    `/api/v1/admin/geo-entries/${this.geoEntryEntity}?status=${this.geoEntryStatus}&page_size=100`);
+                if (res.status === 403) {
+                    this.geoEntriesError = "You do not have permission to review location entries.";
+                    this.geoEntries = []; this.geoEntriesTotal = 0; return;
+                }
+                const data = res.ok ? await res.json() : { entries: [], total: 0 };
+                this.geoEntries = data.entries || [];
+                this.geoEntriesTotal = data.total || 0;
+                if (this.geoEntryStatus === "PENDING") this.geoEntriesPendingCount = this.geoEntriesTotal;
+            } catch (e) {
+                this.geoEntriesError = "Failed to load location entries.";
+            } finally {
+                this.geoEntriesLoading = false;
+            }
+        },
+
+        // Sidebar badge: total PENDING across all four entities. Errors
+        // (incl. 403 for non-managers) are swallowed so the badge just
+        // stays at 0 rather than surfacing noise on load.
+        async loadGeoEntriesPendingCount() {
+            const entities = ["district", "postal-code", "post-office", "city-village"];
+            let total = 0;
+            for (const ent of entities) {
+                try {
+                    const res = await NSSAuth.apiFetch(`/api/v1/admin/geo-entries/${ent}?status=PENDING&page_size=1`);
+                    if (res.ok) { const d = await res.json(); total += (d.total || 0); }
+                } catch (e) { /* ignore */ }
+            }
+            this.geoEntriesPendingCount = total;
+        },
+
+        setGeoEntryEntity(ent) { if (ent === this.geoEntryEntity) return; this.geoEntryEntity = ent; this.loadGeoEntries(); },
+        setGeoEntryStatus(st) { if (st === this.geoEntryStatus) return; this.geoEntryStatus = st; this.loadGeoEntries(); },
+
+        // Human label for an entry — the primary name/code column, whichever
+        // this entity carries in its `value` dict.
+        geoEntryLabel(e) {
+            const v = (e && e.value) || {};
+            return v.district_name || v.postal_code || v.post_office_name || v.city_village_name || "—";
+        },
+
+        // Which corrected_value key the backend expects for the current entity.
+        geoEntryCorrectedKey() {
+            return ({
+                "district": "district_name",
+                "postal-code": "postal_code",
+                "post-office": "post_office_name",
+                "city-village": "city_village_name",
+            })[this.geoEntryEntity];
+        },
+
+        async approveGeoEntry(e) {
+            this.geoApproveBusyPk = e.entry_pk;
+            try {
+                const res = await NSSAuth.apiFetch(
+                    `/api/v1/admin/geo-entries/${this.geoEntryEntity}/${e.entry_pk}/approve`,
+                    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+                if (!res.ok) throw new Error(await NSS.extractError(res));
+                this.showToast("Location approved.", "success");
+                await this.loadGeoEntries();
+                this.loadGeoEntriesPendingCount();
+            } catch (err) {
+                this.showToast(err.message || "Approve failed.", "error");
+            } finally {
+                this.geoApproveBusyPk = null;
+            }
+        },
+
+        openGeoCorrect(e) {
+            this.geoCorrect = { pk: e.entry_pk, value: this.geoEntryLabel(e), remarks: "", loading: false, error: "" };
+        },
+        cancelGeoCorrect() {
+            this.geoCorrect = { pk: null, value: "", remarks: "", loading: false, error: "" };
+        },
+        async saveGeoCorrect(e) {
+            if (!this.geoCorrect.value.trim() || !this.geoCorrect.remarks.trim()) {
+                this.geoCorrect.error = "Both the corrected value and a reason are required.";
+                return;
+            }
+            this.geoCorrect.loading = true;
+            this.geoCorrect.error = "";
+            try {
+                const corrected_value = {};
+                corrected_value[this.geoEntryCorrectedKey()] = this.geoCorrect.value.trim();
+                // Preserve the original city/village type on correction.
+                if (this.geoEntryEntity === "city-village" && e.value && e.value.city_village_type) {
+                    corrected_value.city_village_type = e.value.city_village_type;
+                }
+                const res = await NSSAuth.apiFetch(
+                    `/api/v1/admin/geo-entries/${this.geoEntryEntity}/${e.entry_pk}/correct`,
+                    { method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ corrected_value, admin_remarks: this.geoCorrect.remarks.trim() }) });
+                if (!res.ok) throw new Error(await NSS.extractError(res));
+                this.showToast("Location corrected.", "success");
+                this.cancelGeoCorrect();
+                await this.loadGeoEntries();
+                this.loadGeoEntriesPendingCount();
+            } catch (err) {
+                this.geoCorrect.error = err.message || "Correction failed.";
+            } finally {
+                this.geoCorrect.loading = false;
+            }
+        },
+
 
         async geoSearchPostalCodes() {
             // Scope the search to the narrowest selected level. A selected
@@ -3765,10 +4086,33 @@ function adminApp() {
             return "";
         },
 
+        // Unified, de-duplicated list of every unique location NAME under
+        // the selected PIN (user decision, 2026-10-04). Merges city/village
+        // names with post-office names, strips the office-type suffix
+        // (S.O / B.O / H.O / G.P.O) so "Kalpana Square S.O" collapses onto
+        // the city/village "Kalpana Square", and dedupes case-insensitively.
+        // City/village names are added first so their (already clean) form
+        // wins as the display label on a tie.
+        geoUniqueNames() {
+            const strip = (s) => (s || "")
+                .replace(/\s*\b(?:S\.?O|B\.?O|H\.?O|G\.?P\.?O)\b\.?/gi, "")
+                .replace(/\s{2,}/g, " ")
+                .trim();
+            const seen = new Map(); // lowercased clean name -> display form
+            const add = (name) => {
+                const clean = strip(name);
+                if (!clean) return;
+                const key = clean.toLowerCase();
+                if (!seen.has(key)) seen.set(key, clean);
+            };
+            (this.geoCities || []).forEach(c => add(c.city_village_name));
+            (this.geoPostOffices || []).forEach(p => add(p.post_office_name));
+            return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+        },
+
         // A single Odisha district can hold thousands of villages
         // (e.g. Mayurbhanj: ~3,888) — filter by name or type first.
-        geoFilteredCities() {
-            const q = (this.geoCityQuery || "").trim().toLowerCase();
+        geoFilteredCities() {            const q = (this.geoCityQuery || "").trim().toLowerCase();
             if (!q) return this.geoCities;
             return this.geoCities.filter(c =>
                 (c.city_village_name || "").toLowerCase().includes(q) ||
@@ -3890,6 +4234,7 @@ function adminApp() {
             this.geoCityQuery = "";
             this.geoSakhaQuery = "";
             this.geoCitiesFallbackNotice = "";
+            this.geoLoadPostOffices(postalCodePk);
             if (!postalCodePk) {
                 this.geoCityPk = "";
                 // Cleared back to district/state scope. Defer entirely to

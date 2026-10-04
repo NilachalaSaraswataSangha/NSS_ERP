@@ -41,7 +41,7 @@ from api.dependencies.rbac import require_any_permission
 from api.helpers import (
     next_id, get_active_status_pk, compose_local_sakha_erp_id, log_audit,
     build_order_by, natural_sort_key, require_sakha_organization,
-    issue_membership_credential, financial_year_bounds,
+    issue_membership_credential,
     validate_mobile, validate_email,
     fetch_person_date_of_birth,
 )
@@ -585,7 +585,7 @@ def approve_claim(
                     membership_status_master_data_pk,
                     organization_pk,
                     joining_date
-                ) VALUES (%s, %s, %s, %s, %s, COALESCE(%s, CURRENT_DATE))
+                ) VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING sangha_sevi_pk
                 """,
                 (
@@ -633,7 +633,7 @@ def approve_claim(
                         membership_status_master_data_pk,
                         organization_pk,
                         joining_date
-                    ) VALUES (%s, %s, %s, %s, %s, COALESCE(%s, CURRENT_DATE))
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING sangha_sevi_pk
                     """,
                     (
@@ -667,6 +667,12 @@ def approve_claim(
         )
         cur.execute(
             """
+            -- effective_from is NOT NULL (06_membership_sakha_affiliation.sql)
+            -- and is a DIFFERENT fact from the member's Sangha joining date:
+            -- it records when this Sakha affiliation began, which is known
+            -- even when the joining date is not (MBR-047). So COALESCE to
+            -- today is correct HERE, and deliberately not used on
+            -- sangha_sevi.joining_date above.
             INSERT INTO nss.membership_sakha_affiliation (
                 sangha_sevi_pk,
                 organization_pk,
@@ -707,25 +713,20 @@ def approve_claim(
         # record: linking to an existing one (the person is already a
         # Sangha Sevi elsewhere) means they already hold a credential.
         if sangha_sevi_newly_created:
-            # The registration form only collects a plain sequence number
-            # for an already-issued legacy credential (not the full
-            # "<no>/<fy_start>/<fy_end>" Kendra Number string — the FY is
-            # derived automatically, not typed by the registrant). Compose
-            # it here using the CURRENT financial year; a genuinely old
-            # document from a past FY would need the admin to correct the
-            # number after approval, since registration has no way to ask
-            # which past year it was issued in.
-            legacy_document_number = None
-            if credential_document_number:
-                fy_start, fy_end, _, _ = financial_year_bounds(date.today())
-                legacy_document_number = f"{credential_document_number}/{fy_start}/{fy_end}"
-
+            # MBR-030H (2026-10-03): the registrant may have typed a bare
+            # sequence number OR a full "<no>/<year>/<year>" number. Pass it
+            # through untouched — issue_membership_credential() normalizes and
+            # validates it against the Patra's own ISSUE DATE via
+            # normalize_patra_document_number(). This previously composed the
+            # year here from date.today()'s financial year, which stamped the
+            # wrong year on any Patra whose issue date fell in a different
+            # year than the approval date.
             credential_type, credential_pk, credential_doc_number = issue_membership_credential(
                 cur,
                 sangha_sevi_pk=str(sangha_sevi_pk),
                 membership_type_pk=str(membership_type_pk),
                 organization_pk=str(org_pk),
-                document_number=legacy_document_number,
+                document_number=credential_document_number,
                 joining_date=joining_date,
                 date_of_birth=fetch_person_date_of_birth(cur, person_pk),
             )

@@ -23,7 +23,9 @@ FROM nss.country c
 JOIN nss.state s ON s.country_pk = c.country_pk
 WHERE c.country_code = 'IN'
   AND s.state_code = 'OD'
-ON CONFLICT (postal_code) DO UPDATE SET
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     state_pk = EXCLUDED.state_pk;
 
 -- Puri — Nilachala Kutira, Smruti Mandira (Swargadwar area)
@@ -33,7 +35,9 @@ FROM nss.country c
 JOIN nss.state s ON s.country_pk = c.country_pk
 WHERE c.country_code = 'IN'
   AND s.state_code = 'OD'
-ON CONFLICT (postal_code) DO UPDATE SET
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     state_pk = EXCLUDED.state_pk;
 
 -- Cuttack — Tier 4 verification (second Sakha location)
@@ -43,5 +47,7 @@ FROM nss.country c
 JOIN nss.state s ON s.country_pk = c.country_pk
 WHERE c.country_code = 'IN'
   AND s.state_code = 'OD'
-ON CONFLICT (postal_code) DO UPDATE SET
+ON CONFLICT (postal_code)
+    WHERE entry_status = 'APPROVED' AND is_active = TRUE
+    DO UPDATE SET
     state_pk = EXCLUDED.state_pk;

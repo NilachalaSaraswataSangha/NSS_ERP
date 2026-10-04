@@ -119,7 +119,7 @@ Overall solution architecture documentation (cross-module, above the per-module 
 ## Current state vs. these decisions
 
 The Django-to-FastAPI migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django
-prototype was fully removed and FastAPI is the sole API layer (`api/`: 108 endpoints across 11
+prototype was fully removed and FastAPI is the sole API layer (`api/`: 120 endpoints across 11
 routers, raw psycopg2, no ORM). Released through `v0.10.4` (Tier 4 Family + Membership) on
 `main`; **Tier 5 (Authentication + Administration) is in progress, uncommitted, on
 `feature/tier5-authentication-administration`** — JWT/RBAC, a second write-capable

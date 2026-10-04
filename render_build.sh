@@ -106,6 +106,7 @@ run_sql "master_data"                    "${DDL_BASE}/01_foundation/08_master_da
 run_sql "state"                          "${DDL_BASE}/01_foundation/09_state.sql"
 run_sql "district"                       "${DDL_BASE}/01_foundation/10_district.sql"
 run_sql "postal_code"                    "${DDL_BASE}/01_foundation/12_postal_code.sql"
+run_sql "post_office"                    "${DDL_BASE}/01_foundation/13_post_office.sql"
 run_sql "city_village"                   "${DDL_BASE}/01_foundation/11_city_village.sql"
 run_sql "festival_master"                "${DDL_BASE}/01_foundation/16_festival_master.sql"
 run_sql "festival_calendar_date"         "${DDL_BASE}/01_foundation/17_festival_calendar_date.sql"
@@ -121,6 +122,7 @@ run_sql "district (seed)"           "${SEED_BASE}/01_foundation/06_district.sql"
 run_sql "system_setting (seed)"     "${SEED_BASE}/01_foundation/07_system_setting.sql"
 run_sql "postal_code (seed)"        "${SEED_BASE}/01_foundation/08_postal_code.sql"
 run_sql "postal_code bulk (seed)"   "${SEED_BASE}/01_foundation/08b_postal_code_bulk.sql"
+run_sql "post_office bulk (seed)"   "${SEED_BASE}/01_foundation/08c_post_office_bulk.sql"
 run_sql "city_village (seed)"       "${SEED_BASE}/01_foundation/11_city_village.sql"
 run_sql "city_village urban recovery (seed)" "${SEED_BASE}/01_foundation/11b_city_village_urban_recovery.sql"
 run_sql "festival_calendar (seed)"  "${SEED_BASE}/01_foundation/10_festival_calendar.sql"
@@ -170,6 +172,14 @@ run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_p
 run_sql "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
 run_sql "sakha_only_membership_trigger"  "${DDL_BASE}/05_membership/14_sakha_only_membership_trigger.sql"
 run_sql "credential_sequence_counter"    "${DDL_BASE}/05_membership/15_credential_sequence_counter.sql"
+
+echo ""
+echo "--- Phase 7b: Deferred Foundation Audit FKs ---"
+# Wires the real FK constraints on district/postal_code/post_office/
+# city_village's submitted_by/reviewed_by columns to sangha_sevi, now
+# that sangha_sevi exists. Not a migration — runs every full rebuild
+# against brand-new, empty tables (circular-dependency handling).
+run_sql "foundation_audit_fk" "${DDL_BASE}/05_membership/16_foundation_audit_fk.sql"
 
 echo ""
 echo "--- Ensuring nss_db_owner, nss_db_backend, and nss_db_writer roles exist ---"

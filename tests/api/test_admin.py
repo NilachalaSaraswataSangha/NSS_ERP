@@ -2265,7 +2265,7 @@ class TestCreateSanghaSeviCredentialNumber:
         """
         from datetime import date
 
-        from api.helpers import dola_purnima_credential_validity_window
+        from api.helpers import festival_date_for_year, financial_year_bounds
 
         if not regular_membership_type_pk or not two_sakhas:
             pytest.skip("Missing reference data.")
@@ -2286,18 +2286,23 @@ class TestCreateSanghaSeviCredentialNumber:
             WHERE ss.person_pk = %s
         """, (person_pk,))
         document_number, valid_from, valid_to = cur.fetchone()
-        cur.close()
 
         # document_number is still FY-based (MBR-030A) ...
         seq_str, fy_start_str, fy_end_str = document_number.split("/")
         assert int(fy_end_str) == int(fy_start_str) + 1
 
-        # ... while valid_from/valid_to are the Dola Purnima membership-year
-        # window containing today, independently computed via the same
-        # resolver issue_membership_credential() calls, not the FY bounds.
-        expected_from, expected_to = dola_purnima_credential_validity_window(
-            write_conn.cursor(), date.today(),
-        )
+        # ... and valid_from/valid_to (and issue_date, implicitly) are the
+        # Dola Purnima dates of that SAME financial year — the document
+        # number's fy_start year to fy_start+1 — not whatever Dola Purnima
+        # happens to fall next after today's raw date (2026-10-03 refinement:
+        # no credential is ever anchored on today(), only on a Dola Purnima
+        # tied to the membership year being issued).
+        anchor_year = financial_year_bounds(date.today())[0]
+        assert int(fy_start_str) == anchor_year
+        expected_from = festival_date_for_year(cur, "DOLA_PURNIMA", anchor_year)
+        expected_to = festival_date_for_year(cur, "DOLA_PURNIMA", anchor_year + 1)
+        cur.close()
+
         assert valid_from == expected_from
         assert valid_to == expected_to
         assert valid_to.year == valid_from.year + 1

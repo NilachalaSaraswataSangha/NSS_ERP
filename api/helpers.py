@@ -389,6 +389,153 @@ def next_credential_document_number(
     return f"{seq}/{fy_start}/{fy_end}"
 
 
+def get_master_data_pk(cur, category_code: str, value_code: str) -> str:
+    """
+    Resolve a master_data row to its PK by (category_code, value_code) —
+    e.g. ("ADDRESS_TYPE", "PERMANENT").
+
+    Raises HTTPException 500 when the value is absent, because a missing
+    seeded master_data value is a build/seed defect, not a client error.
+    """
+    cur.execute(
+        """
+        SELECT md.master_data_pk
+        FROM nss.master_data md
+        JOIN nss.master_category mc
+          ON mc.master_category_pk = md.master_category_pk
+        WHERE mc.category_code = %s
+          AND md.value_code = %s
+          AND md.is_active = TRUE
+        """,
+        (category_code, value_code),
+    )
+    row = cur.fetchone()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                f"Master data value {category_code}/{value_code} is missing. "
+                f"The database seed is incomplete."
+            ),
+        )
+    return str(row[0])
+
+
+def parse_optional_date(value, field_label: str) -> date | None:
+    """
+    Parse an optional ISO date coming off a request body.
+
+    Treats None and "" (what an untouched UI date field actually sends) alike
+    as "not provided" -> None, so a NULL reaches the column instead of an
+    empty string Postgres would choke on. A non-empty but malformed value is a
+    client error, so it raises a clean 422 rather than escaping as a 500 from
+    date.fromisoformat().
+    """
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value
+    value = str(value).strip()
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{field_label} must be a valid date in YYYY-MM-DD form.",
+        )
+
+
+def patra_year_pair(issue_date: date) -> tuple[int, int]:
+    """
+    MBR-030H: the authoritative year pair for a Patra issued on *issue_date*
+    is the calendar year of the issue date and the year after it.
+
+    A Patra issued any time in 2026 — including a March 2026 Dola Purnima —
+    carries 2026/2027. A March-issued Parichaya Patra opens the INCOMING
+    membership year, not the outgoing financial year its March date falls in.
+
+    This is exactly what financial_year_bounds(date(issue_date.year, 4, 1))
+    yields; expressed directly here so the rule is readable on its own and so
+    both the minting path and the validation path cannot drift apart.
+    """
+    return issue_date.year, issue_date.year + 1
+
+
+def normalize_patra_document_number(
+    supplied: str | None, issue_date: date, card_type: str,
+) -> str | None:
+    """
+    MBR-030H — normalize/validate a Parichaya or Anumati Patra number that a
+    human typed, for *any* entry point (registration, claim approval, member
+    creation, admin correction).
+
+    Supersedes the retired 2026-10-01 note "no one, legacy or new, is ever
+    asked to supply a year" (user decision, 2026-10-03). Nobody is *required*
+    to type a year, but anyone may:
+
+        "1"            -> "1/2026/2027"   (year appended automatically)
+        "1/2026/2027"  -> "1/2026/2027"   (year verified, kept as given)
+        "1/2025/2026"  -> HTTP 422        (wrong year, names the right one)
+
+    Returns None when nothing was supplied, which signals the caller to
+    auto-mint from the sequence counter instead (MBR-030A).
+
+    A supplied sequence number is TRUSTED as typed and is NOT replaced by the
+    counter's next value — the approving admin is responsible for its
+    correctness and can correct it later. Genuine duplicates are still caught
+    by the document_number unique constraint.
+    """
+    if supplied is None:
+        return None
+    supplied = supplied.strip()
+    if not supplied:
+        return None
+
+    label = card_type.replace("_", " ").title()
+    fy_start, fy_end = patra_year_pair(issue_date)
+
+    def _reject(detail: str):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail,
+        )
+
+    parts = [p.strip() for p in supplied.split("/")]
+    seq = parts[0]
+
+    if not seq.isdigit():
+        _reject(
+            f"{label} number '{supplied}' is not valid. Enter just the number "
+            f"(e.g. 1), or the full number with its year "
+            f"(e.g. 1/{fy_start}/{fy_end})."
+        )
+
+    # Number only — append the correct year pair.
+    if len(parts) == 1:
+        return f"{int(seq)}/{fy_start}/{fy_end}"
+
+    # Number with a year — verify it against the issue date before storing.
+    if len(parts) != 3 or not all(p.isdigit() for p in parts[1:]):
+        _reject(
+            f"{label} number '{supplied}' is not valid. Use the form "
+            f"<number>/<year>/<year> — for a Patra issued on "
+            f"{issue_date.strftime('%d/%m/%Y')} that is "
+            f"{int(seq)}/{fy_start}/{fy_end}."
+        )
+
+    given_start, given_end = int(parts[1]), int(parts[2])
+    if (given_start, given_end) != (fy_start, fy_end):
+        _reject(
+            f"{label} number '{supplied}' carries the wrong year. A {label} "
+            f"issued on {issue_date.strftime('%d/%m/%Y')} belongs to "
+            f"{fy_start}/{fy_end}. Please supply that year's {label} number "
+            f"— for example {int(seq)}/{fy_start}/{fy_end}."
+        )
+
+    return f"{int(seq)}/{fy_start}/{fy_end}"
+
+
 # ── Festival reference calendar (SOL-ARCH-013) ──────────────────────────
 
 def festival_date_for_year(
@@ -442,42 +589,86 @@ def next_festival_date_on_or_after(
     return festival_date_for_year(cur, festival_code, as_of.year + 1, require_confirmed)
 
 
-def dola_purnima_credential_validity_window(cur, issue_date: date) -> tuple[date, date]:
+def previous_festival_date_on_or_before(
+    cur, festival_code: str, as_of: date, require_confirmed: bool = True,
+) -> date | None:
     """
-    Parichaya Patra / Anumati Patra validity window for a credential issued
-    on *issue_date* (SOL-ARCH-013 FC-DECISION-01): valid_from is the next
-    Dola Purnima on/after *issue_date*, valid_to is the following year's
-    Dola Purnima — the "Dola Purnima membership year". Gruhasana
-    (PARIBARIK_ASANA) inherits the Parichaya Patra's window and needs no
-    independent call to this function (ORG-BR-094).
+    Most recent observed date for *festival_code* that falls on or before
+    *as_of* — the mirror of next_festival_date_on_or_after(), and the
+    primitive that answers "which membership year is *as_of* inside?"
+    (SOL-ARCH-013 §12).
 
-    Raises HTTPException 422 if the required Dola Purnima dates are not on
-    file / not yet confirmed — never silently falls back to
-    financial_year_bounds() or any computed date.
+    Looks at *as_of*'s calendar year first, then the preceding year, since
+    Dola Purnima (the only festival in scope today) never straddles
+    1 January (OPEN-FC-04). Returns None — never a computed/guessed date —
+    if neither year has a usable row; the caller must raise its own 422.
     """
-    valid_from = next_festival_date_on_or_after(cur, "DOLA_PURNIMA", issue_date)
-    if valid_from is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "Cannot determine the credential validity window: no confirmed "
-                f"Dola Purnima date is on file on or after {issue_date.isoformat()}. "
-                "An administrator must enter/confirm it in the festival reference "
-                "calendar (SOL-ARCH-013) before this credential can be issued."
-            ),
-        )
-    valid_to = festival_date_for_year(cur, "DOLA_PURNIMA", valid_from.year + 1)
+    candidate = festival_date_for_year(cur, festival_code, as_of.year, require_confirmed)
+    if candidate is not None and candidate <= as_of:
+        return candidate
+    return festival_date_for_year(cur, festival_code, as_of.year - 1, require_confirmed)
+
+
+def dola_purnima_credential_validity_window(
+    cur, issue_date: date, card_type: str,
+) -> tuple[date, date]:
+    """
+    Parichaya Patra / Anumati Patra validity window (SOL-ARCH-013
+    FC-DECISION-01, refined 2026-10-03): *valid_from* is *issue_date*
+    itself. *valid_to* depends on *card_type* ("PARICHAYA_PATRA" or
+    "ANUMATI_PATRA") — the two credential types reach this function with
+    very differently shaped *issue_date*, by design (decided 2026-10-03),
+    and that difference means they need two different (not one shared)
+    rules for *valid_to*:
+
+      - PARICHAYA_PATRA — issued/reissued ONLY on a Dola Purnima; the
+        caller resolves *issue_date* to one before calling this. *valid_to*
+        is simply the NEXT Dola Purnima after *issue_date* — one Dola
+        cycle, however long that cycle naturally runs. This matters
+        because consecutive Dola Purnimas are NOT always ~365 days apart
+        (lunar calendar drift — e.g. 2027-03-22 → 2028-03-11 is only 354
+        days); a "+1 year, then next Dola" rule would wrongly skip that
+        next festival and jump to the one after, producing a ~2-year card.
+        Taking "the next one" directly avoids that: issued on Dola Purnima
+        2026 (2026-03-03) → valid [2026-03-03, 2027-03-22).
+      - ANUMATI_PATRA — may be issued any day of the year, whenever a
+        probationary member actually applies, so *issue_date* is a real
+        application date, not a festival date. Here *valid_to* is the
+        first Dola Purnima falling AT LEAST ONE FULL YEAR after
+        *issue_date* — a mid-year applicant must legitimately serve past
+        the next Dola Purnima and only renews at the one after that (no
+        mid-year renewal): applying 2026-10-03 → one year on is
+        2027-10-03, already past Dola Purnima 2027 (2027-03-22), so the
+        window runs to Dola Purnima 2028 (2028-03-11) → valid
+        [2026-10-03, 2028-03-11). (Deferred to a future tier, not
+        implemented here: the Sakha President may be able to authorise an
+        exception that lets an applicant count the nearer, "too soon"
+        Dola Purnima instead — out of scope for this pass.)
+
+    Raises HTTPException 422 if the required Dola Purnima date is not on
+    file / not yet confirmed — never silently falls back to a computed
+    date.
+    """
+    if card_type == "PARICHAYA_PATRA":
+        search_from = issue_date + timedelta(days=1)
+    else:
+        try:
+            search_from = issue_date.replace(year=issue_date.year + 1)
+        except ValueError:
+            # 29 February — the following year is not a leap year.
+            search_from = issue_date.replace(year=issue_date.year + 1, day=28)
+    valid_to = next_festival_date_on_or_after(cur, "DOLA_PURNIMA", search_from)
     if valid_to is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
                 "Cannot determine the credential validity window: no confirmed "
-                f"Dola Purnima date is on file for {valid_from.year + 1}. An "
-                "administrator must enter/confirm it in the festival reference "
+                f"Dola Purnima date is on file on or after {search_from.isoformat()}. "
+                "An administrator must enter/confirm it in the festival reference "
                 "calendar (SOL-ARCH-013) before this credential can be issued."
             ),
         )
-    return valid_from, valid_to
+    return issue_date, valid_to
 
 
 # ── System settings ─────────────────────────────────────────────────────
@@ -880,7 +1071,7 @@ def insert_sakha_affiliation(
                 sangha_sevi_pk, organization_pk,
                 local_sakha_erp_id, effective_from,
                 affiliation_status, source_event_type
-            ) VALUES (%s, %s, %s, %s, 'ACTIVE', 'ENROLLMENT')
+            ) VALUES (%s, %s, %s, COALESCE(%s, CURRENT_DATE), 'ACTIVE', 'ENROLLMENT')
             RETURNING membership_sakha_affiliation_pk
             """,
             (str(sangha_sevi_pk), str(organization_pk), composed_id, effective_from),
@@ -920,6 +1111,7 @@ def issue_membership_credential(
     valid_to: date | None = None,
     joining_date: date | None = None,
     date_of_birth: date | None = None,
+    president_override: bool = False,
 ) -> tuple[str, str, str]:
     """
     Issue the mandatory credential for a newly-created Sangha Sevi
@@ -931,116 +1123,149 @@ def issue_membership_credential(
     insert_sakha_affiliation()'s convention just above.
 
     Two paths, selected by whether *document_number* is provided:
-      - Omitted: mints a new number for the current financial year via
+      - Omitted: mints a new number for the current membership year via
         next_credential_document_number() (Kendra-wide sequence for
-        Parichaya Patra, Sakha-wide for Anumati Patra — MBR-030A).
-        *valid_from*/*valid_to* default to the Dola Purnima membership-year
-        window containing *issue_date* (SOL-ARCH-013 FC-DECISION-01) —
-        decoupled from the FY used for the document_number itself.
+        Parichaya Patra, Sakha-wide for Anumati Patra — MBR-030A). The
+        number is stamped <seq>/<CY>/<CY+1> where CY is the calendar year
+        of *issue_date* — so a Parichaya Patra renewed on Dola Purnima
+        2026 (2026-03-03) is numbered .../2026/2027 (the INCOMING membership
+        year it opens), never .../2025/2026, even though that March date
+        sits in the outgoing financial year. An Anumati Patra applied for
+        on any day of calendar 2026 is likewise numbered .../2026/2027.
       - Provided: records an already-issued legacy credential as-is.
-        *valid_from*/*valid_to* default to the same Dola Purnima window if
-        not given.
-    *issue_date* is resolved in this order: an explicit *issue_date* wins;
-    otherwise, when *issue_year* is given, it is that year's Dola Purnima
-    (422 if that date is unknown, or still in the future — "not issued till
-    now"); otherwise it defaults to today.
+    *valid_from*/*valid_to* default to the Dola Purnima validity window
+    (SOL-ARCH-013 FC-DECISION-01): *valid_from* = *issue_date*; *valid_to*
+    = the first Dola Purnima at least one year later. Decoupled from the
+    financial year — only numbering follows the FY-style stamp.
 
-    Date rules enforced here (shared across all call sites):
-      - MBR-030D is retired (decided 2026-10-01): a legacy document_number
-        is stored verbatim with no format or year requirement — neither
-        legacy nor new credentials ever ask the caller for a year.
-      - MBR-030E — the credential *issue_date* may not fall before the
-        member's *joining_date* (when known): a card cannot be issued
-        before the member joined. Applies to both credential types and
-        both the legacy and fresh paths.
-      - MBR-030F — a member must be at least 10 years old as of
-        *issue_date* (when *date_of_birth* is known) to be issued EITHER
-        credential type — Parichaya Patra or Anumati Patra.
+    *issue_date* is resolved by credential type (decided 2026-10-03):
+      - PARICHAYA_PATRA — issued/reissued ONLY on a Dola Purnima. Defaults
+        to the most recent Dola Purnima on/before today (or, if *issue_year*
+        is explicitly passed, that year's Dola Purnima). 422 if that date
+        is not confirmed in the festival reference calendar.
+      - ANUMATI_PATRA — may be issued ANY day, whenever the probationary
+        member actually applies. Defaults to date.today().
+    An explicit *issue_date* always wins over both.
 
-    Returns (credential_type, credential_pk, document_number) —
-    credential_type is "ANUMATI_PATRA" or "PARICHAYA_PATRA".
+    Rules enforced here (shared across all call sites):
+      - MBR-030H (new 2026-10-03, SUPERSEDES the retired MBR-030D "stored
+        verbatim" rule): a supplied *document_number* is normalized and
+        validated by normalize_patra_document_number(). A bare number gets
+        the correct year pair appended; a number supplied WITH a year is
+        verified against the issue date and refused (422) if the year is
+        wrong. The sequence number itself is trusted as typed and is never
+        replaced by the counter. Omit *document_number* entirely to auto-mint
+        (MBR-030A).
+      - MBR-030E (joining-date gate) and MBR-030F (min-age-10 gate) are
+        RETIRED (2026-10-03): in practice there is no reliable joining date,
+        and no minimum-age rule applies. *joining_date* / *date_of_birth*
+        remain in the signature for call-site compatibility but no longer
+        gate issuance.
+      - MBR-030G (new 2026-10-03) — a lapsed Parichaya Patra cannot be
+        renewed late. If the member's most recent Parichaya Patra expired
+        before today, a fresh one is refused (422); the member must re-enter
+        the cycle via a new Anumati Patra. The Sakha President may authorise
+        an exception by setting *president_override*=True.
+
+    Returns (card_type, credential_pk, document_number) —
+    card_type is "ANUMATI_PATRA" or "PARICHAYA_PATRA".
 
     Raises HTTPException 409 if document_number collides with an existing
     credential, or this member already holds an active one of this type.
+    Raises HTTPException 422 if a supplied document_number carries a year
+    that does not match the issue date (MBR-030H).
     """
     is_probationary = is_probationary_membership_type(cur, membership_type_pk)
-    credential_type = "ANUMATI_PATRA" if is_probationary else "PARICHAYA_PATRA"
+    card_type = "ANUMATI_PATRA" if is_probationary else "PARICHAYA_PATRA"
 
-    # Request 2026-10-02: operators are no longer asked for a raw issue date.
-    # They choose a membership YEAR and the credential's issue_date is that
-    # year's Dola Purnima (SOL-ARCH-013 FC-DECISION-01 — the same festival
-    # that anchors the validity window). Resolved via the festival reference
-    # calendar only (never computed/guessed). An explicit *issue_date*, when
-    # given, still wins (e.g. internal callers that already know the date).
-    if issue_year is not None and issue_date is None:
-        dola = festival_date_for_year(cur, "DOLA_PURNIMA", issue_year)
-        if dola is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    f"No confirmed Dola Purnima date is on file for {issue_year}. "
-                    "An administrator must enter/confirm it in the festival "
-                    "reference calendar (SOL-ARCH-013) before a credential can "
-                    "be issued for that year."
-                ),
-            )
-        if dola > date.today():
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=(
-                    f"The {issue_year} Dola Purnima falls on {dola.isoformat()}, "
-                    "which is still in the future — this credential is not issued "
-                    "till now."
-                ),
-            )
-        issue_date = dola
+    # issue_date resolution is card-type-specific (decided 2026-10-03):
+    # a Parichaya Patra is only ever issued/reissued ON a Dola Purnima, so it
+    # defaults to the most recent one on/before today (or an explicit
+    # issue_year's Dola Purnima); an Anumati Patra may be issued any day,
+    # whenever the probationary member actually applies, so it defaults to
+    # today. An explicit issue_date, when given, always wins. Dola Purnima
+    # dates come from the festival reference calendar only — never computed.
+    if issue_date is None:
+        if card_type == "PARICHAYA_PATRA":
+            if issue_year is not None:
+                issue_date = festival_date_for_year(cur, "DOLA_PURNIMA", issue_year)
+                if issue_date is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            f"No confirmed Dola Purnima date is on file for {issue_year}. "
+                            "An administrator must enter/confirm it in the festival "
+                            "reference calendar (SOL-ARCH-013) before a Parichaya Patra "
+                            "can be issued for that year."
+                        ),
+                    )
+            else:
+                issue_date = previous_festival_date_on_or_before(
+                    cur, "DOLA_PURNIMA", date.today(),
+                )
+                if issue_date is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            "No confirmed Dola Purnima date is on file on or before "
+                            f"{date.today().isoformat()}. An administrator must "
+                            "enter/confirm it in the festival reference calendar "
+                            "(SOL-ARCH-013) before a Parichaya Patra can be issued."
+                        ),
+                    )
+        else:  # ANUMATI_PATRA — issued any day, whenever applied for.
+            issue_date = date.today()
 
-    issue_date = issue_date or date.today()
-
-    # MBR-030E: a credential cannot be issued before the member joined.
-    if joining_date is not None and issue_date < joining_date:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                f"Credential issue date ({issue_date.isoformat()}) cannot be "
-                f"earlier than the member's joining date "
-                f"({joining_date.isoformat()})."
-            ),
+    # Validity window — the rule differs by card_type (see
+    # dola_purnima_credential_validity_window's docstring): Parichaya takes
+    # the NEXT Dola Purnima outright; Anumati takes the first Dola Purnima
+    # at least one year out. SOL-ARCH-013 FC-DECISION-01.
+    if valid_from is None or valid_to is None:
+        window_from, window_to = dola_purnima_credential_validity_window(
+            cur, issue_date, card_type,
         )
+        valid_from = valid_from or window_from
+        valid_to = valid_to or window_to
 
-    # MBR-030F: a member must be at least 10 years old as of issue_date to
-    # be issued either credential type. Skipped silently if date_of_birth
-    # is unknown.
-    if date_of_birth is not None:
-        age_years = (
-            issue_date.year - date_of_birth.year
-            - ((issue_date.month, issue_date.day) < (date_of_birth.month, date_of_birth.day))
+    # MBR-030G (new 2026-10-03) — a lapsed Parichaya Patra cannot be renewed
+    # late: a member who missed their Dola Purnima renewal must re-enter the
+    # cycle via a fresh Anumati Patra. Only guards the fresh (auto-numbered)
+    # Parichaya path — legacy imports are recorded verbatim. The Sakha
+    # President may authorise an exception via president_override.
+    if card_type == "PARICHAYA_PATRA" and not document_number and not president_override:
+        cur.execute(
+            "SELECT MAX(valid_to) FROM nss.parichaya_patra WHERE sangha_sevi_pk = %s",
+            (str(sangha_sevi_pk),),
         )
-        if age_years < 10:
-            credential_label = credential_type.replace("_", " ").title()
+        row = cur.fetchone()
+        prior_valid_to = row[0] if row else None
+        if prior_valid_to is not None and prior_valid_to < date.today():
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
-                    f"A {credential_label} cannot be issued to a member under "
-                    f"10 years of age. This member is {age_years} year(s) old "
-                    f"as of the issue date ({issue_date.isoformat()})."
+                    f"This member's Parichaya Patra lapsed on "
+                    f"{prior_valid_to.isoformat()} and cannot be renewed late. "
+                    "The member must re-apply for an Anumati Patra to re-enter "
+                    "the membership cycle, unless the Sakha President authorises "
+                    "an exception."
                 ),
             )
 
-    if document_number:
-        # Decided 2026-10-01: no one, legacy or new, is ever asked to supply
-        # a year. A legacy credential number is stored verbatim, exactly as
-        # written on the old paper register — no format or year is required
-        # or validated (see the module-level comment above
-        # next_credential_document_number()). MBR-030D (requiring the
-        # current financial year) is retired.
-        if valid_from is None or valid_to is None:
-            window_from, window_to = dola_purnima_credential_validity_window(cur, issue_date)
-            valid_from = valid_from or window_from
-            valid_to = valid_to or window_to
-    else:
+    # MBR-030H (user, 2026-10-03): whoever typed this number may have typed
+    # it with or without a year. Normalize/validate it HERE — this is the one
+    # choke point every entry path (registration, claim approval, admin member
+    # creation) funnels through, so no caller can bypass the rule. Returns
+    # None when nothing was supplied, falling through to auto-mint below.
+    document_number = normalize_patra_document_number(
+        document_number, issue_date, card_type,
+    )
+
+    if not document_number:
+        # Auto-mint for the membership year this Patra opens — stamped
+        # <seq>/<CY>/<CY+1> for CY = issue_date's calendar year (MBR-030A,
+        # year pair per MBR-030H / patra_year_pair()).
         scope_organization_pk = (
-            organization_pk if credential_type == "ANUMATI_PATRA"
+            organization_pk if card_type == "ANUMATI_PATRA"
             else get_kendra_organization_pk(cur)
         )
         if scope_organization_pk is None:
@@ -1049,18 +1274,15 @@ def issue_membership_credential(
                 detail="Cannot auto-generate a Parichaya Patra number: no active KENDRA organization exists.",
             )
         document_number = next_credential_document_number(
-            cur, credential_type, scope_organization_pk, as_of=issue_date,
+            cur, card_type, scope_organization_pk,
+            as_of=date(issue_date.year, 4, 1),
         )
-        if valid_from is None or valid_to is None:
-            window_from, window_to = dola_purnima_credential_validity_window(cur, issue_date)
-            valid_from = valid_from or window_from
-            valid_to = valid_to or window_to
 
-    table = "anumati_patra" if credential_type == "ANUMATI_PATRA" else "parichaya_patra"
+    table = "anumati_patra" if card_type == "ANUMATI_PATRA" else "parichaya_patra"
     pk_column = f"{table}_pk"
     cur.execute(f"SAVEPOINT {table}_insert")
     try:
-        if credential_type == "ANUMATI_PATRA":
+        if card_type == "ANUMATI_PATRA":
             cur.execute(
                 f"""
                 INSERT INTO nss.{table} (
@@ -1090,7 +1312,7 @@ def issue_membership_credential(
         # cause undiagnosable from the response alone, so name the one that
         # actually fired rather than reporting both as a possibility.
         constraint = getattr(getattr(exc, "diag", None), "constraint_name", None) or ""
-        label = credential_type.replace("_", " ").title()
+        label = card_type.replace("_", " ").title()
         if "active_per_member" in constraint:
             detail = f"This member already holds an active {label}."
         elif "document_number" in constraint:
@@ -1102,7 +1324,7 @@ def issue_membership_credential(
             )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
     cur.execute(f"RELEASE SAVEPOINT {table}_insert")
-    return credential_type, str(credential_pk), document_number
+    return card_type, str(credential_pk), document_number
 
 
 def fetch_person_date_of_birth(cur, person_pk: str) -> date | None:
@@ -1211,6 +1433,53 @@ def resolve_or_create_postal_code(cur, postal_code_value: str, state_pk: str, co
         RETURNING postal_code_pk
         """,
         (state_pk, code),
+    )
+    return str(cur.fetchone()[0])
+
+
+# ── Post office lookup or create ────────────────────────────────────────
+
+def resolve_or_create_post_office(cur, name: str, postal_code_pk: str, *, actor_pk: str | None = None) -> str:
+    """
+    Resolve a post office by name + PIN, creating it if not found.
+
+    Mirrors resolve_or_create_city_village — case-insensitive exact match
+    scoped to the given postal_code_pk. On create, the row lands as
+    entry_status='APPROVED' by column default (same as city_village and
+    postal_code), consistent with the registration-time auto-create path;
+    it is NOT routed through the member-authenticated PENDING "propose"
+    flow (api/routers/foundation.py propose_post_office), since a person
+    registering has no JWT yet.
+
+    *actor_pk* is accepted for call-site compatibility but not written
+    to the table (the DB audit trigger records the actor automatically).
+
+    Returns: post_office_pk as a string.
+    """
+    po_name = name.strip()
+    cur.execute(
+        """
+        SELECT post_office_pk FROM nss.post_office
+        WHERE LOWER(post_office_name) = LOWER(%s)
+          AND postal_code_pk = %s
+          AND is_active = TRUE
+        LIMIT 1
+        """,
+        (po_name, postal_code_pk),
+    )
+    row = cur.fetchone()
+    if row:
+        return str(row[0])
+
+    # Create new post_office record
+    cur.execute(
+        """
+        INSERT INTO nss.post_office (
+            postal_code_pk, post_office_name
+        ) VALUES (%s, %s)
+        RETURNING post_office_pk
+        """,
+        (postal_code_pk, po_name),
     )
     return str(cur.fetchone()[0])
 
@@ -1437,6 +1706,145 @@ def check_duplicate_contact(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A person with this email already exists.",
             )
+
+
+# ── Person profile update (self-service + admin) ───────────────────────
+
+# person column -> master_category.category_code it must belong to.
+PERSON_MASTER_DATA_FIELDS = {
+    "gender_master_data_pk": "GENDER",
+    "marital_status_master_data_pk": "MARITAL_STATUS",
+    "blood_group_master_data_pk": "BLOOD_GROUP",
+    "emergency_relationship_master_data_pk": "RELATIONSHIP",
+}
+
+
+def _validate_master_data_category(cur, master_data_pk, expected_category_code: str) -> None:
+    """Raise 422 unless *master_data_pk* is an active value in the expected
+    master-data category (the FK alone can't stop e.g. a blood-group pk being
+    stored in the gender column)."""
+    cur.execute(
+        """
+        SELECT 1
+        FROM   nss.master_data md
+        JOIN   nss.master_category mc ON mc.master_category_pk = md.master_category_pk
+        WHERE  md.master_data_pk = %s
+          AND  mc.category_code = %s
+          AND  md.is_active = TRUE
+        """,
+        (str(master_data_pk), expected_category_code),
+    )
+    if cur.fetchone() is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid value for {expected_category_code.lower().replace('_', ' ')}.",
+        )
+
+
+def apply_person_profile_update(
+    cur,
+    *,
+    person_pk: str,
+    body,
+    updated_by_sangha_sevi_pk: str | None = None,
+) -> bool:
+    """
+    Validate and apply a partial personal-info update to nss.person.
+
+    Shared by the self-service (PATCH /auth/profile) and admin
+    (PATCH /admin/persons/{pk}) edit surfaces so both enforce identical rules
+    (SOL-PERSON full personal-info edit, 2026-10-03). *body* is any object
+    exposing the Update*Request attributes; only attributes that are present
+    AND non-None are applied (PATCH semantics).
+
+    Returns True if a row was updated, False if there was nothing to update,
+    and raises HTTPException on a validation failure. The CALLER is
+    responsible for permission / scope gating before invoking this; name is
+    editable here (both surfaces permit it).
+    """
+    updates: dict[str, object] = {}
+
+    # ── Name (first_name is NOT NULL — editable but may not be blanked) ──
+    if getattr(body, "first_name", None) is not None:
+        fn = body.first_name.strip()
+        if not fn:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="First name cannot be blank.",
+            )
+        updates["first_name"] = fn.title()
+    if getattr(body, "middle_name", None) is not None:
+        updates["middle_name"] = body.middle_name.strip().title() or None
+    if getattr(body, "last_name", None) is not None:
+        updates["last_name"] = body.last_name.strip().title() or None
+
+    # ── Contact ──
+    if getattr(body, "mobile_number", None) is not None:
+        updates["mobile_number"] = body.mobile_number.strip() or None
+    if getattr(body, "country_phone_code", None) is not None:
+        updates["country_phone_code"] = body.country_phone_code.strip() or None
+    if getattr(body, "email", None) is not None:
+        updates["email"] = body.email.strip() or None
+    if getattr(body, "date_of_birth", None) is not None:
+        updates["date_of_birth"] = body.date_of_birth.strip() or None
+
+    # ── Emergency contact + remarks ──
+    if getattr(body, "emergency_contact_name", None) is not None:
+        updates["emergency_contact_name"] = body.emergency_contact_name.strip().title() or None
+    if getattr(body, "emergency_contact_phone", None) is not None:
+        updates["emergency_contact_phone"] = body.emergency_contact_phone.strip() or None
+    if getattr(body, "remarks", None) is not None:
+        updates["remarks"] = body.remarks.strip() or None
+
+    # ── Demographics + relationship (master_data FKs, category-validated) ──
+    for field, category_code in PERSON_MASTER_DATA_FIELDS.items():
+        val = getattr(body, field, None)
+        if val is not None:
+            _validate_master_data_category(cur, val, category_code)
+            updates[field] = str(val)
+
+    if not updates:
+        return False
+
+    # ── Contact validation on EFFECTIVE values (mirror self-service rules) ──
+    if "email" in updates:
+        validate_email(updates["email"])
+    if "mobile_number" in updates or "country_phone_code" in updates:
+        cur.execute(
+            "SELECT country_phone_code, mobile_number FROM nss.person WHERE person_pk = %s",
+            (str(person_pk),),
+        )
+        cur_contact = cur.fetchone() or (None, None)
+        eff_code = updates["country_phone_code"] if "country_phone_code" in updates else cur_contact[0]
+        eff_mobile = updates["mobile_number"] if "mobile_number" in updates else cur_contact[1]
+        validate_mobile(eff_code, eff_mobile)
+
+    if any(k in updates for k in ("mobile_number", "country_phone_code", "email")):
+        check_duplicate_contact(
+            cur,
+            mobile_number=updates.get("mobile_number"),
+            country_phone_code=updates.get("country_phone_code"),
+            email=updates.get("email"),
+            exclude_person_pk=str(person_pk),
+        )
+
+    # ── Build + execute UPDATE ──
+    set_parts = ["updated_at = NOW()"]
+    params: list = []
+    if updated_by_sangha_sevi_pk is not None:
+        set_parts.append("updated_by_sangha_sevi_pk = %s")
+        params.append(str(updated_by_sangha_sevi_pk))
+    for col, val in updates.items():
+        set_parts.append(f"{col} = %s")
+        params.append(val)
+    params.append(str(person_pk))
+
+    cur.execute(
+        f"UPDATE nss.person SET {', '.join(set_parts)} "
+        f"WHERE person_pk = %s AND is_active = TRUE",
+        params,
+    )
+    return cur.rowcount > 0
 
 
 # ── Password history ───────────────────────────────────────────────────

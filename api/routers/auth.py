@@ -48,7 +48,7 @@ from api.services.auth_service import (
     is_account_locked,
     verify_password,
 )
-from api.helpers import check_duplicate_contact, log_audit, record_password_history, validate_and_hash_password, validate_mobile, validate_email
+from api.helpers import apply_person_profile_update, check_duplicate_contact, log_audit, record_password_history, validate_and_hash_password, validate_mobile, validate_email
 from api.services.rbac_service import UserContext
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -863,65 +863,32 @@ def update_profile(
     """
     Update the authenticated user's own person record.
 
-    Editable fields: mobile_number, country_phone_code, email, date_of_birth.
-    Name fields (first_name, last_name, middle_name) are admin-only.
+    Full self-service personal-info edit (SOL-PERSON, 2026-10-03): name
+    (first/middle/last), date of birth, demographics (gender / marital
+    status / blood group), contact (mobile / country code / email),
+    emergency contact, and remarks. Aadhaar and photo are deliberately
+    excluded — they are sensitive and have dedicated flows.
+
+    All field validation, category-checking of the master-data FKs,
+    effective-value contact validation, and the duplicate-contact guard
+    are delegated to helpers.apply_person_profile_update() — the single
+    shared code path, so this self-service surface and any future admin
+    person-edit surface enforce byte-identical rules.
     """
-    # Build dynamic SET clause from non-None fields
-    updates: dict[str, object] = {}
-    if body.mobile_number is not None:
-        updates["mobile_number"] = body.mobile_number.strip() or None
-    if body.country_phone_code is not None:
-        updates["country_phone_code"] = body.country_phone_code.strip() or None
-    if body.email is not None:
-        updates["email"] = body.email.strip() or None
-    if body.date_of_birth is not None:
-        updates["date_of_birth"] = body.date_of_birth.strip() or None
-
-    if not updates:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No fields to update.",
-        )
-
     with conn.cursor() as cur:
-        # MBR-CONTACT-01/02: validate the EFFECTIVE contact values. A PATCH may
-        # change only the mobile number (keeping the stored country code) or
-        # vice-versa, so merge the incoming changes over the current row before
-        # validating country-wise.
-        if "email" in updates:
-            validate_email(updates["email"])
-        if "mobile_number" in updates or "country_phone_code" in updates:
-            cur.execute(
-                "SELECT country_phone_code, mobile_number FROM nss.person WHERE person_pk = %s",
-                (str(user.person_pk),),
-            )
-            cur_contact = cur.fetchone() or (None, None)
-            eff_code = updates.get("country_phone_code") if "country_phone_code" in updates else cur_contact[0]
-            eff_mobile = updates.get("mobile_number") if "mobile_number" in updates else cur_contact[1]
-            validate_mobile(eff_code, eff_mobile)
-
-        # Duplicate contact check
-        check_duplicate_contact(
+        changed = apply_person_profile_update(
             cur,
-            mobile_number=updates.get("mobile_number"),
-            country_phone_code=updates.get("country_phone_code"),
-            email=updates.get("email"),
-            exclude_person_pk=str(user.person_pk),
+            person_pk=str(user.person_pk),
+            body=body,
+            updated_by_sangha_sevi_pk=(
+                str(user.sangha_sevi_pk) if user.sangha_sevi_pk else None
+            ),
         )
-
-        # Build SET clause
-        set_parts = ["updated_at = NOW()"]
-        params: list = []
-        for col, val in updates.items():
-            set_parts.append(f"{col} = %s")
-            params.append(val)
-        params.append(str(user.person_pk))
-
-        cur.execute(
-            f"UPDATE nss.person SET {', '.join(set_parts)} "
-            f"WHERE person_pk = %s AND is_active = TRUE",
-            params,
-        )
+        if not changed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No fields to update.",
+            )
 
         log_audit(
             cur,
