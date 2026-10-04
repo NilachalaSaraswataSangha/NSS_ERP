@@ -3,9 +3,9 @@
 Membership Module DDL — 14 tables (Depth 2–4) per SOL-MEM-005, SOL-MEM-003, plus (for
 `darshak_attendance_registration`) SOL-MEM-006, and one enforcement-trigger file. The 13th table
 (`darshak_attendance_registration`) and 14th (`credential_sequence_counter`) are Tier 5
-additions on branch `feature/tier5-authentication-administration` (`15_credential_sequence_counter.sql`
-was still untracked/uncommitted when this README was refreshed; the rest is committed, nothing is
-merged to `develop`).
+additions on branch `feature/tier5-authentication-administration` (committed; nothing is merged to
+`develop`). `16_foundation_audit_fk.sql` is a Pass-2-style `ALTER TABLE` file (no table) that lives
+here because it needs `sangha_sevi`.
 
 Authority: SOL-MEM-005 v1.0 (Physical Table Design), SOL-MEM-003 (Business Rules), MBR-001
 through MBR-035 (business-rule identifiers cited in table comments); SOL-MEM-006 for
@@ -42,6 +42,7 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
 | 13 | `13_darshak_attendance_registration.sql` | `darshak_attendance_registration` | 3 | `sangha_sevi`, `organization` (×2) |
 | 14 | `14_sakha_only_membership_trigger.sql` | *(no table — 2 BEFORE triggers, MBR-038A)* | — | `sangha_sevi`, `membership_sakha_affiliation`, `organization`, `master_data` |
 | 15 | `15_credential_sequence_counter.sql` | `credential_sequence_counter` | 3 | `organization` |
+| 16 | `16_foundation_audit_fk.sql` | *(no table — adds the `submitted_by_`/`reviewed_by_sangha_sevi_pk` FKs on Foundation `district`, `postal_code`, `post_office`, `city_village`; run as Phase 7b)* | — | `sangha_sevi` + the four Foundation tables |
 
 ## What Each Table Is For
 

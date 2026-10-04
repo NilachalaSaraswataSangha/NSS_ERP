@@ -178,7 +178,7 @@ This extended docstring enumerates exactly which headers are added unconditional
 (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`,
 `Content-Security-Policy`), which two
 are added conditionally by path (`Cache-Control: no-store` on `/api/*`; `Cache-Control: public,
-max-age=86400, must-revalidate` on `/assets/*` — new, currently uncommitted on `develop`, part of
+max-age=86400, must-revalidate` on `/assets/*` — new, committed, part of
 the Tailwind CDN→CLI migration, see Architecture in `PROJECT_DOCUMENTATION.md`), and which
 headers were
 deliberately *not* added and why: `X-XSS-Protection` (obsolete, superseded by CSP) and
@@ -295,7 +295,7 @@ ERP app has any use for.
 
 `/api/*` responses must always reflect the current database
 state, so caching is forbidden there (`no-store`). `/assets/*` responses (CSS, JS, images) get a
-day-long cache instead — new, currently uncommitted — reasoned as safe because JS files are
+day-long cache instead — new in the Tailwind CLI migration — reasoned as safe because JS files are
 cache-busted via `?v=N` query strings on their `<script>` tags, CSS is a generated build artifact
 rebuilt on every deploy, and images rarely change. Neither value is applied to `/`, `/foundation`,
 or the other UI page routes — those responses get no `Cache-Control` header at all, same as
@@ -477,7 +477,7 @@ explained in full in `UI_CODE_EXPLANATIONS.md`. This entry covers only the
 
 Every third-party script/stylesheet loaded from a CDN is a supply-chain trust boundary — if the
 CDN is compromised or serves a tampered file, the browser has no way to know unless the page
-tells it what hash to expect. As of a currently-uncommitted change on `develop` (Tailwind
+tells it what hash to expect. As of a committed change (Tailwind
 CDN→CLI migration; not yet on `main`), **Alpine.js is now the only remaining CDN dependency** —
 Tailwind CSS and DaisyUI moved to a same-origin, pre-built, minified stylesheet
 (`frontend/assets/css/tailwind.min.css`, generated via Tailwind CLI from `tailwind-input.css` +
@@ -524,7 +524,7 @@ Tailwind migration.
 **What changed to get here:** the previous unpinned `<script src="https://cdn.tailwindcss.com">`
 (Tailwind Play CDN) and pinned DaisyUI CDN `<link>` (`@4.12.14` with an SRI hash) were both
 replaced with the single same-origin `tailwind.min.css` `<link>` above, across every HTML
-file, as part of the currently-uncommitted CDN→CLI migration.
+file, as part of the CDN→CLI migration.
 
 > **Tier 3 note:** `frontend/person.html` used the identical dependency `<head>` block — same
 > versions. No new CDN dependencies were introduced in Tier 3. (That page has since been deleted;

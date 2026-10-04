@@ -16,7 +16,7 @@
 > `frontend/`. `frontend/` now contains exactly four pages: `login.html`, `register.html`,
 > `dashboard.html` and `admin.html` (plus `assets/js/login.js`, `register.js`, `dashboard.js`,
 > `admin.js`, `auth.js`, `nss-config.js`, `nss-layout.js`, `nss-datepicker.js`,
-> `nss-dialog.js`, `nss-location.js`). Each retired page's functionality moved into a tab of
+> `nss-dialog.js`, `nss-location.js`, `nss-combobox.js`, `org-dashboard.js`). Each retired page's functionality moved into a tab of
 > one of the two authenticated pages:
 >
 > | Retired page | Current home |

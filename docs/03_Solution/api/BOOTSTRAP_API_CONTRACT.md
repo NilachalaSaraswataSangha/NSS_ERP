@@ -16,7 +16,7 @@ This document defines the API contract for the Tier 0 Bootstrap read-only API.
 All endpoints are GET-only. No authentication. `nss_db_backend` connects with
 SELECT-only privileges.
 
-> **Tier 5 update (in progress, uncommitted on `feature/tier5-authentication-administration`):**
+> **Tier 5 update (committed, not yet merged on `feature/tier5-authentication-administration`):**
 > these 4 endpoints are still the only routes in the whole API that need no JWT. What changed is
 > the *data*: `role_master` now seeds **9** roles, and `permission_master`/`role_permission` are
 > **seeded** (`database/seed/00_bootstrap/01_permission_master.sql`, `03_role_permission.sql`),

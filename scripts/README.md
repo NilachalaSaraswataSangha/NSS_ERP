@@ -1,7 +1,7 @@
 # scripts/
 
 Top-level, repo-root operational Python scripts — distinct from `database/scripts/` (SQL/shell
-bootstrap scripts). **Tier 5 (committed on the branch, not merged)** — `feature/tier5-authentication-administration`.
+bootstrap scripts). **Tier 5 (committed on the branch, not merged to `develop`)** — `feature/tier5-authentication-administration`.
 
 | File | Purpose |
 |---|---|

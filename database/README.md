@@ -15,12 +15,14 @@ SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 > enforced by the application layer). See SOL-ARCH-011 §7.2 for the
 > full identity distinction.
 
-> **Tier 5 (Authentication + Administration) is in progress (committed on the branch, not merged)** on branch
-> `feature/tier5-authentication-administration` — not merged to `develop`/`main`, no release
-> tag. Relative to the last released schema it adds `ddl/06_authentication/` (4 tables),
+> **Tier 5 (Authentication + Administration) is committed on the branch, not merged** — branch
+> `feature/tier5-authentication-administration`, not merged to `develop`/`main`, no release
+> tag. Relative to the last released schema (v0.10.4) it adds `ddl/06_authentication/` (4 tables),
 > `ddl/07_administration/` (2 tables), `family_admin` (Family), `darshak_attendance_registration`
 > and `credential_sequence_counter` (Membership), and `system_event_log` (Foundation, with
-> `fn_audit_trigger()` attached to every other `nss.*` table) — **10 new tables**; the
+> `fn_audit_trigger()` attached to every other `nss.*` table) — **10 new tables**, plus
+> `post_office`, `festival_master`, `festival_calendar_date` (Foundation; all-India geography and
+> member-assisted geographic entry) — **13 new tables, 47 in total**; the
 > `nss_db_writer` role (`scripts/05_create_writer_role.sql`) and `scripts/06_setup_env.sh`; the
 > top-level `scripts/bootstrap_admin.py` + `seed/04_admin/`; and several new triggers
 > (Organization address restriction + Kumari/Sevak one-per-Sakha, Family move-transition guard,
@@ -65,13 +67,14 @@ Build phases (authoritative detail in `scripts/README.md`):
 | Phase | Content |
 |------:|---------|
 | 0 | Bootstrap RBAC — 3 tables + seed (9 roles, 20 permissions, 112 mappings) |
-| 1 | Foundation DDL — 13 tables (incl. `festival_master`/`festival_calendar_date`) |
-| 2 | Foundation seed |
+| 1 | Foundation DDL — 14 tables (incl. `post_office`, `festival_master`/`festival_calendar_date`) |
+| 2 | Foundation seed (incl. all-India PINs, post offices, ~673k `city_village` rows, festival calendar) |
 | 3 | Organization DDL — 1 table + 2 triggers |
 | 4 | Organization seed — 3 unique orgs, 56 Sakha PINs, 175 Sakha branches, counter sync |
 | 5 | Person DDL — 2 tables |
 | 6 | Family DDL — 6 tables + move-transition guard trigger |
 | 7 | Membership DDL — 14 tables + Sakha-only trigger |
+| 7b | Foundation audit FKs (`05_membership/16_foundation_audit_fk.sql`) |
 | 8 | (reserved — demo seeds removed) |
 | 9 | Grant `nss_db_backend` read-only |
 | 10 | Authentication DDL — 4 tables |
@@ -101,7 +104,9 @@ dependency and may be created in any order.
 | 1 | Foundation | `09_state.sql` | `state` | 1 | #19 |
 | 1 | Foundation | `10_district.sql` | `district` | 2 | #26 |
 | 1 | Foundation | `12_postal_code.sql` | `postal_code` | 1 | #87 |
+| 1 | Foundation | `13_post_office.sql` | `post_office` | 2 | — |
 | 1 | Foundation | `11_city_village.sql` | `city_village` | 3 | #32 |
+| 1 | Foundation | `16_festival_master.sql` / `17_festival_calendar_date.sql` | `festival_master`, `festival_calendar_date` | 0 / 1 | — |
 | 3 | Organization | `03_organization.sql` | `organization` | 1 | #33 |
 
 The Organization row above covers Phase 3's single table; the remaining modules' per-file
@@ -113,15 +118,16 @@ Depth/Seq# breakdown lives in their own module READMEs rather than being duplica
   move-transition guard trigger)
 - `ddl/05_membership/README.md` (14 tables, `sangha_sevi` first, plus the Sakha-only trigger)
 - `ddl/06_authentication/README.md` (4 tables) and `ddl/07_administration/README.md` (2 tables) —
-  Tier 5, in progress
+  Tier 5
 - `ddl/01_foundation/README.md` also documents
   `festival_master`/`festival_calendar_date`, and Phase 14's
-  `system_event_log` (14th Foundation table) and `fn_audit_trigger()`
+  `system_event_log` (15th Foundation table) and `fn_audit_trigger()`
 
-**Total implemented: 44 tables** — 3 Bootstrap RBAC + 12 Foundation (11 + `system_event_log`) +
+**Total implemented: 47 tables** — 3 Bootstrap RBAC + 15 Foundation (12 reference/geography + 2 festival + `system_event_log`) +
 1 Organization + 2 Person + 6 Family + 14 Membership + 4 Authentication + 2 Administration
 (verified by counting `CREATE TABLE` across `database/ddl/**`). Of those, 10 are Tier 5 additions
-(see the banner above); the pre-Tier-5 baseline was 34.
+(see the banner above) and 3 more Foundation tables arrived on the same branch; the v0.10.4
+baseline was 34.
 **Organization type/status moved to Foundation `master_data` — standalone tables retired.**
 **Phase 0 seed complete:** `role_master` (9 roles), `permission_master` (20), `role_permission`
 (112) are all populated, so `require_permission(...)` checks succeed for roles with mappings.
@@ -167,25 +173,25 @@ database/
 │   └── 06_setup_env.sh           Set role passwords + generate api/.env (bash only)
 ├── ddl/
 │   ├── 00_bootstrap/     3 RBAC tables (Depths 0-1)
-│   ├── 01_foundation/    13 tables: 12 reference/runtime tables (files 02-13, Depths 0-4) +
+│   ├── 01_foundation/    15 tables: 13 reference/runtime tables (files 02-13, 16-17, Depths 0-4) +
 │   │                     `14_system_event_log.sql` (audit trail, Tier 5); `15_audit_trigger.sql`
 │   │                     (`fn_audit_trigger()` attached to every other `nss.*` table) creates
 │   │                     no table. (No `01_*` file — extensions moved to scripts/01_extensions.sql)
 │   ├── 02_organization/  1 table (`organization`) + 2 triggers (files 03-05; no 01/02 —
 │   │                     type/status masters retired)
-│   ├── 03_person/        2 tables (`person`, `person_address`) — `01_person_master_tables.sql`
-│   │                     superseded, not run
+│   ├── 03_person/        2 tables (`person`, `person_address`); the superseded
+│   │                     `01_person_master_tables.sql` stub has been deleted
 │   ├── 04_family/        6 tables (incl. `family_admin`) + `07_family_move_transition_guard.sql`
 │   ├── 05_membership/    14 tables (`sangha_sevi` first; incl. `darshak_attendance_registration`,
-│   │                     `credential_sequence_counter`) + `14_sakha_only_membership_trigger.sql`
+│   │                     `credential_sequence_counter`) + `14_sakha_only_membership_trigger.sql`, `16_foundation_audit_fk.sql` (ALTER only)
 │   ├── 06_authentication/ 4 tables: user_account, password_history, registration_claim,
-│   │                     password_reset_token (Tier 5, in progress)
-│   └── 07_administration/ 2 tables: user_role, admin_scope (Tier 5, in progress)
+│   │                     password_reset_token (Tier 5)
+│   └── 07_administration/ 2 tables: user_role, admin_scope (Tier 5)
 ├── seed/
 │   ├── 00_bootstrap/     9 roles, 20 permissions, 112 role-permission mappings
-│   ├── 01_foundation/    reference data (files 01-09; `09_sakha_postal_codes.sql` runs in Phase 4)
+│   ├── 01_foundation/    reference + bulk geography data (files 01-11b; `09_sakha_postal_codes.sql` runs in Phase 4)
 │   ├── 02_organization/  3 unique orgs + 175 real Sakha branches + org-code counter sync
-│   ├── 03_person/        no seed data (only the superseded `01_person_master_tables.sql` stub)
+│   ├── 03_person/        no seed data (README only)
 │   ├── 04_admin/         one admin superuser, via scripts/bootstrap_admin.py (not plain psql)
 │   ├── 04_family/        no seed data (README only)
 │   └── 05_membership/    no seed data (README only)
@@ -205,17 +211,17 @@ There is no `database/migrations/` or `database/fixes/` folder.
 | Module | Tables | DDL Status | Next Action |
 |--------|-------:|-----------|-------------|
 | Bootstrap RBAC | 3 | ✅ IMPLEMENTED, seeded (9 roles / 20 permissions / 112 mappings) | — |
-| Foundation | 13 | ✅ IMPLEMENTED (12 original + `system_event_log`, Tier 5) | — |
+| Foundation | 15 | ✅ IMPLEMENTED (12 original/geography incl. `post_office`, 2 festival tables, + `system_event_log`) | — |
 | Organization | 1 | ✅ IMPLEMENTED (+ 2 triggers) | — |
 | Person | 2 | ✅ IMPLEMENTED | — |
 | Family | 6 | ✅ IMPLEMENTED (`family_admin` Tier 5; + move-transition guard trigger) | — |
 | Membership | 14 | ✅ IMPLEMENTED (`darshak_attendance_registration`, `credential_sequence_counter` Tier 5; + Sakha-only trigger) | — |
-| Authentication | 4 | ⏳ IN PROGRESS (Tier 5 branch, committed, not merged) | Not merged/released; freeze DDL before relying on it |
-| Administration | 2 (`user_role`/`admin_scope`; the 3 RBAC definition tables live in Bootstrap) | ⏳ IN PROGRESS (Tier 5 branch, committed, not merged) | Not merged/released |
+| Authentication | 4 | ⏳ Tier 5 branch, committed, not merged | Not merged/released; freeze DDL before relying on it |
+| Administration | 2 (`user_role`/`admin_scope`; the 3 RBAC definition tables live in Bootstrap) | ⏳ Tier 5 branch, committed, not merged | Not merged/released |
 | Heritage | 4 | ⬜ NOT YET | — |
 
 Table counts for the implemented modules above are the actual counts of tables created by their
-DDL files (total 45). Family (6) and Membership (14) exceed the frozen SOL-ARCH-010 inventory
+DDL files (total 47). Family (6) and Membership (14) exceed the frozen SOL-ARCH-010 inventory
 figures used in earlier planning (3 and 9 respectively) — the implemented slice grew during
 design; this is a known SOL-ARCH-010 inventory drift to reconcile in a future governance pass,
 not a build error. Modules not listed above have frozen table counts but are further down the
@@ -294,9 +300,7 @@ implemented modules in SOL-ARCH-011 phase order, as `nss_db_owner` (see the phas
 ./database/scripts/02_build.sh [DB_NAME] [DB_USER] [DB_HOST] [DB_PORT]
 ```
 
-**Not executed:** `ddl/03_person/01_person_master_tables.sql` /
-`seed/03_person/01_person_master_tables.sql` (superseded — gender/marital status/address type data
-now lives in Foundation `master_data`), Pass 2 audit-actor FK constraints (deferred — see
+**Not executed:** Pass 2 audit-actor FK constraints (deferred — see
 Two-Pass DDL Strategy above).
 
 Error handling: `set -euo pipefail` and psql `ON_ERROR_STOP=1`. A file whose output contains
@@ -317,7 +321,7 @@ Validates the build. **Does NOT execute any DDL or seed scripts** — run `02_bu
 | Module | Checks |
 |--------|--------|
 | Bootstrap RBAC (3 tables) | Existence, `role_master` row minimum, unique `role_code`, `role_permission` FK integrity |
-| Foundation (12 original tables) | Existence, row minimums, unique codes, FK integrity, deferred `document_master` columns |
+| Foundation (12 original tables; not `post_office`/`festival_*`) | Existence, row minimums, unique codes, FK integrity, deferred `document_master` columns |
 | Organization (1 table) | Existence, row minimum, unique `organization_code`, FK integrity |
 | Person (2 tables) | Existence, FK integrity, address FK columns |
 | Authentication (4 tables) | Existence, `user_account`/`password_history` key columns, unique `person_pk`, FK integrity |
@@ -347,7 +351,6 @@ The `.sh` and `.ps1` versions are identical (81 check calls each).
 
 ## Superseded Artifacts
 
-The following files are retained as documentation stubs (no DDL/seed generated):
-
-- `ddl/03_person/01_person_master_tables.sql` — SUPERSEDED; gender/marital_status/address_type now in Foundation `master_data`
-- `seed/03_person/01_person_master_tables.sql` — SUPERSEDED; seed data in Foundation `02_master_data.sql`
+`ddl/03_person/01_person_master_tables.sql` and `seed/03_person/01_person_master_tables.sql` were
+deleted (2026-10-01; dead code, zero references) — gender/marital_status/address_type live in
+Foundation `master_data`. Likewise the Foundation `city_village_postal_code_map` junction table.

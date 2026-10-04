@@ -60,11 +60,11 @@ design philosophy, ensuring that business rules are frozen before implementation
   Personal, Membership, Family, Attendance, Governance, Documents, plus role-based admin tabs
   incl. an Org Dashboard), and `admin.html` (at `/admin` — the administration console; tabs:
   Users, User Detail, Create User, Create Sangha-Sevi, Password, Create Organization,
-  Organizations, Assign Sakhas, Registration Approvals (claims), Person Directory, Member
+  Organizations, Assign Sakhas, Registration Approvals (claims), Geo Approvals, Person Directory, Member
   Directory, Organization Hierarchy, Org Dashboard, Reference Data, Geography, System
   Settings), plus their `assets/js/*.js` files (`login.js`, `register.js`, `dashboard.js`,
   `admin.js`, `auth.js`, `org-dashboard.js`, and the shared helpers `nss-config.js`/
-  `nss-datepicker.js`/`nss-dialog.js`/`nss-location.js`/`nss-layout.js`). The Tier 0-4
+  `nss-datepicker.js`/`nss-combobox.js`/`nss-dialog.js`/`nss-location.js`/`nss-layout.js`). The Tier 0-4
   standalone verification pages (`index.html`, `foundation.html`, `organization.html`,
   `person.html`, `family.html`, `membership.html`) and their per-page JS have been **deleted**;
   their functionality was folded into `admin.html` (Foundation → Reference Data / Geography,
@@ -73,7 +73,7 @@ design philosophy, ensuring that business rules are frozen before implementation
   visualization and Sakha-alignment mismatch badges; Membership → Membership tab).
   **`claim-approval.html` does not exist** — the registration-claim review queue backed by
   `api/routers/claim_approval.py` is served by `admin.html`'s Registration Approvals tab, and
-  `forgot-password.html` is referenced by `api/main.py` but has never been created. All pages
+  there is deliberately no `forgot-password.html` (forgot/reset-password is inline on the login page). All pages
   are served by FastAPI, which rewrites each page's `/assets/*` references to a
   content-hashed `?v=` URL per request; see `frontend/README.md` for the full file/function
   reference. 13 static mockups for later tiers exist under `docs/03_Solution/ui/mockups/`.
@@ -83,13 +83,12 @@ design philosophy, ensuring that business rules are frozen before implementation
 ## Backend
 
 * FastAPI — the only web/API layer in the codebase (`api/`, raw `psycopg2`, no ORM):
-  11 routers, one per tier/module (per-router endpoint counts: `api/README.md` and
+  12 routers, one per tier/module (per-router endpoint counts: `api/README.md` and
   `docs/03_Solution/api/API_CONTRACT.md`); `bootstrap.py` is the only unauthenticated router
   besides public registration.
   Tiers 1-4 GET endpoints are gated by `require_permission(...)` (Foundation/Organization/
   Person/Membership lists) or an ownership model (Family; Person/Membership detail and
-  sub-resources) — see `docs/03_Solution/api/API_CONTRACT.md`. **Tier 5 is in progress,
-  uncommitted, on `feature/tier5-authentication-administration` — not merged to `develop`/`main`
+  sub-resources) — see `docs/03_Solution/api/API_CONTRACT.md`. **Tier 5 is committed on `feature/tier5-authentication-administration` but not merged to `develop`/`main`
   and not released.** See `CLAUDE.md`, `docs/PROJECT_DOCUMENTATION.md` → Architecture,
   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`, and `docs/03_Solution/api/API_CONTRACT.md`.
 * Django — an earlier prototype existed under `backend/` but was fully archived and removed
@@ -109,7 +108,7 @@ design philosophy, ensuring that business rules are frozen before implementation
   authentication + RBAC is now implemented — Argon2 password hashing, access/refresh JWTs,
   `nss.user_account`/`password_history`/`registration_claim`/`password_reset_token` tables,
   seeded `permission_master`/`role_permission`, and role/scope-based authorization — but
-  **in progress/uncommitted** on `feature/tier5-authentication-administration`, not yet merged
+  **committed, not yet merged** on `feature/tier5-authentication-administration`, not yet merged
   or released. Only Tier 0's 4 `bootstrap.py` endpoints and the public `/api/v1/register/*`,
   `/auth/login|refresh|forgot-password|reset-password` endpoints need no JWT. Reads connect as
   `nss_db_backend` (SELECT-only); writes connect as a second role, `nss_db_writer`. A DB-level
@@ -150,7 +149,7 @@ Browser / HTTP client
 Security Middleware (CORS, rate limiting, security headers, CSP, Cache-Control)
    │
    ▼
-FastAPI (api/main.py — 11 routers: bootstrap, foundation, organization, person, family,
+FastAPI (api/main.py — 12 routers: bootstrap, foundation, organization, person, family,
    │       membership, auth, registration, claim_approval, admin, audit)
    │       JWT + RBAC guards (api/dependencies/), services (api/services/)
    ▼
@@ -292,7 +291,7 @@ Notes:
 # Module Structure
 
 *The sections below describe the full planned module roadmap. Foundation, Organization,
-Person, Family, Membership, plus (in progress, uncommitted) Authentication and Administration
+Person, Family, Membership, plus (committed, not yet merged) Authentication and Administration
 are the only modules on this list with API/backend implementation so far — see Current
 Development Status below for full endpoint/table counts — plus SQL DDL for Bootstrap RBAC,
 Foundation, Organization, Person, Family, Membership, Authentication, and Administration. An earlier Django prototype briefly
@@ -714,7 +713,7 @@ Completed:
   values, shared across modules) — now consumed by the Tier 2 Organization API (see below). This
   diverges from the frozen 3-table module design — see `docs/PROJECT_DOCUMENTATION.md` →
   Gotchas. Combined with Foundation, Bootstrap RBAC, Person, Family, Membership, and (Tier 5
-  branch) Authentication + Administration: **45 tables implemented** — see `database/README.md`)
+  branch) Authentication + Administration: **47 tables implemented** — see `database/README.md`)
 * Bootstrap RBAC DDL (`role_master`/`permission_master`/`role_permission`, `SOL-BOOT-001`/
   `SOL-ARCH-011` — DDL implemented and committed; `role_master` seeded with 9 roles;
   `permission_master`/`role_permission` are now seeded too (Tier 5 branch); ownership stays with Administration,
@@ -867,7 +866,7 @@ Completed:
   value at all) — now asserted in `tests/security/test_security_headers.py`. The logo asset
   (`frontend/assets/img/nss-logo.png`) was also compressed (1.4 MB → ~100 KB), with the original
   kept as `nss-logo-original.png`.
-* **Tier 5 — Authentication + Administration (in progress, uncommitted on
+* **Tier 5 — Authentication + Administration (committed, not yet merged on
   `feature/tier5-authentication-administration`, not merged/released — treat every fact below as
   a snapshot of a moving branch, verify against `git status`/`git log` before relying on it):**
   10 new tables — `user_account`, `password_history`, `registration_claim`,
@@ -878,10 +877,10 @@ Completed:
   (`15_audit_trigger.sql`, `SOL-AUDIT-004`) that fires on every INSERT/UPDATE/DELETE across
   `nss.*` tables — actor identity comes from per-request session variables, so writes can't
   bypass the audit trail; `api/helpers.py::log_audit()` also records explicitly from write
-  endpoints. **45 tables total.** New routers: `auth.py` (8 endpoints), `registration.py` (6,
-  public), `claim_approval.py` (5), `admin.py` (25), `audit.py` (1), plus 9 endpoints added to
+  endpoints. **47 tables total** (incl. `post_office`/festival tables added later on the branch). New routers at that point: `auth.py` (8 endpoints), `registration.py` (6,
+  public), `claim_approval.py` (5), `admin.py` (25 then; 28 now), `audit.py` (1), plus 9 endpoints added to
   `family.py` and 6 write endpoints added to `foundation.py` (`FOUNDATION_MANAGE`) — **108
-  endpoints in total**. New `nss_db_writer` PostgreSQL role (write access scoped to the
+  endpoints at that point (133 now, incl. `geo_approval.py`)**. New `nss_db_writer` PostgreSQL role (write access scoped to the
   auth/admin tables). `permission_master`/`role_permission` are seeded. Every Tier 4
   "verification"/demo seed file has been deleted — a fresh build produces **zero demo
   Person/Family/Membership data**; real data comes from the registration/approval flow or the
@@ -897,8 +896,8 @@ Current Focus:
   `feature/tier5-authentication-administration`, then merging to `develop` and tagging v0.11.0.
 * Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
   documented modules — every module has a complete (or largely complete) design, and seven
-  groups have real SQL: Bootstrap RBAC (3 tables), Foundation (13), Organization (1), Person
-  (2), Family (6), Membership (14), Authentication (4) and Administration (2) — 45 tables.
+  groups have real SQL: Bootstrap RBAC (3 tables), Foundation (15), Organization (1), Person
+  (2), Family (6), Membership (14), Authentication (4) and Administration (2) — 47 tables.
   Released API/UI slices: Tier 0 (v0.6.0), Foundation (v0.7.0), Organization (v0.8.0), Person
   (v0.9.0), Family + Membership (v0.10.0, hotfixes through v0.10.4). The pytest suite has grown
   well beyond its v0.10.4 size (410 tests) — see `tests/README.md` for current counts and the
@@ -917,7 +916,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (7 endpoints at release; 8 now) | Done (folded into `admin.html`) | -- |
 | **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints) | Done (folded into `admin.html` Person Directory) | -- |
 | **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Done | Done (14 endpoints at release; 24 now incl. 9 Tier 5 Family endpoints) | Done (folded into `dashboard.html`/`admin.html`) | -- |
-| **5** | Authentication, Administration | `user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_role`, `admin_scope` (4 auth + 2 admin tables, plus supporting tables added to Family/Membership/Foundation) — RBAC management, JWT, audit | In progress (uncommitted) | In progress (uncommitted — auth, registration, claim-approval, admin, audit routers: 45 endpoints) | In progress (uncommitted — login/register/dashboard/admin pages) | -- |
+| **5** | Authentication, Administration | `user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_role`, `admin_scope` (4 auth + 2 admin tables, plus supporting tables added to Family/Membership/Foundation) — RBAC management, JWT, audit | In progress (Tier 5 branch) | Committed, unmerged ( — auth, registration, claim-approval, admin, audit routers: 45 endpoints) | Committed, unmerged ( — login/register/dashboard/admin pages) | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
 | **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
 | **8** | Kumari Sangha, Kishor Puja | Youth modules — KM/KH identity, annual events, guardian assignment, SS transition | Not started | Not started | Not started | -- |
@@ -944,7 +943,7 @@ release document under `docs/05_Releases/` before the next tier begins.
 | v0.9.0 | Tier 3 | Person — DB rewrite + API + Web UI, plus the Organization master-data migration (**released**) |
 | v0.10.0 | Tier 4 | Family + Membership — full vertical slice, family graph, Organization children-stats (**released**) |
 | v0.10.1-v0.10.4 | Tier 4 (hotfixes) | Idempotent DDL/seed, Neon role bootstrap, performance indexes, a11y/perf polish (**released**) |
-| v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice (**in progress, uncommitted on `feature/tier5-authentication-administration`, not yet tagged**) |
+| v0.11.0 | Tier 5 | Authentication + Administration — full vertical slice (**committed, not yet merged on `feature/tier5-authentication-administration`, not yet tagged**) |
 | ... | Tier 6-12 | One tag per tier through Tier 12 |
 
 Next Release Target:
@@ -964,7 +963,7 @@ write endpoints. (Implemented on the feature branch, awaiting verification/merge
 NSS_ERP
 │
 ├── api
-│   ├── routers              (11 routers: bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, Tier 5 (in progress/uncommitted): auth.py, admin.py, registration.py, claim_approval.py, audit.py)
+│   ├── routers              (12 routers: bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, Tier 5 (committed, not yet merged): auth.py, admin.py, registration.py, claim_approval.py, audit.py, geo_approval.py)
 │   ├── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, Tier 5: auth.py, admin.py, audit.py)
 │   ├── services              (family_graph.py — BFS relationship computation; plus, Tier 5: auth_service.py, rbac_service.py)
 │   ├── dependencies          (Tier 5 — auth.py, rbac.py: FastAPI dependency-injected JWT/RBAC guards)
@@ -985,9 +984,7 @@ NSS_ERP
 ├── docs
 │   ├── 00_Project_Governance
 │   ├── 01_Authoritative_References
-│   ├── 02_Requirements
 │   ├── 03_Solution
-│   ├── 04_Testing
 │   └── 05_Releases
 │
 ├── BY-LAW                 (source PDFs/DOCX the docs/01_Authoritative_References transcripts come from)
@@ -1011,7 +1008,7 @@ v0.10.4
 ```
 
 Tier 4 Family + Membership (performance-hardening hotfix) — the latest tagged release on `main`.
-Tier 5 (Authentication + Administration) is in progress, uncommitted, on
+Tier 5 (Authentication + Administration) is committed, not yet merged, on
 `feature/tier5-authentication-administration` — see `CLAUDE.md` and
 `docs/PROJECT_DOCUMENTATION.md` for its current state.
 

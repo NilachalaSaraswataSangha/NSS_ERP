@@ -19,10 +19,16 @@ Files must be run in numeric order (each may depend on data from earlier files).
 | 05 | `05_state.sql` | `state` | `04_country.sql` |
 | 06 | `06_district.sql` | `district` | `05_state.sql` |
 | 07 | `07_system_setting.sql` | `system_setting` | DDL complete |
-| 08 | `08_postal_code.sql` | `postal_code` | `04_country.sql`, `05_state.sql` |
-| 09 | `09_sakha_postal_codes.sql` | `postal_code` | `04_country.sql`, `05_state.sql` — Tier 5 branch |
+| 08 | `08_postal_code.sql` | `postal_code` | `05_state.sql` |
+| 08b | `08b_postal_code_bulk.sql` | `postal_code` (all-India, ~17.9k PINs) | `05_state.sql` |
+| 08c | `08c_post_office_bulk.sql` | `post_office` (all post offices per PIN) | `08b_postal_code_bulk.sql` |
+| 09 | `09_sakha_postal_codes.sql` | `postal_code` | `05_state.sql` — runs in Phase 4 |
+| 10 | `10_festival_calendar.sql` | `festival_master`, `festival_calendar_date` | DDL complete |
+| 11 | `11_city_village.sql` | `city_village` (~673k locality rows) | `06_district.sql`, `08b_postal_code_bulk.sql` |
+| 11b | `11b_city_village_urban_recovery.sql` | `city_village` (additive urban-PIN recovery) | `11_city_village.sql` |
 
-`02_build.sh`/`.ps1` run files 01–08 in Phase 2; **`09_sakha_postal_codes.sql` runs later, in
+`02_build.sh`/`.ps1` run every file except `09` in Phase 2, in the order of the `FOUNDATION_SEED`
+array (`...08`, `08b`, `08c`, `10`, `11`, `11b`); **`09_sakha_postal_codes.sql` runs later, in
 Phase 4**, right before `seed/02_organization/05_sakha_branches.sql` (which consumes its PINs).
 
 ## Execution Command
@@ -246,16 +252,25 @@ defaults; actual production values are configured during deployment.
 
 Seeds 3 postal codes into `postal_code` — the minimal bootstrap set required
 by Organization seed data (FK references from `organization.postal_code_pk`).
-Uses JOIN to resolve `country_pk` and `state_pk` from existing seed data.
+Resolves `state_pk` from existing seed data (`postal_code` no longer carries `country_pk` or
+`post_office_name`). These PINs are also in `08b`; this file is a safety net so `08b` is not a
+hard prerequisite.
 
-| # | Postal Code | Post Office | Used By |
-|--:|-------------|-------------|---------|
-| 1 | `751022` | Unit 9 SO, Bhubaneswar | Kendra Sangha (Satsikshya Mandir) |
-| 2 | `752001` | Puri HO | Nilachala Kutira, Smruti Mandira |
-| 3 | `753001` | Cuttack HO | Originally the second Tier 4 verification Sakha location; retained as a plain reference PIN |
+| # | Postal Code | Used By |
+|--:|-------------|---------|
+| 1 | `751022` | Kendra Sangha (Satsikshya Mandir) |
+| 2 | `752001` | Nilachala Kutira, Smruti Mandira |
+| 3 | `753001` | Originally the second Tier 4 verification Sakha location; retained as a plain reference PIN |
 
-Full postal code data (India Post PIN codes) is loaded during deployment
-or data migration — this file only seeds what the Organization bootstrap needs.
+---
+
+### 08b_postal_code_bulk.sql / 08c_post_office_bulk.sql
+
+`08b`: all-India PIN load (file header: 17,869 distinct PINs, one row per PIN, dominant state),
+sourced from 4 government LGD files (Simplified Geography Model, 2026-10-02). `08c`: every post
+office per PIN into `post_office` (source: India Post 2025 directory), joined to its parent PIN at
+load time (offices whose PIN has no parent row are skipped); rows are `entry_status='APPROVED'`,
+idempotent via `uq_post_office_pin_name_approved`.
 
 ---
 
@@ -265,8 +280,24 @@ Seeds 56 additional unique postal codes into `postal_code`, extracted from the o
 Sakha branch directory addresses — the minimal bootstrap set needed by
 `database/seed/02_organization/05_sakha_branches.sql` (175 real Sakha branches, only 63 of which
 have an extractable PIN code; the rest get `postal_code_pk = NULL`). Run AFTER `04_country.sql`/
-`05_state.sql` (resolves `country_pk`/`state_pk` by code, `ON CONFLICT (country_pk,
-postal_code) DO NOTHING`) and BEFORE `database/seed/02_organization/05_sakha_branches.sql`.
+`05_state.sql` (resolves `state_pk` by code, `ON CONFLICT (postal_code)` — the approved-only partial unique index) and BEFORE `database/seed/02_organization/05_sakha_branches.sql`.
+
+---
+
+### 10_festival_calendar.sql
+
+Seeds `festival_master` (one row: `DOLA_PURNIMA`, the ERP reference date for Probationary-to-Regular
+conversion, transfers and Patra validity, SOL-ARCH-013) and `festival_calendar_date` rows for
+calendar years 2024–2028 (entered data, never computed; years outside that range are intentionally
+not seeded). Upserts `festival_master` on `festival_code`.
+
+### 11_city_village.sql / 11b_city_village_urban_recovery.sql
+
+`11`: ~673k locality rows (file header: 672,619 village rows + 789 urban-only rows), `district_pk`
+resolved directly by LGD district code for villages (NULL when an urban-only locality's ULB is
+ambiguous). `11b`: additive, idempotent recovery of one representative locality per otherwise
+orphan urban PIN, district resolved from the India Post directory. Both are very large files —
+expect a slow Phase 2.
 
 ---
 
@@ -278,8 +309,7 @@ postal_code) DO NOTHING`) and BEFORE `database/seed/02_organization/05_sakha_bra
   folder's files (e.g., Organization added `STATUS` + `ORGANIZATION_TYPE` to
   `01_master_category.sql`/`02_master_data.sql`; Person added `BLOOD_GROUP`). Downstream
   modules do not carry their own `master_data` seed — Foundation stays the single owner.
-- Cities/villages are not seeded — populated during deployment or data migration.
-- Postal codes: a minimal bootstrap set (751022 Bhubaneswar, 752001 Puri, 753001 Cuttack) is
-  seeded by `08_postal_code.sql` to satisfy Organization seed FK references, plus 56 more
-  (Sakha-branch PINs) by `09_sakha_postal_codes.sql` (Tier 5). Full postal code data
-  (India Post PIN codes) is populated during deployment or data migration.
+- Cities/villages ARE seeded all-India (`11`/`11b`); members can propose missing geographic values at runtime (see `ddl/01_foundation/README.md` → Member-Assisted Geographic Entry).
+- Postal codes: `08_postal_code.sql` seeds the 3 PINs Organization needs (751022, 752001, 753001),
+  `08b` loads all-India PINs, and `09_sakha_postal_codes.sql` adds the 56 Sakha-branch PINs
+  (already present if `08b` ran).

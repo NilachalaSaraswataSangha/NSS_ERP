@@ -1,7 +1,7 @@
 # frontend/
 
-**On the Tier 5 branch (`feature/tier5-authentication-administration`, in progress,
-uncommitted), the six original Tier 0-4 verification pages this README used to document as
+**On the Tier 5 branch (`feature/tier5-authentication-administration`, committed but not yet
+merged to `develop`), the six original Tier 0-4 verification pages this README used to document as
 current — `index.html`, `foundation.html`, `organization.html`, `person.html`, `family.html`,
 `membership.html`, and their per-page JS (`app.js`, `foundation.js`, `organization.js`,
 `person.js`, `family.js`, `membership.js`) — were deleted outright**, not just retired at the
@@ -50,7 +50,7 @@ frontend/
 ├── admin.html                Administration Dashboard (Tier 5) — Users, Create User/Person/Sangha
 │                             Sevi/Organization, Reference Data, Geography, Organization Hierarchy,
 │                             Assign Sakhas, Person Directory, Member Directory, Roles & System
-│                             Settings, Registration Approvals (claims review), and Org Dashboard
+│                             Settings, Geo Approvals (member-proposed geography review), Registration Approvals (claims review), and Org Dashboard
 │                             tabs
 ├── assets/
 │   ├── css/
@@ -58,12 +58,13 @@ frontend/
 │   │   ├── style.css           Minimal project-specific CSS overrides
 │   │   ├── nss-layout.css      Shared authenticated-page shell (sidebar/topbar/content area), sortable-table styles, shared form controls, org-switcher — see its File Reference entry below
 │   │   ├── nss-datepicker.css  Styles for the `nss-datepicker.js` date-picker component — see its File Reference entry below
+│   │   ├── nss-combobox.css   Styles for the `nss-combobox.js` select-or-propose dropdown (`.nss-cb-*`)
 │   │   ├── tailwind-input.css  Tailwind directives (`@tailwind base/components/utilities`) — build input, see ../package.json
 │   │   └── tailwind.min.css    Generated, committed build output (~87 KB) — DO NOT hand-edit; regenerate via `npm run css:build`
 │   ├── img/
 │   │   ├── nss-logo.png          NSS logo, compressed for web (~100 KB, was 1.4 MB)
 │   │   ├── nss-logo-original.png Uncompressed original, kept for reference/reprocessing
-│   │   └── ssm-mandir.webp        New (Tier 5) — currently unreferenced by any page/CSS/JS (see "Dead asset" below)
+│   │   └── ssm-mandir.webp        Tier 5 — currently unreferenced by any page/CSS/JS (see "Dead asset" below)
 │   └── js/
 │       ├── login.js         `loginApp()` — Alpine.js data component + API fetch logic for login.html
 │       ├── register.js      `registerApp()` — Alpine.js data component + API fetch logic for register.html
@@ -72,6 +73,7 @@ frontend/
 │       ├── auth.js          `NSSAuth` — JWT storage/refresh + authenticated `fetch()` wrapper
 │       ├── nss-layout.js    `NSSLayout` — sidebar/topbar mixin shared by admin.html/dashboard.html
 │       ├── nss-datepicker.js  `nssDatePicker()` Alpine component + markup injector (shared DD/MM/YYYY date field)
+│       ├── nss-combobox.js  `nssCombobox()` Alpine component + markup injector (select-existing-or-propose-new dropdown for geographic fields)
 │       ├── nss-dialog.js    `NSSDialog` — styled replacement for native alert()/confirm()
 │       ├── nss-location.js  `NSSLocation` — shared country/state/district/postal-code cascade helper
 │       ├── org-dashboard.js `orgDashboardTab()` — Org Dashboard tab component embedded in admin.html/dashboard.html
@@ -87,9 +89,9 @@ for its base resets. Which shared assets each page loads (verified against each 
 | Page | CSS (in order) | Shared JS (in order, before the page's own JS) |
 |---|---|---|
 | `login.html` | `tailwind.min.css`, `style.css`, `nss-layout.css` | `nss-config.js`, `nss-dialog.js`, `auth.js` → `login.js` |
-| `register.html` | `tailwind.min.css`, `style.css`, `nss-layout.css`, `nss-datepicker.css` | `nss-config.js`, `nss-location.js`, `auth.js`, `nss-datepicker.js` → `register.js` |
-| `dashboard.html` | `tailwind.min.css`, `style.css`, `badges.css`, `nss-layout.css`, `nss-datepicker.css` | `nss-config.js`, `nss-dialog.js`, `auth.js`, `nss-layout.js`, `nss-datepicker.js`, `org-dashboard.js` → `dashboard.js` |
-| `admin.html` | `tailwind.min.css`, `style.css`, `badges.css`, `nss-layout.css`, `nss-datepicker.css` | `nss-config.js`, `nss-location.js`, `nss-dialog.js`, `auth.js`, `nss-layout.js`, `nss-datepicker.js`, `org-dashboard.js` → `admin.js` |
+| `register.html` | `tailwind.min.css`, `style.css`, `nss-layout.css`, `nss-datepicker.css`, `nss-combobox.css` | `nss-config.js`, `nss-location.js`, `auth.js`, `nss-datepicker.js`, `nss-combobox.js` → `register.js` |
+| `dashboard.html` | `tailwind.min.css`, `style.css`, `badges.css`, `nss-layout.css`, `nss-datepicker.css`, `nss-combobox.css` | `nss-config.js`, `nss-dialog.js`, `auth.js`, `nss-layout.js`, `nss-datepicker.js`, `nss-combobox.js`, `org-dashboard.js` → `dashboard.js` |
+| `admin.html` | `tailwind.min.css`, `style.css`, `badges.css`, `nss-layout.css`, `nss-datepicker.css`, `nss-combobox.css` | `nss-config.js`, `nss-location.js`, `nss-dialog.js`, `auth.js`, `nss-layout.js`, `nss-datepicker.js`, `nss-combobox.js`, `org-dashboard.js` → `admin.js` |
 
 All four pages load Alpine.js 3.14.8 from the jsDelivr CDN (`defer`). Only `admin.html` and
 `dashboard.html` load `badges.css` — `login.html`/`register.html` don't render any status/type/
@@ -107,7 +109,7 @@ every page that loads it picks it up automatically.
 > `family.html`, `membership.html`, and their per-page JS (`app.js`, `foundation.js`,
 > `organization.js`, `person.js`, `family.js`, `membership.js`) — every subsection from
 > `### index.html` down to `### assets/js/membership.js` — were **deleted from disk** on the Tier 5
-> branch (in progress, uncommitted); see the header note at the top of this file. Those
+> branch (committed, not yet merged to `develop`); see the header note at the top of this file. Those
 > subsections are kept for historical reference only. **Everything from `### assets/css/badges.css`
 > onward describes files that still exist** (shared CSS/JS helpers, the four Tier 5 page scripts,
 > Tailwind build files, images) and is kept current.
@@ -690,7 +692,7 @@ Global `NSSAuth` object (217 lines) — the shared JWT/session layer. Loaded on 
 
 ### assets/js/nss-layout.js
 
-Global `NSSLayout` object (259 lines) — the sidebar/topbar mixin for `admin.html` and
+Global `NSSLayout` object (308 lines) — the sidebar/topbar mixin for `admin.html` and
 `dashboard.html` only. Backed by `assets/css/nss-layout.css`.
 
 - `NSSLayout.mixin()` — returns state/methods to spread into a page's Alpine component
@@ -740,6 +742,24 @@ Loaded by `register.html`, `dashboard.html`, `admin.html`.
 
 ---
 
+### assets/js/nss-combobox.js, assets/css/nss-combobox.css
+
+`nssCombobox(modelPath, opts)` (405 lines JS, 152 CSS) — searchable "select an existing value OR
+propose a new one" dropdown for the geographic address fields (Member-Assisted Geographic Entry,
+SOL-ARCH-010 Amendment). Same design as the date picker: an Alpine factory bound to a model path,
+with `nssComboboxMarkup(cfg)`/`nssComboboxExpand(scope)` injecting the popup markup on
+`DOMContentLoaded`. Options: `optionsPath` (parent-scope array, e.g. the one `nss-location.js`
+fills), `valueKey`/`labelKey`, `allowNew` (default true), `proposeUrl`/`proposeField`/
+`proposeParams`, `minChars`, `placeholder`. A proposal `POST`s to a `.../propose` endpoint
+(`POST /api/v1/foundation/districts|postal-codes|post-offices/propose` in `api/routers/foundation.py`),
+which creates a PENDING row; the returned row is appended to the options and selected. Reviewed in
+the **Geo Approvals** tab of `admin.html` (`geoApprovals`, `loadGeoEntries()`).
+**Wiring note:** the script/stylesheet are loaded by `register.html`, `dashboard.html` and
+`admin.html`, but no page currently instantiates `x-data="nssCombobox(...)"` (only the doc comment
+in `nss-combobox.js` does) — it is loaded but not yet used.
+
+---
+
 ### assets/js/nss-dialog.js
 
 Global `NSSDialog` object (252 lines) — styled, promise-based replacements for native
@@ -760,7 +780,7 @@ stale; there is no such include, each page loads it explicitly.)
 
 ### assets/js/nss-location.js
 
-Global `NSSLocation` object (137 lines) — the shared country → state → district → postal-code
+Global `NSSLocation` object (153 lines) — the shared country → state → district → postal-code
 cascade, replacing three near-identical copies in `register.js` and `admin.js` (org edit + org
 create). `NSSLocation.create({ fetchFn, basePath, arrays, form })` returns a stateless set of
 methods that each take the Alpine component (`ctx`) as their first argument: `loadCountries`,
@@ -805,9 +825,9 @@ page's root `x-data`:
 | File | Factory | Notes |
 |------|---------|-------|
 | `login.js` (288 lines) | `loginApp()` | `login()` → `POST /api/v1/auth/login`; `changePassword()` (forced change / expiry); `openForgotPassword()`/`submitForgotPassword()`/`submitResetPassword()` drive the **in-page** forgot/reset-password panels via `POST /api/v1/auth/forgot-password` and `/reset-password` (there is no separate forgot-password page) |
-| `register.js` (407 lines) | `registerApp()` | 3-step form — `step` 1 personal details, 2 optional membership claim (Sakha chosen first, then Local Sakha Number), 3 password — then a success screen (`step = 4`, shows the Person ID only, pending admin approval). Uses `NSSLocation` against `/api/v1/register/*` and `GET /api/v1/register/check-duplicate`; submits `POST /api/v1/register` |
-| `dashboard.js` (2942 lines) | `dashboardApp()` (+ module-level `_avatarClass()`, `_buildCoupleTree()`; `_renderGenSubtree()` is a method) | Member dashboard: `personal`, `membership`, `family`, `documents`, `attendance`, `governance`, and `orgDashboard` tabs; admin entries are added to the sidebar dynamically from the caller's role scopes (`ADMIN_TAB_MAP`, `DASHBOARD_LEVELS`, `ROLE_ORG_LABELS`, `FAMILY_BROWSER_ROLES`) |
-| `admin.js` (3679 lines) | `adminApp()` (+ module-level `ROLE_ORG_LABELS`, `DASHBOARD_LEVELS`, a copy of `dashboard.js`'s — there is no cross-file include mechanism) | Admin console; tabs (from `admin.html`'s `activeTab` values): `users`, `detail`, `create`, `createSS`, `createOrg`, `organizations`, `orgHierarchy`, `assignSakha`, `refData`, `geography`, `personDir`, `memberDir`, `claims`, `sysSettings`, `password`, `orgDashboard`; a `tabLoaders` map in `init()` re-fires each lazy tab's loader on hash-restore |
+| `register.js` (484 lines) | `registerApp()` | 3-step form — `step` 1 personal details, 2 optional membership claim (Sakha chosen first, then Local Sakha Number), 3 password — then a success screen (`step = 4`, shows the Person ID only, pending admin approval). Uses `NSSLocation` against `/api/v1/register/*` and `GET /api/v1/register/check-duplicate`; submits `POST /api/v1/register` |
+| `dashboard.js` (3296 lines) | `dashboardApp()` (+ module-level `_avatarClass()`, `_buildCoupleTree()`; `_renderGenSubtree()` is a method) | Member dashboard: `personal`, `membership`, `family`, `documents`, `attendance`, `governance`, and `orgDashboard` tabs; admin entries are added to the sidebar dynamically from the caller's role scopes (`ADMIN_TAB_MAP`, `DASHBOARD_LEVELS`, `ROLE_ORG_LABELS`, `FAMILY_BROWSER_ROLES`) |
+| `admin.js` (4500 lines) | `adminApp()` (+ module-level `ROLE_ORG_LABELS`, `DASHBOARD_LEVELS`, a copy of `dashboard.js`'s — there is no cross-file include mechanism) | Admin console; tabs (from `admin.html`'s `activeTab` values): `users`, `detail`, `create`, `createSS`, `createOrg`, `organizations`, `orgHierarchy`, `assignSakha`, `refData`, `geography`, `geoApprovals`, `personDir`, `memberDir`, `claims`, `sysSettings`, `password`, `orgDashboard`; a `tabLoaders` map in `init()` re-fires each lazy tab's loader on hash-restore |
 
 (The header comments of `admin.js` — "Tabs: Users list, User detail, Create user, Change password"
 — and `dashboard.js` — "same logic as family.html" — are stale.)
@@ -900,7 +920,7 @@ exists on disk:
 | `GET /admin` | Explicit route → `_serve_page(frontend/admin.html)` | The Administration Dashboard |
 | `GET /assets/*` | `StaticFiles` mount → `frontend/assets/` | CSS, JS, images (shared by every page) |
 
-**Automatic asset cache-busting (in progress, uncommitted).** Every page route above now serves
+**Automatic asset cache-busting.** Every page route above now serves
 through `_serve_page()`/`_render_html_with_asset_versions()` (`api/main.py`) instead of a bare
 `FileResponse`: each response's `/assets/js/*.js`/`/assets/css/*.css` `src=`/`href=` references
 are rewritten to `?v=<10-char sha256 prefix of that file's current contents>`, computed per
@@ -1049,9 +1069,9 @@ Response schemas are defined in `api/schemas/membership.py`. `MemberResponse` re
 name/contact, membership type, status, organization (Sakha), and the current active
 `local_sakha_erp_id` via JOINs. Full contract: `docs/03_Solution/api/API_CONTRACT.md` §8.
 
-## Tier 5 pages — in progress, uncommitted on `feature/tier5-authentication-administration`
+## Tier 5 pages — on `feature/tier5-authentication-administration` (committed, not yet merged to `develop`)
 
-**Not yet merged/released.** Four new pages. The shared helpers and per-page scripts now have their own File Reference
+**Not yet merged to `develop` or released.** Four new pages. The shared helpers and per-page scripts now have their own File Reference
 subsections above (`auth.js` through `nss-datepicker.css`); this section remains a summary
 pointer for the pages themselves, not an exhaustive per-function walkthrough. All four consume the new `/api/v1/auth/*`/`/api/v1/admin/*`/
 `/api/v1/register`/`/api/v1/admin/claims/*` endpoints (see `api/README.md` → "Endpoints (Tier 5)"
@@ -1062,7 +1082,7 @@ and `docs/PROJECT_DOCUMENTATION.md` → Key Workflow #9).
 | `login.html` | `/login` (root `/` now redirects here) | `login.js`, `auth.js`, `nss-dialog.js`, `nss-config.js` | Login form (`POST /api/v1/auth/login`, stores the JWT pair, redirects to `/dashboard`), plus change-password/forgot-password/reset-password flows on the same page |
 | `register.html` | `/register` | `register.js`, `auth.js`, `nss-location.js`, `nss-datepicker.js`, `nss-config.js` | Self-registration form — person details + optional membership claim (Sakha dropdown sourced from the new `05_sakha_branches.sql` seed) + Darshak-attendance toggle; duplicate-check via `GET /api/v1/register/check-duplicate`, submits `POST /api/v1/register` |
 | `dashboard.html` | `/dashboard` | `dashboard.js`, `auth.js`, `nss-dialog.js`, `nss-layout.js`, `nss-datepicker.js`, `org-dashboard.js`, `nss-config.js` | Member dashboard (Personal/Membership/Family/Documents/Attendance/Governance tabs, plus an Org Dashboard tab and admin entries added from the caller's role scopes) — see `docs/03_Solution/architecture/MEMBER_DASHBOARD.md` |
-| `admin.html` | `/admin` | `admin.js`, `auth.js`, `nss-layout.js`, `nss-location.js`, `nss-dialog.js`, `nss-datepicker.js`, `org-dashboard.js`, `nss-config.js` | The actual administration dashboard, now the sole home for the retired Tier 0-4 verification functionality too — Reference Data, Organization Hierarchy, Person Directory, Member Directory, Roles & System Settings, an **Assign Sakhas** tab (re-parent a Sakha Sangha to its real Anchalika/Zilla Sangha, in progress/uncommitted — see below), and a **Registration Approvals** tab (claims review, see below); `GET /api/v1/auth/me` for the current admin's own permissions/scopes |
+| `admin.html` | `/admin` | `admin.js`, `auth.js`, `nss-layout.js`, `nss-location.js`, `nss-dialog.js`, `nss-datepicker.js`, `org-dashboard.js`, `nss-config.js` | The actual administration dashboard, now the sole home for the retired Tier 0-4 verification functionality too — Reference Data, Organization Hierarchy, Person Directory, Member Directory, Roles & System Settings, an **Assign Sakhas** tab (re-parent a Sakha Sangha to its real Anchalika/Zilla Sangha, see below), and a **Registration Approvals** tab (claims review, see below); `GET /api/v1/auth/me` for the current admin's own permissions/scopes |
 
 **`claim-approval.html`/`claim-approval.js` were never built as standalone files, and this is
 not a gap.** The review queue for `api/routers/claim_approval.py`'s `/api/v1/admin/claims/*`
@@ -1073,13 +1093,13 @@ pagination, a detail view, inline edit, a pending-count sidebar badge, a `canApp
 permission gate, and integration into the Person Directory tab (a pending claim blocks
 Sangha-Sevi creation for that person and shows a "View Claim" jump-link).
 
-**"Assign Sakhas" tab (in progress, uncommitted, `admin.js` `activeTab === 'assignSakha'`,
+**"Assign Sakhas" tab (`admin.js` `activeTab === 'assignSakha'`,
 "Assign Sakhas to Anchalika/Zilla Sangha"):** lets an admin search/filter Sakha Sanghas
 (`assignSakhaSearch`, `assignSakhaOnlyUnassigned` to show only Sakhas still on the wrong
 parent) and re-parent one at a time (`assignSakhaToParent()`) via the new `PATCH
 /api/v1/admin/organizations/{pk}` `parent_organization_pk` field.
 
-**"Create Person" tab restructured into a real 3-step flow (in progress, uncommitted):** Step 1
+**"Create Person" tab restructured into a real 3-step flow:** Step 1
 Person (find-or-create, unchanged) → **Step 2 Sangha Sevi**, now its own step
 (`createSanghaSeviForNewPerson()` against `POST /api/v1/admin/sangha-sevi`, with a
 `skipCreateSanghaSevi()` "Skip for now" option) → Step 3 Account Credentials (no longer bundles
@@ -1095,7 +1115,7 @@ Directory, etc.) used to render permanently empty, since only the `claims` tab p
 its loader wired to fire on hash-restore; `activeTab` is also now resolved synchronously from
 the URL hash before Alpine's first render.
 
-**Automatic asset cache-busting (in progress, uncommitted) — see "How FastAPI Serves This
+**Automatic asset cache-busting — see "How FastAPI Serves This
 Directory" below** — replaced the old manual `?v=N` convention; all of it was stripped from
 `login.html`/`register.html`/`dashboard.html`/`admin.html`.
 
@@ -1117,7 +1137,7 @@ of navigating. The backing API (`POST /api/v1/auth/forgot-password` /
 `reset-password`) is implemented and tested (`tests/api/test_forgot_password.py`),
 and the inline UI is covered by `tests/ui/test_ui_forgot_password.py`.
 
-**Dead asset:** `assets/img/ssm-mandir.webp` (new, uncommitted) exists under `assets/img/` but is
+**Dead asset:** `assets/img/ssm-mandir.webp` exists under `assets/img/` but is
 not referenced by any `<img>`/CSS in `login.html`, `register.html`, `dashboard.html`, or
 `admin.html` — currently unused.
 
@@ -1132,7 +1152,7 @@ Tier 2   Organization Verification (retired — deleted, folded into admin.html)
 Tier 3   Person Verification (retired — deleted, folded into admin.html)
 Tier 4   Family + Membership Verification (retired — deleted, folded into admin.html/dashboard.html)
   ...
-Tier 5   Authentication + Administration + login/session UI — IN PROGRESS, uncommitted (see
+Tier 5   Authentication + Administration + login/session UI — committed on its branch (see
          "Tier 5 pages" above); not yet merged/released
   ...
          Full ERP interface
@@ -1142,5 +1162,5 @@ Tier 5   Authentication + Administration + login/session UI — IN PROGRESS, unc
 The page structure, CSS framework, and Alpine.js pattern established
 by the original six Tiers 0-4 pages carried forward into the four Tier 5 pages, even though
 those six pages themselves were deleted (see the header note at the top of this file).
-Authentication + Administration UI is now in progress (uncommitted, see "Tier 5 pages" above) —
+Authentication + Administration UI is implemented on the Tier 5 branch (see "Tier 5 pages" above) —
 treat it as not shipped until the branch merges and a release tag exists.

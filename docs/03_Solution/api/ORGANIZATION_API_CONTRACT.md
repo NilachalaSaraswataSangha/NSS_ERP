@@ -42,7 +42,7 @@ a recursive hierarchy endpoint for tree navigation.
 Write operations (POST/PATCH/DELETE) are deferred to Tier 5 when authenticated
 administration and authorization exist.
 
-> **Tier 5 update (in progress, uncommitted on `feature/tier5-authentication-administration`):**
+> **Tier 5 update (committed, not yet merged on `feature/tier5-authentication-administration`):**
 > this router now has **8** endpoints, all gated by `require_permission("ORGANIZATION_VIEW")`
 > (401 without a JWT, 403 without the permission). The 8th is
 > `GET /organizations/{organization_pk}/stats` — whole-subtree `member_count`, `family_count`,

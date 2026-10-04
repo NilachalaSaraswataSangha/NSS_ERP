@@ -142,9 +142,9 @@ py -m uvicorn api.main:app --reload --port 8001
 | `http://localhost:8001/` | Redirects to `/login` |
 | `http://localhost:8001/login` | Login (Authentication) |
 | `http://localhost:8001/register` | Self-Registration |
-| `http://localhost:8001/forgot-password` | **Not currently reachable** — the route is registered only `if frontend/forgot-password.html exists` (`api/main.py`), and that file has never been created; `POST /api/v1/auth/forgot-password`/`reset-password` work fine via API, there's just no page |
+| `http://localhost:8001/forgot-password` | **No such page, by design** — forgot/reset-password is inline on `/login`; `POST /api/v1/auth/forgot-password`/`reset-password` back it |
 | `http://localhost:8001/dashboard` | Member Dashboard (post-login landing page) |
-| `http://localhost:8001/admin` | Admin console (Users, Create User/Sangha-Sevi/Organization, Organizations, Assign Sakhas, Registration Approvals, Person/Member Directory, Organization Hierarchy, Org Dashboard, Reference Data, Geography, System Settings) |
+| `http://localhost:8001/admin` | Admin console (Users, Create User/Sangha-Sevi/Organization, Organizations, Assign Sakhas, Registration Approvals, Geo Approvals, Person/Member Directory, Organization Hierarchy, Org Dashboard, Reference Data, Geography, System Settings) |
 | `http://localhost:8001/docs` | Swagger UI (OpenAPI) |
 | `http://localhost:8001/api/v1/` | API endpoints |
 
@@ -165,10 +165,10 @@ python3 -m pytest tests/ -v
 py -m pytest tests/ -v
 ```
 
-**791 tests total**, split across four directories: 536 in `tests/api/` (16 files — routers +
-integration coverage), 27 in `tests/db/` (cross-module data integrity + credential-schema
+**914 test functions (1086 collected items)**, split across four directories: 560 in `tests/api/` (17 files — routers +
+integration coverage), 43 in `tests/db/` (cross-module data integrity, credential-schema and festival-schema
 invariants), 62 in `tests/security/` (auth-gating/401/403/RBAC + CSP/rate-limit/CORS
-assertions), and 166 in `tests/ui/` (15 Playwright browser-test files — needs Playwright
+assertions), and 249 in `tests/ui/` (23 Playwright browser-test files — needs Playwright
 browsers installed and a running app).
 `test_kumari_transition_has_event` and `TestChildrenStats` gracefully `pytest.skip()` against
 the seed-less database rather than fail. See `tests/README.md` for the full per-file test

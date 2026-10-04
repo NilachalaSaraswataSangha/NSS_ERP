@@ -59,6 +59,7 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 | DDL | `ddl/01_foundation/10_district.sql` | `district` | 2 |
 | DDL | `ddl/01_foundation/11_city_village.sql` | `city_village` | 3 |
 | DDL | `ddl/01_foundation/12_postal_code.sql` | `postal_code` | 1 |
+| DDL | `ddl/01_foundation/13_post_office.sql` | `post_office` | 2 |
 | DDL | `ddl/01_foundation/16_festival_master.sql` | `festival_master` | 0 |
 | DDL | `ddl/01_foundation/17_festival_calendar_date.sql` | `festival_calendar_date` | 1 |
 
@@ -75,8 +76,10 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 | Seed | `seed/01_foundation/07_system_setting.sql` | 5 system settings |
 | Seed | `seed/01_foundation/08_postal_code.sql` | 3 postal codes (Bhubaneswar, Puri, Cuttack) |
 | Seed | `seed/01_foundation/08b_postal_code_bulk.sql` | All-India postal_code bulk seed (17,869 PINs, one row per PIN, 36 states/UTs) |
-| Seed | `seed/01_foundation/11_city_village.sql` | All-India city/village bulk seed (673,408 rows: 672,619 village + 789 urban-only) |
+| Seed | `seed/01_foundation/08c_post_office_bulk.sql` | All post offices per PIN into `post_office` (India Post 2025 directory) |
 | Seed | `seed/01_foundation/10_festival_calendar.sql` | Festival Calendar seed (2024–2028) |
+| Seed | `seed/01_foundation/11_city_village.sql` | All-India city/village bulk seed (673,408 rows: 672,619 village + 789 urban-only) |
+| Seed | `seed/01_foundation/11b_city_village_urban_recovery.sql` | Additive recovery of one locality per orphan urban PIN |
 
 `seed/01_foundation/09_sakha_postal_codes.sql` also lives in this folder but is **not** run here
 — it runs in Phase 4, since it only exists to serve the Sakha branch seed.
@@ -151,6 +154,12 @@ and is not run.
 | DDL | `ddl/05_membership/13_darshak_attendance_registration.sql` | `darshak_attendance_registration` |
 | DDL | `ddl/05_membership/14_sakha_only_membership_trigger.sql` | *(trigger, no table — MBR-038A)* |
 | DDL | `ddl/05_membership/15_credential_sequence_counter.sql` | `credential_sequence_counter` |
+
+### Phase 7b — Deferred Foundation Audit FKs
+
+| Step | File | Purpose |
+|-----:|------|---------|
+| DDL | `ddl/05_membership/16_foundation_audit_fk.sql` | `ALTER TABLE` adding the real `submitted_by_`/`reviewed_by_sangha_sevi_pk` FKs on `district`, `postal_code`, `post_office`, `city_village` (plain nullable UUIDs when Foundation is created, because `sangha_sevi` depends transitively on Foundation geography) |
 
 ### Phase 8 — (reserved — no demo data)
 
@@ -233,7 +242,7 @@ are not audited.
 | Phase | Module | Tables |
 |------:|--------|-------:|
 | 0 | Bootstrap RBAC | 3 |
-| 1 | Foundation | 12 |
+| 1 | Foundation | 14 |
 | 3 | Organization | 1 |
 | 5 | Person | 2 |
 | 6 | Family | 6 |
@@ -241,12 +250,12 @@ are not audited.
 | 10 | Authentication | 4 |
 | 11 | Administration | 2 |
 | 14 | Audit (Foundation) | 1 |
-| | **Total** | **45** |
+| | **Total** | **47** |
 
 ### Validation coverage (`03_validate.sh`/`.ps1`)
 
 The two wrappers are identical (81 check calls each). Covered: Bootstrap RBAC (3 tables), Foundation's
-12 original tables, `organization`, `person`/`person_address`, the 4 Authentication tables, and
+12 original tables (not `post_office`, `festival_*`), `organization`, `person`/`person_address`, the 4 Authentication tables, and
 `user_role`/`admin_scope`. **Not covered:** `family_*`, every Membership table, `system_event_log`,
 `credential_sequence_counter`. Row-count checks pass when `count >= expected` and only WARN below
 it, so the stale minimums do not cause false failures — they are just weak: `role_master` 8 (9 are
@@ -256,8 +265,8 @@ seeded), `master_data` 82 (89), `id_sequence_master` 11 (14), `system_setting` 4
 
 ### Render parity
 
-`render_build.sh` (repo root, run by `render.yaml`) repeats Phases 0–7 and 9–14 with the same file
-order and the same `[OK]`/`[SKIP]`/abort rule; its phase/file order currently matches `02_build.sh` v2.4 (its own header still says v2.1).
+`render_build.sh` (repo root, run by `render.yaml`) repeats Phases 0–7b and 9–14 with the same file
+order and the same `[OK]`/`[SKIP]`/abort rule; its phase/file order currently matches `02_build.sh` v2.6 (its own header still says v2.1).
 Differences: it builds Tailwind and installs Python deps first; it substitutes for
 `00_create_database.sql`/`01_extensions.sql` by running `CREATE SCHEMA IF NOT EXISTS nss`,
 `ALTER DATABASE ... SET search_path`, and best-effort `pgcrypto`/`pg_trgm`/`btree_gin` (no

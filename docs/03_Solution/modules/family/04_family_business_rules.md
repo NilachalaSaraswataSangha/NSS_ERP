@@ -627,7 +627,7 @@ Remove members from the family
 View family financial records
 ```
 
-> **Implementation note (as of the Tier 5 branch, uncommitted):** the shipped
+> **Implementation note (as of the Tier 5 branch):** the shipped
 > `api/routers/family.py` does not yet match this rule exactly. `DELETE
 > /families/{pk}/members` (`remove_family_member`) correctly restricts to Head-or-Admin,
 > per FAM-048. But `POST /families/{pk}/members` (`add_family_member`) only checks that the

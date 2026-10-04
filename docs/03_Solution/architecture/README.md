@@ -7,7 +7,7 @@ Overall solution architecture documentation (cross-module, above the per-module 
 
 - **`GETTING_STARTED.md`** — Step-by-step local setup guide: prerequisites, database bootstrap
   (create DB/roles, extensions, `02_build.sh`/`.ps1`, validate, grant backend), API setup
-  (`.env`, `06_setup_env.sh`, `pip install`, `uvicorn`), running the 791-test suite, and a full
+  (`.env`, `06_setup_env.sh`, `pip install`, `uvicorn`), running the pytest suite (counts: `tests/README.md`), and a full
   clean-rebuild procedure with the Phase 0-14 build table and troubleshooting. Overlaps in scope
   with the root `README.md`'s "Getting Started" section and `CLAUDE.md`'s "Setup"/"Database"
   sections — this is the most detailed of the three (covers the Tier 5 writer role, JWT secret,
@@ -119,17 +119,17 @@ Overall solution architecture documentation (cross-module, above the per-module 
 ## Current state vs. these decisions
 
 The Django-to-FastAPI migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django
-prototype was fully removed and FastAPI is the sole API layer (`api/`: 120 endpoints across 11
+prototype was fully removed and FastAPI is the sole API layer (`api/`: 133 endpoints across 12
 routers, raw psycopg2, no ORM). Released through `v0.10.4` (Tier 4 Family + Membership) on
-`main`; **Tier 5 (Authentication + Administration) is in progress, uncommitted, on
+`main`; **Tier 5 (Authentication + Administration) is committed, not yet merged, on
 `feature/tier5-authentication-administration`** — JWT/RBAC, a second write-capable
 `nss_db_writer` pool, registration + claim approval, admin/audit routers, a DB-level audit
 trigger, a CSP, and a login/register/dashboard/admin frontend (Tailwind/DaisyUI pre-built via
 Tailwind CLI, Alpine.js from CDN) that replaced the six standalone Tier 0-4 verification pages.
-Implemented SQL covers 45 tables across Bootstrap RBAC (3), Foundation (13), Organization (1),
+Implemented SQL covers 47 tables across Bootstrap RBAC (3), Foundation (15), Organization (1),
 Person (2), Family (6), Membership (14), Authentication (4) and Administration (2); a fresh
 build seeds no demo Person/Family/Membership data (only 175 real Sakha branches and one admin
-superuser). The pytest suite is 791 tests across `tests/api/`, `tests/db/`, `tests/security/`
+superuser). The pytest suite (914 test functions; counts in `tests/README.md`) spans `tests/api/`, `tests/db/`, `tests/security/`
 and a Playwright `tests/ui/` layer. Deployment infrastructure (`render.yaml`,
 `render_build.sh`) exists but has not yet run in production.
 

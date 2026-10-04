@@ -22,7 +22,7 @@ Public URL (after deployment): `https://nss-erp.onrender.com/`
 See `TECH_STACK_DECISIONS.md` §6 for architectural rationale.
 
 > **Status:** not yet run in production. The last tagged release (`v0.10.4`) is Tier 4; Tier 5
-> (Authentication + Administration) is in progress, uncommitted, on
+> (Authentication + Administration) is committed, not yet merged, on
 > `feature/tier5-authentication-administration`, and `render_build.sh`/`render.yaml` already
 > carry its changes (writer role, JWT secret, admin bootstrap, audit trigger). This guide
 > describes the build as it exists on that branch.
@@ -84,7 +84,7 @@ PostGIS and dblink are **not used** in current DDL and are not required.
    - **Plan:** Free
    - **Python version:** 3.12.4
 
-**⚠️ Unverified risk (uncommitted Tier 5 branch):** `render.yaml` declares
+**⚠️ Unverified risk (Tier 5 branch):** `render.yaml` declares
 `runtime: python`, but `render_build.sh` now runs `npm install` and `npx tailwindcss` as its
 first step (Tailwind CDN → CLI migration). Render's native Python runtime environment is not
 confirmed to include Node.js/npm — this has **not been tested against an actual Render deploy
@@ -125,7 +125,7 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap and `script
 1. **Trigger manual deploy** in Render dashboard (or push to `org/main`).
 2. `render_build.sh` runs automatically:
    - Builds Tailwind CSS (`npm install` + `npx tailwindcss -i ... -o
-     frontend/assets/css/tailwind.min.css --minify`) — uncommitted as of this writing, see
+     frontend/assets/css/tailwind.min.css --minify`) — see
      `TECH_STACK_DECISIONS.md` §3
    - Installs Python dependencies (`pip install -r requirements.txt`)
    - Creates the `nss` schema and extensions (`pgcrypto`, `pg_trgm`, `btree_gin` — best-effort)

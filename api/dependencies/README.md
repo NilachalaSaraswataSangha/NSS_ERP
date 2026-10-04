@@ -1,6 +1,6 @@
 # api/dependencies/
 
-FastAPI `Depends()` factories (Tier 5, in progress). Distinct from `api/services/`, which holds
+FastAPI `Depends()` factories (Tier 5). Distinct from `api/services/`, which holds
 the logic these call. `__init__.py` exports nothing — import from the submodules.
 
 | File | Provides |

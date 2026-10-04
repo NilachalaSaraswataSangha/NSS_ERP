@@ -1,11 +1,11 @@
 # docs/03_Solution/api/
 
 API design documentation: request/response contracts for the FastAPI service implemented at
-the root-level `api/` folder (raw psycopg2, no ORM; 11 routers — see
+the root-level `api/` folder (raw psycopg2, no ORM; 12 routers — see
 `api/README.md` for the running code). Each contract is written per-tier, as its vertical slice
 lands, and stays DRAFT until the tier's implementation is frozen. The four per-tier contracts
 were written when Tiers 0-3 were read-only and unauthenticated; on the in-progress Tier 5 branch
-(`feature/tier5-authentication-administration`, uncommitted) each now opens with a **Tier 5
+(`feature/tier5-authentication-administration`) each now opens with a **Tier 5
 update** note describing the JWT/permission gating, and `API_CONTRACT.md` carries the cross-tier
 Tier 5 catalogue.
 ## Files
@@ -15,7 +15,9 @@ Tier 5 catalogue.
   (`role_master`, `permission_master`, `role_permission`). No authentication (the only fully
   unauthenticated router); `nss_db_backend` connects SELECT-only. Permissions/mappings are
   now seeded on the Tier 5 branch, so those endpoints no longer return empty lists.
-- **`FOUNDATION_API_CONTRACT.md`** (v1.2, DRAFT) — Tier 1 Foundation contract: 23 endpoints —
+- **`FOUNDATION_API_CONTRACT.md`** (v1.2, DRAFT) — Tier 1 Foundation contract: documents 23 of the
+  router's 33 endpoints (the festival-calendar, `sakha-postal-codes`, `/post-offices` and four
+  member `*/propose` endpoints are catalogued only in `API_CONTRACT.md` §4) —
   17 reads across 11 tables (master data, system config, geography, runtime document metadata;
   now gated by `FOUNDATION_VIEW`) plus 6 Tier 5 writes (`POST`/`PATCH` master-data, settings,
   sequences; gated by `FOUNDATION_MANAGE`, §3.5). Carries forward Tier 0's conventions plus new
@@ -48,8 +50,7 @@ Tier 5 catalogue.
 Each per-tier contract documents conventions, the full endpoint catalogue with example
 requests/responses and SQL patterns, a response-schema summary, error responses, and an
 implementation file map tying the contract back to its router/schema/test/frontend files.
-Write operations (POST/PATCH/DELETE) were deferred to Tier 5; they now exist (in progress,
-uncommitted) — Foundation's six are specified in `FOUNDATION_API_CONTRACT.md` §3.5, everything
+Write operations (POST/PATCH/DELETE) were deferred to Tier 5; they now exist (committed, not yet merged) — Foundation's six are specified in `FOUNDATION_API_CONTRACT.md` §3.5, everything
 else in `API_CONTRACT.md` §7 and §9-§13.
 
 See `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas for how this folder relates to the

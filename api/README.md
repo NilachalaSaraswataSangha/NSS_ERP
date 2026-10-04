@@ -5,7 +5,7 @@ FastAPI application — the only web/API layer in the codebase. Implements **Tie
 Organization), **Tier 3** (Person), and **Tier 4** (Family + Membership) —
 no ORM — behind a cross-tier security middleware stack (headers, opt-in CORS, rate limiting,
 plus a new Content-Security-Policy) and a shared error-handler layer (`error_handlers.py`).
-11 routers; the endpoint inventory and per-router counts live in
+12 routers (133 endpoints); the endpoint inventory and per-router counts live in
 `docs/03_Solution/api/API_CONTRACT.md`.
 **Partway through this branch's development, Tiers 1-3
 and Membership (Tier 4) gained authenticated gating** — they were read-only/no-auth through
@@ -22,7 +22,7 @@ section below). Only Tier 0's 4 `bootstrap.py` endpoints remain fully unauthenti
 (plus `registration.py`'s public endpoints, `POST /auth/login`/`refresh`/`forgot-password`/
 `reset-password`, which are unauthenticated by nature).
 
-**Tier 5 (Authentication + Administration + Audit) is in progress, uncommitted** on branch
+**Tier 5 (Authentication + Administration + Audit) is committed, not yet merged** on branch
 `feature/tier5-authentication-administration` — not yet merged/released. It adds the first
 authenticated, write-path endpoints: JWT login/refresh/logout/password-management
 (`routers/auth.py`), user/role/organization administration (`routers/admin.py`),
@@ -48,8 +48,8 @@ api/
 │                        outermost, so security headers wrap everything — CSP is emitted by that
 │                        same security-headers middleware, not a separate layer), registers the
 │                        `error_handlers.py` handlers (validation / `psycopg2.IntegrityError` /
-│                        catch-all), includes all 11 routers (the six Tier 0-4 ones plus, Tier 5,
-│                        in progress, `auth`/`admin`/`registration`/`claim_approval`/`audit`),
+│                        catch-all), includes all 12 routers (the six Tier 0-4 ones plus, Tier 5,
+│                        `auth`/`admin`/`registration`/`claim_approval`/`audit`/`geo_approval`),
 │                        mounts `frontend/assets/` at `/assets`. A `lifespan` hook logs a
 │                        startup warning for each insecure dev setting left on (`DEBUG_MODE`,
 │                        `CSP_ENABLED=false`, `CSP_REPORT_ONLY`) and closes both DB pools on
@@ -66,7 +66,7 @@ api/
 │                        `/claim-approval` route or `claim-approval.html` file — that feature
 │                        shipped as a tab inside `admin.html` instead. **Every page route
 │                        serves through `_serve_page()`/`_render_html_with_asset_versions()`**
-│                        (in progress, uncommitted) instead of a bare `FileResponse` — rewrites
+│                        (committed, not yet merged) instead of a bare `FileResponse` — rewrites
 │                        each served page's `/assets/js|css/*` references to
 │                        `?v=<10-char sha256 prefix of current file contents>`, computed per
 │                        request but memoized by file mtime, replacing the old hand-maintained
@@ -112,7 +112,7 @@ api/
 │                        `MAX_LIMIT = 500`) and list-sorting helpers (`SORT_ASC`/`SORT_DESC`,
 │                        `natural_sort_key()`, `build_order_by()` — whitelist-based ORDER BY so
 │                        `sort_by`/`sort_dir` query params never reach SQL unvalidated).
-│                        Tier 5 (in progress) write-path helpers:
+│                        Tier 5 write-path helpers:
 │                        ID minting — `next_id()` (atomic `id_sequence_master` `UPDATE ...
 │                        RETURNING`, returns `prefix + current_value`; ignores the table's
 │                        `padding_length`), `peek_next_id()` (preview without consuming),
@@ -152,7 +152,7 @@ api/
 │                        the `-Report-Only` variant when CSP_REPORT_ONLY is set; nothing when
 │                        CSP_ENABLED is false), skipping `CSP_EXEMPT_PATHS` — `/docs`, `/redoc`,
 │                        `/openapi.json` — because Swagger UI embeds an inline script
-├── routers/             11 routers; module docstrings of `foundation.py`,
+├── routers/             12 routers; module docstrings of `foundation.py`,
 │   │                    `membership.py`, `person.py`, `admin.py`, `auth.py`, `registration.py`
 │   │                    and `family.py` still describe their original/partial endpoint set — see
 │   │                    "Known gaps" at the bottom of this file
@@ -213,11 +213,11 @@ api/
 │   │                    journey events use an ownership model instead (`get_current_user` plus
 │   │                    either `MEMBERSHIP_VIEW` or being the member themself, via a shared
 │   │                    `_require_member_view()` → `require_self_or_permission()`)
-│   ├── auth.py          Tier 5 (in progress) — 8 endpoints under /api/v1/auth: login, refresh,
+│   ├── auth.py          Tier 5 — 8 endpoints under /api/v1/auth: login, refresh,
 │   │                    logout, change-password, forgot-password, reset-password, /me, /profile
-│   ├── admin.py         Tier 5 (in progress) — 25 endpoints under /api/v1/admin: user list/
+│   ├── admin.py         Tier 5 — 28 endpoints under /api/v1/admin: user list/
 │   │                    create/detail/check-account, reset-password/status/delete; role
-│   │                    assignment; `POST /persons` + `GET /persons/check-contact`; Sangha Sevi
+│   │                    assignment; `POST /persons` + `GET /persons/check-contact` + `GET`/`PATCH /persons/{pk}` (profile-details correction) + `PATCH /patra/{patra_type}/{patra_pk}/document-number` (MBR-030H); Sangha Sevi
 │   │                    provisioning (create, check, check-batch, without-account); organization
 │   │                    list/create/PATCH/short-code plus 5 creation-helper GETs
 │   │                    (`kumari-sevak-sakha-options`, `sakha-scope-options`,
@@ -226,22 +226,25 @@ api/
 │   │                    (re-parenting, backs the "Assign Sakhas" admin tab). Module-level
 │   │                    `_ALLOWED_PARENT_TYPES`/`_NO_ADDRESS_TYPES`/`_SAKHA_GATED_TYPES`
 │   │                    constants are shared by create/update rather than re-defined per function
-│   ├── registration.py  Tier 5 (in progress) — 9 endpoints under /api/v1/register: `POST ""`
-│   │                    self-registration, `GET /check-duplicate`, plus 7 public,
+│   ├── registration.py  Tier 5 — 10 endpoints under /api/v1/register: `POST ""`
+│   │                    self-registration, `GET /check-duplicate`, plus 8 public,
 │   │                    unauthenticated reference-data endpoints (`/reference-data`, `/countries`,
-│   │                    `/states`, `/districts`, `/cities`, `/postal-codes`, `/sakhas`) that thinly wrap `foundation.py`'s/
+│   │                    `/states`, `/districts`, `/cities`, `/postal-codes`, `/post-offices`, `/sakhas`) that thinly wrap `foundation.py`'s/
 │   │                    `organization.py`'s own shared query functions — fixes a regression where
 │   │                    Tier 5's permission gating had silently emptied every dropdown on the
 │   ��                    public registration page
-│   ├── claim_approval.py Tier 5 (in progress) — 5 endpoints under /api/v1/admin/claims:
+│   ├── claim_approval.py Tier 5 — 5 endpoints under /api/v1/admin/claims:
 │   │                        Sakha-admin review queue for registration_claim rows. Its frontend
 │   │                        shipped as a "Registration Approvals" tab inside
 │   │                        `admin.html`/`admin.js`, not a standalone page
-│   └── audit.py          Tier 5 (in progress) — 1 endpoint under /api/v1/audit: `GET /change-log`,
+│   ├── geo_approval.py   Tier 5 — 4 endpoints under /api/v1/admin/geo-entries: review queue for
+│   │                     member-proposed district/postal-code/post-office/city-village rows
+│   │                     (list, detail, approve, correct), `FOUNDATION_MANAGE` + admin scope
+│   └── audit.py          Tier 5 — 1 endpoint under /api/v1/audit: `GET /change-log`,
 │                          a filterable/paginated view over `nss.field_change_log`, gated by
 │                          `AUDIT_VIEW`; the authenticated counterpart to Tier 1's
 │                          deliberately-unexposed audit data
-├── dependencies/        Tier 5 (in progress) — FastAPI `Depends()` factories, distinct from
+├── dependencies/        Tier 5 — FastAPI `Depends()` factories, distinct from
 │   │                    `services/`. No `__init__` exports; import from the submodules
 │   ├── auth.py          `get_current_user()` (mandatory HTTP Bearer JWT auth: access token only,
 │   │                    loads `UserContext`, and — on the request's read connection — sets the
@@ -256,14 +259,14 @@ api/
 │   │                    `PATH_LABELS` kinship lookup) — first file in this layer, distinct from
 │   │                    routers/schemas; exercised only indirectly via `/graph` in
 │   │                    `tests/api/test_family_ownership.py` (no unit tests of its own)
-│   ├── auth_service.py  Tier 5 (in progress) — Argon2 `hash_password()`/`verify_password()`,
+│   ├── auth_service.py  Tier 5 — Argon2 `hash_password()`/`verify_password()`,
 │   │                    `create_access_token()`/`create_refresh_token()`/`decode_token()`
 │   │                    (defaults: access 30 min / refresh 7 days / 30-day absolute session max,
 │   │                    all three `JWT_*` env-configurable; `decode_token()` enforces the
 │   │                    absolute max), `validate_password_policy()` (8-128 chars, >=1 uppercase,
 │   │                    >=1 digit), `is_account_locked()`/`calculate_lockout_until()` (5
 │   │                    attempts / 30 s)
-│   └── rbac_service.py  Tier 5 (in progress) — `UserContext`/`ScopeInfo` dataclasses +
+│   └── rbac_service.py  Tier 5 — `UserContext`/`ScopeInfo` dataclasses +
 │                        `load_user_context()`: permissions = union of every active role's
 │                        `role_permission` rows; scopes = one per active `user_role` +
 │                        `admin_scope`. `UserContext.is_super_admin()` is true only for the
@@ -294,7 +297,7 @@ api/
     ├── family.py         8 original Pydantic models (FamilyGroupResponse, FamilyMemberResponse,
     │                     FamilyGraphMemberResponse, PersonMembershipSummaryResponse,
     │                     FamilyHeadHistoryResponse, SakhaAffiliationCount, MemberSakhaInfo,
-    │                     FamilySakhaAlignmentResponse) plus 8 more (Tier 5, in progress) for the
+    │                     FamilySakhaAlignmentResponse) plus 8 more (Tier 5) for the
     │                     write endpoints: AddFamilyMemberRequest,
     │                     RemoveFamilyMemberRequest, CreateFamilyLinkRequest,
     │                     CreateFamilyRequest, FamilyAdminResponse, AssignFamilyAdminRequest,
@@ -302,22 +305,22 @@ api/
     ├── membership.py     MemberResponse, SakhaAffiliationResponse, ParichayaPatraResponse,
     │                     AnumatiPatraResponse, JourneyEventResponse, MemberListResponse,
     │                     OrgDarshakSummaryResponse
-    ├── auth.py           Tier 5 (in progress) — LoginRequest/Response,
+    ├── auth.py           Tier 5 — LoginRequest/Response,
     │                     RefreshRequest/Response, ChangePasswordRequest,
     │                     ForgotPasswordRequest/Response, ResetPasswordRequest, MeResponse,
     │                     ScopeResponse, MessageResponse, UpdateProfileRequest
-    ├── admin.py          Tier 5 (in progress) — CreateUserRequest, ResetPasswordRequest,
+    ├── admin.py          Tier 5 — CreateUserRequest, ResetPasswordRequest,
     │                     UpdateStatusRequest, AssignRoleRequest, CreateSanghaSeviRequest,
     │                     UserAccountResponse, UserListResponse, UserDetailResponse,
     │                     RoleAssignmentResponse, CreateSanghaSeviResponse,
     │                     AccountlessSanghaSeviResponse/ListResponse (organization-create/update
     │                     and other request bodies are defined inline in `routers/admin.py`)
-    └── audit.py          Tier 5 (in progress) — FieldChangeLogResponse (the one schema in this
+    └── audit.py          Tier 5 — FieldChangeLogResponse (the one schema in this
                           codebase that deliberately includes audit-actor columns, since the
                           whole point of this endpoint is exposing them)
 ```
 
-## Endpoints (Tier 5 — in progress, uncommitted)
+## Endpoints (Tier 5 — committed, not yet merged)
 
 Not yet merged/released. Requires `api/.env` to also carry `DB_WRITE_USER`, `DB_WRITE_PASSWORD`,
 and `JWT_SECRET_KEY` (see `docs/PROJECT_DOCUMENTATION.md` → Configuration). Endpoints that
@@ -362,10 +365,17 @@ exact `require_permission`/`require_any_permission` arguments in each router.
 | PATCH | `/api/v1/admin/organizations/{pk}/short-code` | any of `ORGANIZATION_MANAGE`/`ORGANIZATION_VIEW`, then subtree scope check (`NSS_ERP_ADMIN`/NSS-WIDE: any org) | Set/clear the 3-5 char short code |
 | PATCH | `/api/v1/admin/organizations/{pk}` | same | Update org contact/address/jurisdiction fields and `parent_organization_pk` (re-parenting, validated against `_ALLOWED_PARENT_TYPES`) |
 | GET | `/api/v1/admin/dashboard-stats` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | Aggregated counts for the admin dashboard cards, scoped to the viewer's own scope |
+| GET | `/api/v1/admin/persons/{pk}` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE`, person in scope | Raw editable profile fields for the admin Profile Details card |
+| PATCH | `/api/v1/admin/persons/{pk}` | same | Admin correction of personal-info fields |
+| PATCH | `/api/v1/admin/patra/{patra_type}/{patra_pk}/document-number` | any of `MEMBERSHIP_MANAGE`/`ADMIN_USER_MANAGE`, Patra's Sakha in scope | Correct an issued Parichaya/Anumati Patra number (audit-logged) |
+| GET | `/api/v1/admin/geo-entries/{entity}` | `FOUNDATION_MANAGE`, scoped | List member-proposed geographic entries (`entity` = `district`/`postal-code`/`post-office`/`city-village`; `status` default `PENDING`) |
+| GET | `/api/v1/admin/geo-entries/{entity}/{entry_pk}` | same | Entry detail |
+| POST | `/api/v1/admin/geo-entries/{entity}/{entry_pk}/approve` | same | PENDING to APPROVED |
+| POST | `/api/v1/admin/geo-entries/{entity}/{entry_pk}/correct` | same | Find-or-create canonical row, mark CORRECTED, re-point `person_address` FKs |
 | POST | `/api/v1/register` | none | Self-registration — creates `person` + `user_account(PENDING_APPROVAL)` + optional `registration_claim` |
 | GET | `/api/v1/register/check-duplicate` | none | `{mobile_exists, email_exists}` pre-submit check |
 | GET | `/api/v1/register/reference-data` | none | Countries + gender/marital-status/blood-group/membership-type master-data + the Sakha list, bundled into one call for the public registration page |
-| GET | `/api/v1/register/states`/`/districts`/`/postal-codes` | none | Public location-cascade lookups, thin wrappers over `foundation.py`'s `fetch_states()`/`fetch_districts()`/`fetch_postal_codes()` |
+| GET | `/api/v1/register/states`/`/districts`/`/postal-codes`/`/post-offices` | none | Public location-cascade lookups, thin wrappers over `foundation.py`'s `fetch_states()`/`fetch_districts()`/`fetch_postal_codes()` |
 | GET | `/api/v1/admin/claims` | any of `MEMBERSHIP_APPROVE`/`ADMIN_USER_MANAGE`, scoped | List registration claims (`claim_status` filter, default `PENDING`; `page`/`page_size` pagination) |
 | GET/PATCH | `/api/v1/admin/claims/{pk}` | same | Claim detail / admin edits before approval |
 | POST | `/api/v1/admin/claims/{pk}/approve` | same | Creates `sangha_sevi` + affiliation (+ mandatory credential for a new Sangha Sevi), activates the account |
@@ -382,7 +392,7 @@ gap list has been separately tracked for Tier 5 yet — see `tests/README.md`.
 See `docs/PROJECT_DOCUMENTATION.md` → Key Workflow #9 for the full registration → approval →
 login → RBAC flow this layer implements.
 
-## Audit trail (Tier 5, in progress, uncommitted)
+## Audit trail (Tier 5, committed, not yet merged)
 
 Every Tier 5 write endpoint calls `api/helpers.py::log_audit()` after each mutation, inserting a
 row into the new `nss.system_event_log` table (`action`, `table_name`, `record_pk`, `actor_pk`,
@@ -462,20 +472,21 @@ not to enforce RBAC.
 
 ## Endpoints (Tier 1)
 
-28 endpoints under `/api/v1/foundation`, — no ORM, raw
-parameterized SQL. 20 reads **gated by `require_permission("FOUNDATION_VIEW")` on the Tier 5
-branch** (read-only/no-auth through Tier 4); 8 write endpoints (below) gated by
-`require_permission("FOUNDATION_MANAGE")` (festival-calendar writes: `FOUNDATION_CALENDAR_MANAGE`) instead. Grouped by theme:
+33 endpoints under `/api/v1/foundation` — no ORM, raw
+parameterized SQL. 21 reads **gated by `require_permission("FOUNDATION_VIEW")` on the Tier 5
+branch** (read-only/no-auth through Tier 4); 8 admin write endpoints (below) gated by
+`require_permission("FOUNDATION_MANAGE")` (festival-calendar writes: `FOUNDATION_CALENDAR_MANAGE`) instead, plus 4 member `propose` endpoints gated by `get_current_user` only. Grouped by theme:
 
 | Group | Endpoints |
 |-------|-----------|
 | Master data | `/categories`, `/categories/{pk}`, `/master-data` (filter by `category_code`/`category_pk`; `GET`+`POST`), `/master-data/{pk}` (`GET`+`PATCH`) |
 | System config | `/settings` (`GET`+`POST`), `/settings/{setting_key}` (`GET`+`PATCH`), `/sequences` (`GET`+`POST`, excludes `current_value`), `/sequences/{sequence_code}` (`PATCH`) |
-| Geographic | `/countries`, `/countries/{pk}`, `/states`, `/states/{pk}`, `/districts`, `/districts/{pk}`, `/cities`, `/postal-codes`, `/postal-code-mappings`, `/sakha-postal-codes` |
+| Geographic | `/countries`, `/countries/{pk}`, `/states`, `/states/{pk}`, `/districts`, `/districts/{pk}`, `/cities`, `/postal-codes`, `/post-offices` (`postal_code_pk` required), `/postal-code-mappings`, `/sakha-postal-codes` |
 | Runtime | `/documents` |
+| Member-assisted entry | `POST /districts/propose`, `/postal-codes/propose`, `/post-offices/propose`, `/city-villages/propose` — a member (active Sangha Sevi required, else 403) submits an unseen value as `entry_status='PENDING'`; reviewed via `/api/v1/admin/geo-entries/*` |
 | Festival calendar | `/festivals`, `/festival-calendar-dates` (`GET`+`POST`), `/festival-calendar-dates/{pk}` (`PATCH`) |
 
-The 8 `POST`/`PATCH` endpoints above are new (Tier 5, in progress, uncommitted) —
+The 8 `POST`/`PATCH` endpoints above are new (Tier 5, committed, not yet merged) —
 `create_master_data`/`update_master_data`, `create_setting`/`update_setting`,
 `create_sequence`/`update_sequence`, `create_festival_calendar_date`/`update_festival_calendar_date` — each writes via `get_write_connection` and logs through
 `log_audit()`.
@@ -485,8 +496,8 @@ The 8 `POST`/`PATCH` endpoints above are new (Tier 5, in progress, uncommitted) 
 endpoints filter `is_active = TRUE` (except the postal-code-mapping junction table, which has no
 such column); detail endpoints 404 on missing/inactive rows. (`foundation.py`'s own module
 docstring still says "17 GET endpoints ... No authentication" — stale.) Full contract:
-`docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`. Verified by 45 pytest integration
-tests (`tests/api/test_foundation.py`; some of the original 59 were extracted into
+`docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`. Verified by pytest integration
+tests (`tests/api/test_foundation.py`, `tests/api/test_geo_approval.py`; some of the original 59 were extracted into
 `tests/security/`).
 
 ## Endpoints (Tier 2)
@@ -507,7 +518,7 @@ for address resolution, since those FKs are nullable.
 | GET | `/api/v1/organization/organizations/{organization_pk}` | Single organization detail; 404 if missing/inactive |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children` | Direct children of an organization; 404 if the parent `organization_pk` doesn't exist |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children-stats` | Aggregate family/member/person counts per direct child, recursing through descendant Sakhas and applying the FAM-036 majority-rule "effective Sakha" computation; its own recursive CTE has **no** depth-cap guard, unlike `/hierarchy` |
-| GET | `/api/v1/organization/organizations/{organization_pk}/stats` | New, in progress/uncommitted — same recursive counts collapsed to one row of whole-subtree totals for the requested org itself; 403s outside the caller's own admin scope (ADMIN-BR-076); backs the new Org Dashboard tab |
+| GET | `/api/v1/organization/organizations/{organization_pk}/stats` | New, committed, not yet merged — same recursive counts collapsed to one row of whole-subtree totals for the requested org itself; 403s outside the caller's own admin scope (ADMIN-BR-076); backs the new Org Dashboard tab |
 | GET | `/api/v1/organization/hierarchy` | Full organization tree as a flat list with a `depth` field, via a `WITH RECURSIVE` CTE (depth guard at 10); `limit`/`offset` pagination |
 
 All list endpoints filter `is_active = TRUE`; detail/children endpoints 404 on a missing parent.
@@ -550,7 +561,7 @@ parameterized SQL. **On the Tier 5 branch `membership.py`'s list/search gained
 (see the Membership table below); `family.py`'s 7 gained an ownership-based auth model instead**
 (every endpoint now requires `get_current_user`, with `FAMILY_VIEW`/`FAMILY_MANAGE` as the admin
 override — a deliberate design choice, not a gap), and `family.py` separately
-**gained 9 more endpoints on the Tier 5 branch (in progress, uncommitted) — see below.**
+**gained 9 more endpoints on the Tier 5 branch (committed, not yet merged) — see below.**
 
 **Family** — originally 7 read-only endpoints under `/api/v1/family`, across 5 tables (now
 authenticated — see above):
@@ -571,7 +582,7 @@ for the 9 below). Verified by 52 pytest integration tests
 `tests/security/`) plus 20 in `tests/api/test_family_ownership.py` (role-less JWT path, incl.
 `/graph`) — `/person/{pk}/membership-summary` is the one endpoint with no coverage.
 
-**Family (Tier 5 additions, in progress, uncommitted) — 9 more endpoints, all requiring
+**Family (Tier 5 additions, committed, not yet merged) — 9 more endpoints, all requiring
 `get_current_user` (JWT); the 2 `GET`s use the read pool, the 7 `POST`/`DELETE`s use
 `get_write_connection` (`nss_db_writer`). The 7 writes (plus the admin list) are covered by
 `tests/api/test_family_ownership.py`:**
@@ -608,7 +619,7 @@ Full contract and endpoint counts: `docs/03_Solution/api/API_CONTRACT.md`. Tests
 
 - **Stale module docstrings**: `foundation.py` ("17 GET ... No authentication"), `membership.py`
   ("7 GET ... No authentication"), `person.py` ("No authentication"), `admin.py` (lists 17 of its
-  25 endpoints and still says short-code/create are "NSS_ERP_ADMIN only"), `auth.py` (omits
+  28 endpoints and still says short-code/create are "NSS_ERP_ADMIN only"), `auth.py` (omits
   `PATCH /profile`), `registration.py` (lists only `POST /register`), `family.py` (its write list
   omits create-family and create-link), and `main.py` ("Verification UIs", "Read-only endpoints")
   no longer match their code. `middleware.py`'s docstring still says JS uses `?v=N` cache busting

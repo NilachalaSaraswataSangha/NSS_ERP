@@ -5,7 +5,7 @@
 | Document    | API_CODE_EXPLANATIONS                    |
 | Version     | 1.7                                      |
 | Scope       | All source files under `api/` (except `api/middleware.py`) |
-| Status      | Complete (updated: Tier 4 Family graph/sakha-alignment/membership-summary, first `api/services/` file) |
+| Status      | Complete for Tier 0-4 (updated: Tier 4 Family graph/sakha-alignment/membership-summary, first `api/services/` file). **Tier 5 files are not covered** — `routers/auth.py`, `admin.py`, `registration.py`, `claim_approval.py`, `audit.py`, `geo_approval.py`, `schemas/{auth,admin,audit,geo_approval}.py`, `dependencies/`, `services/{auth_service,rbac_service}.py` and the Tier 5 additions to `config.py`/`database.py`/`main.py`/`helpers.py`/`foundation.py`; see `api/README.md` and `docs/03_Solution/api/API_CONTRACT.md` |
 
 ---
 

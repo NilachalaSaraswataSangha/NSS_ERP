@@ -19,7 +19,7 @@ home, and the same pattern extends cleanly as new layers are added in the future
 
 ## Files
 
-- **`API_CODE_EXPLANATIONS.md`** (v1.7, Complete — updated: Tier 4 Family graph/sakha-alignment/
+- **`API_CODE_EXPLANATIONS.md`** (v1.7, Complete for Tier 0-4 only; Tier 5 routers/services/dependencies and `geo_approval.py` are not covered — updated: Tier 4 Family graph/sakha-alignment/
   membership-summary, first `api/services/` file) — every file under `api/` except
   `api/middleware.py` (which lives in the Security doc, since it's exclusively security code):
   `config.py`, `database.py`, `main.py`, `helpers.py`, `routers/bootstrap.py`,
@@ -28,7 +28,7 @@ home, and the same pattern extends cleanly as new layers are added in the future
   `schemas/organization.py`, `schemas/person.py`, `schemas/family.py`, `schemas/membership.py`,
   `services/family_graph.py` (the first file in a new `api/services/` layer), and the three
   package `__init__.py` markers.
-- **`DATABASE_CODE_EXPLANATIONS.md`** (v1.3, Complete — updated: Tier 4 Family — `family_link`
+- **`DATABASE_CODE_EXPLANATIONS.md`** (v1.3, Complete for Tier 0-4 only; Tier 5 DDL/seed, festival/post_office tables and bulk geography seeds are not covered — updated: Tier 4 Family — `family_link`
   graph-edge table) —
   every hand-written SQL DDL/seed file and build/validate/grant script under `database/`
   (Bootstrap/Foundation/Organization/Person/Family/Membership — Person's
@@ -61,7 +61,7 @@ home, and the same pattern extends cleanly as new layers are added in the future
   every file under the flat Tier 4-era `tests/`: `conftest.py`, `test_bootstrap.py`,
   `test_foundation.py`,
   `test_organization.py`, `test_person.py`, `test_security.py`, `test_family.py`,
-  `test_membership.py` (410 tests total). **Its UI smoke-test sections assert against the six
+  `test_membership.py` (410 tests total at the time). **Its UI smoke-test sections assert against the six
   since-deleted Tier 0-4 verification pages, and `tests/` has been reorganized into
   `tests/api/`/`tests/ui/`/`tests/db/`/`tests/security/`** — see `tests/README.md` for the
   current breakdown.
@@ -74,4 +74,4 @@ See `docs/PROJECT_DOCUMENTATION.md` for the code-verified current state and
 `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` for the Tier 1 API's formal contract. The same
 `docs/03_Solution/api/` directory also holds `BOOTSTRAP_API_CONTRACT.md` (Tier 0),
 `ORGANIZATION_API_CONTRACT.md` (Tier 2), `PERSON_API_CONTRACT.md` (Tier 3), and the new
-cross-tier `API_CONTRACT.md` quick reference (Tiers 0–4, see that folder's README for detail).
+cross-tier `API_CONTRACT.md` quick reference (Tiers 0–5, 133 endpoints; see that folder's README for detail).

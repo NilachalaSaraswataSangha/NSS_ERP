@@ -62,7 +62,7 @@ Sakha branches and the one admin. Real data arrives via `POST /api/v1/register` 
 
 - `.sh`/`.ps1` script pairs must stay operationally identical (shell wrappers only).
 - **`render_build.sh` (repo root) duplicates the build sequence for Render/Neon** — keep it in
-  sync with `02_build.sh`. Known drift: header prose says v2.1 while its `Version:` line (like `02_build.sh`) says 2.5, no `postgis`, a Phase 13 failure
+  sync with `02_build.sh`. Known drift: its header prose still says v2.1 (its phase list matches `02_build.sh` v2.6), no `postgis`, a Phase 13 failure
   only warns, `render.yaml` declares an unused `DATABASE_URL`, and
   `npm install` in a `runtime: python` service is untested.
 - `nss_db_*` = PostgreSQL roles (lowercase); `NSS_ERP_*` = application RBAC roles in
@@ -77,7 +77,7 @@ Sakha branches and the one admin. Real data arrives via `POST /api/v1/register` 
 FastAPI + raw psycopg2 (`api/`), static Tailwind/DaisyUI/Alpine frontend served by the same app
 (`frontend/`). Routers → `api/schemas/` (Pydantic) with shared logic in `api/helpers.py` and
 `api/services/` (`family_graph.py` BFS, `auth_service.py` Argon2/JWT, `rbac_service.py`
-permission + admin-scope loading). 11 routers, 120 endpoints; inventory: `docs/03_Solution/api/API_CONTRACT.md`.
+permission + admin-scope loading). 12 routers, 133 endpoints; inventory: `docs/03_Solution/api/API_CONTRACT.md`.
 
 **Two DB pools** (`api/database.py`): `get_connection` = `nss_db_backend` (SELECT-only) for reads;
 `get_write_connection` = `nss_db_writer` for every write endpoint. `tests/conftest.py` overrides
@@ -96,6 +96,7 @@ rolled back at teardown — that is what lets the suite pass on a seed-less DB.
 - `admin.py`/`claim_approval.py` — permission gates plus **admin scope** (`admin_scope` subtree,
   ADMIN-BR-076/077): scoped admins only touch organizations/persons/accounts inside their own
   subtree; `NSS_ERP_ADMIN`/NSS-WIDE is global. Permission alone never confers global reach.
+- `geo_approval.py` (`/admin/geo-entries`) — `FOUNDATION_MANAGE` + admin scope; members propose geography via `POST /foundation/*/propose` (`get_current_user`, active Sangha Sevi required).
 - `audit.py` — `AUDIT_VIEW`, read pool only. `field_change_log` is deliberately **not** under
   `/foundation` (enforced by a test).
 
@@ -151,9 +152,8 @@ trailer to commits.
 
 ## Open items
 
-- `frontend/forgot-password.html` doesn't exist, so the guarded `/forgot-password` route in
-  `api/main.py` is never registered; forgot-password OTPs are never delivered
-  (`api/routers/auth.py` TODO) — only visible via `otp_debug`.
+- There is deliberately no `/forgot-password` page (the flow is inline on `/login`); forgot-password
+  OTPs are never delivered (`api/routers/auth.py` TODO) — only visible via `otp_debug`.
 - `/children-stats` and `/stats` recursive CTEs have no depth cap (`/hierarchy` caps at 10).
 - `/person/{pk}/membership-summary` has no test coverage.
 - `claim_approval.py::approve_claim()` and `admin.py::update_status()` each independently

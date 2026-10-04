@@ -1,6 +1,6 @@
 # database/seed/04_admin/
 
-Seeds the initial NSS Admin superuser account. **In progress (committed on the branch, not merged)** on branch
+Seeds the initial NSS Admin superuser account. **Committed on the branch, not merged** — branch
 `feature/tier5-authentication-administration`. (Unrelated to `database/seed/04_family/` — the
 shared `04_` prefix is coincidence; this folder has no `ddl/` counterpart.)
 

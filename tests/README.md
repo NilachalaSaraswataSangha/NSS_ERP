@@ -11,7 +11,7 @@ tests/
 ├── README.md            # This file
 │
 ├── api/                 # API integration tests (FastAPI TestClient, no browser)
-│   ├── test_admin.py         # Tier 5 — admin CRUD, roles, orgs (77 tests)
+│   ├── test_admin.py         # Tier 5 — admin CRUD, roles, orgs (78 tests)
 │   ├── test_audit.py         # Tier 5 — field-change-log viewer (4 tests)
 │   ├── test_auth.py          # Tier 5 — login, refresh, logout, change-password (16 tests)
 │   ├── test_bootstrap.py     # Tier 0 — health, roles, permissions (9 tests)
@@ -21,7 +21,8 @@ tests/
 │   ├── test_family_ownership.py # Tier 5 — role-less-JWT ownership path: graph, add/remove
 │   │                          #   member, admin assign/revoke, transfer-head (20 tests)
 │   ├── test_forgot_password.py  # Tier 5 — forgot/reset password (6 tests)
-│   ├── test_foundation.py    # Tier 1 — master data, config, geographic (45 tests)
+│   ├── test_foundation.py    # Tier 1 — master data, config, geographic, propose endpoints (52 tests)
+│   ├── test_geo_approval.py  # Tier 5 — member-proposed geography review queue: list/detail/approve/correct, scope (15 tests)
 │   ├── test_membership.py    # Tier 4 — membership list, search, affiliations (94 tests)
 │   ├── test_organization.py  # Tier 2 — org types, hierarchy, children, children-stats, stats (67 tests)
 │   ├── test_person.py        # Tier 3 — person list, detail, search (55 tests)
@@ -32,8 +33,9 @@ tests/
 ├── db/                  # Database integrity tests (direct SQL via write_conn)
 │   ├── test_credential_schema.py # Credential-table schema invariants — document_number
 │   │                          #   uniqueness, one-active-per-member, validity CHECK,
-│   │                          #   credential_sequence_counter uniqueness (4 tests)
-│   └── test_data_integrity.py  # Cross-module entity smoke tests (23 tests)
+│   │                          #   credential_sequence_counter uniqueness (6 tests)
+│   ├── test_data_integrity.py  # Cross-module entity smoke tests (23 tests)
+│   └── test_festival_schema.py # festival_master / festival_calendar_date schema + resolver helpers (14 tests)
 │
 ├── security/            # Cross-tier security assertions (added after the api/db/ui split
 │   │                     above; not a rename of anything)
@@ -58,7 +60,7 @@ tests/
     ├── test_ui_login.py             # Login form, validation, force-password-change, redirect (8 tests)
     ├── test_ui_register.py          # Registration 3-step navigation, field validation (9 tests)
     ├── test_ui_dashboard.py         # Dashboard: all tabs, content rendering, edit profile,
-    │                                #   admin tabs, family state, documents, logout (61 tests)
+    │                                #   admin tabs, family state, documents, logout (62 tests)
     ├── test_ui_forgot_password.py   # Forgot/reset password flow (5 tests)
     ├── test_ui_shared_datepicker.py # Shared nssDatePicker: no hand-written markup left in
     │                                #   any page, markup injection on every callsite, calendar
@@ -73,27 +75,29 @@ tests/
     ├── test_ui_admin_member_directory.py # Member Directory tab, search, detail panel (4 tests)
     ├── test_ui_admin_modals.py      # Admin write-path modals and confirm dialogs (4 tests)
     ├── test_ui_admin_tabs.py        # Admin sidebar tab switching / activeTab panels (2 tests)
+    ├── test_ui_auth_refresh.py      # auth.js NSSAuth.apiFetch refresh/401-retry logic, fetch stubbed (18 tests)
+    ├── test_ui_location_cascade.py  # nss-location.js country/state/district/PIN cascade and resets (11 tests)
+    ├── test_ui_topbar.py            # nss-layout.js role-badge collapsing + topbar layout rules (11 tests)
     ├── test_ui_badges.py            # Shared badge system (badges.css) source-level checks (7 tests)
     ├── test_ui_family_management.py # dashboard.html Family tab management (3 tests)
-    └── test_ui_org_dashboard.py     # Org Dashboard tab (org-dashboard.js), six layouts (11 tests)
+    └── test_ui_org_dashboard.py     # Org Dashboard tab (org-dashboard.js), six layouts (21 tests)
 ```
 
-**Current grand total: 824 tests** (AST-counted `test_*` functions, re-verified) — `tests/api/`
-(537, across 16 files), `tests/db/` (27, across 2 files), `tests/security/` (62, across 7 files),
-`tests/ui/` (198, across 20 test files — `conftest.py` and `_csp_probe.py` hold no tests).
+**Current grand total: 914 tests** (AST-counted `test_*` functions, re-verified) — `tests/api/`
+(560, across 17 files), `tests/db/` (43, across 3 files), `tests/security/` (62, across 7 files),
+`tests/ui/` (249, across 23 test files — `conftest.py` and `_csp_probe.py` hold no tests).
 
 **AST count vs. what pytest actually collects** (`pytest --collect-only -q`, verified): the
 per-file "(N tests)" figures in this README are counts of `def test_*` functions, which differs
-from pytest's collected-item count in two ways. (1) Three fixtures are themselves named `test_*`
-and are over-counted by an AST scan — `test_user` in `tests/api/test_auth.py` (16 → 15 collected)
-and `tests/security/test_auth_security.py` (4 → 3), and `test_org_pk` in
-`tests/api/test_registration.py` (17 → 16). (2) `@pytest.mark.parametrize` expands one function
-into many items — used in `test_admin.py`, `test_membership.py`, `test_person.py`,
-`test_sorting.py`, `test_error_messages.py`, `test_credential_schema.py`, and several UI files
-(e.g. `test_ui_shared_datepicker.py`). Collected-item totals: `tests/api/` 622, `tests/db/` 33,
-`tests/security/` 61, `tests/ui/` 236 — **952 items** for a bare `pytest`. `pytest.ini` declares
-`integration`/`ui`/`db` markers only — `tests/security/` files use `pytest.mark.integration`,
-same as `tests/api/`, so there's no separate `security` marker.
+from pytest's collected-item count in two ways. (1) Fixtures named `test_*` (e.g. `test_user` in
+`tests/api/test_auth.py` and `tests/security/test_auth_security.py`, `test_org_pk` in
+`tests/api/test_registration.py`) are over-counted by an AST scan. (2) `@pytest.mark.parametrize`
+expands one function into many items — used in `test_admin.py`, `test_membership.py`,
+`test_person.py`, `test_sorting.py`, `test_error_messages.py`, `test_credential_schema.py`,
+`test_festival_schema.py` and several UI files. Collected-item totals: `tests/api/` 669,
+`tests/db/` 56, `tests/security/` 61, `tests/ui/` 300 — **1086 items** for a bare `pytest`.
+`pytest.ini` declares `integration`/`ui`/`db` markers only — `tests/security/` files use
+`pytest.mark.integration`, same as `tests/api/`, so there's no separate `security` marker.
 
 ## `conftest.py` — fixture architecture
 

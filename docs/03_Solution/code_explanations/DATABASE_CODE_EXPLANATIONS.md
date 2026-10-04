@@ -5,7 +5,7 @@
 | Document    | DATABASE_CODE_EXPLANATIONS                                               |
 | Version     | 1.3                                                                       |
 | Scope       | All SQL DDL, seed, and build/validate scripts under `database/`          |
-| Status      | Complete (updated: Tier 4 Family — `family_link` graph-edge table)      |
+| Status      | Complete for Tier 0-4 (updated: Tier 4 Family — `family_link` graph-edge table). **Not covered:** Tier 5 DDL/seed (`06_authentication/`, `07_administration/`, `system_event_log`/audit trigger, `family_admin`, `darshak_attendance_registration`, `credential_sequence_counter`, festival tables, `post_office` and the member-assisted-entry columns, `seed/04_admin/`, bulk geography seeds) — see the per-folder READMEs under `database/`. Also mentions `city_village_postal_code_map` and `01_person_master_tables.sql`, which no longer exist |
 
 ---
 

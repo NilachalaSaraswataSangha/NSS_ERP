@@ -1,10 +1,13 @@
 # database/ddl/01_foundation/
 
-Foundation Module DDL — 13 tables (Depths 0–3), plus one cross-cutting audit trigger. Includes
+Foundation Module DDL — 15 tables (Depths 0–3), plus one cross-cutting audit trigger. Includes
 `festival_master`/`festival_calendar_date` (Festival Calendar feature;
 full table design in `docs/03_Solution/architecture/FESTIVAL_CALENDAR_ARCHITECTURE.md`).
-`post_office` was retired on 2026-10-02 (Simplified Geography Model) — district now lives
-directly on `city_village` rather than on a separate office-grain table.
+`post_office` was added and retired on 2026-10-02 (Simplified Geography Model), then
+**reinstated on 2026-10-03** (`13_post_office.sql`, Member-Assisted Geographic Entry amendment)
+as a child of `postal_code` — one PIN can carry many post offices. `district`, `postal_code`,
+`post_office` and `city_village` are the four **member-writable** geographic levels and share the
+member-assisted-entry columns described under "Member-Assisted Geographic Entry" below.
 `14_system_event_log.sql`/`15_audit_trigger.sql` are added on branch
 `feature/tier5-authentication-administration`.
 
@@ -33,6 +36,7 @@ by earlier-numbered files in this directory.
 | 10 | `10_district.sql` | `district` | 2 | #26 |
 | 11 | `11_city_village.sql` | `city_village` | 3 | #32 |
 | 12 | `12_postal_code.sql` | `postal_code` | 1 | #87 (amendment) |
+| 13 | `13_post_office.sql` | `post_office` | 2 | — (Member-Assisted Geographic Entry) |
 | 14 | `14_system_event_log.sql` | `system_event_log` | 0 | — (Tier 5) |
 | 15 | `15_audit_trigger.sql` | *(no table — trigger function + `DO` block attaching it to every `nss.*` table)* | — | — (Tier 5) |
 | 16 | `16_festival_master.sql` | `festival_master` | 0 | — (Festival Calendar) |
@@ -303,9 +307,11 @@ runtime.
 | `deleted_at` | TIMESTAMPTZ | NULL | Soft-delete timestamp |
 | `is_active` | BOOLEAN | NOT NULL, default TRUE | Soft-delete flag |
 
-**Unique:** `(state_pk, district_code)`, `(state_pk, district_name)`
+**Member-assisted columns** (see section below) are also present: `entry_status`, `submitted_by_sangha_sevi_pk`, `reviewed_by_sangha_sevi_pk`, `reviewed_at`, `admin_remarks`, `corrected_into_district_pk`.
 
-**Indexes:** `state_pk`, `is_active`, `district_name` (GIN trigram)
+**Unique (partial, `entry_status = 'APPROVED' AND is_active`):** `uq_district_state_code_approved (state_pk, district_code)`, `uq_district_state_name_approved (state_pk, district_name)`
+
+**Indexes:** `state_pk`, `is_active`, `entry_status`, `district_name` (GIN trigram)
 
 ---
 
@@ -338,10 +344,12 @@ nullable `postal_code_pk` FK is the primary location anchor
 | `deleted_at` | TIMESTAMPTZ | NULL | Soft-delete timestamp |
 | `is_active` | BOOLEAN | NOT NULL, default TRUE | Soft-delete flag |
 
-**Unique:** `(district_pk, city_village_code)`, `(district_pk, city_village_name)`,
+**Member-assisted columns** (see section below) are also present, with `corrected_into_city_village_pk`.
+
+**Unique (partial, `entry_status = 'APPROVED' AND is_active`):** `(district_pk, city_village_code)`, `(district_pk, city_village_name)`,
 `(postal_code_pk, city_village_name)`
 
-**Indexes:** `district_pk`, `postal_code_pk`, `is_active`, `city_village_name` (GIN trigram)
+**Indexes:** `district_pk`, `postal_code_pk`, `is_active`, `entry_status`, `city_village_name` (GIN trigram)
 
 ---
 
@@ -372,9 +380,49 @@ village/urban locality names, which now live on `city_village`).
 | `deleted_at` | TIMESTAMPTZ | NULL | Soft-delete timestamp |
 | `is_active` | BOOLEAN | NOT NULL, default TRUE | Soft-delete flag |
 
-**Unique:** `(postal_code)` — one row per PIN, globally unique
+**Member-assisted columns** (see section below) are also present, with `corrected_into_postal_code_pk`.
 
-**Indexes:** `state_pk`, `postal_code`, `is_active`
+**Unique (partial, `entry_status = 'APPROVED' AND is_active`):** `uq_postal_code_code_approved (postal_code)` — one approved row per PIN
+
+**Indexes:** `state_pk`, `postal_code`, `is_active`, `entry_status`
+
+---
+
+### 13. `post_office` (Depth 2, Member-Assisted Geographic Entry — 2026-10-03)
+
+Post offices under a PIN (one HO plus several SO/BO per `postal_code`). Fourth member-writable
+geographic level. Seeded in bulk by `seed/01_foundation/08c_post_office_bulk.sql`.
+
+**FK:** `postal_code_pk` → `postal_code`; `corrected_into_post_office_pk` → `post_office` (self).
+
+| Column | Type | Constraint | Purpose |
+|--------|------|-----------|---------|
+| `post_office_pk` | UUID | PK, auto | Internal primary key |
+| `postal_code_pk` | UUID | FK, NOT NULL | Parent PIN |
+| `post_office_name` | VARCHAR(150) | NOT NULL | Post office name |
+| `display_order` | INTEGER | NOT NULL, default 0 | UI ordering |
+| member-assisted columns | — | — | `entry_status`, `submitted_by_sangha_sevi_pk`, `reviewed_by_sangha_sevi_pk`, `reviewed_at`, `admin_remarks`, `corrected_into_post_office_pk` |
+| audit columns | — | — | `created_at`, `updated_at`, `deleted_at`, `is_active` |
+
+**Unique (partial, APPROVED + active):** `uq_post_office_pin_name_approved (postal_code_pk, post_office_name)`
+
+**Indexes:** `postal_code_pk`, `is_active`, `entry_status`, `post_office_name` (GIN trigram)
+
+---
+
+### Member-Assisted Geographic Entry (`district`, `postal_code`, `post_office`, `city_village`)
+
+A member may type a geographic value not yet in the lists; it is inserted as
+`entry_status = 'PENDING'` (quarantined from shared dropdowns) via the
+`POST /api/v1/foundation/{districts|postal-codes|post-offices|city-villages}/propose` endpoints, and a
+`FOUNDATION_MANAGE` admin approves it (`APPROVED`) or corrects it (`CORRECTED`, with
+`corrected_into_<entity>_pk` pointing at the canonical survivor — enforced by
+`chk_<table>_correction`). Seeded rows start `APPROVED`. Uniqueness is enforced only among
+`APPROVED` active rows (partial unique indexes, FND-BR-090) so a PENDING submission never collides
+with a canonical row. `submitted_by_`/`reviewed_by_sangha_sevi_pk` are created as plain nullable
+UUIDs here (Foundation builds before Membership) and get real FKs from
+`05_membership/16_foundation_audit_fk.sql` (Phase 7b of `02_build.sh`). Authority: SOL-FND-004
+§16.7–16.8, FND-BR-085..090. Review API: `api/routers/geo_approval.py`.
 
 ---
 
@@ -445,7 +493,7 @@ new table is added after the initial build.
   via ALTER TABLE in Pass 2 after `sangha_sevi` exists (SOL-ARCH-010 §5).
 - **Soft-delete backfill** — `deleted_at TIMESTAMPTZ NULL` plus a
   `(is_active = TRUE AND deleted_at IS NULL) OR (is_active = FALSE AND deleted_at IS NOT NULL)`
-  CHECK constraint added to all 10 tables that carry `is_active`
+  CHECK constraint added to the original 10 tables that carry `is_active` (the later `post_office`, `festival_*` tables carry the same CHECK)
   (`master_category`, `system_setting`, `id_sequence_master`, `country`, `document_master`,
   `master_data`, `state`, `district`, `city_village`, `postal_code`) —
   `deleted_at` is a plain timestamp, not an audit-actor FK, so unlike
@@ -464,7 +512,8 @@ new table is added after the initial build.
   `postal_code_pk UUID` FK to `nss.postal_code` (plus `district_pk`/`state_pk`/`country_pk`/
   `city_village_pk` FKs and standalone `latitude`/`longitude` columns for map-based search).
 - **Simplified Geography Model (Amendment, 2026-10-02)** — the `post_office` table (added
-  2026-10-02 as an interim office-grain child of `postal_code`) was retired the same day in
+  2026-10-02 as an interim office-grain child of `postal_code`; **reinstated 2026-10-03** as
+  `13_post_office.sql`, see above) was retired the same day in
   favor of resolving district directly on `city_village`. `postal_code` was simplified in
   lockstep: `country_pk` dropped (redundant via `state_pk`), `post_office_name` dropped (no
   source once `post_office` was retired), and uniqueness relaxed from

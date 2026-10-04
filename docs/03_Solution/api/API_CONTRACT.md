@@ -19,18 +19,18 @@
 
 # 1. Overview
 
-The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **120 endpoints** across 11
+The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **133 endpoints** across 12
 routers. Tiers 0-4 were originally read-only and unauthenticated; the **Tier 5 branch
-(`feature/tier5-authentication-administration`, in progress, uncommitted — not merged or
+(`feature/tier5-authentication-administration`, committed, not yet merged — not merged or
 released)** added JWT authentication, RBAC, write endpoints, and gated almost everything:
 
-- **Only the 4 Tier 0 `bootstrap.py` endpoints and the 9 `/api/v1/register` endpoints (public
+- **Only the 4 Tier 0 `bootstrap.py` endpoints and the 10 `/api/v1/register` endpoints (public
   self-registration + its reference-data lookups) plus `POST /auth/login|refresh|forgot-password|
   reset-password` are reachable without a JWT.** Everything else needs
   `Authorization: Bearer <access token>`.
 - Read endpoints connect as `nss_db_backend` (SELECT-only, `get_connection`); write endpoints
-  connect as `nss_db_writer` (`get_write_connection`, INSERT/UPDATE on auth+admin tables only,
-  SELECT elsewhere).
+  connect as `nss_db_writer` (`get_write_connection`, SELECT + INSERT/UPDATE on every `nss` table,
+  no DELETE/DDL).
 - Authorization is one of three models, stated per endpoint below: a blanket
   `require_permission("X")`/`require_any_permission(...)` gate; an **ownership** check
   (the caller reaches their own record — `family.py`'s `family_relationship`/`family_admin`
@@ -134,9 +134,9 @@ are now seeded, so `/permissions` and `/roles/{pk}/permissions` return real rows
 
 # 4. Tier 1 — Foundation
 
-**Router prefix:** `/api/v1/foundation` — 23 endpoints: 17 reads (gated by
-`require_permission("FOUNDATION_VIEW")`, `nss_db_backend`) and 6 writes (gated by
-`require_permission("FOUNDATION_MANAGE")`, `nss_db_writer`, each logs via `log_audit()`).
+**Router prefix:** `/api/v1/foundation` — 33 endpoints (see the Tier 5 write/extension rows below): reads gated by
+`require_permission("FOUNDATION_VIEW")`, `nss_db_backend`), admin writes gated by
+`require_permission("FOUNDATION_MANAGE")` (`nss_db_writer`, each logs via `log_audit()`), and four member `propose` endpoints gated by `get_current_user` only.
 `field_change_log` is deliberately **not** exposed here (no `/foundation/change-log`).
 
 | # | Method | Path | Filters | Description | Response Model |
@@ -169,8 +169,13 @@ are now seeded, so `/permissions` and `/roles/{pk}/permissions` return real rows
 | 111 | GET | `/festival-calendar-dates` | `festival_code`, `calendar_year` | Observed festival dates, newest year first (`FOUNDATION_VIEW`) | `list[FestivalCalendarDateResponse]` |
 | 112 | POST | `/festival-calendar-dates` | — | Record a festival/year date (`FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only, 201) | `FestivalCalendarDateResponse` |
 | 113 | PATCH | `/festival-calendar-dates/{pk}` | — | Edit an observed date (`FOUNDATION_CALENDAR_MANAGE`) | `FestivalCalendarDateResponse` |
+| 121 | GET | `/post-offices` | `postal_code_pk` (required) | Active APPROVED post offices under a PIN (`FOUNDATION_VIEW`) | `list[PostOfficeResponse]` |
+| 122 | POST | `/districts/propose` | — | Member proposes an unseen district for a state; stored `entry_status='PENDING'` (`get_current_user`; caller must hold an active Sangha Sevi, else 403; 201) | `PendingDistrictResponse` |
+| 123 | POST | `/postal-codes/propose` | — | Same, for a PIN (201) | pending-row response |
+| 124 | POST | `/post-offices/propose` | — | Same, for a post office under a PIN (201) | pending-row response |
+| 125 | POST | `/city-villages/propose` | — | Same, for a city/village (201) | pending-row response |
 
-Endpoints 47-52 and 109-113 are numbered out of sequence (after the Tier 4 numbering) for the same reason as
+Endpoints 47-52, 109-113 and 121-125 are numbered out of sequence (after the Tier 4 numbering) for the same reason as
 `/children-stats` below. See `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` §3.4.
 
 ---
@@ -368,7 +373,7 @@ logout); Argon2 password hashing; 5-attempt/30-second login lockout.
 
 # 10. Tier 5 — Registration (public)
 
-**Router prefix:** `/api/v1/register` — 9 endpoints, all deliberately unauthenticated (the
+**Router prefix:** `/api/v1/register` — 10 endpoints, all deliberately unauthenticated (the
 registration page has no JWT yet). Creates `person` + `user_account(PENDING_APPROVAL)` + optional
 `registration_claim`; **no `sangha_sevi` is created until an admin approves the claim.**
 
@@ -383,6 +388,7 @@ registration page has no JWT yet). Creates `person` + `user_account(PENDING_APPR
 | 117 | GET | `/countries` | Countries, so authenticated member screens can avoid the admin-only `FOUNDATION_VIEW` |
 | 118 | GET | `/cities` | Cities/villages for a district (suggestions, not a hard-restricted list) |
 | 119 | GET | `/sakhas` | "Find my Sakha": active Sakha Sangha list filtered by `country_pk`/`state_pk`/`district_pk`/`postal_code_pk` (max 500) |
+| 126 | GET | `/post-offices` | Post offices under a PIN (`postal_code_pk`, required) — suggestions for the registration location cascade; a typed name not on file is created on submit via `resolve_or_create_post_office()` |
 
 ---
 
@@ -404,7 +410,7 @@ admin's `admin_scope` organizations unless NSS-WIDE.
 
 # 12. Tier 5 — Administration
 
-**Router prefix:** `/api/v1/admin` — 25 endpoints. Permission sets per endpoint are listed in
+**Router prefix:** `/api/v1/admin` — 28 endpoints. Permission sets per endpoint are listed in
 the last column (`any of`).
 
 | # | Method | Path | Description | Permission (any of) |
@@ -434,10 +440,29 @@ the last column (`any of`).
 | 105 | GET | `/organizations/code-availability` | Is an org code free | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
 | 106 | GET | `/organizations/next-code` | Sequence-driven code preview | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
 | 107 | GET | `/dashboard-stats` | Counts scoped to the viewer's own admin scope | view set above |
+| 127 | GET | `/persons/{pk}` | Raw editable field values for the Profile Details edit card (person must be inside the actor's scope) | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 128 | PATCH | `/persons/{pk}` | Admin correction of a member's personal-info fields (same validation as registration; only non-null fields applied) | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 129 | PATCH | `/patra/{patra_type}/{patra_pk}/document-number` | Correct the number on an issued Patra (`patra_type` = `parichaya` or `anumati`; MBR-030H; audit-logged old/new; Patra's Sakha must be in scope) | `MEMBERSHIP_MANAGE`, `ADMIN_USER_MANAGE` |
 
 Scope rule for both org `PATCH` endpoints: `NSS_ERP_ADMIN`/NSS-WIDE edits any org; any other
 scoped admin edits only organizations inside their own scope subtree, regardless of which
 permission they hold.
+
+---
+
+# 12b. Tier 5 — Geo-Entry Approval
+
+**Router prefix:** `/api/v1/admin/geo-entries` (`api/routers/geo_approval.py`, Member-Assisted Geographic
+Entry, SOL-ARCH-010 Amendment 2026-10-03) — 4 endpoints, all `FOUNDATION_MANAGE`, scope-filtered
+(ADMIN-BR-076, anchored on the submitter's `sangha_sevi.organization_pk`). `{entity}` is one of
+`district`, `postal-code`, `post-office`, `city-village`.
+
+| # | Method | Path | Description |
+|---|---|---|---|
+| 130 | GET | `/{entity}` | List member-submitted entries (`status` = `PENDING` default / `APPROVED` / `CORRECTED`, `page`, `page_size` ≤ 100) |
+| 131 | GET | `/{entity}/{entry_pk}` | Entry detail (404 / 403 outside scope) |
+| 132 | POST | `/{entity}/{entry_pk}/approve` | PENDING → APPROVED (422 if not pending, 409 on duplicate of an approved row) |
+| 133 | POST | `/{entity}/{entry_pk}/correct` | Find-or-create the canonical row, mark the entry CORRECTED and re-point dependent `person_address` FKs |
 
 ---
 
@@ -460,7 +485,7 @@ permission they hold.
 | `/login` | Login page | `login.html` |
 | `/register` | Self-registration page | `register.html` |
 | `/dashboard` | Member Dashboard (Personal, Membership, Family, Attendance, Governance, Documents tabs + an Org Dashboard for holders of an admin scope — tabs are built from the caller's role scopes) | `dashboard.html` |
-| `/admin` | Administration console (Users, User Detail, Create User, Create Sangha-Sevi, Password, Create Organization, Organizations, Assign Sakhas, Registration Approvals, Person Directory, Member Directory, Organization Hierarchy, Org Dashboard, Reference Data, Geography, System Settings tabs) | `admin.html` |
+| `/admin` | Administration console (Users, User Detail, Create User, Create Sangha-Sevi, Password, Create Organization, Organizations, Assign Sakhas, Registration Approvals, Geo Approvals, Person Directory, Member Directory, Organization Hierarchy, Org Dashboard, Reference Data, Geography, System Settings tabs) | `admin.html` |
 | `/forgot-password` | **No standalone page by design** — the forgot/reset flow is inline on `/login` (`login.html`) | -- |
 | `/docs` | Swagger UI (OpenAPI) | auto-generated |
 | `/redoc` | ReDoc | auto-generated |
@@ -487,20 +512,21 @@ Frontend routes are excluded from OpenAPI schema (`include_in_schema=False`).
 | Tier | Module | Endpoints |
 |---|---|---|
 | 0 | Bootstrap | 4 |
-| 1 | Foundation | 28 (20 read + 8 write) |
+| 1 | Foundation | 33 (21 read + 8 admin write + 4 member propose) |
 | 2 | Organization | 11 |
 | 3 | Person | 5 |
 | 4 | Family | 16 (7 original read + 9 Tier 5) |
 | 4 | Membership | 8 |
 | 5 | Authentication | 8 |
-| 5 | Registration | 9 |
+| 5 | Registration | 10 |
 | 5 | Claim Approval | 5 |
-| 5 | Administration | 25 |
+| 5 | Administration | 28 |
+| 5 | Geo-Entry Approval | 4 |
 | 5 | Audit | 1 |
-| **Total** | | **120** |
+| **Total** | | **133** |
 
 The endpoint numbers in the tables above are stable identifiers, not path order: #1-#46 are the
-original Tier 0-4 set; #47-#120 were appended as Tier 5 endpoints landed.
+original Tier 0-4 set; #47-#133 were appended as Tier 5 endpoints landed.
 
 ---
 
