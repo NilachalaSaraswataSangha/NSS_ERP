@@ -7,6 +7,10 @@
 # modules only.
 #
 # Authority: SOL-ARCH-010, SOL-ARCH-011
+# Version: 2.6  - reinstate post_office (SOL-ARCH-010 Amendment, 2026-10-03:
+#          Member-Assisted Geographic Entry). A PIN can hold many post
+#          offices; post_office is one of the four member-writable
+#          geographic levels. Supersedes the v2.5 retirement note below.
 # Version: 2.5  - drop post_office (retired 2026-10-02: Simplified Geography
 #          Model - district now lives on city_village, not a separate
 #          office-grain table)
@@ -32,6 +36,7 @@
 #   Phase 5  - Person DDL (2 tables)
 #   Phase 6  - Family DDL (6 tables)
 #   Phase 7  - Membership DDL (14 tables)
+#   Phase 7b - Deferred Foundation audit FKs (16_foundation_audit_fk.sql)
 #   Phase 8  - Tier 4 Verification Seed Data (removed - no demo data)
 #   Phase 9  - Grant nss_db_backend read-only access
 #   Phase 10 - Authentication DDL (4 tables: user_account,
@@ -41,7 +46,6 @@
 #   Phase 13 - Admin bootstrap seed (NSS Admin superuser)
 #   Phase 14 - Audit DDL (system_event_log table + DB trigger)
 #
-# NOT executed:
 # NOT executed:
 #   - database/seed/03_person/ (no seed data - Person data lives in
 #     Foundation master_data; the superseded 01_person_master_tables.sql
@@ -136,7 +140,7 @@ Write-Host ""
 #       (14/15) but run here in Phase 1 so the Phase 14 audit
 #       trigger (which enumerates pg_tables at execution time)
 #       still attaches to them.
-Write-Host "[Phase 1] Foundation - DDL (13 tables)" -ForegroundColor Cyan
+Write-Host "[Phase 1] Foundation - DDL (14 tables)" -ForegroundColor Cyan
 $foundationDdl = @(
     @("master_category",              "02_master_category.sql"),
     @("system_setting",               "03_system_setting.sql"),
@@ -148,7 +152,8 @@ $foundationDdl = @(
     @("state",                        "09_state.sql"),
     @("district",                     "10_district.sql"),
     @("postal_code",                  "12_postal_code.sql"),
-    @("city_village",                 "11_city_village.sql"),
+    @("post_office",                  "13_post_office.sql"),
+    @("city_village",                "11_city_village.sql"),
     @("festival_master",              "16_festival_master.sql"),
     @("festival_calendar_date",       "17_festival_calendar_date.sql")
 )
@@ -169,6 +174,7 @@ $foundationSeed = @(
     @("system_setting (seed)",     "07_system_setting.sql"),
     @("postal_code (seed)",        "08_postal_code.sql"),
     @("postal_code bulk (seed)",   "08b_postal_code_bulk.sql"),
+    @("post_office bulk (seed)",   "08c_post_office_bulk.sql"),
     @("festival_calendar (seed)",  "10_festival_calendar.sql"),
     @("city_village (seed)",       "11_city_village.sql"),
     @("city_village urban recovery (seed)", "11b_city_village_urban_recovery.sql")
@@ -236,6 +242,14 @@ Invoke-Sql "anumati_patra_history"          "$DdlBase\05_membership\12_anumati_p
 Invoke-Sql "darshak_attendance_registration" "$DdlBase\05_membership\13_darshak_attendance_registration.sql"
 Invoke-Sql "sakha_only_membership_trigger"  "$DdlBase\05_membership\14_sakha_only_membership_trigger.sql"
 Invoke-Sql "credential_sequence_counter"    "$DdlBase\05_membership\15_credential_sequence_counter.sql"
+Write-Host ""
+
+# Phase 7b: Deferred Foundation Audit FKs
+# Wires the real FK constraints on district/postal_code/
+# post_office/city_village's submitted_by/reviewed_by
+# columns to sangha_sevi, now that sangha_sevi exists.
+Write-Host "[Phase 7b] Deferred Foundation Audit FKs" -ForegroundColor Cyan
+Invoke-Sql "foundation_audit_fk" "$DdlBase\05_membership\16_foundation_audit_fk.sql"
 Write-Host ""
 
 # Phase 8: Tier 4 Verification Seed Data
