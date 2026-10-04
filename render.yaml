@@ -16,11 +16,14 @@ services:
     buildCommand: ./render_build.sh
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
-      # Set these in Render dashboard → Environment, pointing to Neon.dev
+      # DB_NAME / DB_USER are not secrets — pinned here so the deploy
+      # always targets the Neon `nsserp` database as role `nss_db_owner`.
+      # The database and this role MUST already exist in Neon (see note
+      # below); DB_PASSWORD/DB_HOST/DB_PORT stay dashboard-set secrets.
       - key: DB_NAME
-        sync: false
+        value: nsserp
       - key: DB_USER
-        sync: false
+        value: nss_db_owner
       - key: DB_PASSWORD
         sync: false
       - key: DB_HOST
@@ -34,7 +37,8 @@ services:
       # Tier 5: Authentication + Administration
       - key: JWT_SECRET_KEY
         sync: false
+      # Not a secret — the app's write pool connects as nss_db_writer.
       - key: DB_WRITE_USER
-        sync: false
+        value: nss_db_writer
       - key: DB_WRITE_PASSWORD
         sync: false
