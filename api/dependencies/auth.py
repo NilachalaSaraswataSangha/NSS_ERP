@@ -20,7 +20,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from api.database import get_connection
+from api.database import get_connection, get_write_pool
 from api.services.auth_service import decode_token
 from api.services.rbac_service import UserContext, load_user_context
 
@@ -142,3 +142,51 @@ def get_optional_user(
                 )
 
     return user_ctx
+
+
+def get_write_connection(
+    user: UserContext | None = Depends(get_optional_user),
+):
+    """
+    Write connection (nss_db_writer) with the audit actor set.
+
+    The DB audit trigger (nss.fn_audit_trigger) reads the nss.actor_*
+    session GUCs to record WHO made each change — in both
+    system_event_log and field_change_log. Those GUCs must be set on
+    the SAME connection the writes (and therefore the trigger) run on,
+    i.e. the write connection — not the read connection used by
+    get_current_user. This dependency resolves the caller from the
+    bearer token (if present) and sets the GUCs here, so the actor is
+    captured without touching any endpoint body.
+
+    Public endpoints (no token) write with a NULL actor, as before.
+
+    Auto-commits on success, rolls back on exception. The GUCs are
+    transaction-local (set_config(..., TRUE)) and live for the whole
+    handler transaction, which commits only after the handler returns.
+
+    Usage as a FastAPI dependency:
+        def endpoint(conn=Depends(get_write_connection)): ...
+    """
+    pool = get_write_pool()
+    conn = pool.getconn()
+    try:
+        conn.autocommit = False
+        if user is not None:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT set_config('nss.actor_user_account_pk', %s, TRUE)",
+                    (str(user.user_account_pk),),
+                )
+                if user.sangha_sevi_pk:
+                    cur.execute(
+                        "SELECT set_config('nss.actor_sangha_sevi_pk', %s, TRUE)",
+                        (str(user.sangha_sevi_pk),),
+                    )
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        pool.putconn(conn)

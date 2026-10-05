@@ -38,7 +38,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api.database import get_connection, get_write_connection
+from api.database import get_connection
+from api.dependencies.auth import get_write_connection
 from api.dependencies.auth import get_current_user
 from api.dependencies.rbac import require_permission
 from api.helpers import DEFAULT_LIMIT, MAX_LIMIT, log_audit, row_to_model, rows_to_models, get_active_status_pk, require_entity, FAMILY_MAJORITY_CTE_SQL

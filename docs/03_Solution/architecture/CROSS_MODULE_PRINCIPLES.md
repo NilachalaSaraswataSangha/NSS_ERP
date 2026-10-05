@@ -199,11 +199,36 @@ and how entities are related across it
 The project uses a hybrid approach:
 
 * module-owned `_history` tables where domain-specific historical state is required;
-* shared `field_change_log` owned by Foundation for business-significant field-level changes.
+* shared `field_change_log` owned by Foundation for field-level change capture.
 
-`field_change_log` shall not become an automatic copy of every technical UPDATE.
+**AUDIT-ARCH-001 — Complete Trigger-Driven Change Capture**
 
-Routine technical modification tracking remains represented by the applicable audit columns and audit mechanisms.
+*Supersedes the earlier constraint that `field_change_log` "shall not become an automatic
+copy of every technical UPDATE" (revised 04/10/2026).*
+
+`field_change_log` is populated automatically by `nss.fn_audit_trigger()` for **every**
+`INSERT`, `UPDATE` and `DELETE` on every audited `nss` table — one row per field, carrying
+the old value, the new value, the acting identity and the timestamp.
+
+Completeness is the requirement. A selective change log cannot be relied on, because an
+empty result no longer distinguishes "nothing changed" from "this table is not tracked".
+
+Capture is therefore defined by **exclusion, not inclusion**. Two exclusion lists exist,
+both declared in `15_audit_trigger.sql`:
+
+| Exclusion | Members | Reason |
+|-----------|---------|--------|
+| Columns | `created_at`, `updated_at` | Change on every write; `changed_at` already records "when" |
+| Tables | `id_sequence_master`, `credential_sequence_counter` | Counter rows mutate on every ID mint; `current_value: 41 → 42` is mechanical noise. The business event that consumed the number is logged against its own table. |
+
+Excluded *tables* still receive row-level rows in `system_event_log`, so trigger coverage of
+the schema remains complete — only their field-level diffs are suppressed.
+
+Any further exclusion is an architectural decision and shall be recorded here. Exclusions
+must never be introduced silently in application code.
+
+Routine technical modification tracking additionally remains represented by the per-table
+audit columns (`created_by_sangha_sevi_pk` etc.).
 
 ## 7.2 Migration
 
@@ -265,6 +290,18 @@ created_by_sangha_sevi_pk
 updated_by_sangha_sevi_pk
 deleted_by_sangha_sevi_pk
 ```
+
+In addition, `nss.fn_audit_trigger()` resolves the acting identity at runtime from two
+Postgres session variables — `nss.actor_sangha_sevi_pk` and `nss.actor_user_account_pk` —
+and stamps both onto every `system_event_log` and `field_change_log` row it writes.
+
+Both identities are recorded because an authenticated account does not always have a Sangha
+Sevi record. The variables **must** be set on the same connection the write executes on (the
+write pool); setting them on the read connection leaves the trigger blind and the actor NULL.
+See `api/dependencies/auth.py::get_write_connection()`.
+
+Unauthenticated writes (public self-registration) and seed/system operations legitimately
+record a NULL actor.
 
 Exact physical FK creation order is handled during DDL dependency planning.
 
@@ -449,6 +486,7 @@ The same one-owner-per-table principle applies to future modules.
 | `document_master` owned by Foundation | FROZEN |
 | `field_change_log` owned by Foundation | FROZEN |
 | Module-owned `_history` + shared field change log | FROZEN |
+| Complete trigger-driven change capture, exclusion-defined (AUDIT-ARCH-001) | FROZEN — supersedes "no automatic copy of every technical UPDATE" |
 | Audit / Change History / Effective Dating / Migration separation | FROZEN |
 | No universal shared approval table | FROZEN |
 | Approval workflow configuration via dedicated model, not system_setting flags (APPR-ARCH-001) | FROZEN |

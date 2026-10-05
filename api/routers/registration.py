@@ -41,7 +41,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from api.config import settings
-from api.database import get_connection, get_write_connection
+from api.database import get_connection
+from api.dependencies.auth import get_write_connection
 from api.helpers import log_audit, next_id, resolve_or_create_city_village, resolve_or_create_postal_code, resolve_or_create_post_office, check_duplicate_contact, record_password_history, require_sakha_organization, validate_mobile, validate_email, get_master_data_pk
 from api.services.auth_service import hash_password, validate_password_policy
 from api.routers.foundation import fetch_countries, fetch_states, fetch_districts, fetch_cities, fetch_postal_codes, fetch_post_offices, fetch_master_data

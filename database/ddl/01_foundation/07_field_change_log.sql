@@ -21,6 +21,17 @@ CREATE TABLE IF NOT EXISTS nss.field_change_log
     field_change_log_pk UUID PRIMARY KEY
         DEFAULT gen_random_uuid(),
 
+    -- Which DB operation produced this row. Set by
+    -- nss.fn_audit_trigger(); NULL only for rows written
+    -- directly (e.g. tests). On CREATE old_value is NULL;
+    -- on DELETE new_value is NULL. Explicit rather than
+    -- inferred, because an UPDATE that sets a field from
+    -- NULL to a value is indistinguishable from a CREATE
+    -- by looking at old_value alone.
+    action VARCHAR(20) NULL
+        CONSTRAINT chk_field_change_log_action
+        CHECK (action IN ('CREATE', 'UPDATE', 'DELETE')),
+
     table_name VARCHAR(100) NOT NULL,
 
     record_pk UUID NOT NULL,
@@ -36,7 +47,15 @@ CREATE TABLE IF NOT EXISTS nss.field_change_log
     changed_at TIMESTAMPTZ NOT NULL
         DEFAULT CURRENT_TIMESTAMP,
 
-    changed_by_sangha_sevi_pk UUID NULL
+    changed_by_sangha_sevi_pk UUID NULL,
+
+    -- Second actor identity. A user_account always exists
+    -- for an authenticated write, but sangha_sevi_pk does
+    -- not (accounts without a Sangha Sevi record), so this
+    -- keeps "who" answerable in that case. Both are NULL
+    -- for public/unauthenticated writes (registration) and
+    -- for system/seed operations.
+    changed_by_user_account_pk UUID NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_field_change_log_table_record
@@ -47,3 +66,10 @@ CREATE INDEX IF NOT EXISTS idx_field_change_log_changed_at
 
 CREATE INDEX IF NOT EXISTS idx_field_change_log_field
     ON nss.field_change_log (table_name, field_name);
+
+-- "Who changed what, when" lookups from the audit screen.
+CREATE INDEX IF NOT EXISTS idx_field_change_log_actor
+    ON nss.field_change_log (changed_by_sangha_sevi_pk, changed_at);
+
+CREATE INDEX IF NOT EXISTS idx_field_change_log_action
+    ON nss.field_change_log (action);

@@ -93,9 +93,13 @@ def get_write_connection():
     """
     Write connection (nss_db_writer — INSERT/UPDATE/DELETE).
 
+    Low-level primitive — routers should NOT depend on this directly.
+    Use api.dependencies.auth.get_write_connection instead: it wraps
+    this and also sets the nss.actor_* session variables so the DB
+    audit trigger records WHO made each change. Depending on this one
+    produces audit/change-log rows with a NULL actor.
+
     Auto-commits on success, rolls back on exception.
-    Usage as a FastAPI dependency:
-        def endpoint(conn=Depends(get_write_connection)): ...
     """
     pool = get_write_pool()
     conn = pool.getconn()

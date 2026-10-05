@@ -19,12 +19,21 @@ class FieldChangeLogResponse(BaseModel):
     """
     A single field-level change recorded by the DB audit trigger.
 
-    changed_by_sangha_sevi_id is resolved via LEFT JOIN so callers see the
-    human-readable actor id without a second lookup; it is None when the
-    change was made by an unattributed/system context.
+    One row per field per operation:
+      action='CREATE' → old_value is None
+      action='UPDATE' → both values present (new may be None if cleared)
+      action='DELETE' → new_value is None
+
+    Actor: both changed_by_sangha_sevi_pk and changed_by_user_account_pk
+    are recorded, because an authenticated account does not always have
+    a Sangha Sevi record. changed_by_sangha_sevi_id and changed_by_name
+    are resolved via LEFT JOIN so callers get a human-readable actor
+    without a second lookup. All actor fields are None when the change
+    came from an unattributed context (public registration, seed, system).
     """
 
     field_change_log_pk: UUID
+    action: str | None
     table_name: str
     record_pk: UUID
     field_name: str
@@ -34,3 +43,5 @@ class FieldChangeLogResponse(BaseModel):
     changed_at: datetime
     changed_by_sangha_sevi_pk: UUID | None
     changed_by_sangha_sevi_id: str | None
+    changed_by_user_account_pk: UUID | None
+    changed_by_name: str | None

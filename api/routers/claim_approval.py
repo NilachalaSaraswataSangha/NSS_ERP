@@ -36,7 +36,8 @@ logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from api.database import get_connection, get_write_connection
+from api.database import get_connection
+from api.dependencies.auth import get_write_connection
 from api.dependencies.rbac import require_any_permission
 from api.helpers import (
     next_id, get_active_status_pk, compose_local_sakha_erp_id, log_audit,

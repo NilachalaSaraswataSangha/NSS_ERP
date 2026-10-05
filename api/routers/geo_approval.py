@@ -42,7 +42,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 import psycopg2.errors
 
-from api.database import get_connection, get_write_connection
+from api.database import get_connection
+from api.dependencies.auth import get_write_connection
 from api.dependencies.rbac import require_any_permission
 from api.helpers import log_audit
 from api.routers.foundation import _derive_provisional_code

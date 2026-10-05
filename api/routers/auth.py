@@ -23,7 +23,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from api.config import settings
-from api.database import get_connection, get_write_connection
+from api.database import get_connection
+from api.dependencies.auth import get_write_connection
 from api.dependencies.auth import get_current_user
 from api.schemas.auth import (
     ChangePasswordRequest,

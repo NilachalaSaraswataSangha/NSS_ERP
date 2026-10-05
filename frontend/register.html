@@ -781,12 +781,12 @@
                         <select x-model="form.organization_pk"
                                 class="nss-select" :disabled="loading">
                             <option value="">Select Sakha...</option>
-                            <template x-for="s in sakhas" :key="s.organization_pk">
+                            <template x-for="s in sakhasNearFirst" :key="s.organization_pk">
                                 <option :value="s.organization_pk" x-text="s.organization_name"></option>
                             </template>
                         </select>
                         <p class="pw-requirements" style="margin-top: 0.25rem;" x-show="form.state_pk">
-                            Showing Sakhas near your address<span x-text="form.district_pk ? ' (your district)' : ' (your state)'"></span>.
+                            All Sakhas are listed; those near your address<span x-text="form.district_pk ? ' (your district)' : ' (your state)'"></span> appear first.
                         </p>
                     </div>
 
@@ -804,7 +804,7 @@
                                    maxlength="20">
                             <p class="pw-requirements" style="margin-top: 0.25rem;">
                                 <template x-if="isDarshaka()">
-                                    <span>Enter your Darshak (Anumati Patra) number in this Sakha. Your Sakha admin will verify this.</span>
+                                    <span>Enter your Darshak number in this Sakha. Your Sakha admin will verify this.</span>
                                 </template>
                                 <template x-if="!isDarshaka()">
                                     <span>Enter the number from your Parichaya Patra. Your Sakha admin will verify this.</span>
@@ -830,14 +830,14 @@
                                    inputmode="numeric"
                                    maxlength="30">
                             <p class="pw-requirements" style="margin-top: 0.25rem;">
-                                <span>Enter just the number — the year is added automatically. Leave blank if you don't have one yet; a new number will be issued when your Sakha admin approves this registration.</span>
+                                <span>Enter just the number — the year is added automatically. Leave blank if you don't have one yet;</span>
                             </p>
                         </div>
                     </template>
 
                     <!-- Joining Date -->
                     <div class="form-group" x-data="nssDatePicker('form.joining_date')" style="position:relative;" data-dp-input-class="reg-input" data-dp-disabled="loading">
-                        <label class="reg-label">Joining Date</label>
+                        <label class="reg-label"> Sakha Joining Date</label>
                     </div>
 
                     <!-- ── Darshak Attendance ── -->
@@ -845,7 +845,7 @@
                         <div>
                             <div class="toggle-label">Attending another Sangha as Darshak?</div>
                             <div class="toggle-sublabel">
-                                If you visit a different Sakha as a Darshak (probationer)
+                                If you are attending a different Sakha as a Darshak, check this box and provide that Sakha's details below. This is optional; you can leave it unchecked if you are not attending any other Sakha.
                             </div>
                         </div>
                         <input type="checkbox" x-model="form.is_attending_as_darshak"
@@ -864,6 +864,9 @@
                                         <option :value="s.organization_pk" x-text="s.organization_name"></option>
                                     </template>
                                 </select>
+                                <p class="pw-requirements" style="margin-top: 0.25rem;">
+                                    Pick any Sakha you attend as Darshak.
+                                </p>
                             </div>
                             <div class="form-group">
                                 <label class="reg-label">Local Sakha Number at Darshak Sakha *</label>

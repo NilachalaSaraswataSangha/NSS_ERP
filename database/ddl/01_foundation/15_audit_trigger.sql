@@ -4,18 +4,25 @@
 -- File: 15_audit_trigger.sql
 -- Purpose: Database-level audit trigger that fires on
 --          EVERY INSERT, UPDATE, DELETE across all nss
---          business tables. Writes to system_event_log
---          automatically — no application code can bypass.
--- Version: 1.0
+--          business tables. Writes row-level events to
+--          system_event_log and field-level detail (one
+--          row per field, for all three operations) to
+--          field_change_log — all automatically, so no
+--          application code can bypass it.
+-- Version: 1.2
 -- Authority: SOL-AUDIT-004
 -- Owner: NSS_ERP_ADMIN
--- Depends: 14_system_event_log.sql
+-- Depends: 14_system_event_log.sql, 07_field_change_log.sql
 --
 -- Actor resolution: the trigger reads session variables
 --   nss.actor_sangha_sevi_pk
 --   nss.actor_user_account_pk
--- set by the application at the start of each request.
--- If not set, actor columns are NULL (system/anon).
+-- set by the application on the WRITE connection (see
+-- api/dependencies/auth.py::get_write_connection) — the
+-- same connection the trigger runs on. Both are recorded,
+-- because an authenticated account does not always have a
+-- Sangha Sevi record. If neither is set, actor columns are
+-- NULL (public registration / system / seed operations).
 -- =====================================================
 
 -- ── Trigger function ────────────────────────────────
@@ -34,6 +41,22 @@ DECLARE
     v_actor_ss      UUID  := NULL;
     v_actor_ua      UUID  := NULL;
     v_pk_col        TEXT;
+    -- Bookkeeping columns kept out of field_change_log:
+    -- they change on every write and carry no business meaning
+    -- ("when" is already recorded by changed_at).
+    v_skip_cols     TEXT[] := ARRAY['created_at', 'updated_at'];
+    -- Tables kept out of field_change_log entirely. The ID and
+    -- credential counters mutate on EVERY id mint, so their
+    -- field-level diffs are mechanical noise
+    -- ("current_value: 41 → 42") with no audit value — the real
+    -- event (the person/Patra that consumed the number) is logged
+    -- against its own table. They still get row-level rows in
+    -- system_event_log, so trigger coverage stays complete.
+    v_skip_field_log_tables TEXT[] := ARRAY[
+        'id_sequence_master',
+        'credential_sequence_counter'
+    ];
+    v_log_fields    BOOLEAN;
 BEGIN
     -- ── Determine action ────────────────────────────
     IF TG_OP = 'INSERT' THEN
@@ -86,6 +109,62 @@ BEGIN
     EXCEPTION WHEN OTHERS THEN
         v_actor_ua := NULL;
     END;
+
+    -- ── Field-level change log (ALL operations) ──────
+    -- One row per field, for every INSERT / UPDATE / DELETE,
+    -- so nss.field_change_log (surfaced by
+    -- GET /api/v1/audit/change-log) answers what changed,
+    -- who changed it and when, for every table.
+    --   CREATE → one row per populated field (old = NULL)
+    --   UPDATE → one row per CHANGED field (old + new)
+    --   DELETE → one row per populated field (new = NULL)
+    -- created_at/updated_at are bookkeeping noise and are
+    -- skipped; changed_at already records "when". The counter
+    -- tables are skipped wholesale (see v_skip_field_log_tables).
+    v_log_fields := NOT (TG_TABLE_NAME = ANY(v_skip_field_log_tables));
+
+    IF v_log_fields AND TG_OP = 'UPDATE' THEN
+        INSERT INTO nss.field_change_log (
+            action, table_name, record_pk, field_name,
+            old_value, new_value,
+            changed_by_sangha_sevi_pk, changed_by_user_account_pk
+        )
+        SELECT 'UPDATE', TG_TABLE_NAME, v_record_pk, ec.key,
+               v_old_data ->> ec.key,
+               v_new_data ->> ec.key,
+               v_actor_ss, v_actor_ua
+          FROM jsonb_each(v_new_data) AS ec(key, value)
+         WHERE v_old_data -> ec.key IS DISTINCT FROM ec.value
+           AND NOT (ec.key = ANY(v_skip_cols));
+
+    ELSIF v_log_fields AND TG_OP = 'INSERT' THEN
+        INSERT INTO nss.field_change_log (
+            action, table_name, record_pk, field_name,
+            old_value, new_value,
+            changed_by_sangha_sevi_pk, changed_by_user_account_pk
+        )
+        SELECT 'CREATE', TG_TABLE_NAME, v_record_pk, ec.key,
+               NULL,
+               v_new_data ->> ec.key,
+               v_actor_ss, v_actor_ua
+          FROM jsonb_each(v_new_data) AS ec(key, value)
+         WHERE ec.value IS DISTINCT FROM 'null'::jsonb
+           AND NOT (ec.key = ANY(v_skip_cols));
+
+    ELSIF v_log_fields AND TG_OP = 'DELETE' THEN
+        INSERT INTO nss.field_change_log (
+            action, table_name, record_pk, field_name,
+            old_value, new_value,
+            changed_by_sangha_sevi_pk, changed_by_user_account_pk
+        )
+        SELECT 'DELETE', TG_TABLE_NAME, v_record_pk, ec.key,
+               v_old_data ->> ec.key,
+               NULL,
+               v_actor_ss, v_actor_ua
+          FROM jsonb_each(v_old_data) AS ec(key, value)
+         WHERE ec.value IS DISTINCT FROM 'null'::jsonb
+           AND NOT (ec.key = ANY(v_skip_cols));
+    END IF;
 
     -- ── Insert audit row ────────────────────────────
     INSERT INTO nss.system_event_log (

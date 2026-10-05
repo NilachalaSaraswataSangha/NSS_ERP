@@ -40,7 +40,8 @@ import psycopg2
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from api.database import get_connection, get_write_connection
+from api.database import get_connection
+from api.dependencies.auth import get_write_connection
 from api.dependencies.rbac import require_any_permission, require_permission
 from api.helpers import (
     next_id, peek_next_id, resolve_or_create_city_village, resolve_or_create_postal_code,

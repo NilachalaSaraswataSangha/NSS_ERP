@@ -53,8 +53,8 @@ migration tool, no ORM. All tables live in schema `nss` (`search_path` = `nss, p
    DDL), and seeds the admin superuser via `scripts/bootstrap_admin.py` (needs a runtime Argon2
    hash; default login `SS1`/`P1`, password `Admin@123`; INSERT-only with `WHERE NOT EXISTS`,
    never resets an existing password).
-4. `03_validate.sh`/`.ps1` — row-count/FK checks. Minimums are stale (only WARN, never fail)
-   and Family/Membership/`system_event_log`/`credential_sequence_counter` are unchecked.
+4. `03_validate.sh`/`.ps1` — row-count/FK checks (minimums only WARN, never fail);
+   Family/Membership/`system_event_log`/`credential_sequence_counter` get existence checks only.
 
 A fresh build seeds **no demo Person/Family/Membership data** — only reference data, 175 real
 Sakha branches and the one admin. Real data arrives via `POST /api/v1/register` → admin
@@ -109,11 +109,23 @@ via `credential_sequence_counter`), and the `fetch_*()` reference-data functions
 `registration.py` endpoints reuse.
 
 **Audit has two write paths:** the DB trigger `fn_audit_trigger()` (attached to `nss.*` tables
-except `system_event_log`/`field_change_log`, runs after Phase 13 so admin-bootstrap rows are
-unaudited) reads session variables set by `api/helpers.py::log_audit()`, which also writes
-`system_event_log` explicitly — duplicate rows of different shape exist, and the actor session
-variables are set on the read-pool connection in `api/dependencies/auth.py`, so the write pool may
-not carry the actor. Both unresolved.
+except `system_event_log`/`field_change_log`, runs after Phase 13 so admin-bootstrap and seed
+rows are unaudited) writes **both** logs — one row-level event to `system_event_log`, plus
+field-level rows to `field_change_log` (one per field, for CREATE/UPDATE/DELETE; AUDIT-ARCH-001,
+complete and exclusion-defined). `api/helpers.py::log_audit()` additionally writes
+`system_event_log` explicitly, so plain CRUD yields duplicate rows of different shape — accepted,
+since `log_audit()` also carries semantic actions (LOGIN/APPROVE) the trigger can't express.
+
+Actor identity comes from the `nss.actor_*` session variables, set on the **write** connection by
+`api/dependencies/auth.py::get_write_connection()` — every router imports the write-connection
+dependency from there, **not** from `api.database` (that one is the non-auditing primitive and
+yields a NULL actor). The variables must be set on the connection the write runs on, or the
+trigger sees NULL.
+
+`field_change_log` exclusions: the `created_at`/`updated_at` columns everywhere, plus the
+`id_sequence_master`/`credential_sequence_counter` tables wholesale (counter churn). Excluded
+tables still get their `system_event_log` row. Any new exclusion must be recorded in
+`CROSS_MODULE_PRINCIPLES.md` §7.1, never added silently.
 
 **Middleware** (`api/middleware.py`): security headers, `no-store` on `/api/*`, 86400s cache on
 `/assets/*`, CORS (GET/POST/PATCH/DELETE), SlowAPI rate limiting, CSP.

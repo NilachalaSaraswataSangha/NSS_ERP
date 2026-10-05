@@ -94,6 +94,79 @@ function registerApp() {
             NSSAuth.redirectIfLoggedIn("/dashboard");
 
             await this.loadReferenceData();
+            await this.restoreDraft();
+
+            // Persist step + form (never the password) on every change, so
+            // an accidental refresh resumes where the registrant left off
+            // instead of silently dropping back to step 1 with a blank
+            // form. Mirrors the sessionStorage pattern dashboard.js already
+            // uses for its active-tab restore.
+            this.$watch("form", () => this.saveDraft());
+            this.$watch("step", () => this.saveDraft());
+        },
+
+        // Load a previously-saved draft (if any) and re-populate the
+        // address cascade's dependent dropdowns to match it. Uses the
+        // cascade's plain loadStates/loadDistricts/loadCities/loadPostalCodes
+        // — NOT onCountryChange/onStateChange/onDistrictChange, which clear
+        // child form fields on the assumption a human just changed the
+        // parent dropdown; that would erase the very values being restored.
+        async restoreDraft() {
+            let draft;
+            try {
+                const raw = sessionStorage.getItem("nss_register_draft");
+                if (!raw) return;
+                draft = JSON.parse(raw);
+            } catch (_) {
+                return;
+            }
+            if (!draft || typeof draft !== "object" || !draft.form) return;
+
+            const savedPostOffice = draft.form.post_office_name || "";
+            Object.assign(this.form, draft.form, { password: "" });
+            this.confirmPassword = "";
+            if ([1, 2, 3].includes(draft.step)) this.step = draft.step;
+
+            if (this.form.country_pk) {
+                await this._locCascade.loadStates(this, this.form.country_pk);
+            }
+            if (this.form.state_pk) {
+                await Promise.all([
+                    this._locCascade.loadDistricts(this, this.form.state_pk),
+                    this._locCascade.loadPostalCodes(this, this.form.state_pk),
+                ]);
+            }
+            if (this.form.district_pk) {
+                await this._locCascade.loadCities(this, this.form.district_pk);
+            }
+
+            // Re-resolve the matched PIN against the just-reloaded list and
+            // restore Post Office suggestions — mirrors onRegPostalCodeChange()
+            // but without its form.post_office_name = "" reset.
+            const code = (this.form.postal_code_value || "").trim();
+            const match = code
+                ? this.regPostalCodes.find(pc => (pc.postal_code || "").trim() === code)
+                : null;
+            this.regMatchedPostalCodePk = match ? match.postal_code_pk : "";
+            this.form.post_office_name = savedPostOffice;
+            await this.loadRegPostOffices();
+        },
+
+        // Draft is cleared on successful registration (register()) so a
+        // later visit to this page starts fresh rather than resuming a
+        // completed signup.
+        saveDraft() {
+            if (this.step >= 4) return;
+            try {
+                const { password, ...formNoPassword } = this.form;
+                sessionStorage.setItem("nss_register_draft", JSON.stringify({
+                    step: this.step,
+                    form: formNoPassword,
+                }));
+            } catch (_) {
+                // Storage unavailable (private browsing, quota) — the
+                // registrant can still complete the form in one sitting.
+            }
         },
 
         // Every dropdown this page needs, in one round trip — public,
@@ -131,9 +204,9 @@ function registerApp() {
             form: 'form',
         }),
 
-        onRegCountryChange()     { this._locCascade.onCountryChange(this); this.onRegPostalCodeChange(); this.refreshNearbySakhas(); },
-        onRegStateChange()       { this._locCascade.onStateChange(this); this.onRegPostalCodeChange(); this.refreshNearbySakhas(); },
-        onRegDistrictChange()    { this._locCascade.onDistrictChange(this); this.refreshNearbySakhas(); },
+        onRegCountryChange()     { this._locCascade.onCountryChange(this); this.onRegPostalCodeChange(); },
+        onRegStateChange()       { this._locCascade.onStateChange(this); this.onRegPostalCodeChange(); },
+        onRegDistrictChange()    { this._locCascade.onDistrictChange(this); },
 
         // When the registrant picks (or types an exact match of) a known
         // city/village, auto-fill the PIN from the city_village→postal_code
@@ -184,24 +257,22 @@ function registerApp() {
             }
         },
 
-        // "Find a Sakha near me" (SOL-ARCH-010 Amendment, 2026-10-01) —
-        // as the registrant narrows their address down the
-        // country→state→district cascade, re-fetch the Sakha list scoped
-        // to that area instead of leaving it as the full static list
-        // loaded once by reference-data. Falls back to the full list
-        // whenever no state is selected.
-        async refreshNearbySakhas() {
-            const statePk = this.form.state_pk;
-            const districtPk = this.form.district_pk;
-            try {
-                const params = new URLSearchParams();
-                if (statePk) params.set("state_pk", statePk);
-                if (districtPk) params.set("district_pk", districtPk);
-                const res = await fetch(`/api/v1/register/sakhas?${params.toString()}`);
-                if (res.ok) this.sakhas = await res.json();
-            } catch (err) {
-                console.error("Failed to load nearby sakhas:", err);
-            }
+        // "Find a Sakha near me" (SOL-ARCH-010 Amendment, revised 2026-10-04) —
+        // the registrant's address must NEVER hide a Sakha. A Darshak attends
+        // a Sakha outside their home district, and ~1/3 of Sakhas have no
+        // backfilled district_pk and would vanish under a hard filter. So we
+        // keep the FULL list (loaded once by reference-data) and only RE-ORDER
+        // it: Sakhas in the selected district first, then the selected state,
+        // then everyone else — all still present and selectable.
+        get sakhasNearFirst() {
+            const dpk = this.form.district_pk;
+            const spk = this.form.state_pk;
+            const rank = (s) => (dpk && s.district_pk === dpk) ? 0
+                              : (spk && s.state_pk === spk) ? 1 : 2;
+            return [...this.sakhas].sort(
+                (a, b) => rank(a) - rank(b) ||
+                    (a.organization_name || "").localeCompare(b.organization_name || "")
+            );
         },
 
         // ── Title Case helper ─────────────────────────────────────────
@@ -473,6 +544,7 @@ function registerApp() {
                     message: data.message,
                 };
                 this.step = 4;
+                sessionStorage.removeItem("nss_register_draft");
 
             } catch (err) {
                 this.error = "Unable to connect to server. Please try again.";
