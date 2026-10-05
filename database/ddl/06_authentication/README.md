@@ -1,6 +1,6 @@
 # database/ddl/06_authentication/
 
-Authentication & Security Module DDL — 4 tables. **In progress (committed on the branch, not merged)** on branch
+Authentication & Security Module DDL — 5 tables. **In progress (committed on the branch, not merged)** on branch
 `feature/tier5-authentication-administration` (see `docs/PROJECT_DOCUMENTATION.md` → Tier 5).
 
 Authority: SOL-AUTH-001, SOL-AUTH-002, SOL-AUTH-004, SOL-AUTH-005, SOL-AUTH-006, SOL-AUTH-007,
@@ -18,12 +18,13 @@ Execute AFTER Person DDL (`database/ddl/03_person/`) and Organization DDL
 | 02 | `02_password_history.sql` | `password_history` | 4 | `user_account` |
 | 03 | `03_registration_claim.sql` | `registration_claim` | 3 | `user_account`, `person`, `organization`, `master_data` |
 | 04 | `04_password_reset_token.sql` | `password_reset_token` | 4 | `user_account` |
+| 05 | `05_user_session.sql` | `user_session` | 4 | `user_account` |
 
 Run as Phase 10 in `database/scripts/02_build.sh`/`.ps1`, after Phase 9 (grant
 `nss_db_backend`) and before Phase 12 (grant `nss_db_writer`, which must follow so its
 `ALL TABLES` grant covers these tables). The Depth column above is the per-module numbering; each
 SQL file's own `-- Depth:` header comment records one less for every table here (`user_account` 2,
-the other three 3) — cosmetic only. There is no seed folder for this module — the only auth data
+the other four 3) — cosmetic only. There is no seed folder for this module — the only auth data
 ever seeded is the admin account from `database/seed/04_admin/` (Phase 13).
 
 ## What These Tables Are For
@@ -50,6 +51,15 @@ ever seeded is the admin account from `database/seed/04_admin/` (Phase 13).
 - **`password_reset_token`** — time-limited (15 min), single-use, Argon2-hashed 6-digit OTPs for
   the "Forgot Password" self-service flow (Tier 5.1). Rate-limited at the API layer (3/hour),
   not by a DB constraint.
+- **`user_session`** — stateful session/device record created at login (Tier 5 advisory A4
+  resolution, 2026-10-05): `issued_at` (login time), `last_seen_at` (bumped on each access-token
+  refresh), `expires_at` (mirrors the refresh token's exp), `revoked_at` (set on logout/explicit
+  "sign out this device"), plus `user_agent`/`ip_address`/`device_label` captured at login for
+  display in a "logged-in devices" UI. A partial index on `(user_account_pk, revoked_at) WHERE
+  revoked_at IS NULL` backs the active-sessions-list query. No soft-delete columns — unlike every
+  other table in this pass, sessions are transient, not business records, so their lifecycle is
+  expressed entirely through `revoked_at` (and `expires_at`), making a separate `is_active`/
+  `deleted_at` pair redundant.
 
 ## Key FK Relationships
 
@@ -61,6 +71,7 @@ ever seeded is the admin account from `database/seed/04_admin/` (Phase 13).
   → `nss.master_data`; `.reviewed_by_user_account_pk` → `user_account` (a second FK to the same
   table, for the reviewing admin).
 - `password_reset_token.user_account_pk` → `user_account`.
+- `user_session.user_account_pk` → `user_account`.
 
 Like every other module, audit-actor FKs (`created_by_sangha_sevi_pk`, etc.) are nullable
 columns in this pass — their FK constraints against `sangha_sevi` remain deferred to Pass 2.

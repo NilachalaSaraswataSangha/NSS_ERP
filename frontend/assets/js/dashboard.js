@@ -384,6 +384,11 @@ function dashboardApp() {
         profileError: "",
         profileSuccess: "",
 
+        // Active sessions (personal tab)
+        sessions: [],
+        sessionsLoading: false,
+        sessionsError: "",
+
         // ── Org-level family browser (admin view) ────────
         orgFamilyBrowser: false,       // is the org family browser active?
         orgBreadcrumb: [],             // [{organization_pk, organization_name, organization_type_name, organization_code}]
@@ -589,6 +594,13 @@ function dashboardApp() {
             // the direct-load case here too.
             if (this.tab === "findOrg") {
                 this._loadFindOrgDirectory();
+            }
+
+            // personal is the default tab, so a direct/refreshed load lands
+            // there without ever going through switchTab() — cover that
+            // the same way findOrg is covered above.
+            if (this.tab === "personal") {
+                this.loadSessions();
             }
         },
 
@@ -2002,6 +2014,47 @@ function dashboardApp() {
             }
         },
 
+        // ── Active sessions (personal tab) ────────────────
+        async loadSessions() {
+            this.sessionsLoading = true;
+            try {
+                const res = await NSSAuth.apiFetch("/api/v1/auth/sessions");
+                if (!res.ok) throw new Error(res.statusText);
+                const data = await res.json();
+                // Backend schema for this list endpoint isn't finalized yet —
+                // accept either a bare array (this codebase's established
+                // list-endpoint convention, e.g. family members) or a
+                // {sessions: [...]} wrapper (as described in the task spec).
+                this.sessions = Array.isArray(data) ? data : (data.sessions || []);
+            } catch (err) {
+                console.error("[Dashboard] loadSessions failed:", err);
+            } finally {
+                this.sessionsLoading = false;
+            }
+        },
+
+        async revokeSession(sessionPk) {
+            const ok = await NSSDialog.confirm(
+                "Log out this device? It will need to sign in again.",
+                { title: "Log Out Device", confirmText: "Log Out", confirmClass: "btn-error" }
+            );
+            if (!ok) return;
+
+            this.sessionsError = "";
+            try {
+                const res = await NSSAuth.apiFetch(`/api/v1/auth/sessions/${sessionPk}`, {
+                    method: "DELETE",
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(NSS.errorMessage(err, res.status));
+                }
+                await this.loadSessions();
+            } catch (err) {
+                this.sessionsError = err.message || "Failed to log out device.";
+            }
+        },
+
         // ── Create Family ───────────────────────────────
 
         async _loadSakhaList() {
@@ -2945,11 +2998,15 @@ function dashboardApp() {
                     this._loadFindOrgDirectory();
                 } else if (tab.startsWith("admin_")) {
                     this._loadAdminStats();
+                } else if (tab === "personal") {
+                    this.loadSessions();
                 }
                 // personal: the person/address fetch is inline in init() with
                 // no reusable loader, and saveProfile() already re-fetches
                 // after the only edit path on this page — so there is nothing
                 // safe to re-call here without extracting that block first.
+                // (Active Sessions is the exception: it has its own loader,
+                // loadSessions(), wired above.)
                 //
                 // attendance / governance: no endpoint exists yet (no
                 // attendance-session or governance table in the schema), so

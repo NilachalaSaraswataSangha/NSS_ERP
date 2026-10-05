@@ -68,7 +68,7 @@ frontend/
 │   └── js/
 │       ├── login.js         `loginApp()` — Alpine.js data component + API fetch logic for login.html
 │       ├── register.js      `registerApp()` — Alpine.js data component + API fetch logic for register.html
-│       ├── dashboard.js     `dashboardApp()` — Alpine.js data component + API fetch logic for dashboard.html
+│       ├── dashboard.js     `dashboardApp()` — Alpine.js data component + API fetch logic for dashboard.html (incl. the personal-tab Active Sessions list/revoke via `/api/v1/auth/sessions`)
 │       ├── admin.js         `adminApp()` — Alpine.js data component + API fetch logic for admin.html
 │       ├── auth.js          `NSSAuth` — JWT storage/refresh + authenticated `fetch()` wrapper
 │       ├── nss-layout.js    `NSSLayout` — sidebar/topbar mixin shared by admin.html/dashboard.html
@@ -686,7 +686,7 @@ Global `NSSAuth` object (217 lines) — the shared JWT/session layer. Loaded on 
 | `authHeaders()` | Raw `Authorization` header object for manual `fetch()` calls (no auto-refresh) |
 | `requireAuth()` | Redirects to `/login` and returns `false` if not logged in |
 | `redirectIfLoggedIn(target = "/dashboard")` | For the login/register pages — redirects away if a non-expired access token exists |
-| `logout()` | Best-effort `POST /api/v1/auth/logout` (stateless — no server-side revocation), clears tokens, redirects to `/login` |
+| `logout()` | Best-effort `POST /api/v1/auth/logout` (revokes the server-side `user_session`), clears tokens, redirects to `/login` |
 
 ---
 

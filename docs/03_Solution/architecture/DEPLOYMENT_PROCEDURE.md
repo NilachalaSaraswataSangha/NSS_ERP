@@ -129,7 +129,7 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap and `script
      `TECH_STACK_DECISIONS.md` §3
    - Installs Python dependencies (`pip install -r requirements.txt`)
    - **Database bootstrap (DDL + seed) is now skipped by default** (decided
-     2026-10-05) — set `RUN_DB_BOOTSTRAP=true` in the Render dashboard for
+     2026-10-05) — set `RUN_DB_BOOTSTRAP=true` (or `1`/`yes`/`on`; case/whitespace-insensitive) in the Render dashboard for
      the one deploy that needs it (first stand-up on a fresh database, or
      a deploy that adds a new tier's DDL/seed), then unset it. Routine
      deploys only ship app code. When set, the bootstrap:
@@ -147,7 +147,7 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap and `script
        - Phase 7: Membership (14 tables + Sakha-only trigger)
        - *(inline)* ensures `nss_db_owner`/`nss_db_backend`/`nss_db_writer` roles exist
        - Phase 9: Grant `nss_db_backend` read-only access
-       - Phase 10: Authentication (4 tables)
+       - Phase 10: Authentication (5 tables)
        - Phase 11: Administration (2 tables)
        - Phase 12: Grant `nss_db_writer` write access (auth + admin tables only)
        - Phase 13: Admin bootstrap (`python3 scripts/bootstrap_admin.py` — seeds the `SS1`/`P1`
@@ -181,7 +181,7 @@ feature/* → develop (personal remote)
          → Render auto-deploys
 ```
 
-`render_build.sh` always rebuilds CSS, reinstalls dependencies, and restarts Uvicorn on every push. The database bootstrap step is skipped by default (see Step 4) — it only runs when `RUN_DB_BOOTSTRAP=true` is set for that deploy, which should only be when standing up a fresh database or deliberately applying newly added DDL/seed phases.
+`render_build.sh` always rebuilds CSS, reinstalls dependencies, and restarts Uvicorn on every push. The database bootstrap step is skipped by default (see Step 4) — it only runs when `RUN_DB_BOOTSTRAP` is truthy (`true`/`1`/`yes`/`on`) for that deploy, which should only be when standing up a fresh database or deliberately applying newly added DDL/seed phases.
 
 ### Adding new tiers to the database
 

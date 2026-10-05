@@ -332,6 +332,64 @@ def validate_email(email: str | None) -> None:
         )
 
 
+# ── User-agent parsing (Tier 5 A4 — stateful sessions) ───────────────────
+
+_UA_BROWSER_PATTERNS: list[tuple[str, str]] = [
+    # Checked in order — Edge/Opera UAs also contain "Chrome", so they must
+    # be matched before the generic Chrome check.
+    ("Edg/", "Edge"),
+    ("OPR/", "Opera"),
+    ("Chrome/", "Chrome"),
+    ("Firefox/", "Firefox"),
+    ("Safari/", "Safari"),
+]
+
+_UA_OS_PATTERNS: list[tuple[str, str]] = [
+    # iOS UAs also contain the literal "like Mac OS X" (e.g. "CPU iPhone
+    # OS 17_0 like Mac OS X"), so iPhone/iPad must be checked before the
+    # generic "Mac OS X" token or every iPhone would be misread as macOS.
+    ("iPhone", "iPhone"),
+    ("iPad", "iPadOS"),
+    ("Android", "Android"),
+    ("Windows", "Windows"),
+    ("Mac OS X", "macOS"),
+    ("Linux", "Linux"),
+]
+
+
+def derive_device_label(user_agent: str | None) -> str | None:
+    """
+    Best-effort "Browser on OS" label for a login's User-Agent header
+    (Tier 5 A4 — nss.user_session.device_label), e.g. "Chrome on macOS" or
+    "Safari on iPhone".
+
+    Deliberately simple pattern matching — no external dependency (no
+    `user-agents` pip package). Returns None when no user_agent is
+    supplied. Falls back to a truncated raw string when neither a known
+    browser nor OS token is recognised, so a device list entry is never
+    blank just because the UA is unusual.
+    """
+    if not user_agent:
+        return None
+
+    browser = next(
+        (name for token, name in _UA_BROWSER_PATTERNS if token in user_agent),
+        None,
+    )
+    os_name = next(
+        (name for token, name in _UA_OS_PATTERNS if token in user_agent),
+        None,
+    )
+
+    if browser and os_name:
+        return f"{browser} on {os_name}"
+    if browser:
+        return browser
+    if os_name:
+        return os_name
+    return user_agent[:50]
+
+
 def financial_year_bounds(as_of: date) -> tuple[int, int, date, date]:
     """
     India's NSS financial year: 1 April – 31 March.

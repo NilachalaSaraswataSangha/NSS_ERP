@@ -125,7 +125,7 @@ design philosophy, ensuring that business rules are frozen before implementation
   `JWT_SECRET_KEY`) are set manually in the Render dashboard, pointing at an external Neon.dev
   PostgreSQL instance. `render_build.sh` builds the Tailwind CSS, installs Python deps and then
   runs the full DB bootstrap (phases 0-14, DDL + seed + admin bootstrap) **only when
-  `RUN_DB_BOOTSTRAP=true`** is set (default: skipped) — each statement that hits "already
+  `RUN_DB_BOOTSTRAP` is truthy** (`true`/`1`/`yes`/`on`, case/whitespace-insensitive; default: skipped) — each statement that hits "already
   exists"/duplicate-key is skipped, so a re-run is idempotent. Not yet run in production; see
   `docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md`.
 
@@ -713,7 +713,7 @@ Completed:
   values, shared across modules) — now consumed by the Tier 2 Organization API (see below). This
   diverges from the frozen 3-table module design — see `docs/PROJECT_DOCUMENTATION.md` →
   Gotchas. Combined with Foundation, Bootstrap RBAC, Person, Family, Membership, and (Tier 5
-  branch) Authentication + Administration: **47 tables implemented** — see `database/README.md`)
+  branch) Authentication + Administration: **48 tables implemented** — see `database/README.md`)
 * Bootstrap RBAC DDL (`role_master`/`permission_master`/`role_permission`, `SOL-BOOT-001`/
   `SOL-ARCH-011` — DDL implemented and committed; `role_master` seeded with 9 roles;
   `permission_master`/`role_permission` are now seeded too (Tier 5 branch); ownership stays with Administration,
@@ -869,18 +869,18 @@ Completed:
 * **Tier 5 — Authentication + Administration (committed, not yet merged on
   `feature/tier5-authentication-administration`, not merged/released — treat every fact below as
   a snapshot of a moving branch, verify against `git status`/`git log` before relying on it):**
-  10 new tables — `user_account`, `password_history`, `registration_claim`,
-  `password_reset_token` (`database/ddl/06_authentication/`); `user_role`, `admin_scope`
+  11 new tables — `user_account`, `password_history`, `registration_claim`,
+  `password_reset_token`, `user_session` (`database/ddl/06_authentication/`); `user_role`, `admin_scope`
   (`07_administration/`); `family_admin` (Family), `darshak_attendance_registration` and
   `credential_sequence_counter` (Membership); and `system_event_log`
   (`01_foundation/14_system_event_log.sql`) backed by a database-level `fn_audit_trigger()`
   (`15_audit_trigger.sql`, `SOL-AUDIT-004`) that fires on every INSERT/UPDATE/DELETE across
   `nss.*` tables — actor identity comes from per-request session variables, so writes can't
   bypass the audit trail; `api/helpers.py::log_audit()` also records explicitly from write
-  endpoints. **47 tables total** (incl. `post_office`/festival tables added later on the branch). New routers at that point: `auth.py` (8 endpoints), `registration.py` (6 then; 10 now,
+  endpoints. **48 tables total** (incl. `post_office`/festival tables added later on the branch). New routers at that point: `auth.py` (8 endpoints then; 10 now), `registration.py` (6 then; 10 now,
   public), `claim_approval.py` (5), `admin.py` (25 then; 28 now), `audit.py` (1), plus 9 endpoints added to
   `family.py` and 6 write endpoints added to `foundation.py` (`FOUNDATION_MANAGE`; 8 writes plus 4 member `propose` POSTs now) — **108
-  endpoints at that point (133 now, incl. `geo_approval.py`)**. New `nss_db_writer` PostgreSQL role (write access scoped to the
+  endpoints at that point (135 now, incl. `geo_approval.py`)**. New `nss_db_writer` PostgreSQL role (write access scoped to the
   auth/admin tables). `permission_master`/`role_permission` are seeded. Every Tier 4
   "verification"/demo seed file has been deleted — a fresh build produces **zero demo
   Person/Family/Membership data**; real data comes from the registration/approval flow or the
@@ -897,7 +897,7 @@ Current Focus:
 * Reconciling Solution-layer design docs with actual SQL/API implementation across all 22
   documented modules — every module has a complete (or largely complete) design, and seven
   groups have real SQL: Bootstrap RBAC (3 tables), Foundation (15), Organization (1), Person
-  (2), Family (6), Membership (14), Authentication (4) and Administration (2) — 47 tables.
+  (2), Family (6), Membership (14), Authentication (5) and Administration (2) — 48 tables.
   Released API/UI slices: Tier 0 (v0.6.0), Foundation (v0.7.0), Organization (v0.8.0), Person
   (v0.9.0), Family + Membership (v0.10.0, hotfixes through v0.10.4). The pytest suite has grown
   well beyond its v0.10.4 size (410 tests) — see `tests/README.md` for current counts and the
@@ -916,7 +916,7 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (7 endpoints at release; 11 now) | Done (folded into `admin.html`) | -- |
 | **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints at release; 5 now) | Done (folded into `admin.html` Person Directory) | -- |
 | **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Done | Done (14 endpoints at release; 24 now incl. 9 Tier 5 Family endpoints) | Done (folded into `dashboard.html`/`admin.html`) | -- |
-| **5** | Authentication, Administration | `user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_role`, `admin_scope` (4 auth + 2 admin tables, plus supporting tables added to Family/Membership/Foundation) — RBAC management, JWT, audit | In progress (Tier 5 branch) | Committed, unmerged ( — auth, registration, claim-approval, admin, audit, geo-approval routers: 56 endpoints) | Committed, unmerged ( — login/register/dashboard/admin pages) | -- |
+| **5** | Authentication, Administration | `user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_session`, `user_role`, `admin_scope` (5 auth + 2 admin tables, plus supporting tables added to Family/Membership/Foundation) — RBAC management, JWT, audit | In progress (Tier 5 branch) | Committed, unmerged ( — auth, registration, claim-approval, admin, audit, geo-approval routers: 56 endpoints) | Committed, unmerged ( — login/register/dashboard/admin pages) | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
 | **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
 | **8** | Kumari Sangha, Kishor Puja | Youth modules — KM/KH identity, annual events, guardian assignment, SS transition | Not started | Not started | Not started | -- |

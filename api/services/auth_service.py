@@ -77,6 +77,7 @@ def create_access_token(
     person_pk: UUID,
     sangha_sevi_id: str,
     session_start: datetime | None = None,
+    session_pk: UUID | None = None,
 ) -> str:
     """
     Create a short-lived access token (default 30 min).
@@ -87,6 +88,9 @@ def create_access_token(
       sangha_sevi_id: login identifier
       token_type: "access"
       session_start: original session start (for absolute max)
+      session_pk: nss.user_session row backing this login (Tier 5 A4),
+                  when the caller has one — omitted for backward
+                  compatibility with pre-session tokens.
       iat: issued at
       exp: expiration
     """
@@ -103,12 +107,15 @@ def create_access_token(
         "iat": now,
         "exp": now + timedelta(minutes=settings.JWT_ACCESS_TOKEN_MINUTES),
     }
+    if session_pk is not None:
+        payload["session_pk"] = str(session_pk)
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 def create_refresh_token(
     user_account_pk: UUID,
     session_start: datetime | None = None,
+    session_pk: UUID | None = None,
 ) -> str:
     """
     Create a longer-lived refresh token (default 7 days).
@@ -117,6 +124,9 @@ def create_refresh_token(
       sub: user_account_pk (string)
       token_type: "refresh"
       session_start: original session start (for absolute max)
+      session_pk: nss.user_session row backing this login (Tier 5 A4),
+                  when the caller has one — omitted for backward
+                  compatibility with pre-session tokens.
       iat: issued at
       exp: expiration
     """
@@ -131,6 +141,8 @@ def create_refresh_token(
         "iat": now,
         "exp": now + timedelta(days=settings.JWT_REFRESH_TOKEN_DAYS),
     }
+    if session_pk is not None:
+        payload["session_pk"] = str(session_pk)
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 

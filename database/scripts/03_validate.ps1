@@ -7,7 +7,7 @@
 # run 02_build.ps1 first.
 #
 # Authority: SOL-ARCH-010, SOL-ARCH-011
-# Version: 1.1 — add Auth (4 tables), Admin (2 tables),
+# Version: 1.1 — add Auth (5 tables), Admin (2 tables),
 #                 person address FK columns
 #
 # Usage:
@@ -202,13 +202,14 @@ Check-ColumnExists "person" "city_village_pk"
 Check-ColumnExists "person" "postal_code_pk"
 Write-Host ""
 
-# Authentication (4 tables)
+# Authentication (5 tables)
 Write-Host "--- Authentication ---" -ForegroundColor Cyan
 Write-Host "  Tables:"
 Check-TableExists "user_account"
 Check-TableExists "password_history"
 Check-TableExists "registration_claim"
 Check-TableExists "password_reset_token"
+Check-TableExists "user_session"
 
 Write-Host "  Row counts:"
 Check-RowCount "user_account" 1
@@ -226,12 +227,17 @@ Check-ColumnExists "user_account" "force_password_change"
 Check-ColumnExists "user_account" "last_login_at"
 Check-ColumnExists "password_history" "user_account_pk"
 Check-ColumnExists "password_history" "password_hash"
+Check-ColumnExists "user_session" "user_account_pk"
+Check-ColumnExists "user_session" "revoked_at"
+Check-ColumnExists "user_session" "expires_at"
+Check-ColumnExists "user_session" "device_label"
 
 Write-Host "  Unique constraints:"
 Check-NoDuplicates "user_account" "person_pk"
 
 Write-Host "  FK integrity:"
 Check-FkIntegrity "user_account -> person" "SELECT COUNT(*) FROM nss.user_account ua LEFT JOIN nss.person p ON ua.person_pk = p.person_pk WHERE p.person_pk IS NULL;"
+Check-FkIntegrity "user_session -> user_account" "SELECT COUNT(*) FROM nss.user_session us LEFT JOIN nss.user_account ua ON us.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
 Check-FkIntegrity "password_history -> user_account" "SELECT COUNT(*) FROM nss.password_history ph LEFT JOIN nss.user_account ua ON ph.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
 Write-Host ""
 

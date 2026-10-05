@@ -17,12 +17,12 @@ SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 
 > **Tier 5 (Authentication + Administration) is committed on the branch, not merged** — branch
 > `feature/tier5-authentication-administration`, not merged to `develop`/`main`, no release
-> tag. Relative to the last released schema (v0.10.4) it adds `ddl/06_authentication/` (4 tables),
+> tag. Relative to the last released schema (v0.10.4) it adds `ddl/06_authentication/` (5 tables),
 > `ddl/07_administration/` (2 tables), `family_admin` (Family), `darshak_attendance_registration`
 > and `credential_sequence_counter` (Membership), and `system_event_log` (Foundation, with
-> `fn_audit_trigger()` attached to every other `nss.*` table) — **10 new tables**, plus
+> `fn_audit_trigger()` attached to every other `nss.*` table) — **11 new tables**, plus
 > `post_office`, `festival_master`, `festival_calendar_date` (Foundation; all-India geography and
-> member-assisted geographic entry) — **13 new tables, 47 in total**; the
+> member-assisted geographic entry) — **14 new tables, 48 in total**; the
 > `nss_db_writer` role (`scripts/05_create_writer_role.sql`) and `scripts/06_setup_env.sh`; the
 > top-level `scripts/bootstrap_admin.py` + `seed/04_admin/`; and several new triggers
 > (Organization address restriction + Kumari/Sevak one-per-Sakha, Family move-transition guard,
@@ -77,7 +77,7 @@ Build phases (authoritative detail in `scripts/README.md`):
 | 7b | Foundation audit FKs (`05_membership/16_foundation_audit_fk.sql`) |
 | 8 | (reserved — demo seeds removed) |
 | 9 | Grant `nss_db_backend` read-only |
-| 10 | Authentication DDL — 4 tables |
+| 10 | Authentication DDL — 5 tables |
 | 11 | Administration DDL — 2 tables |
 | 12 | Grant `nss_db_writer` |
 | 13 | Admin bootstrap (`scripts/bootstrap_admin.py`) |
@@ -117,15 +117,15 @@ Depth/Seq# breakdown lives in their own module READMEs rather than being duplica
   `family_head_history`, `family_transition_history`, `family_link`, `family_admin`, plus the
   move-transition guard trigger)
 - `ddl/05_membership/README.md` (14 tables, `sangha_sevi` first, plus the Sakha-only trigger)
-- `ddl/06_authentication/README.md` (4 tables) and `ddl/07_administration/README.md` (2 tables) —
+- `ddl/06_authentication/README.md` (5 tables) and `ddl/07_administration/README.md` (2 tables) —
   Tier 5
 - `ddl/01_foundation/README.md` also documents
   `festival_master`/`festival_calendar_date`, and Phase 14's
   `system_event_log` (15th Foundation table) and `fn_audit_trigger()`
 
-**Total implemented: 47 tables** — 3 Bootstrap RBAC + 15 Foundation (12 reference/geography + 2 festival + `system_event_log`) +
-1 Organization + 2 Person + 6 Family + 14 Membership + 4 Authentication + 2 Administration
-(verified by counting `CREATE TABLE` across `database/ddl/**`). Of those, 10 are Tier 5 additions
+**Total implemented: 48 tables** — 3 Bootstrap RBAC + 15 Foundation (12 reference/geography + 2 festival + `system_event_log`) +
+1 Organization + 2 Person + 6 Family + 14 Membership + 5 Authentication + 2 Administration
+(verified by counting `CREATE TABLE` across `database/ddl/**`). Of those, 11 are Tier 5 additions
 (see the banner above) and 3 more Foundation tables arrived on the same branch; the v0.10.4
 baseline was 34.
 **Organization type/status moved to Foundation `master_data` — standalone tables retired.**
@@ -184,8 +184,8 @@ database/
 │   ├── 04_family/        6 tables (incl. `family_admin`) + `07_family_move_transition_guard.sql`
 │   ├── 05_membership/    14 tables (`sangha_sevi` first; incl. `darshak_attendance_registration`,
 │   │                     `credential_sequence_counter`) + `14_sakha_only_membership_trigger.sql`, `16_foundation_audit_fk.sql` (ALTER only)
-│   ├── 06_authentication/ 4 tables: user_account, password_history, registration_claim,
-│   │                     password_reset_token (Tier 5)
+│   ├── 06_authentication/ 5 tables: user_account, password_history, registration_claim,
+│   │                     password_reset_token, user_session (Tier 5)
 │   └── 07_administration/ 2 tables: user_role, admin_scope (Tier 5)
 ├── seed/
 │   ├── 00_bootstrap/     9 roles, 21 permissions, 113 role-permission mappings
@@ -308,7 +308,7 @@ Error handling: `set -euo pipefail` and psql `ON_ERROR_STOP=1`. A file whose out
 build continues, so **re-running against an existing database is supported** (idempotent); any
 other error aborts immediately. (Phase 13, the admin bootstrap, is the exception — a failure is
 counted, the build continues, and the final exit code is 1.) `render_build.sh` at the repository
-root mirrors this sequence for Render/Neon (gated behind `RUN_DB_BOOTSTRAP=true`; skipped by default) — keep the two in sync.
+root mirrors this sequence for Render/Neon (gated behind a truthy `RUN_DB_BOOTSTRAP` — `true`/`1`/`yes`/`on`, case/whitespace-insensitive; skipped by default) — keep the two in sync.
 
 ### 03_validate.sh — Post-Build Validation
 
@@ -324,7 +324,7 @@ Validates the build. **Does NOT execute any DDL or seed scripts** — run `02_bu
 | Foundation (11 tables; not `post_office`/`festival_*`/`system_event_log`) | Existence, row minimums, unique codes, FK integrity, deferred `document_master` columns |
 | Organization (1 table) | Existence, row minimum, unique `organization_code`, FK integrity |
 | Person (2 tables) | Existence, FK integrity, address FK columns |
-| Authentication (4 tables) | Existence, `user_account`/`password_history` key columns, unique `person_pk`, FK integrity |
+| Authentication (5 tables) | Existence, `user_account`/`password_history` key columns, unique `person_pk`, FK integrity |
 | Administration (2 tables) | Existence, key columns, FK integrity |
 
 | Family (6), Membership (14, incl. `credential_sequence_counter`), `system_event_log` | Existence only (no seed data, no key-column or FK checks) |

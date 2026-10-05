@@ -915,7 +915,7 @@
         <!-- Footer -->
         <div class="sidebar-footer" x-show="currentUser" x-html="sidebarFooterInfo()"></div>
 
-        <div class="version-badge">v0.21.0</div>
+        <div class="version-badge">v0.21.1</div>
     </aside>
 
     <!-- Main -->
@@ -1091,6 +1091,34 @@
                                         <button class="btn-action primary" @click="saveProfile()" :disabled="profileSaving"
                                                 x-text="profileSaving ? 'Saving...' : 'Save'"></button>
                                         <button class="btn-action" @click="cancelEditProfile()">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Active Sessions -->
+                            <div class="data-card">
+                                <div class="data-card-header">
+                                    <h2 class="data-card-title">Active Sessions</h2>
+                                </div>
+                                <template x-if="sessionsError">
+                                    <div class="alert-msg alert-error" x-text="sessionsError" style="margin: 0 1.25rem 0.75rem;"></div>
+                                </template>
+                                <div class="data-rows">
+                                    <template x-for="session in sessions" :key="session.user_session_pk">
+                                        <div class="data-row">
+                                            <span class="data-label">
+                                                <span x-text="session.device_label || 'Unknown device'"></span>
+                                                <span class="badge badge-xs badge-status-active" x-show="session.is_current">This device</span>
+                                            </span>
+                                            <span class="data-value" style="text-align: right;">
+                                                <span class="mono" x-text="session.ip_address || '—'"></span>
+                                                <span style="display: block; color: #64748b; font-size: 0.78rem;" x-text="'Last seen ' + formatDateTime(session.last_seen_at)" x-show="session.last_seen_at"></span>
+                                                <button class="btn-action" style="margin-top: 0.35rem;" x-show="!session.is_current" @click="revokeSession(session.user_session_pk)">Log out</button>
+                                            </span>
+                                        </div>
+                                    </template>
+                                    <div class="data-row" x-show="!sessions.length">
+                                        <span class="data-value" style="color: #64748b;">No active sessions.</span>
                                     </div>
                                 </div>
                             </div>

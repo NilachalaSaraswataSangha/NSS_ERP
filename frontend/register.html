@@ -813,24 +813,29 @@
                         </div>
                     </template>
 
-                    <!-- Existing Parichaya/Anumati Patra number — optional, only for
-                         registrants who already hold one (legacy members). Distinct from
-                         Local Sakha Number: this is the annual Kendra/Sakha-wide credential
-                         number, not the Tier 2 per-Sakha identity. -->
+                    <!-- Existing Parichaya/Anumati Patra number. Mandatory for every
+                         membership type except Darshaka — Darshak members hold an
+                         Anumati Patra issued later, not claimed at registration.
+                         Distinct from Local Sakha Number: this is the annual
+                         Kendra/Sakha-wide credential number, not the Tier 2
+                         per-Sakha identity. -->
                     <template x-if="form.organization_pk">
                         <div class="form-group">
                             <label class="reg-label">
                                 <span x-text="isDarshaka() ? 'Anumati Patra Number' : 'Parichaya Patra Number'"></span>
-                                <span style="font-size: 0.75rem; color: #9ca3af; font-weight: normal;">(if already issued)</span>
+                                <span x-show="!isDarshaka()"> *</span>
+                                <span x-show="isDarshaka()" style="font-size: 0.75rem; color: #9ca3af; font-weight: normal;">(if already issued)</span>
                             </label>
                             <input type="text" x-model="form.claimed_credential_document_number"
                                    placeholder="e.g. 345"
                                    class="reg-input"
                                    :disabled="loading"
+                                   :required="!isDarshaka()"
                                    inputmode="numeric"
                                    maxlength="30">
                             <p class="pw-requirements" style="margin-top: 0.25rem;">
-                                <span>Enter just the number — the year is added automatically. Leave blank if you don't have one yet;</span>
+                                <span x-show="!isDarshaka()">Enter just the number — the year is added automatically.</span>
+                                <span x-show="isDarshaka()">Enter just the number — the year is added automatically. Leave blank if you don't have one yet;</span>
                             </p>
                         </div>
                     </template>

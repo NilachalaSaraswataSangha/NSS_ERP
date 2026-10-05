@@ -41,11 +41,13 @@ model).
   listener (residual `'unsafe-eval'` for Alpine and `style-src 'unsafe-inline'` tracked as
   follow-ups); **A3 filter-value logging closed as a verified no-op** — the inherited finding is
   contradicted by the only two logging call sites in `api/`; **A5 OTP debug echo mitigated** —
-  startup now warns when `DEBUG_MODE` is enabled. Two items remain **OPEN** by design, each
+  startup now warns when `DEBUG_MODE` is enabled; **A4 token revocation on logout resolved
+  (2026-10-05)** — a stateful session table, `nss.user_session`, was chosen over the stateless
+  `credentials_changed_at` watermark alternative specifically because a "logged-in devices" UI
+  was required, which only the stateful design supports. One item remains **OPEN** by design,
   needing a decision rather than a patch: **A1** contact-field gating (resolution path fixed as
-  page retirement once the Dashboard reaches feature parity per Tier 1–4 page) and **A4** token
-  revocation on logout (new session/denylist table vs stateless `credentials_changed_at`
-  watermark). No blocking vulnerabilities found. This tier discharges the "deferred to Tier 5"
+  page retirement once the Dashboard reaches feature parity per Tier 1–4 page). No blocking
+  vulnerabilities found. This tier discharges the "deferred to Tier 5"
   advisories carried by the Tier 0–4 audits (auth, RBAC enforcement, CSP) or re-tracks them
   explicitly.
 - **`SECURITY_AUDIT_TIER0_4.md`** (`SOL-SEC-002`, v1.0.0) — aggregate cross-tier summary across

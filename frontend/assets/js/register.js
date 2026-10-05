@@ -413,6 +413,14 @@ function registerApp() {
                     return;
                 }
 
+                // Parichaya Patra Number is mandatory for every membership
+                // type except Darshaka — Darshak members hold an Anumati
+                // Patra instead, which is issued later, not claimed here.
+                if (!this.isDarshaka() && !this.form.claimed_credential_document_number.trim()) {
+                    this.error = "Parichaya Patra Number is required.";
+                    return;
+                }
+
                 // Darshak attendance: must have org + its own local number
                 if (this.form.is_attending_as_darshak) {
                     if (!this.form.darshak_organization_pk) {

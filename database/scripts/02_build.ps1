@@ -39,8 +39,9 @@
 #   Phase 7b - Deferred Foundation audit FKs (16_foundation_audit_fk.sql)
 #   Phase 8  - Tier 4 Verification Seed Data (removed - no demo data)
 #   Phase 9  - Grant nss_db_backend read-only access
-#   Phase 10 - Authentication DDL (4 tables: user_account,
-#              password_history, registration_claim, password_reset_token)
+#   Phase 10 - Authentication DDL (5 tables: user_account,
+#              password_history, registration_claim, password_reset_token,
+#              user_session)
 #   Phase 11 - Administration DDL (2 tables)
 #   Phase 12 - Grant nss_db_writer write access (Tier 5)
 #   Phase 13 - Admin bootstrap seed (NSS Admin superuser)
@@ -263,17 +264,19 @@ Invoke-Sql "grant_backend" "$ScriptDir\04_grant_backend.sql"
 Write-Host ""
 
 # -------------------------------------------------
-# Phase 10: Authentication DDL (4 tables, Depths 3-5)
+# Phase 10: Authentication DDL (5 tables, Depths 3-4)
 # user_account FK -> person (Depth 3)
 # password_history FK -> user_account (Depth 4)
 # registration_claim FK -> user_account, person, organization, master_data (Depth 5)
 # password_reset_token FK -> user_account (Depth 4)
+# user_session FK -> user_account (Depth 4)
 # -------------------------------------------------
-Write-Host "[Phase 10] Authentication - DDL (4 tables)" -ForegroundColor Cyan
+Write-Host "[Phase 10] Authentication - DDL (5 tables)" -ForegroundColor Cyan
 Invoke-Sql "user_account"           "$DdlBase\06_authentication\01_user_account.sql"
 Invoke-Sql "password_history"       "$DdlBase\06_authentication\02_password_history.sql"
 Invoke-Sql "registration_claim"     "$DdlBase\06_authentication\03_registration_claim.sql"
 Invoke-Sql "password_reset_token"   "$DdlBase\06_authentication\04_password_reset_token.sql"
+Invoke-Sql "user_session"           "$DdlBase\06_authentication\05_user_session.sql"
 Write-Host ""
 
 # -------------------------------------------------

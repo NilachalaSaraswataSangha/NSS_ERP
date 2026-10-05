@@ -4,23 +4,26 @@ NSS ERP — Authentication router.
 Tier 5 endpoints:
   POST /api/v1/auth/login            — Login with login_id + password
   POST /api/v1/auth/refresh          — Refresh access token
-  POST /api/v1/auth/logout           — Logout (client-side token discard)
+  POST /api/v1/auth/logout           — Logout (revokes the session server-side)
   POST /api/v1/auth/change-password  — Change own password
   POST /api/v1/auth/forgot-password  — Request OTP for password reset
   POST /api/v1/auth/reset-password   — Reset password with OTP
   GET  /api/v1/auth/me               — Current user profile + RBAC
   PATCH /api/v1/auth/profile         — Update own profile fields
+  GET  /api/v1/auth/sessions         — List current user's active sessions
+  DELETE /api/v1/auth/sessions/{session_pk} — Revoke one of own sessions
 
 Authority: SOL-AUTH-001 through SOL-AUTH-004,
            Tier 5 design decisions (2026-09-15),
-           Tier 5.1 self-service reset (2026-09-20)
+           Tier 5.1 self-service reset (2026-09-20),
+           Tier 5 security advisory A4 — stateful sessions (2026-10-05)
 """
 
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from api.config import settings
 from api.database import get_connection
@@ -38,6 +41,8 @@ from api.schemas.auth import (
     RefreshResponse,
     ResetPasswordRequest,
     ScopeResponse,
+    SessionListResponse,
+    SessionResponse,
     UpdateProfileRequest,
 )
 from api.services.auth_service import (
@@ -49,7 +54,7 @@ from api.services.auth_service import (
     is_account_locked,
     verify_password,
 )
-from api.helpers import apply_person_profile_update, check_duplicate_contact, log_audit, record_password_history, validate_and_hash_password, validate_mobile, validate_email
+from api.helpers import apply_person_profile_update, check_duplicate_contact, derive_device_label, log_audit, record_password_history, validate_and_hash_password, validate_mobile, validate_email
 from api.services.rbac_service import UserContext
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -60,6 +65,7 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 @router.post("/login", response_model=LoginResponse)
 def login(
     body: LoginRequest,
+    request: Request,
     conn=Depends(get_write_connection),
 ) -> LoginResponse:
     """
@@ -241,15 +247,43 @@ def login(
 
     # Step 5: Issue tokens
     session_start = now
+
+    # Tier 5 A4 — create the stateful nss.user_session row this login
+    # backs, so it can be listed/revoked later and so refresh/logout can
+    # check it hasn't been revoked. Mirrors the forgot-password/reset
+    # cursor-per-statement pattern used elsewhere in this file.
+    user_agent = request.headers.get("user-agent")
+    ip_address = request.client.host if request.client else None
+    device_label = derive_device_label(user_agent)
+    session_expires_at = now + timedelta(days=settings.JWT_REFRESH_TOKEN_DAYS)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO nss.user_session (
+                user_account_pk, issued_at, expires_at,
+                user_agent, ip_address, device_label
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING user_session_pk
+            """,
+            (
+                str(user_account_pk), now, session_expires_at,
+                user_agent, ip_address, device_label,
+            ),
+        )
+        session_pk = cur.fetchone()[0]
+
     access_token = create_access_token(
         user_account_pk=user_account_pk,
         person_pk=person_pk,
         sangha_sevi_id=resolved_sevi_id or "",
         session_start=session_start,
+        session_pk=session_pk,
     )
     refresh_token = create_refresh_token(
         user_account_pk=user_account_pk,
         session_start=session_start,
+        session_pk=session_pk,
     )
 
     # Password expiry warning
@@ -274,13 +308,17 @@ def login(
 @router.post("/refresh", response_model=RefreshResponse)
 def refresh(
     body: RefreshRequest,
-    conn=Depends(get_connection),
+    conn=Depends(get_write_connection),
 ) -> RefreshResponse:
     """
     Exchange a valid refresh token for a new access token.
 
     The refresh token itself is NOT rotated (stateless design).
     Absolute session max (30 days) is enforced by decode_token().
+
+    Uses the write connection (not the read pool) because a session
+    bearing a session_pk claim (Tier 5 A4) has its last_seen_at bumped
+    on every refresh.
     """
     import jwt as pyjwt
 
@@ -330,6 +368,40 @@ def refresh(
 
     person_pk, sangha_sevi_id = row
 
+    # Tier 5 A4 — validate the stateful session, when the refresh token
+    # carries one. Older tokens minted before this change have no
+    # session_pk claim and skip this check entirely (backward compat).
+    session_pk = payload.get("session_pk")
+    if session_pk is not None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT revoked_at, expires_at
+                FROM nss.user_session
+                WHERE user_session_pk = %s
+                """,
+                (session_pk,),
+            )
+            session_row = cur.fetchone()
+        if (
+            session_row is None
+            or session_row[0] is not None
+            or session_row[1] < datetime.now(timezone.utc)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session has been revoked. Please log in again.",
+            )
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE nss.user_session
+                SET last_seen_at = NOW()
+                WHERE user_session_pk = %s
+                """,
+                (session_pk,),
+            )
+
     # Preserve original session_start for absolute max enforcement
     session_start_str = payload.get("session_start")
     session_start = (
@@ -343,6 +415,7 @@ def refresh(
         person_pk=person_pk,
         sangha_sevi_id=sangha_sevi_id or "",
         session_start=session_start,
+        session_pk=session_pk,
     )
 
     return RefreshResponse(
@@ -356,17 +429,125 @@ def refresh(
 @router.post("/logout", response_model=MessageResponse)
 def logout(
     user: UserContext = Depends(get_current_user),
+    conn=Depends(get_write_connection),
 ) -> MessageResponse:
     """
     Logout the current user.
 
-    With stateless JWT (Tier 5 design), logout is client-side:
-    the client discards both tokens. This endpoint exists for
-    API completeness and audit logging (future).
-
-    Explicit token revocation deferred to Tier 5.1.
+    Tier 5 security advisory A4 resolution: revokes the nss.user_session
+    row backing the caller's own access token (session_pk is populated by
+    get_current_user when the token carries that claim), so the session
+    can no longer be used to refresh. The client still discards both
+    tokens as before. A pre-A4 token with no session_pk claim has nothing
+    to revoke — logout is then a client-side no-op, same as before.
     """
+    if user.session_pk is not None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE nss.user_session
+                SET revoked_at = NOW()
+                WHERE user_session_pk = %s
+                """,
+                (str(user.session_pk),),
+            )
     return MessageResponse(message="Logged out successfully. Discard tokens on client.")
+
+
+# ── GET /sessions ───────────────────────────────────────────────────────
+
+@router.get("/sessions", response_model=SessionListResponse)
+def list_sessions(
+    user: UserContext = Depends(get_current_user),
+    conn=Depends(get_connection),
+) -> SessionListResponse:
+    """
+    List the authenticated user's active (non-revoked, unexpired) login
+    sessions (Tier 5 A4) — the "devices logged in" view.
+
+    is_current marks the session backing THIS request's own access
+    token (user.session_pk), so the client can label "this device" and
+    skip offering a self-revoke button for it (revoking it is allowed —
+    it's just same-device logout — but the UI likely wants to call that
+    out).
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT user_session_pk, device_label, ip_address,
+                   issued_at, last_seen_at
+            FROM nss.user_session
+            WHERE user_account_pk = %s
+              AND revoked_at IS NULL
+              AND expires_at > NOW()
+            ORDER BY last_seen_at DESC
+            """,
+            (str(user.user_account_pk),),
+        )
+        rows = cur.fetchall()
+
+    current = str(user.session_pk) if user.session_pk else None
+    return SessionListResponse(
+        sessions=[
+            SessionResponse(
+                user_session_pk=row[0],
+                device_label=row[1],
+                ip_address=row[2],
+                issued_at=row[3],
+                last_seen_at=row[4],
+                is_current=(str(row[0]) == current),
+            )
+            for row in rows
+        ]
+    )
+
+
+# ── DELETE /sessions/{session_pk} ────────────────────────────────────────
+
+@router.delete("/sessions/{session_pk}", response_model=MessageResponse)
+def revoke_session(
+    session_pk: UUID,
+    user: UserContext = Depends(get_current_user),
+    conn=Depends(get_write_connection),
+) -> MessageResponse:
+    """
+    Revoke one of the authenticated user's own sessions (Tier 5 A4) —
+    e.g. "log out this device" from a device list.
+
+    Returns a generic 404 whether the session_pk does not exist at all or
+    belongs to someone else, so the response never discloses that a given
+    session_pk belongs to another account. Revoking the caller's own
+    current session is allowed with no special-casing — that's just
+    same-device logout.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT user_account_pk
+            FROM nss.user_session
+            WHERE user_session_pk = %s
+            """,
+            (str(session_pk),),
+        )
+        row = cur.fetchone()
+
+    if row is None or str(row[0]) != str(user.user_account_pk):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found.",
+        )
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE nss.user_session
+            SET revoked_at = NOW()
+            WHERE user_session_pk = %s
+            """,
+            (str(session_pk),),
+        )
+
+    return MessageResponse(message="Device logged out.")
 
 
 # ── POST /change-password ───────────────────────────────────────────────

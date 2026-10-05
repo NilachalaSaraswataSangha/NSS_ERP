@@ -59,8 +59,8 @@ DRAFT, not frozen), though its cross-module reconciliation is complete.
 above: JWT authentication (`api/routers/auth.py`), user/role administration
 (`api/routers/admin.py`), self-registration with admin-approval (`api/routers/registration.py`,
 `api/routers/claim_approval.py`), an authenticated audit-trail viewer
-(`api/routers/audit.py`), a second `nss_db_writer` DB connection pool, 10 new tables
-(`user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_role`,
+(`api/routers/audit.py`), a second `nss_db_writer` DB connection pool, 11 new tables
+(`user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_session`, `user_role`,
 `admin_scope`, `family_admin`, `darshak_attendance_registration`, `credential_sequence_counter`, `system_event_log`), later joined by Foundation's `post_office`/`festival_master`/`festival_calendar_date`, plus a
 DB-level `fn_audit_trigger()` firing on every `nss.*` table, and four new frontend pages
 (`login.html`, `register.html`, `dashboard.html`, `admin.html`). **`claim-approval.html` was
@@ -576,7 +576,7 @@ NSS_ERP/
 │                                   (`uvicorn api.main:app`); does not provision a database — DB
 │                                   env vars point to an externally-managed Neon.dev instance
 ├── render_build.sh                 Render build hook — installs deps; DB bootstrap only if
-│                                   `RUN_DB_BOOTSTRAP=true` (idempotent when run)
+│                                   truthy `RUN_DB_BOOTSTRAP` (idempotent when run)
 ├── requirements.txt              Python dependencies (pip, not pinned to a venv tool)
 ├── package.json / tailwind.config.js  Tailwind CLI + DaisyUI build tooling only (`npm run css:build`/`css:watch`)
 ├── pytest.ini                     pytest config — `testpaths = tests`; `integration`/`ui`/`db` markers
@@ -648,8 +648,8 @@ api/
 │   │                   `update_setting`/`create_setting`/`update_sequence`/`create_sequence`.
 │   │                   `field_change_log` deliberately not exposed here — see the dedicated
 │   │                   `AUDIT_VIEW`-gated `audit.py` router instead; see Key workflows below and
-│   │                   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` (not yet updated for
-│   │                   the permission gate or the 6 new write endpoints)
+│   │                   `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md` (v1.2 — documents the
+│   │                   permission gate and the 6 write endpoints)
 │   ├── organization.py 11 endpoints (8 original plus `/organizations/selectable` [login-only], `/organizations/{pk}/wings`, `/wings/{wing_type_code}/members`) under `/api/v1/organization` across `nss.organization` plus
 │   │                   Foundation's `master_data` — reference (`/types`, `/statuses`, both
 │   │                   querying `master_data` filtered by `master_category.category_code`
@@ -861,8 +861,9 @@ api/
 ├── routers/
 │   ├── auth.py           `/api/v1/auth` — `POST /login` (login_id = Sangha Sevi ID or Person
 │   │                     ID, case-insensitive; Argon2 verify; 5-attempt/30s lockout; issues
-│   │                     access+refresh JWT), `POST /refresh`, `POST /logout` (stateless —
-│   │                     client discards tokens; no server-side revocation list),
+│   │                     access+refresh JWT), `POST /refresh`, `POST /logout` (revokes the
+│   │                     caller's `user_session` row; client also discards tokens),
+│   │                     `GET /sessions` / `DELETE /sessions/{session_pk}` (own active sessions),
 │   │                     `POST /change-password` (self-service, requires current password +
 │   │                     reuse check), `POST /forgot-password` (generates a 6-digit OTP hashed
 │   │                     and stored in `password_reset_token`, rate-limited 3/hour; always
@@ -943,7 +944,7 @@ api/
 ```
 
 **New DDL (Tier 5 branch):** `database/ddl/06_authentication/` (`user_account`,
-`password_history`, `registration_claim`, `password_reset_token` — 4 tables) and
+`password_history`, `registration_claim`, `password_reset_token`, `user_session` — 5 tables) and
 `database/ddl/07_administration/` (`user_role`, `admin_scope` — 2 tables), plus two tables added
 to already-implemented modules: `database/ddl/04_family/06_family_admin.sql` (`family_admin` —
 Family Admin role assignments, SOL-FAM-003 FAM-045..052) and
@@ -1304,7 +1305,7 @@ database/
 │                         06_setup_env.sh (role passwords + api/.env; bash only) — see
 │                         scripts/README.md for the full database-to-running-API sequence and
 │                         phase-by-phase execution table
-├── ddl/                  47 tables in total (see database/README.md)
+├── ddl/                  48 tables in total (see database/README.md)
 │   ├── 00_bootstrap/     3 tables: role_master, permission_master, role_permission (RBAC
 │   │                     definitions, created before Foundation — zero FK dependencies;
 │   │                     SOL-ARCH-011). Owned by Administration; see Gotchas for the
@@ -1333,8 +1334,8 @@ database/
 │   │                     guard trigger
 │   ├── 05_membership/    14 tables (sangha_sevi first) + Sakha-only trigger (MBR-038A) +
 │   │                     16_foundation_audit_fk.sql (ALTER-only, Phase 7b)
-│   ├── 06_authentication/ 4 tables (Tier 5): user_account, password_history, registration_claim,
-│   │                     password_reset_token
+│   ├── 06_authentication/ 5 tables (Tier 5): user_account, password_history, registration_claim,
+│   │                     password_reset_token, user_session
 │   └── 07_administration/ 2 tables (Tier 5): user_role, admin_scope
 └── seed/
     ├── 00_bootstrap/     `role_master`: 9 roles seeded (3 SYSTEM + 6 ORGANIZATIONAL,
@@ -1526,8 +1527,8 @@ summarize the full sequence from a clean machine to a running API.
       counts as minimums, unique constraints, FK integrity).
 
    `04_grant_backend.sql` (Phase 9) and `05_create_writer_role.sql` (Phase 12) are run by
-   `02_build.sh` itself. The build covers **47 tables** (3 Bootstrap RBAC + 15 Foundation + 1
-   Organization + 2 Person + 6 Family + 14 Membership + 4 Authentication + 2 Administration).
+   `02_build.sh` itself. The build covers **48 tables** (3 Bootstrap RBAC + 15 Foundation + 1
+   Organization + 2 Person + 6 Family + 14 Membership + 5 Authentication + 2 Administration).
    `02_build.ps1` matches `02_build.sh` (v2.6, incl. `post_office`, the `08c` seed and Phase 7b).
    `03_validate.sh`/`.ps1` only WARN on stale minimums (`master_data` 82 vs 89
    seeded, etc.) and have no Family/Membership/`system_event_log`/`credential_sequence_counter`
@@ -1565,7 +1566,7 @@ summarize the full sequence from a clean machine to a running API.
    `dashboard.html`. Only `bootstrap.py` (4 endpoints) and the public `/api/v1/register` and
    `POST /api/v1/auth/login|refresh|forgot-password|reset-password` endpoints are reachable
    without a JWT; everything else is gated per router (see `CLAUDE.md` → Architecture and
-   `docs/03_Solution/api/API_CONTRACT.md`, which lists all 133 endpoints across 12 routers with
+   `docs/03_Solution/api/API_CONTRACT.md`, which lists all 135 endpoints across 12 routers with
    their gates).
 
 5. **Run the tests** (from the repository root, once the database is built per step 2 and
@@ -1642,7 +1643,7 @@ env var) are declared as `sync: false` env vars that must be set manually in the
 dashboard, pointing at an external Neon.dev PostgreSQL instance (per `TECH_STACK_DECISIONS.md`
 §1/§6) — not provisioned by this file. `render_build.sh` runs on every deploy: `npm install` + the
 Tailwind CLI build, `pip install -r requirements.txt`; the DB bootstrap below runs **only when
-`RUN_DB_BOOTSTRAP=true`** (default skipped; decided 2026-10-05, see
+`RUN_DB_BOOTSTRAP` is truthy** (`true`/`1`/`yes`/`on`, case/whitespace-insensitive; default skipped; decided 2026-10-05, see
 `docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md`). When enabled it does `CREATE SCHEMA IF NOT EXISTS nss`, sets the
 database `search_path`, best-effort installs `pgcrypto`/`pg_trgm`/`btree_gin` (some may be
 unavailable on Neon's free tier; `postgis` isn't attempted), creates the three `nss_db_*` roles,

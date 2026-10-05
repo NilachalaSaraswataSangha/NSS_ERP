@@ -275,7 +275,7 @@ single `02_build.sh` / `02_build.ps1` invocation:
 | 7 | Membership DDL | 14 tables (includes performance indexes) |
 | 8 | *(reserved — no demo data)* | |
 | 9 | Grant Backend | Read-only access for `nss_db_backend` |
-| 10 | Authentication DDL | 4 tables (`user_account`, `password_history`, `registration_claim`, `password_reset_token`) |
+| 10 | Authentication DDL | 5 tables (`user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_session`) |
 | 11 | Administration DDL | 2 tables (`user_role`, `admin_scope`) |
 | 12 | Grant Writer | Write access for `nss_db_writer` (auth + admin tables only) |
 | 13 | Admin Bootstrap | Seed NSSAdmin user account (runtime bootstrap via `bootstrap_admin.py`) |

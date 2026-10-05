@@ -26,7 +26,7 @@
 #   - Foundation (12 tables)
 #   - Organization (1 table — type/status in Foundation master_data)
 #   - Person (2 tables + address FK columns on person)
-#   - Authentication (4 tables)
+#   - Authentication (5 tables)
 #   - Administration (2 tables)
 #   - Family (6), Membership (14, incl. credential_sequence_counter), system_event_log — existence only
 #
@@ -295,7 +295,7 @@ check_column_exists "person" "postal_code_pk"
 echo ""
 
 # =====================================================
-# Module 5: Authentication (4 tables)
+# Module 5: Authentication (5 tables)
 # =====================================================
 echo -e "${CYAN}--- Authentication ---${NC}"
 echo "  Tables:"
@@ -303,6 +303,7 @@ check_table_exists "user_account"
 check_table_exists "password_history"
 check_table_exists "registration_claim"
 check_table_exists "password_reset_token"
+check_table_exists "user_session"
 
 echo "  Row counts:"
 check_row_count "user_account" 1
@@ -320,6 +321,10 @@ check_column_exists "user_account" "force_password_change"
 check_column_exists "user_account" "last_login_at"
 check_column_exists "password_history" "user_account_pk"
 check_column_exists "password_history" "password_hash"
+check_column_exists "user_session" "user_account_pk"
+check_column_exists "user_session" "revoked_at"
+check_column_exists "user_session" "expires_at"
+check_column_exists "user_session" "device_label"
 
 echo "  Unique constraints:"
 check_no_duplicates "user_account" "person_pk"
@@ -327,6 +332,8 @@ check_no_duplicates "user_account" "person_pk"
 echo "  FK integrity:"
 check_fk_integrity "user_account -> person" \
     "SELECT COUNT(*) FROM nss.user_account ua LEFT JOIN nss.person p ON ua.person_pk = p.person_pk WHERE p.person_pk IS NULL;"
+check_fk_integrity "user_session -> user_account" \
+    "SELECT COUNT(*) FROM nss.user_session us LEFT JOIN nss.user_account ua ON us.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
 check_fk_integrity "password_history -> user_account" \
     "SELECT COUNT(*) FROM nss.password_history ph LEFT JOIN nss.user_account ua ON ph.user_account_pk = ua.user_account_pk WHERE ua.user_account_pk IS NULL;"
 echo ""

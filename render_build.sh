@@ -246,11 +246,12 @@ echo "--- Phase 9: Grant nss_db_backend read-only access ---"
 run_sql "grant_backend" "${REPO_ROOT}/database/scripts/04_grant_backend.sql"
 
 echo ""
-echo "--- Phase 10: Authentication — DDL (4 tables) ---"
+echo "--- Phase 10: Authentication — DDL (5 tables) ---"
 run_sql "user_account"           "${DDL_BASE}/06_authentication/01_user_account.sql"
 run_sql "password_history"       "${DDL_BASE}/06_authentication/02_password_history.sql"
 run_sql "registration_claim"     "${DDL_BASE}/06_authentication/03_registration_claim.sql"
 run_sql "password_reset_token"   "${DDL_BASE}/06_authentication/04_password_reset_token.sql"
+run_sql "user_session"           "${DDL_BASE}/06_authentication/05_user_session.sql"
 
 echo ""
 echo "--- Phase 11: Administration — DDL (2 tables) ---"

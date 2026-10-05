@@ -43,7 +43,7 @@ from pydantic import BaseModel, Field
 from api.config import settings
 from api.database import get_connection
 from api.dependencies.auth import get_write_connection
-from api.helpers import log_audit, next_id, resolve_or_create_city_village, resolve_or_create_postal_code, resolve_or_create_post_office, check_duplicate_contact, record_password_history, require_sakha_organization, validate_mobile, validate_email, get_master_data_pk
+from api.helpers import log_audit, next_id, resolve_or_create_city_village, resolve_or_create_postal_code, resolve_or_create_post_office, check_duplicate_contact, record_password_history, require_sakha_organization, validate_mobile, validate_email, get_master_data_pk, is_probationary_membership_type
 from api.services.auth_service import hash_password, validate_password_policy
 from api.routers.foundation import fetch_countries, fetch_states, fetch_districts, fetch_cities, fetch_postal_codes, fetch_post_offices, fetch_master_data
 from api.routers.organization import fetch_organizations
@@ -468,6 +468,16 @@ def register(
         )
 
     with conn.cursor() as cur:
+
+        # ── 3d. Parichaya Patra Number is mandatory for every membership
+        # type except Darshaka (PROBATIONARY) — Darshak members hold an
+        # Anumati Patra issued later, not claimed at registration.
+        if body.has_membership and not is_probationary_membership_type(cur, body.membership_type_master_data_pk):
+            if not body.claimed_credential_document_number or not body.claimed_credential_document_number.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="claimed_credential_document_number (Parichaya Patra Number) is required for this membership type.",
+                )
 
         # ── 4. Check duplicate mobile + email ──────────────────────────
         check_duplicate_contact(

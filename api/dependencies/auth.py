@@ -14,6 +14,7 @@ Usage in endpoints:
         ...
 """
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 import jwt
@@ -82,6 +83,33 @@ def get_current_user(
             detail="User account not found or inactive.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Validate the stateful session (Tier 5 A4), when the token carries one.
+    # Older tokens minted before this change have no session_pk claim and
+    # skip this check entirely — backward compatible until they expire.
+    session_pk = payload.get("session_pk")
+    if session_pk is not None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT revoked_at, expires_at
+                FROM nss.user_session
+                WHERE user_session_pk = %s
+                """,
+                (session_pk,),
+            )
+            row = cur.fetchone()
+        if (
+            row is None
+            or row[0] is not None
+            or row[1] < datetime.now(timezone.utc)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session has been revoked. Please log in again.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        user_ctx.session_pk = UUID(session_pk)
 
     # Set session variables for the DB audit trigger.
     # nss.fn_audit_trigger() reads these to identify the actor.

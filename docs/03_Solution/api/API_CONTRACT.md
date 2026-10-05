@@ -19,7 +19,7 @@
 
 # 1. Overview
 
-The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **133 endpoints** across 12
+The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **135 endpoints** across 12
 routers. Tiers 0-4 were originally read-only and unauthenticated; the **Tier 5 branch
 (`feature/tier5-authentication-administration`, committed, not yet merged — not merged or
 released)** added JWT authentication, RBAC, write endpoints, and gated almost everything:
@@ -355,19 +355,21 @@ Tier 3: document_number       — on ParichayaPatraResponse (Kendra Number)
 
 # 9. Tier 5 — Authentication
 
-**Router prefix:** `/api/v1/auth` — 8 endpoints. Stateless JWT (no server-side revocation on
-logout); Argon2 password hashing; 5-attempt/30-second login lockout.
+**Router prefix:** `/api/v1/auth` — 10 endpoints. JWT with a stateful `nss.user_session` row per login (Tier 5
+A4; `logout` and `DELETE /sessions/{session_pk}` revoke it); Argon2 password hashing; 5-attempt/30-second login lockout.
 
 | # | Method | Path | Auth | Description |
 |---|---|---|---|---|
 | 64 | POST | `/login` | none | Login with Sangha Sevi ID or Person ID (case-insensitive) → access + refresh JWT |
 | 65 | POST | `/refresh` | refresh token | Issue a new access token |
-| 66 | POST | `/logout` | JWT | Stateless logout acknowledgement |
+| 66 | POST | `/logout` | JWT | Revokes the caller's `user_session` (no-op for pre-A4 tokens without `session_pk`) |
 | 67 | POST | `/change-password` | JWT | Change own password (history-checked) |
 | 68 | POST | `/forgot-password` | none | Issue a 6-digit OTP; rate-limited 3/hour, anti-enumeration generic response; `otp_debug` echoed only if `DEBUG_MODE=true` |
 | 69 | POST | `/reset-password` | OTP | Reset password with the OTP |
 | 70 | GET | `/me` | JWT | Current user, roles, permissions, admin scope |
 | 71 | PATCH | `/profile` | JWT | Update own profile fields |
+| 134 | GET | `/sessions` | JWT | List own active (non-revoked, unexpired) sessions; `is_current` marks the caller's own |
+| 135 | DELETE | `/sessions/{session_pk}` | JWT | Revoke one of own sessions (generic 404 if absent or not owned) |
 
 ---
 
@@ -517,16 +519,16 @@ Frontend routes are excluded from OpenAPI schema (`include_in_schema=False`).
 | 3 | Person | 5 |
 | 4 | Family | 16 (7 original read + 9 Tier 5) |
 | 4 | Membership | 8 |
-| 5 | Authentication | 8 |
+| 5 | Authentication | 10 |
 | 5 | Registration | 10 |
 | 5 | Claim Approval | 5 |
 | 5 | Administration | 28 |
 | 5 | Geo-Entry Approval | 4 |
 | 5 | Audit | 1 |
-| **Total** | | **133** |
+| **Total** | | **135** |
 
 The endpoint numbers in the tables above are stable identifiers, not path order: #1-#46 are the
-original Tier 0-4 set; #47-#133 were appended as Tier 5 endpoints landed.
+original Tier 0-4 set; #47-#135 were appended as Tier 5 endpoints landed.
 
 ---
 

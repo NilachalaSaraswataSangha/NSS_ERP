@@ -13,7 +13,7 @@ tests/
 ├── api/                 # API integration tests (FastAPI TestClient, no browser)
 │   ├── test_admin.py         # Tier 5 — admin CRUD, roles, orgs (78 tests)
 │   ├── test_audit.py         # Tier 5 — field-change-log viewer (4 tests)
-│   ├── test_auth.py          # Tier 5 — login, refresh, logout, change-password (16 tests)
+│   ├── test_auth.py          # Tier 5 — login, refresh, logout, change-password, sessions (16 tests)
 │   ├── test_bootstrap.py     # Tier 0 — health, roles, permissions (9 tests)
 │   ├── test_claim_approval.py # Tier 5 — claim detail/edit/scope enforcement (13 tests)
 │   ├── test_error_messages.py # Human-readable validation/integrity-error messages (15 tests)

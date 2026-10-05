@@ -47,6 +47,7 @@ class UserContext:
     permissions: set[str] = field(default_factory=set)
     scopes: list[ScopeInfo] = field(default_factory=list)
     force_password_change: bool = False
+    session_pk: UUID | None = None  # nss.user_session row for this access token (Tier 5 A4)
 
     def has_permission(self, permission_code: str) -> bool:
         """Check if the user has a specific permission (union across all roles)."""

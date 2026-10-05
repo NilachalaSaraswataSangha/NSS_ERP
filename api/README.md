@@ -5,7 +5,7 @@ FastAPI application — the only web/API layer in the codebase. Implements **Tie
 Organization), **Tier 3** (Person), and **Tier 4** (Family + Membership) —
 no ORM — behind a cross-tier security middleware stack (headers, opt-in CORS, rate limiting,
 plus a new Content-Security-Policy) and a shared error-handler layer (`error_handlers.py`).
-12 routers (133 endpoints); the endpoint inventory and per-router counts live in
+12 routers (135 endpoints); the endpoint inventory and per-router counts live in
 `docs/03_Solution/api/API_CONTRACT.md`.
 **Partway through this branch's development, Tiers 1-3
 and Membership (Tier 4) gained authenticated gating** — they were read-only/no-auth through
@@ -214,8 +214,8 @@ api/
 │   │                    journey events use an ownership model instead (`get_current_user` plus
 │   │                    either `MEMBERSHIP_VIEW` or being the member themself, via a shared
 │   │                    `_require_member_view()` → `require_self_or_permission()`)
-│   ├── auth.py          Tier 5 — 8 endpoints under /api/v1/auth: login, refresh,
-│   │                    logout, change-password, forgot-password, reset-password, /me, /profile
+│   ├── auth.py          Tier 5 — 10 endpoints under /api/v1/auth: login, refresh,
+│   │                    logout, sessions (list), sessions/{pk} (revoke), change-password, forgot-password, reset-password, /me, /profile
 │   ├── admin.py         Tier 5 — 28 endpoints under /api/v1/admin: user list/
 │   │                    create/detail/check-account, reset-password/status/delete; role
 │   │                    assignment; `POST /persons` + `GET /persons/check-contact` + `GET`/`PATCH /persons/{pk}` (profile-details correction) + `PATCH /patra/{patra_type}/{patra_pk}/document-number` (MBR-030H); Sangha Sevi
@@ -338,7 +338,9 @@ exact `require_permission`/`require_any_permission` arguments in each router.
 |--------|------|------|---------|
 | POST | `/api/v1/auth/login` | none | Access + refresh JWT; login_id = Sangha Sevi ID or Person ID |
 | POST | `/api/v1/auth/refresh` | refresh token (body) | New access JWT (refresh token is not rotated) |
-| POST | `/api/v1/auth/logout` | access token | Stateless — client discards tokens, no server-side revocation |
+| POST | `/api/v1/auth/logout` | access token | Revokes the caller's `user_session` row (Tier 5 A4); client discards tokens |
+| GET | `/api/v1/auth/sessions` | access token | Own active sessions (`is_current` flags the caller's) |
+| DELETE | `/api/v1/auth/sessions/{session_pk}` | access token | Revoke one of own sessions; generic 404 otherwise |
 | POST | `/api/v1/auth/change-password` | access token | Self-service password change (policy + reuse check) |
 | POST | `/api/v1/auth/forgot-password` | none | Generates a 6-digit OTP (`password_reset_token`); always returns a generic message (anti-enumeration); `otp_debug` only when `DEBUG_MODE`. **The OTP is not delivered** — email/SMS sending is a `TODO` in `auth.py` |
 | POST | `/api/v1/auth/reset-password` | none | Consumes the OTP, sets a new password |
@@ -630,7 +632,7 @@ Full contract and endpoint counts: `docs/03_Solution/api/API_CONTRACT.md`. Tests
 - **Stale module docstrings**: `foundation.py` ("17 GET ... No authentication"), `membership.py`
   ("7 GET ... No authentication"), `person.py` ("No authentication"), `admin.py` (lists 17 of its
   28 endpoints and still says short-code/create are "NSS_ERP_ADMIN only"), `auth.py` (omits
-  `PATCH /profile`), `registration.py` (lists only `POST /register`), `family.py` (its write list
+  `PATCH /profile` and the session endpoints), `registration.py` (lists only `POST /register`), `family.py` (its write list
   omits create-family and create-link), and `main.py` ("Verification UIs", "Read-only endpoints")
   no longer match their code. `middleware.py`'s docstring still says JS uses `?v=N` cache busting
   (now an automatic content hash, see `main.py`).

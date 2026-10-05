@@ -199,3 +199,22 @@ class ForgotPasswordResponse(BaseModel):
             "Will be removed when email/SMS service is integrated."
         ),
     )
+
+
+# ── Sessions (Tier 5 A4 — stateful session table) ────────────────────────
+
+class SessionResponse(BaseModel):
+    """A single active login session (nss.user_session row)."""
+    user_session_pk: UUID
+    device_label: str | None = None
+    ip_address: str | None = None
+    issued_at: datetime
+    last_seen_at: datetime
+    is_current: bool = Field(
+        description="True if this is the session backing the request's own access token"
+    )
+
+
+class SessionListResponse(BaseModel):
+    """GET /api/v1/auth/sessions — current user's active sessions."""
+    sessions: list[SessionResponse]

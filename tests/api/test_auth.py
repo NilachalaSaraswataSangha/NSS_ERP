@@ -32,6 +32,48 @@ TEST_NEW_PASSWORD = "NewPass2x"
 # ── Module-scoped fixtures ──────────────────────────────────────────────
 
 @pytest.fixture(scope="module")
+def test_user2(write_conn):
+    """
+    A second, independent test user account (Tier 5 A4 session tests
+    need two distinct accounts to prove cross-account session access
+    is rejected). Same creation pattern as `test_user`, but explicitly
+    excludes any person already claimed by `test_user` in this run.
+    """
+    from api.services.auth_service import hash_password
+
+    cur = write_conn.cursor()
+    cur.execute("""
+        SELECT p.person_pk, ss.sangha_sevi_id
+        FROM nss.person p
+        JOIN nss.sangha_sevi ss ON ss.person_pk = p.person_pk AND ss.is_active = TRUE
+        LEFT JOIN nss.user_account ua ON ua.person_pk = p.person_pk AND ua.is_active = TRUE
+        WHERE p.is_active = TRUE
+          AND ua.user_account_pk IS NULL
+        LIMIT 1 OFFSET 1
+    """)
+    row = cur.fetchone()
+    if row is None:
+        pytest.skip("No second available person without a user account. Cannot run cross-account session tests.")
+
+    person_pk, sangha_sevi_id = row
+    password_hash = hash_password(TEST_PASSWORD)
+    cur.execute("""
+        INSERT INTO nss.user_account (
+            person_pk, password_hash, account_status,
+            force_password_change, password_expires_at
+        ) VALUES (%s, %s, 'ACTIVE', FALSE, NOW() + INTERVAL '365 days')
+        RETURNING user_account_pk
+    """, (str(person_pk), password_hash))
+    user_account_pk = cur.fetchone()[0]
+
+    yield {
+        "person_pk": person_pk,
+        "user_account_pk": user_account_pk,
+        "sangha_sevi_id": sangha_sevi_id,
+    }
+
+
+@pytest.fixture(scope="module")
 def test_user(write_conn):
     """
     Create a test user account linked to an existing person.
@@ -292,3 +334,132 @@ class TestChangePassword:
             },
         )
         assert response.status_code == 422
+
+
+# ── Sessions tests (Tier 5 A4 — stateful session table) ────────────────
+
+class TestSessions:
+    """
+    GET /api/v1/auth/sessions, DELETE /api/v1/auth/sessions/{session_pk}
+
+    Covers the A4 resolution: login creates a nss.user_session row,
+    logout/revoke actually invalidate the backing access token (no
+    longer the Tier 5 no-op), and a session cannot be revoked by any
+    account other than the one that owns it.
+    """
+
+    def test_login_creates_listable_session(self, client, test_user):
+        """After login, GET /sessions shows exactly the new session,
+        flagged as the caller's current one."""
+        tokens = _login(client, test_user)
+        response = client.get(
+            "/api/v1/auth/sessions",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        sessions = data["sessions"] if isinstance(data, dict) else data
+        assert len(sessions) >= 1
+        current = [s for s in sessions if s["is_current"]]
+        assert len(current) == 1
+        assert "user_session_pk" in current[0]
+
+    def test_sessions_without_token_fails(self, client):
+        """GET /sessions without a token returns 401."""
+        response = client.get("/api/v1/auth/sessions")
+        assert response.status_code == 401
+
+    def test_logout_revokes_current_session(self, client, test_user):
+        """After logout, the access token that was just logged out
+        with is rejected on the next authenticated call — this is
+        the behavior A4 explicitly closes (logout was previously a
+        client-side-only no-op)."""
+        tokens = _login(client, test_user)
+        access_token = tokens["access_token"]
+
+        logout_resp = client.post(
+            "/api/v1/auth/logout",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert logout_resp.status_code == 200
+
+        me_resp = client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert me_resp.status_code == 401
+        assert "revoked" in me_resp.json()["detail"].lower()
+
+    def test_revoke_own_session_rejects_its_token(self, client, test_user):
+        """DELETE /sessions/{own session_pk} invalidates that session;
+        the access token tied to it is rejected afterward."""
+        tokens = _login(client, test_user)
+        access_token = tokens["access_token"]
+
+        sessions_resp = client.get(
+            "/api/v1/auth/sessions",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        data = sessions_resp.json()
+        sessions = data["sessions"] if isinstance(data, dict) else data
+        current_session_pk = next(s["user_session_pk"] for s in sessions if s["is_current"])
+
+        delete_resp = client.delete(
+            f"/api/v1/auth/sessions/{current_session_pk}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert delete_resp.status_code == 200
+
+        me_resp = client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        assert me_resp.status_code == 401
+
+    def test_cannot_revoke_another_users_session(self, client, test_user, test_user2):
+        """DELETE on a session_pk belonging to a different account
+        returns 404 — existence of someone else's session must not
+        be confirmed or denied via a 403."""
+        tokens_a = _login(client, test_user)
+        tokens_b = _login(client, test_user2)
+
+        sessions_resp = client.get(
+            "/api/v1/auth/sessions",
+            headers={"Authorization": f"Bearer {tokens_b['access_token']}"},
+        )
+        data = sessions_resp.json()
+        sessions = data["sessions"] if isinstance(data, dict) else data
+        user_b_session_pk = next(s["user_session_pk"] for s in sessions if s["is_current"])
+
+        response = client.delete(
+            f"/api/v1/auth/sessions/{user_b_session_pk}",
+            headers={"Authorization": f"Bearer {tokens_a['access_token']}"},
+        )
+        assert response.status_code == 404
+
+        # Confirm it genuinely wasn't revoked — user B's token still works.
+        me_resp = client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {tokens_b['access_token']}"},
+        )
+        assert me_resp.status_code == 200
+
+    def test_revoke_nonexistent_session_404(self, client, test_user):
+        """DELETE on a syntactically valid but nonexistent session_pk
+        returns 404 (not 500/422)."""
+        tokens = _login(client, test_user)
+        fake_pk = "00000000-0000-0000-0000-000000000000"
+        response = client.delete(
+            f"/api/v1/auth/sessions/{fake_pk}",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert response.status_code == 404
+
+    # NOTE: backward compatibility for pre-A4 tokens (no `session_pk` claim)
+    # is enforced by `get_current_user`/`refresh` simply skipping the
+    # revocation check when the claim is absent — see
+    # api/dependencies/auth.py and api/routers/auth.py. There is no
+    # practical way to mint a "pre-A4" token through the public API
+    # surface (every token issued by this codebase now carries the
+    # claim), so this path is covered by code inspection rather than
+    # an integration test here.

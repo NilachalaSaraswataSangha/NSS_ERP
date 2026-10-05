@@ -185,11 +185,11 @@ FAM-036 majority-rule CTE hot path are baked into the respective table DDL files
 |-----:|------|---------|
 | Grant | `04_grant_backend.sql` | Grants `nss_db_backend` read-only access. Must run after all DDL so `GRANT SELECT ON ALL TABLES` covers every table just created. |
 
-### Phase 10 — Authentication DDL (4 tables)
+### Phase 10 — Authentication DDL (5 tables)
 
 The Depth column below is the per-module numbering used in the module READMEs; each SQL file's own
 `-- Depth:` header comment records a value one lower for every table here (`user_account` 2,
-`password_history`/`registration_claim`/`password_reset_token` 3) — cosmetic only, the build order
+`password_history`/`registration_claim`/`password_reset_token`/`user_session` 3) — cosmetic only, the build order
 is what matters. The same applies to Phase 11 (`user_role` header says 3, `admin_scope` 4).
 
 | Step | File | Table | Depth |
@@ -198,6 +198,7 @@ is what matters. The same applies to Phase 11 (`user_role` header says 3, `admin
 | DDL | `ddl/06_authentication/02_password_history.sql` | `password_history` | 4 |
 | DDL | `ddl/06_authentication/03_registration_claim.sql` | `registration_claim` | 3 |
 | DDL | `ddl/06_authentication/04_password_reset_token.sql` | `password_reset_token` | 4 |
+| DDL | `ddl/06_authentication/05_user_session.sql` | `user_session` | 4 |
 
 ### Phase 11 — Administration DDL (2 tables, Depths 4–5)
 
