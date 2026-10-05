@@ -35,7 +35,8 @@
 #   DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
 #   DB_WRITE_USER, DB_WRITE_PASSWORD (Tier 5 nss_db_writer pool)
 #   JWT_SECRET_KEY (Tier 5 auth)
-#   RUN_DB_BOOTSTRAP (optional; "true" to run DDL+seed, default: skipped)
+#   RUN_DB_BOOTSTRAP (optional; truthy = true/1/yes/on, case-
+#                     insensitive, whitespace-tolerant; default: skipped)
 #
 # Keep phase order in sync with database/scripts/02_build.sh
 # if it changes.
@@ -53,12 +54,23 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 echo ""
-if [ "${RUN_DB_BOOTSTRAP:-false}" != "true" ]; then
-    echo "=== Skipping database bootstrap (RUN_DB_BOOTSTRAP not set to true) ==="
+# Normalise the flag so Render-dashboard values like "True", "TRUE",
+# " true" (stray space), "1", "yes", "on" all count — the earlier
+# exact "== true" check silently skipped on any of those. Lowercase +
+# strip all whitespace, then match a small set of truthy spellings.
+echo "=== RUN_DB_BOOTSTRAP raw value: '${RUN_DB_BOOTSTRAP:-<unset>}' ==="
+RUN_DB_BOOTSTRAP_NORM="$(printf '%s' "${RUN_DB_BOOTSTRAP:-false}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+case "${RUN_DB_BOOTSTRAP_NORM}" in
+    true|1|yes|on) RUN_BOOTSTRAP=1 ;;
+    *)             RUN_BOOTSTRAP=0 ;;
+esac
+if [ "${RUN_BOOTSTRAP}" != "1" ]; then
+    echo "=== Skipping database bootstrap (RUN_DB_BOOTSTRAP not truthy) ==="
     echo ""
     echo "=== Build finished ==="
     exit 0
 fi
+echo "=== RUN_DB_BOOTSTRAP is truthy — running full DDL+seed bootstrap ==="
 
 echo "=== Bootstrapping database (Neon.dev) ==="
 
