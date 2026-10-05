@@ -575,8 +575,8 @@ NSS_ERP/
 ├── render.yaml                    Render.com Infrastructure-as-Code — free-tier web service
 │                                   (`uvicorn api.main:app`); does not provision a database — DB
 │                                   env vars point to an externally-managed Neon.dev instance
-├── render_build.sh                 Render build hook — installs deps, runs DB bootstrap
-│                                   (idempotent — skips DDL/seed if already bootstrapped)
+├── render_build.sh                 Render build hook — installs deps; DB bootstrap only if
+│                                   `RUN_DB_BOOTSTRAP=true` (idempotent when run)
 ├── requirements.txt              Python dependencies (pip, not pinned to a venv tool)
 ├── package.json / tailwind.config.js  Tailwind CLI + DaisyUI build tooling only (`npm run css:build`/`css:watch`)
 ├── pytest.ini                     pytest config — `testpaths = tests`; `integration`/`ui`/`db` markers
@@ -633,10 +633,11 @@ api/
 │   ├── bootstrap.py    4 endpoints under `/api/v1/bootstrap` — no auth, no ORM, raw
 │   │                   parameterized SQL against `nss.role_master`/`permission_master`/
 │   │                   `role_permission` (see Key workflows below)
-│   ├── foundation.py   28 endpoints under `/api/v1/foundation` — 20 reads (17 original plus
-│   │                   `/sakha-postal-codes`, `/festivals`, `/festival-calendar-dates`) and 8 Tier 5
+│   ├── foundation.py   33 endpoints under `/api/v1/foundation` — 21 reads (17 original plus
+│   │                   `/post-offices`, `/sakha-postal-codes`, `/festivals`, `/festival-calendar-dates`) and 12
 │   │                   writes (6 `FOUNDATION_MANAGE` plus festival-calendar `POST`/`PATCH` gated by
-│   │                   `FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only): master data (`/categories`,
+│   │                   `FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only, plus 4 member-facing
+│   │                   `POST /{districts|postal-codes|post-offices|city-villages}/propose`): master data (`/categories`,
 │   │                   `/master-data` — now also `POST`/`PATCH`), system config (`/settings`,
 │   │                   `/sequences` — both now also `POST`/`PATCH`),
 │   │                   geography (`/countries`→`/states`→`/districts`→`/cities`,
@@ -908,7 +909,7 @@ api/
 │   │                     `sangha_sevi` row auto-generates one from that user's most recent
 │   │                     `registration_claim` (or a hardcoded Kendra/first-membership-type
 │   │                     fallback if there's no claim)
-│   ├── registration.py   `/api/v1/register` (9 public endpoints: `POST ""`, `/check-duplicate`, `/reference-data`, and `/countries`/`/states`/`/districts`/`/cities`/`/postal-codes`/`/sakhas` lookups) — `POST ""` (self-registration): creates `person` +
+│   ├── registration.py   `/api/v1/register` (10 public endpoints: `POST ""`, `/check-duplicate`, `/reference-data`, and `/countries`/`/states`/`/districts`/`/cities`/`/postal-codes`/`/post-offices`/`/sakhas` lookups) — `POST ""` (self-registration): creates `person` +
 │   │                     `user_account(PENDING_APPROVAL)` + optional `registration_claim` in one
 │   │                     transaction; **no `sangha_sevi`/`membership_sakha_affiliation` row is
 │   │                     created at registration time** — those are created later, on claim
@@ -1640,7 +1641,9 @@ manifest — defines a single free-tier web service running `uvicorn api.main:ap
 env var) are declared as `sync: false` env vars that must be set manually in the Render
 dashboard, pointing at an external Neon.dev PostgreSQL instance (per `TECH_STACK_DECISIONS.md`
 §1/§6) — not provisioned by this file. `render_build.sh` runs on every deploy: `npm install` + the
-Tailwind CLI build, `pip install -r requirements.txt`, then `CREATE SCHEMA IF NOT EXISTS nss`, sets the
+Tailwind CLI build, `pip install -r requirements.txt`; the DB bootstrap below runs **only when
+`RUN_DB_BOOTSTRAP=true`** (default skipped; decided 2026-10-05, see
+`docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md`). When enabled it does `CREATE SCHEMA IF NOT EXISTS nss`, sets the
 database `search_path`, best-effort installs `pgcrypto`/`pg_trgm`/`btree_gin` (some may be
 unavailable on Neon's free tier; `postgis` isn't attempted), creates the three `nss_db_*` roles,
 and runs the same phases as `database/scripts/02_build.sh` (v2.6 phase order, including `post_office`,
@@ -1879,7 +1882,7 @@ DB-level format validation CHECK constraints from day one (mobile, email, countr
 Aadhaar last-4, emergency phone) even though Tier 3 has no write endpoints yet — these are
 schema-level safety nets, not currently reachable via the read-only API.
 
-**API implemented.** `api/routers/person.py` (304 lines, prefix `/api/v1/person`) exposes 4
+**API implemented.** `api/routers/person.py` (originally 304 lines / 4 endpoints; now 443 lines / 5, adding `/search-selectable`; prefix `/api/v1/person`) exposes
 read-only GET endpoints — the same raw-`psycopg2`/`Depends(get_connection)` pattern as the
 other tiers, and the first router to consume the newly-extracted `api/helpers.py` shared
 `rows_to_models`/`row_to_model`/pagination-constant functions (Organization's router was
@@ -1906,7 +1909,7 @@ refactored to use the same helpers in the same change). Grouped by theme:
 
 **Security (PER-BR-081):** `aadhaar_encrypted` (BYTEA) and `aadhaar_hash` (VARCHAR) are never
 returned by any endpoint or exposed in any Pydantic model — only `aadhaar_last4` is returned for
-masked display. `api/schemas/person.py` (141 lines) defines `PersonResponse` (full detail),
+masked display. `api/schemas/person.py` (159 lines today) defines `PersonResponse` (full detail),
 `PersonSummaryResponse` (list/search — omits Aadhaar, emergency contact, photo), and
 `PersonAddressResponse`, all plain Pydantic models excluding audit columns, matching the
 convention established in Tier 0.
@@ -2127,7 +2130,7 @@ fixed in v0.10.4). The performance-hardening pass on top of this release, **v0.1
 covered above — see Gotchas.
 
 ### 7. Foundation API — master data, geography, config, runtime (implemented, Tier 1)
-`api/routers/foundation.py` (~1340 lines today, 28 endpoints; prefix `/api/v1/foundation`) originally exposed 17 read-only GET
+`api/routers/foundation.py` (~1740 lines today, 33 endpoints; prefix `/api/v1/foundation`) originally exposed 17 read-only GET
 endpoints across 11 of the 12 Foundation tables — the same raw-`psycopg2`/`Depends(get_connection)`
 pattern as Tier 0, plus new Tier-1 conventions (query-param filtering instead of nested paths,
 e.g. `?category_code=`/`?country_pk=`; hierarchical drill-down Country→State→District→

@@ -2,9 +2,9 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 05_state.sql
--- Version: 4.0 — every INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
---          so a partial re-run no longer silently skips every block after
---          the first pre-existing row it hits
+-- Version: 4.1 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a state row an admin has edited.
+--          Insert-if-missing only.
 -- Authority: SOL-FND-004 §14, SOL-ARCH-010 §8
 -- Owner: NSS_ERP_ADMIN
 -- Note: All states/provinces/territories for all
@@ -59,9 +59,7 @@ CROSS JOIN (VALUES
     ('PY', 'Puducherry',                  36)
 ) AS v(state_code, state_name, display_order)
 WHERE c.country_code = 'IN'
-ON CONFLICT (country_pk, state_code) DO UPDATE SET
-    state_name    = EXCLUDED.state_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (country_pk, state_code) DO NOTHING;
 
 -- =========================================================
 -- UNITED STATES — 50 States + DC
@@ -124,9 +122,7 @@ CROSS JOIN (VALUES
     ('DC', 'District of Columbia', 51)
 ) AS v(state_code, state_name, display_order)
 WHERE c.country_code = 'US'
-ON CONFLICT (country_pk, state_code) DO UPDATE SET
-    state_name    = EXCLUDED.state_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (country_pk, state_code) DO NOTHING;
 
 -- =========================================================
 -- UNITED KINGDOM — Countries/Regions
@@ -142,9 +138,7 @@ CROSS JOIN (VALUES
     ('NIR', 'Northern Ireland', 4)
 ) AS v(state_code, state_name, display_order)
 WHERE c.country_code = 'GB'
-ON CONFLICT (country_pk, state_code) DO UPDATE SET
-    state_name    = EXCLUDED.state_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (country_pk, state_code) DO NOTHING;
 
 -- =========================================================
 -- AUSTRALIA — States and Territories
@@ -164,9 +158,7 @@ CROSS JOIN (VALUES
     ('NT',  'Northern Territory',           8)
 ) AS v(state_code, state_name, display_order)
 WHERE c.country_code = 'AU'
-ON CONFLICT (country_pk, state_code) DO UPDATE SET
-    state_name    = EXCLUDED.state_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (country_pk, state_code) DO NOTHING;
 
 -- =========================================================
 -- CANADA — Provinces and Territories
@@ -191,6 +183,4 @@ CROSS JOIN (VALUES
     ('NU', 'Nunavut',                   13)
 ) AS v(state_code, state_name, display_order)
 WHERE c.country_code = 'CA'
-ON CONFLICT (country_pk, state_code) DO UPDATE SET
-    state_name    = EXCLUDED.state_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (country_pk, state_code) DO NOTHING;

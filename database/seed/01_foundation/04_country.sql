@@ -2,9 +2,9 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 04_country.sql
--- Version: 3.0 — INSERT is now an upsert (ON CONFLICT ... DO UPDATE), so a
---          partial re-run no longer silently skips every row after the
---          first pre-existing row it hits
+-- Version: 3.1 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a country row an admin has edited.
+--          Insert-if-missing only.
 -- Authority: SOL-FND-004 §30
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
@@ -21,6 +21,4 @@ VALUES
 ('GB', 'United Kingdom', 3),
 ('AU', 'Australia',      4),
 ('CA', 'Canada',         5)
-ON CONFLICT (country_code) DO UPDATE SET
-    country_name  = EXCLUDED.country_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (country_code) DO NOTHING;

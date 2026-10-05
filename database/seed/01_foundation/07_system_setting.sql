@@ -2,9 +2,10 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 07_system_setting.sql
--- Version: 1.1 — INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
---          so a partial re-run no longer silently skips rows after
---          the first pre-existing row it hits
+-- Version: 1.2 — ON CONFLICT DO NOTHING (2026-10-05), not DO UPDATE: a
+--          re-run (e.g. adding a new tier's seed to a live database) must
+--          never overwrite a setting_value an admin has since changed
+--          through the Settings screen. Insert-if-missing only.
 -- Authority: SOL-FND-004 §10
 -- Owner: NSS_ERP_ADMIN
 -- Note: Initial system settings. Values are
@@ -54,7 +55,4 @@ VALUES
     'rewrite identifiers already issued.',
     'STRING'
 )
-ON CONFLICT (setting_key) DO UPDATE SET
-    setting_value = EXCLUDED.setting_value,
-    description   = EXCLUDED.description,
-    data_type     = EXCLUDED.data_type;
+ON CONFLICT (setting_key) DO NOTHING;

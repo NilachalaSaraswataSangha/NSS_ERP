@@ -2,7 +2,9 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 06_district.sql
--- Version: 5.0 — numeric LGD district_code (globally unique)
+-- Version: 5.1 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a district row an admin has edited
+--          or approved via the geo-approval workflow. Insert-if-missing only.
 -- Authority: SOL-ARCH-010 Amendment (Simplified Geography Model, 2026-10-02)
 -- Owner: NSS_ERP_ADMIN
 -- Source: 4 government LGD files (Village, Urban, District, ULB), 2026-10-01/02.
@@ -22,9 +24,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'AN'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- AP — 28 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -64,9 +64,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'AP'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- AR — 27 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -105,9 +103,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'AR'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- AS — 35 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -154,9 +150,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'AS'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- BR — 38 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -206,9 +200,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'BR'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- CG — 33 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -253,9 +245,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'CG'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- CH — 1 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -268,9 +258,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'CH'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- DL — 14 districts ----
 -- 2026-10-02: added Shahdara (LGD code 671) — the original 13-row load
@@ -300,9 +288,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'DL'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- DN — 3 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -317,9 +303,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'DN'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- GA — 3 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -334,9 +318,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'GA'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- GJ — 34 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -382,9 +364,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'GJ'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- HP — 12 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -408,9 +388,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'HP'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- HR — 23 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -445,9 +423,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'HR'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- JH — 24 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -483,9 +459,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'JH'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- JK — 20 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -517,9 +491,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'JK'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- KA — 31 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -562,9 +534,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'KA'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- KL — 14 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -590,9 +560,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'KL'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- LA — 2 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -606,9 +574,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'LA'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- LD — 1 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -621,9 +587,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'LD'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- MH — 36 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -671,9 +635,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'MH'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- ML — 12 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -697,9 +659,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'ML'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- MN — 16 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -727,9 +687,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'MN'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- MP — 55 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -796,9 +754,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'MP'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- MZ — 11 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -821,9 +777,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'MZ'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- NL — 17 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -852,9 +806,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'NL'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- OD — 30 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -896,9 +848,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'OD'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- PB — 23 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -933,9 +883,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'PB'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- PY — 2 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -949,9 +897,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'PY'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- RJ — 41 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1004,9 +950,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'RJ'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- SK — 6 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1024,9 +968,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'SK'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- TN — 38 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1076,9 +1018,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'TN'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- TR — 8 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1098,9 +1038,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'TR'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- TS — 33 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1145,9 +1083,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'TS'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- UK — 13 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1172,9 +1108,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'UK'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- UP — 75 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1261,9 +1195,7 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'UP'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- ---- WB — 23 districts ----
 INSERT INTO nss.district (state_pk, district_code, district_name, display_order)
@@ -1298,8 +1230,6 @@ CROSS JOIN (VALUES
 WHERE s.state_code = 'WB'
 ON CONFLICT (state_pk, district_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    district_name = EXCLUDED.district_name,
-    display_order = EXCLUDED.display_order;
+    DO NOTHING;
 
 -- END OF DOCUMENT

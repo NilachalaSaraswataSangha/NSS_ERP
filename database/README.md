@@ -308,7 +308,7 @@ Error handling: `set -euo pipefail` and psql `ON_ERROR_STOP=1`. A file whose out
 build continues, so **re-running against an existing database is supported** (idempotent); any
 other error aborts immediately. (Phase 13, the admin bootstrap, is the exception — a failure is
 counted, the build continues, and the final exit code is 1.) `render_build.sh` at the repository
-root mirrors this sequence for Render/Neon — keep the two in sync.
+root mirrors this sequence for Render/Neon (gated behind `RUN_DB_BOOTSTRAP=true`; skipped by default) — keep the two in sync.
 
 ### 03_validate.sh — Post-Build Validation
 

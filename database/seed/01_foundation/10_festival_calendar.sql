@@ -2,7 +2,10 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 10_festival_calendar.sql
--- Version: 1.0
+-- Version: 1.1 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a festival date an admin has since
+--          confirmed/edited via FOUNDATION_CALENDAR_MANAGE. Insert-if-missing
+--          only.
 -- Authority: SOL-ARCH-013 (Festival Reference Calendar Architecture),
 --            FC-DECISION-02
 -- Owner: NSS_ERP_ADMIN
@@ -47,13 +50,7 @@ VALUES
     'observed_date is always Kendra-Sangha-confirmed data, never computed.',
     1
 )
-ON CONFLICT (festival_code) DO UPDATE SET
-    festival_name       = EXCLUDED.festival_name,
-    festival_name_odia  = EXCLUDED.festival_name_odia,
-    lunar_basis          = EXCLUDED.lunar_basis,
-    is_erp_reference_date = EXCLUDED.is_erp_reference_date,
-    description          = EXCLUDED.description,
-    display_order        = EXCLUDED.display_order;
+ON CONFLICT (festival_code) DO NOTHING;
 
 -- ── Per-year observed dates ──────────────────────────
 
@@ -85,8 +82,4 @@ CROSS JOIN (VALUES
      NULL)
 ) AS v(calendar_year, observed_date, is_confirmed, source_reference, remarks)
 WHERE fm.festival_code = 'DOLA_PURNIMA'
-ON CONFLICT (festival_master_pk, calendar_year) DO UPDATE SET
-    observed_date     = EXCLUDED.observed_date,
-    is_confirmed      = EXCLUDED.is_confirmed,
-    source_reference  = EXCLUDED.source_reference,
-    remarks           = EXCLUDED.remarks;
+ON CONFLICT (festival_master_pk, calendar_year) DO NOTHING;

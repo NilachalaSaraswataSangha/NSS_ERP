@@ -5,7 +5,9 @@
 -- Seed: 21 frozen permissions (Tier 5 decision 2026-09-15;
 --        FOUNDATION_CALENDAR_MANAGE added 2026-10-01 per
 --        SOL-ARCH-013 OPEN-FC-03)
--- Version: 1.0
+-- Version: 1.1 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a permission's live-edited
+--          fields. Insert-if-missing only.
 -- Authority: SOL-ARCH-011 §4, SOL-ADMIN-004 §9.5,
 --            SOL-BOOT-001 §5
 --
@@ -166,8 +168,4 @@ VALUES
      'Read-only access to reports and dashboards',
      21)
 
-ON CONFLICT (permission_code) DO UPDATE SET
-    permission_name = EXCLUDED.permission_name,
-    module_code     = EXCLUDED.module_code,
-    description     = EXCLUDED.description,
-    display_order   = EXCLUDED.display_order;
+ON CONFLICT (permission_code) DO NOTHING;

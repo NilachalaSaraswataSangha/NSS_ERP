@@ -62,7 +62,7 @@ Sakha branches and the one admin. Real data arrives via `POST /api/v1/register` 
 
 - `.sh`/`.ps1` script pairs must stay operationally identical (shell wrappers only).
 - **`render_build.sh` (repo root) duplicates the build sequence for Render/Neon** — keep it in
-  sync with `02_build.sh`. Known drift: its header prose still says v2.1 (its phase list matches `02_build.sh` v2.6), no `postgis`, a Phase 13 failure
+  sync with `02_build.sh`. The bootstrap runs only when `RUN_DB_BOOTSTRAP=true` (default: skipped). Known drift: its header prose still says v2.1 (its phase list matches `02_build.sh` v2.6), no `postgis`, a Phase 13 failure
   only warns, `render.yaml` declares an unused `DATABASE_URL`, and
   `npm install` in a `runtime: python` service is untested.
 - `nss_db_*` = PostgreSQL roles (lowercase); `NSS_ERP_*` = application RBAC roles in

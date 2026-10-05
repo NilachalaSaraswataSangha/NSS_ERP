@@ -2,9 +2,9 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 02_master_data.sql
--- Version: 1.1 — every INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
---          so a partial re-run no longer silently skips every block after
---          the first pre-existing row it hits
+-- Version: 1.2 — ON CONFLICT DO NOTHING (2026-10-05): a re-run must never
+--          overwrite a row an admin has since edited through the UI
+--          (e.g. a renamed master-data label). Insert-if-missing only.
 -- Authority: SOL-FND-004 §7, §29
 -- Owner: NSS_ERP_ADMIN
 -- Note: References master_category by category_code
@@ -25,9 +25,7 @@ CROSS JOIN (VALUES
     ('OTHER',  'Other',  3)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'GENDER'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- MARITAL_STATUS values
@@ -44,9 +42,7 @@ CROSS JOIN (VALUES
     ('SEPARATED', 'Separated', 5)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'MARITAL_STATUS'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- ADDRESS_TYPE values
@@ -61,9 +57,7 @@ CROSS JOIN (VALUES
     ('OFFICIAL',  'Official Address',  3)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'ADDRESS_TYPE'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- DOCUMENT_TYPE values
@@ -82,9 +76,7 @@ CROSS JOIN (VALUES
     ('MEETING_MINUTES',    'Meeting Minutes',      7)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'DOCUMENT_TYPE'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- MEMBERSHIP_TYPE values
@@ -100,9 +92,7 @@ CROSS JOIN (VALUES
     ('HONORARY',     'Honorary Member',     4)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'MEMBERSHIP_TYPE'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- STATUS values (unified ERP-wide lifecycle statuses)
@@ -134,11 +124,7 @@ CROSS JOIN (VALUES
     ('DISCIPLINARY_REVIEW', 'Disciplinary Review', 'Under disciplinary review by governance (Bye-Law §D(d)(iii))', 16, '{MEMBERSHIP}'::TEXT[])
 ) AS v(value_code, value_name, description, display_order, applicable_modules)
 WHERE mc.category_code = 'STATUS'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name          = EXCLUDED.value_name,
-    description         = EXCLUDED.description,
-    display_order       = EXCLUDED.display_order,
-    applicable_modules  = EXCLUDED.applicable_modules;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- RELATIONSHIP_TYPE values
@@ -191,9 +177,7 @@ CROSS JOIN (VALUES
     ('OTHER',              'Other Relative',          29)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'RELATIONSHIP_TYPE'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- ORGANIZATION_TYPE values
@@ -219,10 +203,7 @@ CROSS JOIN (VALUES
     ('MAHILA_SANGHA',    'Mahila Sangha',      'Mahila Sangha — women''s wing organization (NSS Mahila Sangha Bye-Law)', 13)
 ) AS v(value_code, value_name, description, display_order)
 WHERE mc.category_code = 'ORGANIZATION_TYPE'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    description   = EXCLUDED.description,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;
 
 -- -------------------------------------------------
 -- (STATUS values are above — unified ERP-wide category
@@ -247,6 +228,4 @@ CROSS JOIN (VALUES
     ('O_NEGATIVE',  'O-',  8)
 ) AS v(value_code, value_name, display_order)
 WHERE mc.category_code = 'BLOOD_GROUP'
-ON CONFLICT (master_category_pk, value_code) DO UPDATE SET
-    value_name    = EXCLUDED.value_name,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (master_category_pk, value_code) DO NOTHING;

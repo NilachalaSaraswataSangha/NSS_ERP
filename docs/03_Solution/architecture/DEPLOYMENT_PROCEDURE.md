@@ -128,27 +128,32 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap and `script
      frontend/assets/css/tailwind.min.css --minify`) — see
      `TECH_STACK_DECISIONS.md` §3
    - Installs Python dependencies (`pip install -r requirements.txt`)
-   - Creates the `nss` schema and extensions (`pgcrypto`, `pg_trgm`, `btree_gin` — best-effort)
-   - Runs **every** DDL + seed phase on **every** deploy, in the same order as
-     `database/scripts/02_build.sh`. Each `run_sql` call treats "already exists"/duplicate-key
-     errors as `[SKIP]`, so a redeploy against an already-bootstrapped database is safe and
-     picks up any newly added phase automatically:
-     - Phase 0: Bootstrap RBAC (3 tables + seed: roles, permissions, role-permission mappings)
-     - Phase 1-2: Foundation (12 tables + seed)
-     - Phase 3-4: Organization (1 table + address-restriction and Kumari/Sevak uniqueness
-       triggers; seed incl. 175 Sakha branches and the ID-sequence sync)
-     - Phase 5: Person (2 tables)
-     - Phase 6: Family (6 tables + move-transition guard)
-     - Phase 7: Membership (14 tables + Sakha-only trigger)
-     - *(inline)* ensures `nss_db_owner`/`nss_db_backend`/`nss_db_writer` roles exist
-     - Phase 9: Grant `nss_db_backend` read-only access
-     - Phase 10: Authentication (4 tables)
-     - Phase 11: Administration (2 tables)
-     - Phase 12: Grant `nss_db_writer` write access (auth + admin tables only)
-     - Phase 13: Admin bootstrap (`python3 scripts/bootstrap_admin.py` — seeds the `SS1`/`P1`
-       superuser, default password `Admin@123`; change it immediately after first login)
-     - Phase 14: Audit (`system_event_log` + `fn_audit_trigger()` on every `nss.*` table)
-   - There is no demo data: Phase 8 (Tier 4 verification seeds) was removed.
+   - **Database bootstrap (DDL + seed) is now skipped by default** (decided
+     2026-10-05) — set `RUN_DB_BOOTSTRAP=true` in the Render dashboard for
+     the one deploy that needs it (first stand-up on a fresh database, or
+     a deploy that adds a new tier's DDL/seed), then unset it. Routine
+     deploys only ship app code. When set, the bootstrap:
+     - Creates the `nss` schema and extensions (`pgcrypto`, `pg_trgm`, `btree_gin` — best-effort)
+     - Runs **every** DDL + seed phase, in the same order as
+       `database/scripts/02_build.sh`. Each `run_sql` call treats "already exists"/duplicate-key
+       errors as `[SKIP]`, so a redeploy against an already-bootstrapped database is safe and
+       picks up any newly added phase automatically:
+       - Phase 0: Bootstrap RBAC (3 tables + seed: roles, permissions, role-permission mappings)
+       - Phase 1-2: Foundation (12 tables + seed)
+       - Phase 3-4: Organization (1 table + address-restriction and Kumari/Sevak uniqueness
+         triggers; seed incl. 175 Sakha branches and the ID-sequence sync)
+       - Phase 5: Person (2 tables)
+       - Phase 6: Family (6 tables + move-transition guard)
+       - Phase 7: Membership (14 tables + Sakha-only trigger)
+       - *(inline)* ensures `nss_db_owner`/`nss_db_backend`/`nss_db_writer` roles exist
+       - Phase 9: Grant `nss_db_backend` read-only access
+       - Phase 10: Authentication (4 tables)
+       - Phase 11: Administration (2 tables)
+       - Phase 12: Grant `nss_db_writer` write access (auth + admin tables only)
+       - Phase 13: Admin bootstrap (`python3 scripts/bootstrap_admin.py` — seeds the `SS1`/`P1`
+         superuser, default password `Admin@123`; change it immediately after first login)
+       - Phase 14: Audit (`system_event_log` + `fn_audit_trigger()` on every `nss.*` table)
+     - There is no demo data: Phase 8 (Tier 4 verification seeds) was removed.
 3. Uvicorn starts serving FastAPI.
 
 ---
@@ -176,7 +181,7 @@ feature/* → develop (personal remote)
          → Render auto-deploys
 ```
 
-`render_build.sh` is idempotent and re-runs every phase on each deploy (existing objects are skipped), so subsequent deploys rebuild CSS, reinstall dependencies, re-apply any new DDL/seed and restart Uvicorn.
+`render_build.sh` always rebuilds CSS, reinstalls dependencies, and restarts Uvicorn on every push. The database bootstrap step is skipped by default (see Step 4) — it only runs when `RUN_DB_BOOTSTRAP=true` is set for that deploy, which should only be when standing up a fresh database or deliberately applying newly added DDL/seed phases.
 
 ### Adding new tiers to the database
 
@@ -184,10 +189,22 @@ When a new tier's DDL + seed are committed:
 
 1. Add the new DDL + seed `run_sql` calls to `render_build.sh` in the same position as in
    `database/scripts/02_build.sh` (keep the two in sync).
-2. Deploy — new files are applied automatically. Only `CREATE ... IF NOT EXISTS`/upsert-style
-   files are safe to re-run; a DDL *change* to an existing table (new column, altered
-   constraint) is **not** applied by `IF NOT EXISTS` and must be run manually against Neon
-   (`psql` or the Neon SQL Editor), or the Neon branch reset to force a full re-bootstrap.
+2. **Setting `RUN_DB_BOOTSTRAP=true` and redeploying is safe against a live database** (fixed
+   2026-10-05 — every reference/config seed file now uses `ON CONFLICT ... DO NOTHING`,
+   insert-if-missing, not `DO UPDATE SET`). Replaying the full chain will never revert an admin's
+   edit to `system_setting`, `organization` (Sakha name/address/contact), `master_data`,
+   `role_master`, `permission_master`, `country`, `state`, `district`, `master_category`,
+   `postal_code`, or `festival_calendar`/`festival_calendar_date` — only genuinely missing rows
+   get inserted. (`id_sequence_master` is the one deliberate exception: its `current_value` is
+   excluded from the upsert so runtime-generated IDs are never reset — see that file's header.)
+   Transactional tables (`person`, `family_*`, `membership_*`, `registration_claim`,
+   `user_account`) have no seed files at all and are never touched by a bootstrap re-run.
+   Admin bootstrap (`01_admin_bootstrap.sql`) uses `WHERE NOT EXISTS` guards, not upsert, so a
+   changed admin password is also never reset.
+   One residual limit: a DDL *change* to an existing table (a new column, an altered constraint)
+   is **not** applied by `CREATE TABLE IF NOT EXISTS` either way — that statement no-ops against
+   a table that already exists. New columns on existing tables still need a manual `ALTER TABLE`
+   against Neon, or a Neon branch reset to force a full re-bootstrap on an empty database.
 
 ---
 

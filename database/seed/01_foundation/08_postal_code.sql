@@ -2,13 +2,14 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 08_postal_code.sql
--- Version: 2.0 — SOL-ARCH-010 Amendment (Simplified Geography
---          Model, 2026-10-02): postal_code no longer carries
---          country_pk or post_office_name. These 3 PINs are
---          also present in the all-India 08b bulk load (same
---          PIN, same state) — this file is now effectively a
---          no-op safety net for the Organization seed, kept so
---          08b is not a hard prerequisite.
+-- Version: 2.1 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a postal_code row an admin has
+--          edited or approved. Insert-if-missing only. SOL-ARCH-010
+--          Amendment (Simplified Geography Model, 2026-10-02): postal_code
+--          no longer carries country_pk or post_office_name. These 3 PINs
+--          are also present in the all-India 08b bulk load (same PIN, same
+--          state) — this file is now effectively a no-op safety net for
+--          the Organization seed, kept so 08b is not a hard prerequisite.
 -- Authority: SOL-FND-004, SOL-ARCH-010 §8
 -- Owner: NSS_ERP_ADMIN
 -- Note: Seed postal codes referenced by Organization
@@ -25,8 +26,7 @@ WHERE c.country_code = 'IN'
   AND s.state_code = 'OD'
 ON CONFLICT (postal_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    state_pk = EXCLUDED.state_pk;
+    DO NOTHING;
 
 -- Puri — Nilachala Kutira, Smruti Mandira (Swargadwar area)
 INSERT INTO nss.postal_code (state_pk, postal_code)
@@ -37,8 +37,7 @@ WHERE c.country_code = 'IN'
   AND s.state_code = 'OD'
 ON CONFLICT (postal_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    state_pk = EXCLUDED.state_pk;
+    DO NOTHING;
 
 -- Cuttack — Tier 4 verification (second Sakha location)
 INSERT INTO nss.postal_code (state_pk, postal_code)
@@ -49,5 +48,4 @@ WHERE c.country_code = 'IN'
   AND s.state_code = 'OD'
 ON CONFLICT (postal_code)
     WHERE entry_status = 'APPROVED' AND is_active = TRUE
-    DO UPDATE SET
-    state_pk = EXCLUDED.state_pk;
+    DO NOTHING;

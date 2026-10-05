@@ -3,8 +3,20 @@
 # render_build.sh — Render.com build script
 # ==========================================================
 #
-# Runs on every deploy. Installs Python dependencies, then
-# bootstraps the Neon.dev PostgreSQL database (DDL + seed).
+# Runs on every deploy. Installs Python dependencies, and —
+# ONLY when explicitly requested — bootstraps the PostgreSQL
+# database (DDL + seed).
+#
+# RUN_DB_BOOTSTRAP (decided 2026-10-05): the full DDL+seed
+# bootstrap below is now gated behind this env var and SKIPPED
+# by default. It used to run on every deploy (idempotent,
+# skip-on-exists), which was fine for early iteration but is
+# the wrong default now — day-to-day deploys should only ship
+# app code, not re-touch the database. The full bootstrap is
+# kept, unchanged, for the one real use case it's still needed
+# for: standing up the database from scratch on the org server.
+# Set RUN_DB_BOOTSTRAP=true in the Render/host dashboard only
+# for that run, then unset it again.
 #
 # Idempotent re-run, same as database/scripts/02_build.sh
 # (Version 2.1): every phase runs on every deploy; any SQL
@@ -23,6 +35,7 @@
 #   DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT
 #   DB_WRITE_USER, DB_WRITE_PASSWORD (Tier 5 nss_db_writer pool)
 #   JWT_SECRET_KEY (Tier 5 auth)
+#   RUN_DB_BOOTSTRAP (optional; "true" to run DDL+seed, default: skipped)
 #
 # Keep phase order in sync with database/scripts/02_build.sh
 # if it changes.
@@ -40,6 +53,13 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 echo ""
+if [ "${RUN_DB_BOOTSTRAP:-false}" != "true" ]; then
+    echo "=== Skipping database bootstrap (RUN_DB_BOOTSTRAP not set to true) ==="
+    echo ""
+    echo "=== Build finished ==="
+    exit 0
+fi
+
 echo "=== Bootstrapping database (Neon.dev) ==="
 
 # Neon uses standard PostgreSQL wire protocol — psql works directly.

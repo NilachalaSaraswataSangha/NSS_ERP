@@ -2,7 +2,9 @@
 -- NSS ERP
 -- Module: Organization
 -- Seed File: 05_sakha_branches.sql
--- Version: 2.0
+-- Version: 2.1 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite an admin's edit to a Sakha's
+--          name/address. Insert-if-missing only.
 -- Authority: NSS Bye-Law, NSS Branches directory
 -- Owner: NSS_ERP_ADMIN
 -- Note: Seeds 175 Sakha Sangha branches from the
@@ -43,7 +45,7 @@
 --
 --       Depends on: 09_sakha_postal_codes.sql (Foundation)
 --
---       Idempotent: ON CONFLICT (organization_code) DO UPDATE.
+--       Idempotent: ON CONFLICT (organization_code) DO NOTHING.
 -- =====================================================
 
 -- CTE for compact bulk insertion with master_data + postal_code joins.
@@ -264,14 +266,7 @@ SELECT
     r.type_pk, r.status_pk,
     r.parent_pk, r.address_line_1, r.country_pk, r.postal_code_pk
 FROM resolved r
-ON CONFLICT (organization_code) DO UPDATE SET
-    organization_name                = EXCLUDED.organization_name,
-    organization_type_master_data_pk = EXCLUDED.organization_type_master_data_pk,
-    status_master_data_pk            = EXCLUDED.status_master_data_pk,
-    parent_organization_pk           = EXCLUDED.parent_organization_pk,
-    address_line_1                   = EXCLUDED.address_line_1,
-    country_pk                       = EXCLUDED.country_pk,
-    postal_code_pk                   = EXCLUDED.postal_code_pk;
+ON CONFLICT (organization_code) DO NOTHING;
 
 -- ---------------------------------------------------------------------
 -- Backfill state_pk / district_pk from each branch's resolved PIN.

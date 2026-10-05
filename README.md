@@ -124,9 +124,9 @@ design philosophy, ensuring that business rules are frozen before implementation
   `DB_PASSWORD`/`DB_HOST`/`DB_PORT` (plus the Tier 5 `DB_WRITE_USER`/`DB_WRITE_PASSWORD`/
   `JWT_SECRET_KEY`) are set manually in the Render dashboard, pointing at an external Neon.dev
   PostgreSQL instance. `render_build.sh` builds the Tailwind CSS, installs Python deps and then
-  re-runs the full DB bootstrap (phases 0-14, DDL + seed + admin bootstrap) on **every**
-  deploy — each statement that hits "already exists"/duplicate-key is skipped, so redeploys are
-  idempotent. Not yet run in production; see
+  runs the full DB bootstrap (phases 0-14, DDL + seed + admin bootstrap) **only when
+  `RUN_DB_BOOTSTRAP=true`** is set (default: skipped) — each statement that hits "already
+  exists"/duplicate-key is skipped, so a re-run is idempotent. Not yet run in production; see
   `docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md`.
 
 ---

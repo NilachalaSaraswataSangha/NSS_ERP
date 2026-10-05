@@ -2,9 +2,9 @@
 -- NSS ERP
 -- Module: Foundation
 -- Seed File: 01_master_category.sql
--- Version: 1.1 — INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
---          so a partial re-run no longer silently skips rows after
---          the first pre-existing row it hits
+-- Version: 1.2 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a category row an admin has edited.
+--          Insert-if-missing only.
 -- Authority: SOL-FND-004 §6.4, §29
 -- Owner: NSS_ERP_ADMIN
 -- =====================================================
@@ -95,7 +95,4 @@ VALUES
     'Blood group classification for persons',
     13
 )
-ON CONFLICT (category_code) DO UPDATE SET
-    category_name = EXCLUDED.category_name,
-    description   = EXCLUDED.description,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (category_code) DO NOTHING;

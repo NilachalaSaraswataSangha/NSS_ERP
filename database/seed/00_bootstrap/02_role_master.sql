@@ -3,9 +3,9 @@
 -- Module: Bootstrap RBAC
 -- File: 02_role_master.sql (seed)
 -- Seed: 9 frozen roles (SOL-ADMIN-004 §8.7)
--- Version: 1.1 — INSERT is now an upsert (ON CONFLICT ... DO UPDATE),
---          so a partial re-run no longer silently skips rows after
---          the first pre-existing row it hits
+-- Version: 1.2 — ON CONFLICT DO NOTHING, not DO UPDATE (2026-10-05): a
+--          re-run must never overwrite a role's live-edited fields.
+--          Insert-if-missing only.
 -- Authority: SOL-ARCH-011 §4, SOL-ADMIN-004 §8.7
 --
 -- NAMING CONVENTION:
@@ -78,9 +78,4 @@ VALUES
      'KENDRA_MAHILA_SANGHA',
      'Administrative authority scoped to the Kendra Mahila Sangha',
      9)
-ON CONFLICT (role_code) DO UPDATE SET
-    role_name     = EXCLUDED.role_name,
-    role_class    = EXCLUDED.role_class,
-    scope_level   = EXCLUDED.scope_level,
-    description   = EXCLUDED.description,
-    display_order = EXCLUDED.display_order;
+ON CONFLICT (role_code) DO NOTHING;
