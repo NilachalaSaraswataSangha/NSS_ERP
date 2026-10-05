@@ -290,7 +290,8 @@ Write-Host ""
 # Phase 12: Grant nss_db_writer write access (Tier 5)
 # Must run AFTER Auth + Admin DDL so the tables exist.
 # Grants SELECT on ALL tables (login lookups) +
-# INSERT/UPDATE on auth + admin tables only.
+# INSERT/UPDATE on ALL nss tables, incl. future ones
+# (no DELETE, no DDL).
 # -------------------------------------------------
 Write-Host "[Phase 12] Grant nss_db_writer write access" -ForegroundColor Cyan
 Invoke-Sql "create_writer_role" "$ScriptDir\05_create_writer_role.sql"

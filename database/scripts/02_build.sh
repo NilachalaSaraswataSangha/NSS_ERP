@@ -343,7 +343,8 @@ echo ""
 # Phase 12: Grant nss_db_writer write access (Tier 5)
 # Must run AFTER Auth + Admin DDL so the tables exist.
 # Grants SELECT on ALL tables (login lookups) +
-# INSERT/UPDATE on auth + admin tables only.
+# INSERT/UPDATE on ALL nss tables, incl. future ones
+# (no DELETE, no DDL).
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 12] Grant nss_db_writer write access${NC}"
 run_sql "create_writer_role" "${SCRIPT_DIR}/05_create_writer_role.sql"

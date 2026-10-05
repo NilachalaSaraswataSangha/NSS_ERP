@@ -15,7 +15,7 @@ Run from the repository root.
 | `01_extensions.sql` | superuser (`postgres`) | `nss_erp` | Installs `pgcrypto`, `pg_trgm`, `btree_gin`, `postgis`. Creates `nss` schema owned by `nss_db_owner`. Idempotent. |
 | `06_setup_env.sh` (bash only — no `.ps1` counterpart) | superuser (`postgres`; optionally pass a different superuser name as the first arg) | `postgres` | Verifies the 3 roles exist, prompts for each role's password, runs `ALTER ROLE ... PASSWORD` on all three, and writes `api/.env` (`DB_NAME`/`DB_USER=nss_db_backend`/`DB_PASSWORD`/`DB_HOST`/`DB_PORT`, `DB_WRITE_USER`/`DB_WRITE_PASSWORD`, a random `JWT_SECRET_KEY` from `openssl rand -hex 32`, plus `JWT_ACCESS_TOKEN_MINUTES=30`/`JWT_REFRESH_TOKEN_DAYS=7`/`JWT_ABSOLUTE_SESSION_DAYS=30`). Run once after `00_create_database.sql`; if `api/.env` already exists it exits without changes unless `--force` is given. Its closing "Next steps" text points to `./database/scripts/02_build.sh`, then `python3 -m uvicorn api.main:app --reload --port 8001` from the repository root. |
 | `02_build.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | First runs `pip install -r requirements.txt`, then all implemented DDL + seed (Phases 0–14: Bootstrap RBAC through Audit DDL; Phase 8 is an empty placeholder). Idempotent re-run: a file whose output contains `already exists` or `duplicate key value violates unique constraint` is reported `[SKIP]`, any other psql error aborts the build. **47 tables** created in total (see phase table below). |
-| `03_validate.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Post-build checks: table existence, row counts (each is a **minimum** — `count >= expected`, below it is a `[WARN]`, not a failure), duplicate checks, FK orphan checks, key-column presence. Covers Bootstrap RBAC, Foundation (11 tables; not `post_office`/`festival_*`/`system_event_log`), Organization, Person, Authentication, Administration. **No checks for Family, Membership, or `system_event_log`**, and some hardcoded minimums are stale/low (see "Validation coverage" below). Does not execute any DDL/seed. |
+| `03_validate.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Post-build checks: table existence, row counts (each is a **minimum** — `count >= expected`, below it is a `[WARN]`, not a failure), duplicate checks, FK orphan checks, key-column presence. Covers Bootstrap RBAC, Foundation (11 tables; not `post_office`/`festival_*`/`system_event_log`), Organization, Person, Authentication, Administration. Family, Membership and `system_event_log` get existence checks only (see "Validation coverage" below). Does not execute any DDL/seed. |
 | `04_grant_backend.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_backend` read-only access: `USAGE` on `nss` schema, `SELECT` on all tables, `ALTER DEFAULT PRIVILEGES` for future tables. Idempotent. Run as Phase 9 inside `02_build.sh`. |
 | `05_create_writer_role.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_writer` `USAGE` on the `nss` schema, `SELECT` and `INSERT`/`UPDATE` on **all** current tables in `nss` (not just auth/admin tables), and the same three via `ALTER DEFAULT PRIVILEGES` for future tables. No `DELETE`/`TRUNCATE`/`REFERENCES`/`TRIGGER`, no DDL (soft-delete only). Idempotent. Run as Phase 12 inside `02_build.sh`. |
 
@@ -257,15 +257,14 @@ Phase 13, the admin-bootstrap rows and all seed data are not audited.
 
 ### Validation coverage (`03_validate.sh`/`.ps1`)
 
-The two wrappers run the same checks (86 check calls each, including the `city_village.district_pk`
+The two wrappers run the same checks (107 check calls each, including the `city_village.district_pk`
 column and its minimum district-coverage percentage). Covered: Bootstrap RBAC (3 tables), Foundation's
 11 tables (not `post_office`, `festival_*`, `system_event_log`), `organization`, `person`/`person_address`, the 4 Authentication tables, and
-`user_role`/`admin_scope`. **Not covered:** `family_*`, every Membership table, `system_event_log`,
-`credential_sequence_counter`. Row-count checks pass when `count >= expected` and only WARN below
-it, so the stale minimums do not cause false failures — they are just weak: `role_master` 8 (9 are
-seeded), `master_data` 82 (89), `id_sequence_master` 11 (14), `system_setting` 4 (5),
-`organization` 3 (178 after Phase 4), `person` 0, `user_account`/`user_role`/`admin_scope` 1 (the
-bootstrap admin). The geography minimums are current: `state` 112, `district` 780 (785 seeded),
+`user_role`/`admin_scope`. The 6 `family_*` tables, the 14 Membership tables (incl.
+`credential_sequence_counter`) and `system_event_log` get **existence checks only**. Row-count checks
+pass when `count >= expected` and only WARN below it; the minimums track the current seed:
+`role_master` 9, `master_data` 89, `id_sequence_master` 14, `system_setting` 5, `organization` 178
+(after Phase 4), `person` 0, `user_account`/`user_role`/`admin_scope` 1 (the bootstrap admin). The geography minimums are current: `state` 112, `district` 780 (785 seeded),
 `postal_code` 17800 (17,869 seeded), `city_village` 673000.
 
 ### Render parity

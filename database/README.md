@@ -327,14 +327,12 @@ Validates the build. **Does NOT execute any DDL or seed scripts** — run `02_bu
 | Authentication (4 tables) | Existence, `user_account`/`password_history` key columns, unique `person_pk`, FK integrity |
 | Administration (2 tables) | Existence, key columns, FK integrity |
 
-**Known gaps (script, not docs, needs the fix):** no checks for Family, Membership,
-`system_event_log` or `credential_sequence_counter`. Row-count checks assert `count >= expected`
-and only WARN when lower, so the hardcoded minimums (`role_master` 8, `master_data` 82,
-`id_sequence_master` 11, `system_setting` 4, `organization` 3, `person` 0) do not cause false
-failures — they are simply stale/weak against the current seed (9 roles, 89 master_data, 14
-sequences, 5 settings, 178 organizations). The geography minimums (`state` 112, `district` 780,
-`postal_code` 17800, `city_village` 673000) are current. The `.sh` and `.ps1` versions each have 86 check calls,
-including `city_village.district_pk` existence and minimum coverage (Simplified Geography Model).
+| Family (6), Membership (14, incl. `credential_sequence_counter`), `system_event_log` | Existence only (no seed data, no key-column or FK checks) |
+
+Row-count checks assert `count >= expected` and only WARN when lower; the minimums track the
+current seed (9 roles, 89 master_data, 14 sequences, 5 settings, 178 organizations; `person` 0).
+Geography minimums: `state` 112, `district` 780, `postal_code` 17800, `city_village` 673000. The
+`.sh` and `.ps1` versions each have 107 check calls, including `city_village.district_pk` existence and minimum coverage (Simplified Geography Model).
 
 **Extend this script when new modules are added to `02_build.sh`.**
 

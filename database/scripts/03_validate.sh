@@ -28,6 +28,7 @@
 #   - Person (2 tables + address FK columns on person)
 #   - Authentication (4 tables)
 #   - Administration (2 tables)
+#   - Family (6), Membership (14, incl. credential_sequence_counter), system_event_log — existence only
 #
 # Extend this script when new modules are added.
 # =====================================================
@@ -166,7 +167,7 @@ check_table_exists "permission_master"
 check_table_exists "role_permission"
 
 echo "  Row counts:"
-check_row_count "role_master" 8
+check_row_count "role_master" 9
 
 echo "  Unique constraints:"
 check_no_duplicates "role_master" "role_code"
@@ -195,12 +196,12 @@ done
 
 echo "  Row counts:"
 check_row_count "master_category" 13
-check_row_count "master_data" 82
-check_row_count "id_sequence_master" 11
+check_row_count "master_data" 89
+check_row_count "id_sequence_master" 14
 check_row_count "country" 5
 check_row_count "state" 112
 check_row_count "district" 780
-check_row_count "system_setting" 4
+check_row_count "system_setting" 5
 check_row_count "postal_code" 17800
 check_row_count "city_village" 673000
 
@@ -243,7 +244,7 @@ echo "  Tables:"
 check_table_exists "organization"
 
 echo "  Row counts:"
-check_row_count "organization" 3
+check_row_count "organization" 178
 
 echo "  Unique constraints:"
 check_no_duplicates "organization" "organization_code"
@@ -359,6 +360,34 @@ check_fk_integrity "admin_scope -> user_role" \
     "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.user_role ur ON asc2.user_role_pk = ur.user_role_pk WHERE ur.user_role_pk IS NULL;"
 check_fk_integrity "admin_scope -> organization" \
     "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.organization o ON asc2.organization_pk = o.organization_pk WHERE asc2.organization_pk IS NOT NULL AND o.organization_pk IS NULL;"
+echo ""
+
+# =====================================================
+# Module 7: Family, Membership, audit
+# =====================================================
+echo -e "${CYAN}--- Family / Membership / Audit ---${NC}"
+echo "  Tables (existence only — no seed data):"
+check_table_exists "family_group"
+check_table_exists "family_relationship"
+check_table_exists "family_transition_history"
+check_table_exists "family_head_history"
+check_table_exists "family_link"
+check_table_exists "family_admin"
+check_table_exists "sangha_sevi"
+check_table_exists "membership_status_history"
+check_table_exists "membership_renewal_request"
+check_table_exists "membership_renewal_history"
+check_table_exists "membership_transfer_history"
+check_table_exists "membership_sakha_affiliation"
+check_table_exists "membership_journey_event"
+check_table_exists "probationary_member_review"
+check_table_exists "parichaya_patra"
+check_table_exists "parichaya_patra_history"
+check_table_exists "anumati_patra"
+check_table_exists "anumati_patra_history"
+check_table_exists "darshak_attendance_registration"
+check_table_exists "credential_sequence_counter"
+check_table_exists "system_event_log"
 echo ""
 
 # =====================================================

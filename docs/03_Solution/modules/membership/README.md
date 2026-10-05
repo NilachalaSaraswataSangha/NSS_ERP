@@ -1,6 +1,6 @@
 # NSS ERP Membership Module
 
-Status: DRAFT — full Solution design complete, **not yet implemented in SQL**. A prior Django
+Status: Solution design complete; DDL implemented in `database/ddl/05_membership/` (14 tables, built in `02_build.sh` Phase 7). A prior Django
 prototype app (`backend/membership/`, with plain-integer-PK models `MembershipType`,
 `MembershipStatus`, `SanghaSevi` and no audit/soft-delete columns) existed early in the project
 but was removed along with the rest of the Django prototype (`backend/`) — see CLAUDE.md and

@@ -108,7 +108,7 @@ Check-TableExists "permission_master"
 Check-TableExists "role_permission"
 
 Write-Host "  Row counts:"
-Check-RowCount "role_master" 8
+Check-RowCount "role_master" 9
 
 Write-Host "  Unique constraints:"
 Check-NoDuplicates "role_master" "role_code"
@@ -126,12 +126,12 @@ foreach ($t in $foundationTables) { Check-TableExists $t }
 
 Write-Host "  Row counts:"
 Check-RowCount "master_category" 13
-Check-RowCount "master_data" 82
-Check-RowCount "id_sequence_master" 11
+Check-RowCount "master_data" 89
+Check-RowCount "id_sequence_master" 14
 Check-RowCount "country" 5
 Check-RowCount "state" 112
 Check-RowCount "district" 780
-Check-RowCount "system_setting" 4
+Check-RowCount "system_setting" 5
 Check-RowCount "postal_code" 17800
 Check-RowCount "city_village" 673000
 
@@ -164,7 +164,7 @@ Write-Host "  Tables:"
 Check-TableExists "organization"
 
 Write-Host "  Row counts:"
-Check-RowCount "organization" 3
+Check-RowCount "organization" 178
 
 Write-Host "  Unique constraints:"
 Check-NoDuplicates "organization" "organization_code"
@@ -258,6 +258,32 @@ Check-FkIntegrity "user_role -> user_account" "SELECT COUNT(*) FROM nss.user_rol
 Check-FkIntegrity "user_role -> role_master" "SELECT COUNT(*) FROM nss.user_role ur LEFT JOIN nss.role_master rm ON ur.role_master_pk = rm.role_master_pk WHERE rm.role_master_pk IS NULL;"
 Check-FkIntegrity "admin_scope -> user_role" "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.user_role ur ON asc2.user_role_pk = ur.user_role_pk WHERE ur.user_role_pk IS NULL;"
 Check-FkIntegrity "admin_scope -> organization" "SELECT COUNT(*) FROM nss.admin_scope asc2 LEFT JOIN nss.organization o ON asc2.organization_pk = o.organization_pk WHERE asc2.organization_pk IS NOT NULL AND o.organization_pk IS NULL;"
+Write-Host ""
+
+# Family, Membership, audit (existence only - no seed data)
+Write-Host "--- Family / Membership / Audit ---" -ForegroundColor Cyan
+Write-Host "  Tables (existence only - no seed data):"
+Check-TableExists "family_group"
+Check-TableExists "family_relationship"
+Check-TableExists "family_transition_history"
+Check-TableExists "family_head_history"
+Check-TableExists "family_link"
+Check-TableExists "family_admin"
+Check-TableExists "sangha_sevi"
+Check-TableExists "membership_status_history"
+Check-TableExists "membership_renewal_request"
+Check-TableExists "membership_renewal_history"
+Check-TableExists "membership_transfer_history"
+Check-TableExists "membership_sakha_affiliation"
+Check-TableExists "membership_journey_event"
+Check-TableExists "probationary_member_review"
+Check-TableExists "parichaya_patra"
+Check-TableExists "parichaya_patra_history"
+Check-TableExists "anumati_patra"
+Check-TableExists "anumati_patra_history"
+Check-TableExists "darshak_attendance_registration"
+Check-TableExists "credential_sequence_counter"
+Check-TableExists "system_event_log"
 Write-Host ""
 
 # Summary
