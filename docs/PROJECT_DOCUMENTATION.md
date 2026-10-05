@@ -914,7 +914,7 @@ api/
 │   │                     created at registration time** — those are created later, on claim
 │   │                     approval. Local Sakha Number is required for non-Darshaka claims,
 │   │                     optional for Darshaka (`PROBATIONARY`); not validated at registration
-│   │                     (admin verifies on approval). Also `GET /check-duplicate` (pre-submit
+│   │                     (admin verifies on approval). Also `POST /check-duplicate` (JSON body, not query string, so PII stays out of access logs; pre-submit
 │   │                     contact-uniqueness check), and (Tier 5 branch) 4 more public,
 │   │                     unauthenticated endpoints — `GET /reference-data` (bundles countries +
 │   │                     4 master-data categories + the Sakha list into one call), `GET

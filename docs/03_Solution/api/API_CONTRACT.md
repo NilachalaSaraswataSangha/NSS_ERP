@@ -380,7 +380,7 @@ registration page has no JWT yet). Creates `person` + `user_account(PENDING_APPR
 | # | Method | Path | Description |
 |---|---|---|---|
 | 72 | POST | `` | Self-register |
-| 73 | GET | `/check-duplicate` | Pre-submit contact-uniqueness check |
+| 73 | POST | `/check-duplicate` | Pre-submit contact-uniqueness check |
 | 74 | GET | `/reference-data` | Countries, gender/marital-status/blood-group/membership-type master data and the Sakha list in one call |
 | 75 | GET | `/states` | States for a country |
 | 76 | GET | `/districts` | Districts for a state |

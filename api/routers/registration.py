@@ -3,7 +3,7 @@ NSS ERP — Self-Registration router.
 
 Tier 5 endpoints:
   POST /api/v1/register                — Self-register (creates person + pending account + claim)
-  GET  /api/v1/register/check-duplicate — Pre-submit duplicate contact check
+  POST /api/v1/register/check-duplicate — Pre-submit duplicate contact check (body, not query — avoids PII in access logs)
   GET  /api/v1/register/reference-data  — Dropdown reference data for the form
   GET  /api/v1/register/states          — States lookup (cascading geography)
   GET  /api/v1/register/districts       — Districts lookup (by state)
@@ -177,13 +177,25 @@ class RegisterResponse(BaseModel):
 from datetime import date  # noqa: E402 — needed for forward ref resolution
 
 
-# ── GET /api/v1/register/check-duplicate ──────────────────────────────
+# ── POST /api/v1/register/check-duplicate ──────────────────────────────
+# POST-with-body, not GET-with-query-params (changed 2026-10-05): mobile
+# number and email are PII, and a GET's query string is part of the URL —
+# it lands in plaintext in uvicorn's access log, any reverse proxy in
+# front of it, and Render's own request logs, with no way to suppress
+# just this route. A POST body never appears in the request line, so it
+# doesn't get logged by default. This is a live pre-submit check (not a
+# bookmarkable/shareable URL), so there's no UX reason it needed to be a
+# GET in the first place.
 
-@router.get("/check-duplicate")
+class CheckDuplicateRequest(BaseModel):
+    mobile_number: str | None = Field(None, description="Mobile number to check")
+    country_phone_code: str | None = Field(None, description="Country phone code")
+    email: str | None = Field(None, description="Email to check")
+
+
+@router.post("/check-duplicate")
 def check_duplicate(
-    mobile_number: str | None = Query(None, description="Mobile number to check"),
-    country_phone_code: str | None = Query(None, description="Country phone code"),
-    email: str | None = Query(None, description="Email to check"),
+    body: CheckDuplicateRequest,
     conn=Depends(get_connection),
 ):
     """
@@ -196,7 +208,7 @@ def check_duplicate(
     result = {"mobile_exists": False, "email_exists": False}
 
     with conn.cursor() as cur:
-        if mobile_number and country_phone_code:
+        if body.mobile_number and body.country_phone_code:
             cur.execute(
                 """
                 SELECT 1 FROM nss.person
@@ -205,11 +217,11 @@ def check_duplicate(
                   AND is_active = TRUE
                 LIMIT 1
                 """,
-                (country_phone_code, mobile_number),
+                (body.country_phone_code, body.mobile_number),
             )
             result["mobile_exists"] = cur.fetchone() is not None
 
-        if email:
+        if body.email:
             cur.execute(
                 """
                 SELECT 1 FROM nss.person
@@ -217,7 +229,7 @@ def check_duplicate(
                   AND is_active = TRUE
                 LIMIT 1
                 """,
-                (email,),
+                (body.email,),
             )
             result["email_exists"] = cur.fetchone() is not None
 

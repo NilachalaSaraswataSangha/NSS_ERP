@@ -354,17 +354,23 @@ function registerApp() {
             }
 
             // ── Check for duplicate mobile/email before proceeding ────
+            // POST with a JSON body, not GET with query params (2026-10-05) —
+            // mobile number and email are PII and must not land in access logs.
             try {
-                const params = new URLSearchParams();
+                const body = {};
                 if (this.form.mobile_number && this.form.country_phone_code) {
-                    params.set("mobile_number", this.form.mobile_number);
-                    params.set("country_phone_code", this.form.country_phone_code);
+                    body.mobile_number = this.form.mobile_number;
+                    body.country_phone_code = this.form.country_phone_code;
                 }
                 if (this.form.email) {
-                    params.set("email", this.form.email.trim());
+                    body.email = this.form.email.trim();
                 }
 
-                const res = await fetch(`/api/v1/register/check-duplicate?${params}`);
+                const res = await fetch("/api/v1/register/check-duplicate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
                 if (res.ok) {
                     const data = await res.json();
                     const errors = [];

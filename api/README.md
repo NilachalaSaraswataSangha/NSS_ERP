@@ -228,7 +228,7 @@ api/
 │   │                    `_ALLOWED_PARENT_TYPES`/`_NO_ADDRESS_TYPES`/`_SAKHA_GATED_TYPES`
 │   │                    constants are shared by create/update rather than re-defined per function
 │   ├── registration.py  Tier 5 — 10 endpoints under /api/v1/register: `POST ""`
-│   │                    self-registration, `GET /check-duplicate`, plus 8 public,
+│   │                    self-registration, `POST /check-duplicate`, plus 8 public,
 │   │                    unauthenticated reference-data endpoints (`/reference-data`, `/countries`,
 │   │                    `/states`, `/districts`, `/cities`, `/postal-codes`, `/post-offices`, `/sakhas`) that thinly wrap `foundation.py`'s/
 │   │                    `organization.py`'s own shared query functions — fixes a regression where
@@ -377,7 +377,7 @@ exact `require_permission`/`require_any_permission` arguments in each router.
 | POST | `/api/v1/admin/geo-entries/{entity}/{entry_pk}/approve` | same | PENDING to APPROVED |
 | POST | `/api/v1/admin/geo-entries/{entity}/{entry_pk}/correct` | same | Find-or-create canonical row, mark CORRECTED, re-point `person_address` FKs |
 | POST | `/api/v1/register` | none | Self-registration — creates `person` + `user_account(PENDING_APPROVAL)` + optional `registration_claim` |
-| GET | `/api/v1/register/check-duplicate` | none | `{mobile_exists, email_exists}` pre-submit check |
+| POST | `/api/v1/register/check-duplicate` | none | JSON body `{mobile_number, country_phone_code, email}` → `{mobile_exists, email_exists}` pre-submit check |
 | GET | `/api/v1/register/reference-data` | none | Countries + gender/marital-status/blood-group/membership-type master-data + the Sakha list, bundled into one call for the public registration page |
 | GET | `/api/v1/register/countries`/`/states`/`/districts`/`/cities`/`/postal-codes`/`/post-offices`/`/sakhas` | none | Public location-cascade and Sakha lookups, thin wrappers over `foundation.py`'s `fetch_*()` functions and `organization.py`'s `fetch_organizations()` |
 | GET | `/api/v1/admin/claims` | any of `MEMBERSHIP_APPROVE`/`ADMIN_USER_MANAGE`, scoped | List registration claims (`claim_status` filter, default `PENDING`; `page`/`page_size` pagination) |
