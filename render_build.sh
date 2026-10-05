@@ -7,26 +7,55 @@
 # ONLY when explicitly requested — bootstraps the PostgreSQL
 # database (DDL + seed).
 #
-# RUN_DB_BOOTSTRAP (decided 2026-10-05): the full DDL+seed
-# bootstrap below is now gated behind this env var and SKIPPED
-# by default. It used to run on every deploy (idempotent,
-# skip-on-exists), which was fine for early iteration but is
-# the wrong default now — day-to-day deploys should only ship
-# app code, not re-touch the database. The full bootstrap is
-# kept, unchanged, for the one real use case it's still needed
-# for: standing up the database from scratch on the org server.
-# Set RUN_DB_BOOTSTRAP=true in the Render/host dashboard only
-# for that run, then unset it again.
+# RUN_DB_BOOTSTRAP (decided 2026-10-05, corrected 2026-10-05):
+# gates ONLY the Phase 13 NSSAdmin seed step (scripts/bootstrap_admin.py),
+# not the DDL/seed phases. Everything else (Phase 0-12, 14) always runs,
+# idempotently (skip-on-exists) — same as database/scripts/02_build.sh —
+# so a routine deploy safely picks up any DDL/seed added since the last
+# deploy (e.g. a new table like user_session) without needing to drop
+# and recreate anything.
 #
-# Idempotent re-run, same as database/scripts/02_build.sh
-# (Version 2.1): every phase runs on every deploy; any SQL
-# statement that fails with "already exists" or a duplicate
-# key violation is treated as expected on a re-run and
-# SKIPPED rather than aborting the build. This means a
-# redeploy against an already-bootstrapped database safely
-# picks up any phases added since the last deploy (e.g. a
-# new tier's DDL/seed) without needing to drop and recreate
-# anything.
+# An earlier version of this script wrapped the entire DDL+seed bootstrap
+# (every phase) behind this flag with a single `exit 0` gate at the top.
+# That was wrong: setting RUN_DB_BOOTSTRAP=false to skip re-seeding the
+# admin account also silently skipped all DDL, including newly-added
+# tables (e.g. user_session never got created), and because the flag
+# defaults to false, every subsequent deploy became a complete no-op
+# that still reported a clean build. Fixed by moving the gate down to
+# wrap only the Phase 13 call.
+#
+# Existence-gated bootstrap (Version 3.0, 2026-10-05) —
+# "only genuinely new tables are ever created or seeded; a
+# table that already exists is never dropped, re-created, or
+# re-seeded, so its live data is never touched."
+#
+# Before this version the build relied on error-string matching
+# (catch "already exists" / "duplicate key" and SKIP). That is
+# fragile: it depends on the exact wording of Postgres errors and
+# cannot distinguish "this seed row already exists" from "this
+# seed would have overwritten/changed live data". It replaces it
+# with a deterministic catalog check: for every business table we
+# ask the Postgres catalog -- to_regclass('nss.<table>') -- whether
+# the table exists BEFORE doing anything.
+#
+#   table EXISTS  -> skip its DDL *and* its seed entirely.
+#                    Live data is never read or written.
+#   table ABSENT  -> create it (run DDL), then run its seed.
+#                    This is the only path that writes seed data.
+#
+# A redeploy against the current live DB therefore reports
+# [EXISTS] skip for every table that is already there, and only
+# creates the genuinely new ones (e.g. user_session) — with zero
+# risk to existing rows.
+#
+# Non-table objects (schema, extensions, triggers, functions,
+# deferred FK wiring, GRANTs, role creation) stay on run_sql():
+# they are independently idempotent (CREATE OR REPLACE, DROP
+# TRIGGER IF EXISTS + CREATE, IF NOT EXISTS, additive GRANTs) and
+# carry no business data, so re-running them is always safe. The
+# Phase 14 audit-trigger DO block in particular re-scans the nss
+# schema on every run and (re)attaches the audit trigger to EVERY
+# table present — including any table newly created this run.
 #
 # Database: Neon.dev (per TECH_STACK_DECISIONS.md §1)
 # App host: Render.com (per TECH_STACK_DECISIONS.md §2)
@@ -58,19 +87,13 @@ echo ""
 # " true" (stray space), "1", "yes", "on" all count — the earlier
 # exact "== true" check silently skipped on any of those. Lowercase +
 # strip all whitespace, then match a small set of truthy spellings.
+# Only consumed down at Phase 13 (NSSAdmin seed) — does NOT gate DDL/seed.
 echo "=== RUN_DB_BOOTSTRAP raw value: '${RUN_DB_BOOTSTRAP:-<unset>}' ==="
 RUN_DB_BOOTSTRAP_NORM="$(printf '%s' "${RUN_DB_BOOTSTRAP:-false}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 case "${RUN_DB_BOOTSTRAP_NORM}" in
     true|1|yes|on) RUN_BOOTSTRAP=1 ;;
     *)             RUN_BOOTSTRAP=0 ;;
 esac
-if [ "${RUN_BOOTSTRAP}" != "1" ]; then
-    echo "=== Skipping database bootstrap (RUN_DB_BOOTSTRAP not truthy) ==="
-    echo ""
-    echo "=== Build finished ==="
-    exit 0
-fi
-echo "=== RUN_DB_BOOTSTRAP is truthy — running full DDL+seed bootstrap ==="
 
 echo "=== Bootstrapping database (Neon.dev) ==="
 
@@ -105,6 +128,50 @@ run_sql() {
     fi
 }
 
+# ── Existence-gated table creation / seeding ────────────────
+# PREEXISTING[<table>]=1 marks a table that was already present in
+# the database at the START of this run. A pre-existing table has
+# its DDL AND its seed skipped — its live data is never touched.
+# A table absent at start is created and then seeded exactly once.
+declare -A PREEXISTING
+
+# Deterministic catalog check (no error-string guessing).
+# to_regclass returns the OID (non-NULL) iff the relation exists.
+table_exists() {
+    local t="$1" res
+    res=$(${PSQL} -tA -c "SELECT to_regclass('nss.${t}') IS NOT NULL;" 2>/dev/null | tr -d '[:space:]')
+    [ "${res}" = "t" ]
+}
+
+# Create a table only if it does not already exist.
+#   run_ddl <label> <table_name> <ddl_file>
+# If the table exists we record it in PREEXISTING (so run_seed
+# skips its seed too) and do nothing. Otherwise we create it.
+run_ddl() {
+    local label="$1" table="$2" file="$3"
+    echo "  [CHECK] ${label}  (nss.${table}) ..."
+    if table_exists "${table}"; then
+        PREEXISTING["${table}"]=1
+        echo "  [EXISTS] ${label}  (nss.${table} already present — DDL + seed skipped, live data preserved)"
+        return 0
+    fi
+    echo "  [NEW]  ${label}  (nss.${table} absent — creating)"
+    run_sql "${label}" "${file}"
+}
+
+# Seed a table ONLY if it was newly created in this run.
+#   run_seed <label> <target_table> <seed_file>
+# A pre-existing target table keeps its live data untouched; its
+# seed never runs. A freshly-created table is seeded exactly once.
+run_seed() {
+    local label="$1" table="$2" file="$3"
+    if [ "${PREEXISTING[${table}]:-0}" = "1" ]; then
+        echo "  [SKIP] ${label}  (nss.${table} pre-existed — seed skipped, live data preserved)"
+        return 0
+    fi
+    run_sql "${label}" "${file}"
+}
+
 echo "--- Creating nss schema ---"
 ${PSQL} -c "CREATE SCHEMA IF NOT EXISTS nss;"
 ${PSQL} -c "ALTER DATABASE ${DB_NAME} SET search_path TO nss, public;"
@@ -117,93 +184,93 @@ ${PSQL} -c "CREATE EXTENSION IF NOT EXISTS btree_gin;" 2>/dev/null || echo "  bt
 
 echo ""
 echo "--- Phase 0: Bootstrap RBAC — DDL ---"
-run_sql "role_master"       "${DDL_BASE}/00_bootstrap/01_role_master.sql"
-run_sql "permission_master" "${DDL_BASE}/00_bootstrap/02_permission_master.sql"
-run_sql "role_permission"   "${DDL_BASE}/00_bootstrap/03_role_permission.sql"
+run_ddl "role_master"       "role_master"       "${DDL_BASE}/00_bootstrap/01_role_master.sql"
+run_ddl "permission_master" "permission_master" "${DDL_BASE}/00_bootstrap/02_permission_master.sql"
+run_ddl "role_permission"   "role_permission"   "${DDL_BASE}/00_bootstrap/03_role_permission.sql"
 
 echo "--- Phase 0: Bootstrap RBAC — Seed ---"
-run_sql "permission_master (seed)" "${SEED_BASE}/00_bootstrap/01_permission_master.sql"
-run_sql "role_master (seed)"       "${SEED_BASE}/00_bootstrap/02_role_master.sql"
-run_sql "role_permission (seed)"   "${SEED_BASE}/00_bootstrap/03_role_permission.sql"
+run_seed "permission_master (seed)" "permission_master" "${SEED_BASE}/00_bootstrap/01_permission_master.sql"
+run_seed "role_master (seed)"       "role_master"       "${SEED_BASE}/00_bootstrap/02_role_master.sql"
+run_seed "role_permission (seed)"   "role_permission"   "${SEED_BASE}/00_bootstrap/03_role_permission.sql"
 
 echo ""
 echo "--- Phase 1: Foundation — DDL (14 tables) ---"
-run_sql "master_category"                "${DDL_BASE}/01_foundation/02_master_category.sql"
-run_sql "system_setting"                 "${DDL_BASE}/01_foundation/03_system_setting.sql"
-run_sql "id_sequence_master"             "${DDL_BASE}/01_foundation/04_id_sequence_master.sql"
-run_sql "country"                        "${DDL_BASE}/01_foundation/05_country.sql"
-run_sql "document_master"                "${DDL_BASE}/01_foundation/06_document_master.sql"
-run_sql "field_change_log"               "${DDL_BASE}/01_foundation/07_field_change_log.sql"
-run_sql "master_data"                    "${DDL_BASE}/01_foundation/08_master_data.sql"
-run_sql "state"                          "${DDL_BASE}/01_foundation/09_state.sql"
-run_sql "district"                       "${DDL_BASE}/01_foundation/10_district.sql"
-run_sql "postal_code"                    "${DDL_BASE}/01_foundation/12_postal_code.sql"
-run_sql "post_office"                    "${DDL_BASE}/01_foundation/13_post_office.sql"
-run_sql "city_village"                   "${DDL_BASE}/01_foundation/11_city_village.sql"
-run_sql "festival_master"                "${DDL_BASE}/01_foundation/16_festival_master.sql"
-run_sql "festival_calendar_date"         "${DDL_BASE}/01_foundation/17_festival_calendar_date.sql"
+run_ddl "master_category"                "master_category"        "${DDL_BASE}/01_foundation/02_master_category.sql"
+run_ddl "system_setting"                 "system_setting"         "${DDL_BASE}/01_foundation/03_system_setting.sql"
+run_ddl "id_sequence_master"             "id_sequence_master"     "${DDL_BASE}/01_foundation/04_id_sequence_master.sql"
+run_ddl "country"                        "country"                "${DDL_BASE}/01_foundation/05_country.sql"
+run_ddl "document_master"                "document_master"        "${DDL_BASE}/01_foundation/06_document_master.sql"
+run_ddl "field_change_log"               "field_change_log"       "${DDL_BASE}/01_foundation/07_field_change_log.sql"
+run_ddl "master_data"                    "master_data"            "${DDL_BASE}/01_foundation/08_master_data.sql"
+run_ddl "state"                          "state"                  "${DDL_BASE}/01_foundation/09_state.sql"
+run_ddl "district"                       "district"               "${DDL_BASE}/01_foundation/10_district.sql"
+run_ddl "postal_code"                    "postal_code"            "${DDL_BASE}/01_foundation/12_postal_code.sql"
+run_ddl "post_office"                    "post_office"            "${DDL_BASE}/01_foundation/13_post_office.sql"
+run_ddl "city_village"                   "city_village"           "${DDL_BASE}/01_foundation/11_city_village.sql"
+run_ddl "festival_master"                "festival_master"        "${DDL_BASE}/01_foundation/16_festival_master.sql"
+run_ddl "festival_calendar_date"         "festival_calendar_date" "${DDL_BASE}/01_foundation/17_festival_calendar_date.sql"
 
 echo ""
 echo "--- Phase 2: Foundation — Seed ---"
-run_sql "master_category (seed)"    "${SEED_BASE}/01_foundation/01_master_category.sql"
-run_sql "master_data (seed)"        "${SEED_BASE}/01_foundation/02_master_data.sql"
-run_sql "id_sequence_master (seed)" "${SEED_BASE}/01_foundation/03_id_sequence_master.sql"
-run_sql "country (seed)"            "${SEED_BASE}/01_foundation/04_country.sql"
-run_sql "state (seed)"              "${SEED_BASE}/01_foundation/05_state.sql"
-run_sql "district (seed)"           "${SEED_BASE}/01_foundation/06_district.sql"
-run_sql "system_setting (seed)"     "${SEED_BASE}/01_foundation/07_system_setting.sql"
-run_sql "postal_code (seed)"        "${SEED_BASE}/01_foundation/08_postal_code.sql"
-run_sql "postal_code bulk (seed)"   "${SEED_BASE}/01_foundation/08b_postal_code_bulk.sql"
-run_sql "post_office bulk (seed)"   "${SEED_BASE}/01_foundation/08c_post_office_bulk.sql"
-run_sql "city_village (seed)"       "${SEED_BASE}/01_foundation/11_city_village.sql"
-run_sql "city_village urban recovery (seed)" "${SEED_BASE}/01_foundation/11b_city_village_urban_recovery.sql"
-run_sql "festival_calendar (seed)"  "${SEED_BASE}/01_foundation/10_festival_calendar.sql"
+run_seed "master_category (seed)"    "master_category"    "${SEED_BASE}/01_foundation/01_master_category.sql"
+run_seed "master_data (seed)"        "master_data"        "${SEED_BASE}/01_foundation/02_master_data.sql"
+run_seed "id_sequence_master (seed)" "id_sequence_master" "${SEED_BASE}/01_foundation/03_id_sequence_master.sql"
+run_seed "country (seed)"            "country"            "${SEED_BASE}/01_foundation/04_country.sql"
+run_seed "state (seed)"              "state"              "${SEED_BASE}/01_foundation/05_state.sql"
+run_seed "district (seed)"           "district"           "${SEED_BASE}/01_foundation/06_district.sql"
+run_seed "system_setting (seed)"     "system_setting"     "${SEED_BASE}/01_foundation/07_system_setting.sql"
+run_seed "postal_code (seed)"        "postal_code"        "${SEED_BASE}/01_foundation/08_postal_code.sql"
+run_seed "postal_code bulk (seed)"   "postal_code"        "${SEED_BASE}/01_foundation/08b_postal_code_bulk.sql"
+run_seed "post_office bulk (seed)"   "post_office"        "${SEED_BASE}/01_foundation/08c_post_office_bulk.sql"
+run_seed "city_village (seed)"       "city_village"       "${SEED_BASE}/01_foundation/11_city_village.sql"
+run_seed "city_village urban recovery (seed)" "city_village" "${SEED_BASE}/01_foundation/11b_city_village_urban_recovery.sql"
+run_seed "festival_calendar (seed)"  "festival_calendar_date" "${SEED_BASE}/01_foundation/10_festival_calendar.sql"
 
 echo ""
 echo "--- Phase 3: Organization — DDL (1 table + address-restriction trigger + Kumari/Sevak one-per-Sakha trigger; type via ORGANIZATION_TYPE, status via unified STATUS in Foundation master_data) ---"
-run_sql "organization"               "${DDL_BASE}/02_organization/03_organization.sql"
+run_ddl "organization"               "organization" "${DDL_BASE}/02_organization/03_organization.sql"
 run_sql "organization_address_restriction_trigger" "${DDL_BASE}/02_organization/04_organization_address_restriction_trigger.sql"
 run_sql "organization_kumari_sevak_uniqueness_trigger" "${DDL_BASE}/02_organization/05_organization_kumari_sevak_uniqueness_trigger.sql"
 
 echo ""
 echo "--- Phase 4: Organization — Seed ---"
-run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
-run_sql "sakha postal codes (seed)"          "${SEED_BASE}/01_foundation/09_sakha_postal_codes.sql"
-run_sql "sakha branches (seed)"              "${SEED_BASE}/02_organization/05_sakha_branches.sql"
-run_sql "id_sequence_master (org sync)"      "${SEED_BASE}/02_organization/06_id_sequence_org_sync.sql"
+run_seed "organization (seed)"               "organization"       "${SEED_BASE}/02_organization/03_organization.sql"
+run_seed "sakha postal codes (seed)"         "postal_code"        "${SEED_BASE}/01_foundation/09_sakha_postal_codes.sql"
+run_seed "sakha branches (seed)"             "organization"       "${SEED_BASE}/02_organization/05_sakha_branches.sql"
+run_seed "id_sequence_master (org sync)"     "id_sequence_master" "${SEED_BASE}/02_organization/06_id_sequence_org_sync.sql"
 
 echo ""
 echo "--- Phase 5: Person — DDL (2 tables) ---"
-run_sql "person"         "${DDL_BASE}/03_person/02_person.sql"
-run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
+run_ddl "person"         "person"         "${DDL_BASE}/03_person/02_person.sql"
+run_ddl "person_address" "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
 
 echo ""
 echo "--- Phase 6: Family — DDL (6 tables + move-transition guard) ---"
-run_sql "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
-run_sql "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
-run_sql "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
-run_sql "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
-run_sql "family_link"               "${DDL_BASE}/04_family/05_family_link.sql"
-run_sql "family_admin"              "${DDL_BASE}/04_family/06_family_admin.sql"
+run_ddl "family_group"              "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
+run_ddl "family_relationship"       "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
+run_ddl "family_head_history"       "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
+run_ddl "family_transition_history" "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
+run_ddl "family_link"               "family_link"               "${DDL_BASE}/04_family/05_family_link.sql"
+run_ddl "family_admin"              "family_admin"              "${DDL_BASE}/04_family/06_family_admin.sql"
 run_sql "family_move_transition_guard" "${DDL_BASE}/04_family/07_family_move_transition_guard.sql"
 
 echo ""
 echo "--- Phase 7: Membership — DDL (14 tables + Sakha-only trigger) ---"
-run_sql "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
-run_sql "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
-run_sql "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
-run_sql "membership_renewal_history"     "${DDL_BASE}/05_membership/04_membership_renewal_history.sql"
-run_sql "membership_transfer_history"    "${DDL_BASE}/05_membership/05_membership_transfer_history.sql"
-run_sql "membership_sakha_affiliation"   "${DDL_BASE}/05_membership/06_membership_sakha_affiliation.sql"
-run_sql "membership_journey_event"       "${DDL_BASE}/05_membership/07_membership_journey_event.sql"
-run_sql "probationary_member_review"     "${DDL_BASE}/05_membership/08_probationary_member_review.sql"
-run_sql "parichaya_patra"                "${DDL_BASE}/05_membership/09_parichaya_patra.sql"
-run_sql "parichaya_patra_history"        "${DDL_BASE}/05_membership/10_parichaya_patra_history.sql"
-run_sql "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_patra.sql"
-run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
-run_sql "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
+run_ddl "sangha_sevi"                    "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
+run_ddl "membership_status_history"      "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
+run_ddl "membership_renewal_request"     "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
+run_ddl "membership_renewal_history"     "membership_renewal_history"     "${DDL_BASE}/05_membership/04_membership_renewal_history.sql"
+run_ddl "membership_transfer_history"    "membership_transfer_history"    "${DDL_BASE}/05_membership/05_membership_transfer_history.sql"
+run_ddl "membership_sakha_affiliation"   "membership_sakha_affiliation"   "${DDL_BASE}/05_membership/06_membership_sakha_affiliation.sql"
+run_ddl "membership_journey_event"       "membership_journey_event"       "${DDL_BASE}/05_membership/07_membership_journey_event.sql"
+run_ddl "probationary_member_review"     "probationary_member_review"     "${DDL_BASE}/05_membership/08_probationary_member_review.sql"
+run_ddl "parichaya_patra"                "parichaya_patra"                "${DDL_BASE}/05_membership/09_parichaya_patra.sql"
+run_ddl "parichaya_patra_history"        "parichaya_patra_history"        "${DDL_BASE}/05_membership/10_parichaya_patra_history.sql"
+run_ddl "anumati_patra"                  "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_patra.sql"
+run_ddl "anumati_patra_history"          "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
+run_ddl "darshak_attendance_registration" "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
 run_sql "sakha_only_membership_trigger"  "${DDL_BASE}/05_membership/14_sakha_only_membership_trigger.sql"
-run_sql "credential_sequence_counter"    "${DDL_BASE}/05_membership/15_credential_sequence_counter.sql"
+run_ddl "credential_sequence_counter"    "credential_sequence_counter"    "${DDL_BASE}/05_membership/15_credential_sequence_counter.sql"
 
 echo ""
 echo "--- Phase 7b: Deferred Foundation Audit FKs ---"
@@ -247,16 +314,16 @@ run_sql "grant_backend" "${REPO_ROOT}/database/scripts/04_grant_backend.sql"
 
 echo ""
 echo "--- Phase 10: Authentication — DDL (5 tables) ---"
-run_sql "user_account"           "${DDL_BASE}/06_authentication/01_user_account.sql"
-run_sql "password_history"       "${DDL_BASE}/06_authentication/02_password_history.sql"
-run_sql "registration_claim"     "${DDL_BASE}/06_authentication/03_registration_claim.sql"
-run_sql "password_reset_token"   "${DDL_BASE}/06_authentication/04_password_reset_token.sql"
-run_sql "user_session"           "${DDL_BASE}/06_authentication/05_user_session.sql"
+run_ddl "user_account"           "user_account"         "${DDL_BASE}/06_authentication/01_user_account.sql"
+run_ddl "password_history"       "password_history"     "${DDL_BASE}/06_authentication/02_password_history.sql"
+run_ddl "registration_claim"     "registration_claim"   "${DDL_BASE}/06_authentication/03_registration_claim.sql"
+run_ddl "password_reset_token"   "password_reset_token" "${DDL_BASE}/06_authentication/04_password_reset_token.sql"
+run_ddl "user_session"           "user_session"         "${DDL_BASE}/06_authentication/05_user_session.sql"
 
 echo ""
 echo "--- Phase 11: Administration — DDL (2 tables) ---"
-run_sql "user_role"    "${DDL_BASE}/07_administration/01_user_role.sql"
-run_sql "admin_scope"  "${DDL_BASE}/07_administration/02_admin_scope.sql"
+run_ddl "user_role"    "user_role"   "${DDL_BASE}/07_administration/01_user_role.sql"
+run_ddl "admin_scope"  "admin_scope" "${DDL_BASE}/07_administration/02_admin_scope.sql"
 
 echo ""
 echo "--- Phase 12: Grant nss_db_writer write access ---"
@@ -264,11 +331,23 @@ run_sql "create_writer_role" "${REPO_ROOT}/database/scripts/05_create_writer_rol
 
 echo ""
 echo "--- Phase 13: Admin Bootstrap Seed ---"
-python3 "${REPO_ROOT}/scripts/bootstrap_admin.py" || echo "  [WARN] admin_bootstrap (may already exist)"
+# Gated by RUN_DB_BOOTSTRAP (normalised to RUN_BOOTSTRAP above). This is
+# the ONLY step the flag controls: re-seeding the NSSAdmin account. Set
+# RUN_DB_BOOTSTRAP=false (default) on routine deploys to leave the live
+# admin account untouched; set it truthy only when you intend to (re)seed
+# the admin. The script itself is NOT EXISTS-guarded, so even when it runs
+# it will not overwrite an existing admin — the flag is a second, explicit
+# safety gate on top of that.
+if [ "${RUN_BOOTSTRAP}" = "1" ]; then
+    echo "  RUN_DB_BOOTSTRAP truthy — running admin bootstrap"
+    python3 "${REPO_ROOT}/scripts/bootstrap_admin.py" || echo "  [WARN] admin_bootstrap (may already exist)"
+else
+    echo "  [SKIP] admin bootstrap (RUN_DB_BOOTSTRAP not truthy — live admin account untouched)"
+fi
 
 echo ""
 echo "--- Phase 14: Audit — DDL (1 table + trigger) ---"
-run_sql "system_event_log"  "${DDL_BASE}/01_foundation/14_system_event_log.sql"
+run_ddl "system_event_log"  "system_event_log" "${DDL_BASE}/01_foundation/14_system_event_log.sql"
 run_sql "audit_trigger"     "${DDL_BASE}/01_foundation/15_audit_trigger.sql"
 
 echo ""
