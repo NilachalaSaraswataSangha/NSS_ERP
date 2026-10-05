@@ -151,7 +151,7 @@ run_sql "role_permission (seed)"   "${SEED_BASE}/00_bootstrap/03_role_permission
 echo ""
 
 # -------------------------------------------------
-# Phase 1: Foundation DDL (14 tables, Depths 0–4)
+# Phase 1: Foundation DDL (14 tables, Depths 0–3)
 # Note: festival_master/festival_calendar_date (16/17)
 #       are file-numbered after system_event_log/
 #       audit_trigger (14/15) but are created here, in
