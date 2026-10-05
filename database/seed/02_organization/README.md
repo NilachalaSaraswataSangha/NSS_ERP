@@ -91,7 +91,8 @@ Features:
   (3-5 uppercase alphanumeric, e.g. "EKM" for Ekamra)
 - Country: `IN` for Indian branches, `US` for America Saraswata Sangha
 - CTE-based bulk INSERT with master_data + postal_code JOINs
-- Idempotent via `ON CONFLICT (organization_code) DO UPDATE`
+- Idempotent via `ON CONFLICT (organization_code) DO NOTHING` (insert-if-missing only — a
+  re-run never overwrites a branch row that already exists, so live edits are preserved)
 
 ### 06_id_sequence_org_sync.sql
 

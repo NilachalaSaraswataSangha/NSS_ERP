@@ -129,7 +129,7 @@ Tailwind CLI, Alpine.js from CDN) that replaced the six standalone Tier 0-4 veri
 Implemented SQL covers 47 tables across Bootstrap RBAC (3), Foundation (15), Organization (1),
 Person (2), Family (6), Membership (14), Authentication (4) and Administration (2); a fresh
 build seeds no demo Person/Family/Membership data (only 175 real Sakha branches and one admin
-superuser). The pytest suite (914 test functions; counts in `tests/README.md`) spans `tests/api/`, `tests/db/`, `tests/security/`
+superuser). The pytest suite (921 test functions; counts in `tests/README.md`) spans `tests/api/`, `tests/db/`, `tests/security/`
 and a Playwright `tests/ui/` layer. Deployment infrastructure (`render.yaml`,
 `render_build.sh`) exists but has not yet run in production.
 

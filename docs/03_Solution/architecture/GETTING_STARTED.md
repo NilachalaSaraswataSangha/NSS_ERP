@@ -165,7 +165,7 @@ python3 -m pytest tests/ -v
 py -m pytest tests/ -v
 ```
 
-**914 test functions (1086 collected items)**, split across four directories: 560 in `tests/api/` (17 files — routers +
+**921 test functions (1092 collected items)**, split across four directories: 567 in `tests/api/` (17 files — routers +
 integration coverage), 43 in `tests/db/` (cross-module data integrity, credential-schema and festival-schema
 invariants), 62 in `tests/security/` (auth-gating/401/403/RBAC + CSP/rate-limit/CORS
 assertions), and 249 in `tests/ui/` (23 Playwright browser-test files — needs Playwright

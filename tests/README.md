@@ -13,7 +13,7 @@ tests/
 ├── api/                 # API integration tests (FastAPI TestClient, no browser)
 │   ├── test_admin.py         # Tier 5 — admin CRUD, roles, orgs (78 tests)
 │   ├── test_audit.py         # Tier 5 — field-change-log viewer (4 tests)
-│   ├── test_auth.py          # Tier 5 — login, refresh, logout, change-password, sessions (16 tests)
+│   ├── test_auth.py          # Tier 5 — login, refresh, logout, change-password, sessions (23 tests)
 │   ├── test_bootstrap.py     # Tier 0 — health, roles, permissions (9 tests)
 │   ├── test_claim_approval.py # Tier 5 — claim detail/edit/scope enforcement (13 tests)
 │   ├── test_error_messages.py # Human-readable validation/integrity-error messages (15 tests)
@@ -83,8 +83,8 @@ tests/
     └── test_ui_org_dashboard.py     # Org Dashboard tab (org-dashboard.js), six layouts (21 tests)
 ```
 
-**Current grand total: 914 tests** (AST-counted `test_*` functions, re-verified) — `tests/api/`
-(560, across 17 files), `tests/db/` (43, across 3 files), `tests/security/` (62, across 7 files),
+**Current grand total: 921 tests** (AST-counted `test_*` functions, re-verified) — `tests/api/`
+(567, across 17 files), `tests/db/` (43, across 3 files), `tests/security/` (62, across 7 files),
 `tests/ui/` (249, across 23 test files — `conftest.py` and `_csp_probe.py` hold no tests).
 
 **AST count vs. what pytest actually collects** (`pytest --collect-only -q`, verified): the
@@ -94,8 +94,8 @@ from pytest's collected-item count in two ways. (1) Fixtures named `test_*` (e.g
 `tests/api/test_registration.py`) are over-counted by an AST scan. (2) `@pytest.mark.parametrize`
 expands one function into many items — used in `test_admin.py`, `test_membership.py`,
 `test_person.py`, `test_sorting.py`, `test_error_messages.py`, `test_credential_schema.py`,
-`test_festival_schema.py` and several UI files. Collected-item totals: `tests/api/` 669,
-`tests/db/` 56, `tests/security/` 61, `tests/ui/` 300 — **1086 items** for a bare `pytest`.
+`test_festival_schema.py` and several UI files. Collected-item totals: `tests/api/` 675,
+`tests/db/` 56, `tests/security/` 61, `tests/ui/` 300 — **1092 items** for a bare `pytest`.
 `pytest.ini` declares `integration`/`ui`/`db` markers only — `tests/security/` files use
 `pytest.mark.integration`, same as `tests/api/`, so there's no separate `security` marker.
 
