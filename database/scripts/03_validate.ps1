@@ -81,6 +81,14 @@ function Check-ColumnExists {
     if ($result -eq "t") { Log-Pass "${Table}.${Column} present" } else { Log-Fail "${Table}.${Column} MISSING" }
 }
 
+function Check-MinPercentage {
+    param([string]$Label, [string]$Query, [double]$MinPct)
+    $pct = Invoke-PsqlQuery $Query
+    if ($pct -eq "ERROR") { Log-Fail "${Label}: query failed" }
+    elseif ([double]$pct -ge $MinPct) { Log-Pass "${Label}: ${pct}% (expected >= ${MinPct}%)" }
+    else { Log-Fail "${Label}: ${pct}% (expected >= ${MinPct}%)" }
+}
+
 # Header
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Cyan
@@ -140,6 +148,10 @@ Check-FkIntegrity "district -> state" "SELECT COUNT(*) FROM nss.district d LEFT 
 Check-FkIntegrity "postal_code -> state" "SELECT COUNT(*) FROM nss.postal_code p LEFT JOIN nss.state s ON p.state_pk = s.state_pk WHERE s.state_pk IS NULL;"
 Check-FkIntegrity "city_village -> postal_code" "SELECT COUNT(*) FROM nss.city_village cv LEFT JOIN nss.postal_code pc ON cv.postal_code_pk = pc.postal_code_pk WHERE cv.postal_code_pk IS NOT NULL AND pc.postal_code_pk IS NULL;"
 Check-FkIntegrity "city_village -> district" "SELECT COUNT(*) FROM nss.city_village cv LEFT JOIN nss.district d ON cv.district_pk = d.district_pk WHERE cv.district_pk IS NOT NULL AND d.district_pk IS NULL;"
+
+Write-Host "  Geography model (SOL-ARCH-010 Amendment, 2026-10-02 - district at city_village grain):"
+Check-ColumnExists "city_village" "district_pk"
+Check-MinPercentage "city_village district_pk coverage" "SELECT ROUND(COUNT(*) FILTER (WHERE district_pk IS NOT NULL) * 100.0 / NULLIF(COUNT(*),0), 2) FROM nss.city_village;" 98
 
 Write-Host "  Deferred columns:"
 Check-ColumnExists "document_master" "person_pk"

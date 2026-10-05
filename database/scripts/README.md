@@ -13,9 +13,9 @@ Run from the repository root.
 |---|---|---|---|
 | `00_create_database.sql` | superuser (`postgres`) | `postgres` | Creates `nss_erp` database, `nss_db_owner`/`nss_db_backend`/`nss_db_writer` roles (all with LOGIN, NOSUPERUSER, no password), and grants `CONNECT` on `nss_erp` to `nss_db_backend` and `nss_db_writer`. Installs `dblink` (used to `CREATE DATABASE` idempotently; its internal connection string hardcodes a local-dev `postgres` superuser password — edit it for any non-local environment). Fully idempotent. |
 | `01_extensions.sql` | superuser (`postgres`) | `nss_erp` | Installs `pgcrypto`, `pg_trgm`, `btree_gin`, `postgis`. Creates `nss` schema owned by `nss_db_owner`. Idempotent. |
-| `06_setup_env.sh` (bash only — no `.ps1` counterpart) | superuser (`postgres`; optionally pass a different superuser name as the first arg) | `postgres` | Verifies the 3 roles exist, prompts for each role's password, runs `ALTER ROLE ... PASSWORD` on all three, and writes `api/.env` (`DB_NAME`/`DB_USER=nss_db_backend`/`DB_PASSWORD`/`DB_HOST`/`DB_PORT`, `DB_WRITE_USER`/`DB_WRITE_PASSWORD`, a random `JWT_SECRET_KEY` from `openssl rand -hex 32`, plus `JWT_ACCESS_TOKEN_MINUTES=30`/`JWT_REFRESH_TOKEN_DAYS=7`/`JWT_ABSOLUTE_SESSION_DAYS=30`). Run once after `00_create_database.sql`; if `api/.env` already exists it exits without changes unless `--force` is given. Its closing "Next steps" text prints `cd api && python3 -m uvicorn main:app ...`, which is stale — run uvicorn from the repository root as `api.main:app` (see `docs/03_Solution/architecture/GETTING_STARTED.md`). |
+| `06_setup_env.sh` (bash only — no `.ps1` counterpart) | superuser (`postgres`; optionally pass a different superuser name as the first arg) | `postgres` | Verifies the 3 roles exist, prompts for each role's password, runs `ALTER ROLE ... PASSWORD` on all three, and writes `api/.env` (`DB_NAME`/`DB_USER=nss_db_backend`/`DB_PASSWORD`/`DB_HOST`/`DB_PORT`, `DB_WRITE_USER`/`DB_WRITE_PASSWORD`, a random `JWT_SECRET_KEY` from `openssl rand -hex 32`, plus `JWT_ACCESS_TOKEN_MINUTES=30`/`JWT_REFRESH_TOKEN_DAYS=7`/`JWT_ABSOLUTE_SESSION_DAYS=30`). Run once after `00_create_database.sql`; if `api/.env` already exists it exits without changes unless `--force` is given. Its closing "Next steps" text points to `./database/scripts/02_build.sh`, then `python3 -m uvicorn api.main:app --reload --port 8001` from the repository root. |
 | `02_build.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | First runs `pip install -r requirements.txt`, then all implemented DDL + seed (Phases 0–14: Bootstrap RBAC through Audit DDL; Phase 8 is an empty placeholder). Idempotent re-run: a file whose output contains `already exists` or `duplicate key value violates unique constraint` is reported `[SKIP]`, any other psql error aborts the build. **47 tables** created in total (see phase table below). |
-| `03_validate.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Post-build checks: table existence, row counts (each is a **minimum** — `count >= expected`, below it is a `[WARN]`, not a failure), duplicate checks, FK orphan checks, key-column presence. Covers Bootstrap RBAC, Foundation (12 original tables only), Organization, Person, Authentication, Administration. **No checks for Family, Membership, or `system_event_log`**, and some hardcoded minimums are stale/low (see "Validation coverage" below). Does not execute any DDL/seed. |
+| `03_validate.sh` / `.ps1` | `nss_db_owner` | `nss_erp` | Post-build checks: table existence, row counts (each is a **minimum** — `count >= expected`, below it is a `[WARN]`, not a failure), duplicate checks, FK orphan checks, key-column presence. Covers Bootstrap RBAC, Foundation (11 tables; not `post_office`/`festival_*`/`system_event_log`), Organization, Person, Authentication, Administration. **No checks for Family, Membership, or `system_event_log`**, and some hardcoded minimums are stale/low (see "Validation coverage" below). Does not execute any DDL/seed. |
 | `04_grant_backend.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_backend` read-only access: `USAGE` on `nss` schema, `SELECT` on all tables, `ALTER DEFAULT PRIVILEGES` for future tables. Idempotent. Run as Phase 9 inside `02_build.sh`. |
 | `05_create_writer_role.sql` | `nss_db_owner` | `nss_erp` | Grants `nss_db_writer` `USAGE` on the `nss` schema, `SELECT` and `INSERT`/`UPDATE` on **all** current tables in `nss` (not just auth/admin tables), and the same three via `ALTER DEFAULT PRIVILEGES` for future tables. No `DELETE`/`TRUNCATE`/`REFERENCES`/`TRIGGER`, no DDL (soft-delete only). Idempotent. Run as Phase 12 inside `02_build.sh`. |
 
@@ -40,9 +40,9 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 | DDL | `ddl/00_bootstrap/01_role_master.sql` | `role_master` | 0 |
 | DDL | `ddl/00_bootstrap/02_permission_master.sql` | `permission_master` | 0 |
 | DDL | `ddl/00_bootstrap/03_role_permission.sql` | `role_permission` | 1 |
-| Seed | `seed/00_bootstrap/01_permission_master.sql` | 20 permissions (`BOOTSTRAP_VIEW`, `FOUNDATION_VIEW`/`_MANAGE`, `ORGANIZATION_VIEW`/`_MANAGE`, `PERSON_VIEW`/`_MANAGE`/`_VIEW_SENSITIVE`, `FAMILY_VIEW`/`_MANAGE`, `MEMBERSHIP_VIEW`/`_MANAGE`/`_APPROVE`, `ADMIN_USER_VIEW`/`_MANAGE`, `ADMIN_ROLE_MANAGE`, `ADMIN_SCOPE_MANAGE`, `ADMIN_PERMISSION_VIEW`, `AUDIT_VIEW`, `REPORT_VIEW`) | — |
+| Seed | `seed/00_bootstrap/01_permission_master.sql` | 21 permissions (`BOOTSTRAP_VIEW`, `FOUNDATION_VIEW`/`_MANAGE`/`_CALENDAR_MANAGE`, `ORGANIZATION_VIEW`/`_MANAGE`, `PERSON_VIEW`/`_MANAGE`/`_VIEW_SENSITIVE`, `FAMILY_VIEW`/`_MANAGE`, `MEMBERSHIP_VIEW`/`_MANAGE`/`_APPROVE`, `ADMIN_USER_VIEW`/`_MANAGE`, `ADMIN_ROLE_MANAGE`, `ADMIN_SCOPE_MANAGE`, `ADMIN_PERMISSION_VIEW`, `AUDIT_VIEW`, `REPORT_VIEW`) | — |
 | Seed | `seed/00_bootstrap/02_role_master.sql` | 9 frozen roles | — |
-| Seed | `seed/00_bootstrap/03_role_permission.sql` | 112 role↔permission mappings (`NSS_ERP_ADMIN`/`NSS_ERP_KENDRA_ADMIN` 20 each, the other 5 organizational admin roles plus `NSS_ERP_AUDITOR` 11 each, `NSS_ERP_REPORT_VIEWER` 6) | — |
+| Seed | `seed/00_bootstrap/03_role_permission.sql` | 113 role↔permission mappings (`NSS_ERP_ADMIN` 21, `NSS_ERP_KENDRA_ADMIN` 20 — `FOUNDATION_CALENDAR_MANAGE` is ADMIN-only; the other 5 organizational admin roles plus `NSS_ERP_AUDITOR` 11 each, `NSS_ERP_REPORT_VIEWER` 6) | — |
 
 ### Phase 1 — Foundation DDL (14 tables, Depths 0–4)
 
@@ -72,7 +72,7 @@ SOL-ARCH-011 phase order. Authority: SOL-ARCH-010 (DDL Creation Order), SOL-ARCH
 | Seed | `seed/01_foundation/03_id_sequence_master.sql` | 14 ID sequence definitions |
 | Seed | `seed/01_foundation/04_country.sql` | 5 countries |
 | Seed | `seed/01_foundation/05_state.sql` | 112 states/provinces/territories |
-| Seed | `seed/01_foundation/06_district.sql` | Indian districts (36 state/UT blocks) |
+| Seed | `seed/01_foundation/06_district.sql` | 785 Indian districts (36 state/UT blocks, numeric LGD `district_code`) |
 | Seed | `seed/01_foundation/07_system_setting.sql` | 5 system settings |
 | Seed | `seed/01_foundation/08_postal_code.sql` | 3 postal codes (Bhubaneswar, Puri, Cuttack) |
 | Seed | `seed/01_foundation/08b_postal_code_bulk.sql` | All-India postal_code bulk seed (17,869 PINs, one row per PIN, 36 states/UTs) |
@@ -190,7 +190,7 @@ FAM-036 majority-rule CTE hot path are baked into the respective table DDL files
 The Depth column below is the per-module numbering used in the module READMEs; each SQL file's own
 `-- Depth:` header comment records a value one lower for every table here (`user_account` 2,
 `password_history`/`registration_claim`/`password_reset_token` 3) — cosmetic only, the build order
-is what matters.
+is what matters. The same applies to Phase 11 (`user_role` header says 3, `admin_scope` 4).
 
 | Step | File | Table | Depth |
 |-----:|------|-------|------:|
@@ -232,10 +232,13 @@ is what matters.
 
 Must run **after** every other phase — `15_audit_trigger.sql` attaches `trg_audit_<table>`
 (`AFTER INSERT OR UPDATE OR DELETE`) to every table currently in the `nss` schema, except
-`system_event_log` and `field_change_log`, via a `DO $$` loop over `pg_tables`; actor identity
-comes from the `nss.actor_sangha_sevi_pk`/`nss.actor_user_account_pk` session variables the app
-sets via `api/helpers.py::log_audit()`. Because it runs after Phase 13, the admin-bootstrap rows
-are not audited.
+`system_event_log` and `field_change_log`, via a `DO $$` loop over `pg_tables`. The trigger
+writes row-level events to `system_event_log` and field-level detail (one row per field, for
+CREATE/UPDATE/DELETE) to `field_change_log`. Actor identity comes from the
+`nss.actor_sangha_sevi_pk`/`nss.actor_user_account_pk` session variables, which the app sets on
+the **write** connection in `api/dependencies/auth.py::get_write_connection()` — they must be set
+on the same connection the write runs on, or the trigger sees NULL. Because this phase runs after
+Phase 13, the admin-bootstrap rows and all seed data are not audited.
 
 ### Tables created per phase
 
@@ -254,14 +257,16 @@ are not audited.
 
 ### Validation coverage (`03_validate.sh`/`.ps1`)
 
-The two wrappers are identical (81 check calls each). Covered: Bootstrap RBAC (3 tables), Foundation's
-12 original tables (not `post_office`, `festival_*`), `organization`, `person`/`person_address`, the 4 Authentication tables, and
+The two wrappers run the same checks (86 check calls each, including the `city_village.district_pk`
+column and its minimum district-coverage percentage). Covered: Bootstrap RBAC (3 tables), Foundation's
+11 tables (not `post_office`, `festival_*`, `system_event_log`), `organization`, `person`/`person_address`, the 4 Authentication tables, and
 `user_role`/`admin_scope`. **Not covered:** `family_*`, every Membership table, `system_event_log`,
 `credential_sequence_counter`. Row-count checks pass when `count >= expected` and only WARN below
 it, so the stale minimums do not cause false failures — they are just weak: `role_master` 8 (9 are
 seeded), `master_data` 82 (89), `id_sequence_master` 11 (14), `system_setting` 4 (5),
-`postal_code` 2 (3 + 56 Sakha PINs), `district` 700, `organization` 3 (178 after Phase 4),
-`person` 0, `user_account`/`user_role`/`admin_scope` 1 (the bootstrap admin).
+`organization` 3 (178 after Phase 4), `person` 0, `user_account`/`user_role`/`admin_scope` 1 (the
+bootstrap admin). The geography minimums are current: `state` 112, `district` 780 (785 seeded),
+`postal_code` 17800 (17,869 seeded), `city_village` 673000.
 
 ### Render parity
 

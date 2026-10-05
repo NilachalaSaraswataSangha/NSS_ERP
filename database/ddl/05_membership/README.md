@@ -181,7 +181,7 @@ replaced), not just what the *current* value happens to be.
 - **`uq_mem_sakha_aff_local_id UNIQUE (organization_pk, local_sakha_erp_id)`** — a Local Sakha
   ERP ID is unique *within* a Sakha (not globally); the same numeric suffix can recur at a
   different Sakha (a member who transfers gets a new, Sakha-local ID at the new Sakha).
-- **Two partial unique indexes enforcing "at most one active X per member"** —
+- **Three partial unique indexes enforcing "at most one active X per member"** —
   `uq_mem_sakha_aff_active` (one open affiliation), `uq_pp_active_per_member` (one active
   Parichaya Patra), `uq_ap_active_per_member` (one active Anumati Patra) — all implemented as
   `CREATE UNIQUE INDEX ... WHERE <condition>`, not table-level `CHECK` constraints, because the

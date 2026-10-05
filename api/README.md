@@ -159,10 +159,11 @@ api/
 │   ├── bootstrap.py     4 endpoints under /api/v1/bootstrap — no auth, no ORM, raw
 │   │                    parameterized SQL against nss.role_master/permission_master/
 │   │                    role_permission
-│   ├── foundation.py    28 endpoints under /api/v1/foundation — 20 reads
+│   ├── foundation.py    33 endpoints under /api/v1/foundation — 21 reads
 │   │                    (master data, system config, geography, runtime document metadata,
-│   │                    see below) plus 8 Tier 5 write endpoints (`POST`/`PATCH` on
-│   │                    `/master-data`, `/settings`, `/sequences`, `/festival-calendar-dates`). Reads gated by
+│   │                    see below) plus 8 admin write endpoints (`POST`/`PATCH` on
+│   │                    `/master-data`, `/settings`, `/sequences`, `/festival-calendar-dates`) and 4
+│   │                    member `propose` POSTs (`get_current_user` only). Reads gated by
 │   │                    `require_permission("FOUNDATION_VIEW")`, writes by
 │   │                    `require_permission("FOUNDATION_MANAGE")` (festival-calendar writes:
 │   │                    `FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only) on the Tier 5 branch. Also
@@ -232,7 +233,7 @@ api/
 │   │                    `/states`, `/districts`, `/cities`, `/postal-codes`, `/post-offices`, `/sakhas`) that thinly wrap `foundation.py`'s/
 │   │                    `organization.py`'s own shared query functions — fixes a regression where
 │   │                    Tier 5's permission gating had silently emptied every dropdown on the
-│   ��                    public registration page
+│   │                    public registration page
 │   ├── claim_approval.py Tier 5 — 5 endpoints under /api/v1/admin/claims:
 │   │                        Sakha-admin review queue for registration_claim rows. Its frontend
 │   │                        shipped as a "Registration Approvals" tab inside
@@ -241,16 +242,19 @@ api/
 │   │                     member-proposed district/postal-code/post-office/city-village rows
 │   │                     (list, detail, approve, correct), `FOUNDATION_MANAGE` + admin scope
 │   └── audit.py          Tier 5 — 1 endpoint under /api/v1/audit: `GET /change-log`,
-│                          a filterable/paginated view over `nss.field_change_log`, gated by
+│                          a filterable/paginated view over `nss.field_change_log` (one row per
+│                          field per CREATE/UPDATE/DELETE, with actor and timestamp), gated by
 │                          `AUDIT_VIEW`; the authenticated counterpart to Tier 1's
 │                          deliberately-unexposed audit data
 ├── dependencies/        Tier 5 — FastAPI `Depends()` factories, distinct from
 │   │                    `services/`. No `__init__` exports; import from the submodules
 │   ├── auth.py          `get_current_user()` (mandatory HTTP Bearer JWT auth: access token only,
-│   │                    loads `UserContext`, and — on the request's read connection — sets the
-│   │                    `nss.actor_user_account_pk`/`nss.actor_sangha_sevi_pk` session variables
-│   │                    the DB `fn_audit_trigger()` reads) / `get_optional_user()` (same, returns
-│   │                    None instead of 401ing; currently not used by any router)
+│   │                    loads `UserContext`) / `get_optional_user()` (same, returns None instead
+│   │                    of 401ing) / `get_write_connection()` (the `nss_db_writer` connection
+│   │                    dependency used by every write endpoint — resolves the caller via
+│   │                    `get_optional_user()` and sets the `nss.actor_user_account_pk`/
+│   │                    `nss.actor_sangha_sevi_pk` session variables the DB `fn_audit_trigger()`
+│   │                    reads, on the *write* connection the trigger actually runs on)
 │   └── rbac.py          `require_permission(code)` / `require_any_permission(*codes)` —
 │                        wrap `get_current_user()` and additionally 403 on missing permission
 ├── services/
@@ -325,7 +329,7 @@ api/
 Not yet merged/released. Requires `api/.env` to also carry `DB_WRITE_USER`, `DB_WRITE_PASSWORD`,
 and `JWT_SECRET_KEY` (see `docs/PROJECT_DOCUMENTATION.md` → Configuration). Endpoints that
 mutate data (and `POST /auth/login`, which records failed attempts/lockout) use the `nss_db_writer`
-pool (`api/database.py::get_write_connection`); pure reads — `POST /auth/refresh`, `GET /auth/me`,
+pool via `api/dependencies/auth.py::get_write_connection` (wraps `api/database.py::get_write_connection` and sets the `nss.actor_*` audit variables); pure reads — `POST /auth/refresh`, `GET /auth/me`,
 every `GET` under `/admin` and `/admin/claims`, `GET /audit/change-log`, and the `/register` `GET`s
 — use the read-only `nss_db_backend` pool (`get_connection`). Permission codes below are the
 exact `require_permission`/`require_any_permission` arguments in each router.
@@ -375,7 +379,7 @@ exact `require_permission`/`require_any_permission` arguments in each router.
 | POST | `/api/v1/register` | none | Self-registration — creates `person` + `user_account(PENDING_APPROVAL)` + optional `registration_claim` |
 | GET | `/api/v1/register/check-duplicate` | none | `{mobile_exists, email_exists}` pre-submit check |
 | GET | `/api/v1/register/reference-data` | none | Countries + gender/marital-status/blood-group/membership-type master-data + the Sakha list, bundled into one call for the public registration page |
-| GET | `/api/v1/register/states`/`/districts`/`/postal-codes`/`/post-offices` | none | Public location-cascade lookups, thin wrappers over `foundation.py`'s `fetch_states()`/`fetch_districts()`/`fetch_postal_codes()` |
+| GET | `/api/v1/register/countries`/`/states`/`/districts`/`/cities`/`/postal-codes`/`/post-offices`/`/sakhas` | none | Public location-cascade and Sakha lookups, thin wrappers over `foundation.py`'s `fetch_*()` functions and `organization.py`'s `fetch_organizations()` |
 | GET | `/api/v1/admin/claims` | any of `MEMBERSHIP_APPROVE`/`ADMIN_USER_MANAGE`, scoped | List registration claims (`claim_status` filter, default `PENDING`; `page`/`page_size` pagination) |
 | GET/PATCH | `/api/v1/admin/claims/{pk}` | same | Claim detail / admin edits before approval |
 | POST | `/api/v1/admin/claims/{pk}/approve` | same | Creates `sangha_sevi` + affiliation (+ mandatory credential for a new Sangha Sevi), activates the account |
@@ -399,10 +403,16 @@ row into the new `nss.system_event_log` table (`action`, `table_name`, `record_p
 `actor_user_account_pk`, `module`, `summary`, `detail` JSONB, `is_success`) —
 `database/ddl/01_foundation/14_system_event_log.sql`. Independently, `database/ddl/01_foundation/
 15_audit_trigger.sql` attaches a `fn_audit_trigger()` `AFTER INSERT OR UPDATE OR DELETE` trigger
-to every other `nss.*` table (a `DO $$` loop over `pg_tables`), so raw SQL writes are captured
-even if application code forgets to call `log_audit()` — the two mechanisms are independent and
-both currently write to the same table, so a single mutation can produce two rows (one
-app-authored with a human `summary`, one trigger-authored and generic).
+to every `nss.*` table except `system_event_log`/`field_change_log` (a `DO $$` loop over
+`pg_tables`; attached after Phase 13, so admin-bootstrap and seed rows are unaudited), so raw SQL
+writes are captured even if application code forgets to call `log_audit()`. The trigger writes
+**both** logs: one row-level event to `system_event_log` plus one field-level row per changed
+field to `nss.field_change_log` (`07_field_change_log.sql`; `created_at`/`updated_at` and the
+`id_sequence_master`/`credential_sequence_counter` tables are excluded from the field log). A
+single mutation can therefore produce two `system_event_log` rows (one app-authored with a
+human `summary`, one trigger-authored and generic) — accepted, since `log_audit()` also carries
+semantic actions (LOGIN/APPROVE). The actor comes from the `nss.actor_*` variables set by
+`api/dependencies/auth.py::get_write_connection()`.
 
 ## Security middleware
 
@@ -627,12 +637,6 @@ Full contract and endpoint counts: `docs/03_Solution/api/API_CONTRACT.md`. Tests
 - **`/children-stats` and `/stats` recursion has no depth cap** — the SQL comments say "capped at
   depth 10" but neither CTE carries a depth column or `depth < 10` predicate; only `/hierarchy`
   does.
-- **Audit-actor session variables** (`nss.actor_user_account_pk`/`nss.actor_sangha_sevi_pk`) are
-  set only in `dependencies/auth.py`, via `set_config(..., TRUE)` on the *read-pool* connection;
-  write endpoints run on a separate `nss_db_writer` connection, so the DB `fn_audit_trigger()`
-  can only see them if that connection gets them some other way (nothing else in `api/` calls
-  `set_config`). Application-level `log_audit()` passes actor PKs explicitly and is unaffected.
-- **`get_optional_user()` is unused** by every router.
 - **`API_PORT` is read by `config.py` but never used.**
 - **`next_id()` ignores `id_sequence_master.padding_length`** (returns `prefix + current_value`).
 - **`auth.py::forgot_password` does not deliver the OTP** (`# TODO: Send OTP via email/SMS`).

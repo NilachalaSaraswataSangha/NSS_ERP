@@ -78,8 +78,8 @@ implement that:
   (`uq_family_admin_current`) allows at most one *current* (`effective_to IS NULL`) admin row
   per (`family_group_pk`, `person_pk`) pair, but does not itself limit how many distinct people
   can be current admins of the same family. **Has 3 API endpoints as of the Tier 5 branch**
-  (`GET/POST/DELETE /api/v1/family/families/{pk}/admins`) — not DDL-only, correcting an earlier
-  draft of this file; zero test coverage exists for any of the three.
+  (`GET/POST/DELETE /api/v1/family/families/{pk}/admins`) — not DDL-only; the head-only
+  appoint rule is exercised in `tests/api/test_family_ownership.py`.
 
 ## Is `family_relationship` superseded by `family_link`?
 
@@ -92,11 +92,13 @@ implement that:
   (`GET /families/{pk}/sakha-alignment`) queries it directly to enumerate a family's current
   members. It is also what `family_head_history`/`is_head` joins against by
   `(family_group_pk, person_pk)`.
-- `family_link` is queried only by the new graph endpoint
-  (`GET /families/{family_group_pk}/graph`), via two dedicated fragments
-  (`_GRAPH_PERSONS_SQL`/`_GRAPH_LINKS_SQL`) that fetch raw `PARENT_OF`/`SPOUSE_OF` edges and
-  hand them to `api/services/family_graph.py`'s `build_family_graph()` for BFS traversal. No
-  other endpoint reads `family_link`.
+- `family_link` is read by the graph endpoint (`GET /families/{family_group_pk}/graph`) via dedicated
+  fragments (`_GRAPH_PERSONS_SQL`/`_GRAPH_LINKS_SQL`, plus `_ORIGIN_ARRIVED_LINKS_SQL` for members
+  who moved families) that fetch raw `PARENT_OF`/`SPOUSE_OF` edges and hand them to
+  `api/services/family_graph.py`'s `build_family_graph()` for BFS traversal. It is written by
+  `create_family` (initial edges), `add_family_member` (`POST /families/{pk}/members`, optional
+  `link_type`), `create_family_link` (`POST /families/{pk}/links`) and the move/remove flows, which
+  soft-delete a leaving person's edges.
 
 In short: `family_relationship` answers "who belongs to this family, and what is their
 relationship-type code" (a flat, category-driven membership list); `family_link` answers "what

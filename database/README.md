@@ -66,7 +66,7 @@ Build phases (authoritative detail in `scripts/README.md`):
 
 | Phase | Content |
 |------:|---------|
-| 0 | Bootstrap RBAC — 3 tables + seed (9 roles, 20 permissions, 112 mappings) |
+| 0 | Bootstrap RBAC — 3 tables + seed (9 roles, 21 permissions, 113 mappings) |
 | 1 | Foundation DDL — 14 tables (incl. `post_office`, `festival_master`/`festival_calendar_date`) |
 | 2 | Foundation seed (incl. all-India PINs, post offices, ~673k `city_village` rows, festival calendar) |
 | 3 | Organization DDL — 1 table + 2 triggers |
@@ -129,8 +129,8 @@ Depth/Seq# breakdown lives in their own module READMEs rather than being duplica
 (see the banner above) and 3 more Foundation tables arrived on the same branch; the v0.10.4
 baseline was 34.
 **Organization type/status moved to Foundation `master_data` — standalone tables retired.**
-**Phase 0 seed complete:** `role_master` (9 roles), `permission_master` (20), `role_permission`
-(112) are all populated, so `require_permission(...)` checks succeed for roles with mappings.
+**Phase 0 seed complete:** `role_master` (9 roles), `permission_master` (21), `role_permission`
+(113) are all populated, so `require_permission(...)` checks succeed for roles with mappings.
 
 See module READMEs for per-file details:
 - `ddl/00_bootstrap/README.md` / `seed/00_bootstrap/README.md`
@@ -173,7 +173,7 @@ database/
 │   └── 06_setup_env.sh           Set role passwords + generate api/.env (bash only)
 ├── ddl/
 │   ├── 00_bootstrap/     3 RBAC tables (Depths 0-1)
-│   ├── 01_foundation/    15 tables: 13 reference/runtime tables (files 02-13, 16-17, Depths 0-4) +
+│   ├── 01_foundation/    15 tables: 14 reference/runtime tables (files 02-13, 16-17, Depths 0-3) +
 │   │                     `14_system_event_log.sql` (audit trail, Tier 5); `15_audit_trigger.sql`
 │   │                     (`fn_audit_trigger()` attached to every other `nss.*` table) creates
 │   │                     no table. (No `01_*` file — extensions moved to scripts/01_extensions.sql)
@@ -188,7 +188,7 @@ database/
 │   │                     password_reset_token (Tier 5)
 │   └── 07_administration/ 2 tables: user_role, admin_scope (Tier 5)
 ├── seed/
-│   ├── 00_bootstrap/     9 roles, 20 permissions, 112 role-permission mappings
+│   ├── 00_bootstrap/     9 roles, 21 permissions, 113 role-permission mappings
 │   ├── 01_foundation/    reference + bulk geography data (files 01-11b; `09_sakha_postal_codes.sql` runs in Phase 4)
 │   ├── 02_organization/  3 unique orgs + 175 real Sakha branches + org-code counter sync
 │   ├── 03_person/        no seed data (README only)
@@ -210,7 +210,7 @@ There is no `database/migrations/` or `database/fixes/` folder.
 
 | Module | Tables | DDL Status | Next Action |
 |--------|-------:|-----------|-------------|
-| Bootstrap RBAC | 3 | ✅ IMPLEMENTED, seeded (9 roles / 20 permissions / 112 mappings) | — |
+| Bootstrap RBAC | 3 | ✅ IMPLEMENTED, seeded (9 roles / 21 permissions / 113 mappings) | — |
 | Foundation | 15 | ✅ IMPLEMENTED (12 original/geography incl. `post_office`, 2 festival tables, + `system_event_log`) | — |
 | Organization | 1 | ✅ IMPLEMENTED (+ 2 triggers) | — |
 | Person | 2 | ✅ IMPLEMENTED | — |
@@ -321,7 +321,7 @@ Validates the build. **Does NOT execute any DDL or seed scripts** — run `02_bu
 | Module | Checks |
 |--------|--------|
 | Bootstrap RBAC (3 tables) | Existence, `role_master` row minimum, unique `role_code`, `role_permission` FK integrity |
-| Foundation (12 original tables; not `post_office`/`festival_*`) | Existence, row minimums, unique codes, FK integrity, deferred `document_master` columns |
+| Foundation (11 tables; not `post_office`/`festival_*`/`system_event_log`) | Existence, row minimums, unique codes, FK integrity, deferred `document_master` columns |
 | Organization (1 table) | Existence, row minimum, unique `organization_code`, FK integrity |
 | Person (2 tables) | Existence, FK integrity, address FK columns |
 | Authentication (4 tables) | Existence, `user_account`/`password_history` key columns, unique `person_pk`, FK integrity |
@@ -330,10 +330,11 @@ Validates the build. **Does NOT execute any DDL or seed scripts** — run `02_bu
 **Known gaps (script, not docs, needs the fix):** no checks for Family, Membership,
 `system_event_log` or `credential_sequence_counter`. Row-count checks assert `count >= expected`
 and only WARN when lower, so the hardcoded minimums (`role_master` 8, `master_data` 82,
-`id_sequence_master` 11, `system_setting` 4, `postal_code` 2, `organization` 3, `person` 0) do
-not cause false failures — they are simply stale/weak against the current seed (9 roles, 89
-master_data, 14 sequences, 5 settings, 3 + 56 postal codes, 178 organizations).
-The `.sh` and `.ps1` versions are identical (81 check calls each).
+`id_sequence_master` 11, `system_setting` 4, `organization` 3, `person` 0) do not cause false
+failures — they are simply stale/weak against the current seed (9 roles, 89 master_data, 14
+sequences, 5 settings, 178 organizations). The geography minimums (`state` 112, `district` 780,
+`postal_code` 17800, `city_village` 673000) are current. The `.sh` and `.ps1` versions each have 86 check calls,
+including `city_village.district_pk` existence and minimum coverage (Simplified Geography Model).
 
 **Extend this script when new modules are added to `02_build.sh`.**
 

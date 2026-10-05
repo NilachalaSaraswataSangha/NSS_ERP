@@ -145,8 +145,8 @@ security headers
   `api/routers/bootstrap.py` (prefix `/api/v1/bootstrap`), `api/routers/foundation.py` (prefix
   `/api/v1/foundation`), `api/routers/organization.py` (prefix `/api/v1/organization`),
   `api/routers/person.py` (prefix `/api/v1/person`), `api/routers/family.py` (prefix
-  `/api/v1/family`), `api/routers/membership.py` (prefix `/api/v1/membership`), and — Tier 5, all
-  committed on the branch — `api/routers/auth.py` (`/api/v1/auth`), `api/routers/admin.py`
+  `/api/v1/family`), `api/routers/membership.py` (prefix `/api/v1/membership`), and — Tier 5, on
+  `feature/tier5-authentication-administration`, not yet merged; run `git status` for what is uncommitted — `api/routers/auth.py` (`/api/v1/auth`), `api/routers/admin.py`
   (`/api/v1/admin`), `api/routers/registration.py` (`/api/v1/register`),
   `api/routers/claim_approval.py` (`/api/v1/admin/claims`), and `api/routers/audit.py`
   (`/api/v1/audit`) — **endpoints** (see the per-router breakdown in the Overview
@@ -413,8 +413,9 @@ Organizational Scope. Audit is separate from change history — `field_change_lo
 handles field-level change tracking; `audit_master`/`system_event_log` were the two tables
 *planned* for security/system events in the design docs (`docs/03_Solution/modules/audit/`), but
 only `nss.system_event_log` has actually shipped as DDL so far (`database/ddl/01_foundation/
-14_system_event_log.sql`, populated by both a DB-level `fn_audit_trigger()` and the app-level
-`api/helpers.py::log_audit()` — the two currently double-write for the same event, see Gotchas);
+14_system_event_log.sql`, populated by both a DB-level `fn_audit_trigger()` (which also writes field-level rows to
+`field_change_log`, AUDIT-ARCH-001) and the app-level `api/helpers.py::log_audit()` — plain CRUD
+yields duplicate `system_event_log` rows of different shape, an accepted trade-off, see Gotchas);
 `audit_master` remains design-only, not built.
 
 **Tier 6 (Attendance):** Membership Sakha ≠ Attendance Sakha. A member affiliated with
@@ -954,7 +955,9 @@ chain: Home Sakha → Parichalak → Target Sakha), plus one table added to Foun
 (`database/README.md` has been updated for this branch and now reflects this count). Note:
 `system_event_log` is populated by *both* the DB-level trigger and the app-level
 `api/helpers.py::log_audit()` (called explicitly from `family.py`'s write endpoints) — the two
-currently double-write for the same event with no de-duplication (see Gotchas).
+double-write for the same event with no de-duplication, accepted because `log_audit()` also
+carries semantic actions (LOGIN/APPROVE) the trigger cannot express (see Gotchas). The table
+count has since grown to **47** (see `database/README.md`).
 
 **Removed (Tier 5 branch):** every Tier 4 "verification" seed file
 (`database/seed/02_organization/04_tier4_verification_orgs.sql`,
@@ -1335,7 +1338,7 @@ database/
 └── seed/
     ├── 00_bootstrap/     `role_master`: 9 roles seeded (3 SYSTEM + 6 ORGANIZATIONAL,
     │                     matching SOL-ADMIN-004 §8.7 frozen catalogue);
-    │                     `permission_master`: 20 permissions; `role_permission`: 112 mappings
+    │                     `permission_master`: 21 permissions; `role_permission`: 113 mappings
     ├── 01_foundation/    13 seed files (01-11b): 13 master categories, 89 master data values
     │                     (GENDER/MARITAL_STATUS/ADDRESS_TYPE/DOCUMENT_TYPE/MEMBERSHIP_TYPE/
     │                     STATUS/RELATIONSHIP_TYPE/ORGANIZATION_TYPE/BLOOD_GROUP; `STATUS` is a
@@ -1828,7 +1831,7 @@ conflated "no premises" with "no recordable jurisdiction at all," which was too 
 `api/routers/admin.py::create_organization()` now requires country/state/district for these 3
 types; `update_organization()` allows setting them. Full rule:
 `docs/03_Solution/modules/organization/04_organization_business_rules.md` §30 (v1.9.0).
-Verified via 72 pytest integration tests (`tests/test_organization.py`, 8 classes, incl. a newer
+Verified via 72 pytest integration tests (`tests/api/test_organization.py`, 8 classes, incl. a newer
 `TestChildrenStats`) plus a
 dedicated security audit (`docs/03_Solution/security/TIER2_SECURITY_AUDIT.md` — moved from
 `code_explanations/` to a dedicated `security/` folder as part of the Tier 4 work).
@@ -1910,7 +1913,7 @@ convention established in Tier 0.
 
 A matching Person Verification UI (`frontend/person.html` + `frontend/assets/js/person.js`,
 `personApp()` — both since deleted; this UI now lives in `admin.html`'s Person Directory tab)
-and 61 pytest integration tests (`tests/test_person.py`, 6 classes) exist, plus a
+and 61 pytest integration tests (`tests/api/test_person.py`, 6 classes) exist, plus a
 dedicated security audit (`docs/03_Solution/security/TIER3_SECURITY_AUDIT.md` — moved from
 `code_explanations/` to a dedicated `docs/03_Solution/security/` folder as part of the Tier 4
 work, see Key Workflow #6). This
@@ -1945,7 +1948,7 @@ models in `api/schemas/family.py` as of the Tier 5 branch (up from the original 
 (`frontend/family.html` +
 `frontend/assets/js/family.js`, `familyApp()` — both since deleted; this UI now lives in
 `dashboard.html`'s Family tab) and 67 pytest integration tests
-(`tests/test_family.py`, 8 classes) exist as of v0.10.0 — no test coverage yet for the 9 new
+(`tests/api/test_family.py`, 8 classes) exist as of v0.10.0 — no test coverage yet for the 9 new
 Tier 5 write endpoints.
 
 **Family Graph — dynamic relationship computation (added after the initial Tier 4 landing).**
@@ -2093,7 +2096,7 @@ largest
 frontend page in the repo — + `frontend/assets/js/membership.js`, `membershipApp()`; both since
 deleted, this UI now lives in `dashboard.html`'s Membership tab and `admin.html`'s Member
 Directory tab) and 99
-pytest integration tests (`tests/test_membership.py`, the largest test file in the repo) exist.
+pytest integration tests (`tests/api/test_membership.py`, the largest test file in the repo) exist.
 
 **Documentation infrastructure changes landed alongside Tier 4:** a new consolidated
 `docs/03_Solution/api/API_CONTRACT.md` (all tiers, common conventions) sits
@@ -2142,15 +2145,16 @@ City/Village; no pagination). Grouped by theme:
   excludes the unimplemented `person_pk`/`uploaded_by_sangha_sevi_pk` FKs).
 
 `nss.field_change_log` is the one Foundation table **deliberately not exposed** — deferred to
-Tier 5 once auth exists (`tests/test_foundation.py::TestChangeLogNotExposed` guards this by
-asserting `/api/v1/foundation/change-log` 404s/405s). All list endpoints filter
+Tier 5 once auth exists (`tests/api/test_foundation.py::TestChangeLogNotExposed` guards this by
+asserting `/api/v1/foundation/change-log` 404s/405s; the Tier 5 viewer is `GET /api/v1/audit/change-log`
+in `api/routers/audit.py`, gated by `AUDIT_VIEW`). All list endpoints filter
 `WHERE is_active = TRUE` (except the junction table, which has no such column); all detail
 endpoints 404 on missing/inactive rows; malformed UUIDs 422 via Pydantic/FastAPI path-param
 validation. Full contract, example responses, and the 11 response-schema fields (incl. every
 deliberately-excluded column) are in
 `docs/03_Solution/api/FOUNDATION_API_CONTRACT.md`; a line-by-line implementation
 walkthrough is in `docs/03_Solution/code_explanations/API_CODE_EXPLANATIONS.md`.
-Verified via 59 pytest integration tests (`tests/test_foundation.py`, 13 classes) plus a
+Verified via 59 pytest integration tests (`tests/api/test_foundation.py`, 13 classes) plus a
 dedicated security audit (`docs/03_Solution/security/TIER1_SECURITY_AUDIT.md`) with no blocking
 findings. Consumed at the time by `frontend/foundation.html`'s 4-tab UI; since that page was
 deleted, consumed by `frontend/admin.html`'s Reference Data and Geography tabs (see `frontend/`
@@ -2686,12 +2690,20 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
   `api/routers/admin.py::update_status()` (when activating a `PENDING_APPROVAL` account with no
   `sangha_sevi` yet) both contain their own copy of the "generate or link a `sangha_sevi_id` from
   claim data" logic — no shared helper. See Key Workflow #9.
-- **The new audit trail double-writes.** `api/helpers.py::log_audit()` (called explicitly from
-  `family.py`'s 9 new write endpoints) and the new DB-level `fn_audit_trigger()`
-  (`database/ddl/01_foundation/15_audit_trigger.sql`, attached via a `DO $$` loop to every
-  `nss.*` table) both fire for the same mutation and both write to `nss.system_event_log` — one
-  app-level row and one trigger-level row per event, with different shapes, and no
-  de-duplication exists between them.
+- **The audit trail double-writes (accepted).** `api/helpers.py::log_audit()` and the DB-level
+  `fn_audit_trigger()` (`database/ddl/01_foundation/15_audit_trigger.sql`, attached via a
+  `DO $$` loop to every `nss.*` table except `system_event_log`/`field_change_log`) both write
+  `nss.system_event_log` for plain CRUD — different row shapes, no de-duplication — because
+  `log_audit()` also records semantic actions (LOGIN/APPROVE). The trigger additionally writes
+  one `field_change_log` row per changed field (AUDIT-ARCH-001; exclusions: `created_at`/
+  `updated_at` columns, and the `id_sequence_master`/`credential_sequence_counter` tables;
+  new exclusions must be recorded in `CROSS_MODULE_PRINCIPLES.md` §7.1).
+- **Audit actor lives on the write connection.** The `nss.actor_user_account_pk`/
+  `nss.actor_sangha_sevi_pk` session variables are set (transaction-local) by
+  `api/dependencies/auth.py::get_write_connection()`. Every router must import that dependency,
+  not `api.database.get_write_connection` (the non-auditing primitive, which yields a NULL
+  actor). Public endpoints legitimately write with a NULL actor; seed/admin-bootstrap rows are
+  unaudited because the trigger is installed after Phase 13.
 - **`api/routers/registration.py`'s `RegisterRequest.date_of_birth`/`joining_date` use a
   `Optional["date"]` forward reference resolved by a `from datetime import date` statement
   placed *after* both Pydantic model class bodies** (`api/routers/registration.py:126`) —

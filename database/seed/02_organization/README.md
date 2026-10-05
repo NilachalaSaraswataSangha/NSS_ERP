@@ -79,8 +79,12 @@ document (v2.0). All parented to Kendra (`KEN`). Codes: `SKH1`–`SKH175`
 (unpadded). SKH1 = Ekamra Saraswata Sangha.
 
 Features:
-- PIN codes extracted from addresses and resolved to `postal_code_pk` FK
-  (63 of 175 branches have PIN codes; rest have NULL `postal_code_pk`)
+- PIN codes resolved to `postal_code_pk` FK for 121 of 175 branches (63 carry a PIN in the source
+  directory; 58 more are recovered by matching the address's `Po-<office>` token against the India
+  Post directory); the other 54 have NULL `postal_code_pk`
+- After the INSERT, backfills `country_pk`/`state_pk`/`district_pk`: primarily from the
+  `Dist-<Name>` token in each address (165 of 175, mapped onto the LGD `district_code`), with a
+  PIN-derived modal district as fallback; only SKH164 (USA) is left without a district
 - Depends on `database/seed/01_foundation/09_sakha_postal_codes.sql` for
   postal code records
 - `short_code` column: NULL by default, admin-assignable via admin panel

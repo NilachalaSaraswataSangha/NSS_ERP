@@ -16,8 +16,8 @@ in file order `01` → `02` → `03`).
 | File | Status |
 |---|---|
 | `02_role_master.sql` | 9 roles seeded (3 SYSTEM: `NSS_ERP_ADMIN`, `NSS_ERP_AUDITOR`, `NSS_ERP_REPORT_VIEWER`; 6 ORGANIZATIONAL, one per scope level: `NSS_ERP_KENDRA_ADMIN`, `NSS_ERP_ANCHALIKA_ADMIN`, `NSS_ERP_ZILLA_ADMIN`, `NSS_ERP_SAKHA_ADMIN`, `NSS_ERP_PATHA_CHAKRA_ADMIN`, `NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN`) |
-| `01_permission_master.sql` | Populated — 20 permissions: `BOOTSTRAP_VIEW`, `FOUNDATION_VIEW`/`_MANAGE`, `ORGANIZATION_VIEW`/`_MANAGE`, `PERSON_VIEW`/`_MANAGE`/`_VIEW_SENSITIVE`, `FAMILY_VIEW`/`_MANAGE`, `MEMBERSHIP_VIEW`/`_MANAGE`/`_APPROVE`, `ADMIN_USER_VIEW`/`_MANAGE`, `ADMIN_ROLE_MANAGE`, `ADMIN_SCOPE_MANAGE`, `ADMIN_PERMISSION_VIEW`, `AUDIT_VIEW`, `REPORT_VIEW` |
-| `03_role_permission.sql` | Populated — 112 role-to-permission mappings: `NSS_ERP_ADMIN` and `NSS_ERP_KENDRA_ADMIN` 20 each (all permissions), `NSS_ERP_ANCHALIKA_ADMIN`/`ZILLA_ADMIN`/`SAKHA_ADMIN`/`PATHA_CHAKRA_ADMIN`/`KENDRA_MAHILA_SANGHA_ADMIN` and `NSS_ERP_AUDITOR` 11 each, `NSS_ERP_REPORT_VIEWER` 6 |
+| `01_permission_master.sql` | Populated — 21 permissions: `BOOTSTRAP_VIEW`, `FOUNDATION_VIEW`/`_MANAGE`/`_CALENDAR_MANAGE`, `ORGANIZATION_VIEW`/`_MANAGE`, `PERSON_VIEW`/`_MANAGE`/`_VIEW_SENSITIVE`, `FAMILY_VIEW`/`_MANAGE`, `MEMBERSHIP_VIEW`/`_MANAGE`/`_APPROVE`, `ADMIN_USER_VIEW`/`_MANAGE`, `ADMIN_ROLE_MANAGE`, `ADMIN_SCOPE_MANAGE`, `ADMIN_PERMISSION_VIEW`, `AUDIT_VIEW`, `REPORT_VIEW` |
+| `03_role_permission.sql` | Populated — 113 role-to-permission mappings: `NSS_ERP_ADMIN` 21 (all permissions, including `FOUNDATION_CALENDAR_MANAGE`, which no other role holds) and `NSS_ERP_KENDRA_ADMIN` 20 (all but that one), `NSS_ERP_ANCHALIKA_ADMIN`/`ZILLA_ADMIN`/`SAKHA_ADMIN`/`PATHA_CHAKRA_ADMIN`/`KENDRA_MAHILA_SANGHA_ADMIN` and `NSS_ERP_AUDITOR` 11 each, `NSS_ERP_REPORT_VIEWER` 6 |
 
 Numbered `01`/`02`/`03` reflects the DDL file numbering (`permission_master` before
 `role_master` before `role_permission`), not execution readiness — dependency order at

@@ -35,10 +35,13 @@ Phase 4**, right before `seed/02_organization/05_sakha_branches.sql` (which cons
 
 ```bash
 # As nss_db_owner against the nss_erp database:
-for f in database/seed/01_foundation/0*.sql; do
+for f in database/seed/01_foundation/0*.sql database/seed/01_foundation/1*.sql; do
     psql -U nss_db_owner -d nss_erp -f "$f"
 done
 ```
+
+(The glob is a convenience for a manual run; `02_build.sh` is authoritative — it runs `09_sakha_postal_codes.sql` in Phase 4,
+not here.)
 
 ---
 
@@ -195,41 +198,42 @@ Seeds 112 state-level entries into `state`. Uses subquery to resolve
 
 ### 06_district.sql
 
-Seeds ~770 districts into `district` for all Indian states and Union
-Territories. Uses subquery to resolve `state_pk` by `state_code` within
-India. Non-India countries do not have pre-seeded districts — those are
-populated at runtime as needed.
+Seeds 785 districts into `district` across all 36 Indian states and Union Territories, keyed on the
+numeric LGD district code (`district_code` is globally unique so `11_city_village.sql` resolves
+`district_pk` by code rather than by name). Uses subquery to resolve `state_pk` by `state_code` within
+India. Non-India countries do not have pre-seeded districts — those are populated at runtime as
+needed. Per-state counts (state code: districts):
 
 | State | Districts | State | Districts |
 |-------|----------:|-------|----------:|
-| Andhra Pradesh | 26 | Maharashtra | 36 |
-| Arunachal Pradesh | 26 | Manipur | 16 |
-| Assam | 35 | Meghalaya | 12 |
-| Bihar | 38 | Mizoram | 11 |
-| Chhattisgarh | 33 | Nagaland | 16 |
-| Goa | 2 | Odisha | 30 |
-| Gujarat | 33 | Punjab | 23 |
-| Haryana | 22 | Rajasthan | 50 |
-| Himachal Pradesh | 12 | Sikkim | 6 |
-| Jharkhand | 24 | Tamil Nadu | 38 |
-| Karnataka | 31 | Telangana | 33 |
-| Kerala | 14 | Tripura | 8 |
-| Madhya Pradesh | 55 | Uttar Pradesh | 75 |
-| | | Uttarakhand | 13 |
-| | | West Bengal | 23 |
+| Andhra Pradesh (AP) | 28 | Maharashtra (MH) | 36 |
+| Arunachal Pradesh (AR) | 27 | Manipur (MN) | 16 |
+| Assam (AS) | 35 | Meghalaya (ML) | 12 |
+| Bihar (BR) | 38 | Mizoram (MZ) | 11 |
+| Chhattisgarh (CG) | 33 | Nagaland (NL) | 17 |
+| Goa (GA) | 3 | Odisha (OD) | 30 |
+| Gujarat (GJ) | 34 | Punjab (PB) | 23 |
+| Haryana (HR) | 23 | Rajasthan (RJ) | 41 |
+| Himachal Pradesh (HP) | 12 | Sikkim (SK) | 6 |
+| Jharkhand (JH) | 24 | Tamil Nadu (TN) | 38 |
+| Karnataka (KA) | 31 | Telangana (TS) | 33 |
+| Kerala (KL) | 14 | Tripura (TR) | 8 |
+| Madhya Pradesh (MP) | 55 | Uttar Pradesh (UP) | 75 |
+| | | Uttarakhand (UK) | 13 |
+| | | West Bengal (WB) | 23 |
 
 **Union Territories:**
 
 | UT | Districts |
 |----|----------:|
-| Delhi | 11 |
-| Jammu & Kashmir | 20 |
-| Ladakh | 2 |
-| Chandigarh | 1 |
-| Puducherry | 4 |
-| Andaman & Nicobar | 3 |
-| Dadra & Nagar Haveli and Daman & Diu | 3 |
-| Lakshadweep | 1 |
+| Delhi (DL) | 14 |
+| Jammu & Kashmir (JK) | 20 |
+| Ladakh (LA) | 2 |
+| Chandigarh (CH) | 1 |
+| Puducherry (PY) | 2 |
+| Andaman & Nicobar (AN) | 3 |
+| Dadra & Nagar Haveli and Daman & Diu (DN) | 3 |
+| Lakshadweep (LD) | 1 |
 
 ---
 
@@ -278,8 +282,9 @@ idempotent via `uq_post_office_pin_name_approved`.
 
 Seeds 56 additional unique postal codes into `postal_code`, extracted from the official NSS
 Sakha branch directory addresses — the minimal bootstrap set needed by
-`database/seed/02_organization/05_sakha_branches.sql` (175 real Sakha branches, only 63 of which
-have an extractable PIN code; the rest get `postal_code_pk = NULL`). Run AFTER `04_country.sql`/
+`database/seed/02_organization/05_sakha_branches.sql` (175 real Sakha branches; 63 carry a PIN
+directly in the source directory, a further 58 are resolved through the India Post `post_office`
+data, and 54 get `postal_code_pk = NULL`). Run AFTER `04_country.sql`/
 `05_state.sql` (resolves `state_pk` by code, `ON CONFLICT (postal_code)` — the approved-only partial unique index) and BEFORE `database/seed/02_organization/05_sakha_branches.sql`.
 
 ---

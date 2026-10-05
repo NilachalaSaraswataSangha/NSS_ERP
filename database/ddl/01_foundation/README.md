@@ -57,8 +57,10 @@ final step of the full build, after every other module's DDL.
 ## Execution Command
 
 ```bash
-# As nss_db_owner against the nss_erp database:
-for f in database/ddl/01_foundation/0*.sql database/ddl/01_foundation/1*.sql; do
+# As nss_db_owner against the nss_erp database (files 14/15 are excluded here — they
+# must run last in the whole build, see the Note above):
+for f in database/ddl/01_foundation/0*.sql database/ddl/01_foundation/1[0-3]*.sql \
+         database/ddl/01_foundation/1[67]*.sql; do
     psql -U nss_db_owner -d nss_erp -f "$f"
 done
 ```
@@ -67,7 +69,7 @@ done
 
 ## Table Descriptions
 
-### 1. `master_category` (Depth 0, #1 of 88)
+### 1. `master_category` (Depth 0, #1 of 87)
 
 The top-level classification registry. Every domain-specific lookup value in the
 ERP (gender, membership type, relationship type, etc.) belongs to a category
@@ -91,7 +93,7 @@ design: `master_category` + `master_data`.
 
 ---
 
-### 2. `system_setting` (Depth 0, #2 of 88)
+### 2. `system_setting` (Depth 0, #2 of 87)
 
 Key-value store for application-wide configuration. Each setting has a typed
 value (`STRING`, `INTEGER`, `BOOLEAN`, `DATE`, `JSON`) so the application layer
@@ -114,7 +116,7 @@ don't warrant a code deployment to change.
 
 ---
 
-### 3. `id_sequence_master` (Depth 0, #3 of 88)
+### 3. `id_sequence_master` (Depth 0, #3 of 87)
 
 Configuration registry for generating human-readable business IDs. Each row
 defines a sequence with a prefix, a counter, and a `padding_length`. The
@@ -148,7 +150,7 @@ sequences — they receive fixed codes directly from seed data.
 
 ---
 
-### 4. `country` (Depth 0, #4 of 88)
+### 4. `country` (Depth 0, #4 of 87)
 
 Root of the geographic reference hierarchy. Stores ISO 3166-1 alpha-2 country
 codes. Every downstream geographic entity (state, district, city_village,
@@ -169,7 +171,7 @@ postal_code) traces back to a country.
 
 ---
 
-### 5. `document_master` (Depth 0, #5 of 88)
+### 5. `document_master` (Depth 0, #5 of 87)
 
 Central document storage registry. Every uploaded file in the ERP (photos,
 ID proofs, certificates, property documents, meeting minutes) is catalogued
@@ -203,20 +205,44 @@ WHERE NOT NULL)
 
 ---
 
-### 6. `field_change_log` (Depth 0, #6 of 88)
+### 6. `field_change_log` (Depth 0, #6 of 87)
 
-Field-level audit trail. Records individual column-value changes across any
-table in the ERP. The application layer writes to this table whenever a tracked
-field is modified, capturing old value, new value, who changed it, and why.
+Field-level change log — the "what changed" half of the audit trail, read by
+`GET /api/v1/audit/change-log`. Populated **automatically** by
+`nss.fn_audit_trigger()` (see `15_audit_trigger.sql`), one row per field, for
+every `INSERT`/`UPDATE`/`DELETE` on every audited `nss` table. Per
+AUDIT-ARCH-001 coverage is complete and defined by exclusion:
+
+* `created_at` / `updated_at` columns are skipped (change on every write;
+  `changed_at` already records "when");
+* `id_sequence_master` and `credential_sequence_counter` are skipped entirely
+  (counter rows mutate on every ID mint — `current_value: 41 → 42` is
+  mechanical noise). They still get row-level rows in `system_event_log`.
+
+No application code writes here; `nss_db_backend` holds SELECT only. Rows are
+INSERT-only — there is no UPDATE/DELETE path.
+
+Per-operation shape:
+
+| `action` | `old_value` | `new_value` | Rows written |
+|----------|-------------|-------------|--------------|
+| `CREATE` | NULL | the value set | one per populated field |
+| `UPDATE` | previous value | new value | one per **changed** field |
+| `DELETE` | the value lost | NULL | one per populated field |
+
+`action` is stored explicitly rather than inferred, because an `UPDATE` that
+sets a field from NULL to a value is otherwise indistinguishable from a
+`CREATE`.
 
 No FK constraints — `table_name` and `record_pk` are stored as plain values
-(VARCHAR + UUID) to avoid circular dependencies. `changed_by_sangha_sevi_pk`
-is also stored as a raw UUID without FK constraint. Referential integrity is
+(VARCHAR + UUID) to avoid circular dependencies. Both actor columns are
+likewise raw UUIDs without FK constraint. Referential integrity is
 enforced by the application layer.
 
 | Column | Type | Constraint | Purpose |
 |--------|------|-----------|---------|
 | `field_change_log_pk` | UUID | PK, auto | Internal primary key |
+| `action` | VARCHAR(20) | NULL, CHECK in (CREATE, UPDATE, DELETE) | Which DB operation produced this row |
 | `table_name` | VARCHAR(100) | NOT NULL | Name of the table that was changed |
 | `record_pk` | UUID | NOT NULL | PK of the changed record |
 | `field_name` | VARCHAR(100) | NOT NULL | Column name that changed |
@@ -225,12 +251,17 @@ enforced by the application layer.
 | `change_reason` | TEXT | NULL | Why the change was made |
 | `changed_at` | TIMESTAMPTZ | NOT NULL, auto | When the change occurred |
 | `changed_by_sangha_sevi_pk` | UUID | NULL | Who made the change (no FK — application-enforced) |
+| `changed_by_user_account_pk` | UUID | NULL | Acting account — recorded because an authenticated user does not always have a Sangha Sevi record |
 
-**Indexes:** `(table_name, record_pk)`, `changed_at`, `(table_name, field_name)`
+Both actor columns are NULL for public self-registration and for seed/system
+operations.
+
+**Indexes:** `(table_name, record_pk)`, `changed_at`, `(table_name, field_name)`,
+`(changed_by_sangha_sevi_pk, changed_at)`, `action`
 
 ---
 
-### 7. `master_data` (Depth 1, #18 of 88)
+### 7. `master_data` (Depth 1, #18 of 87)
 
 The value-level lookup table. Each row is a specific value belonging to a
 `master_category`. For example, category `GENDER` contains values `MALE`,
@@ -262,7 +293,7 @@ category is `GENDER`).
 
 ---
 
-### 8. `state` (Depth 1, #19 of 88)
+### 8. `state` (Depth 1, #19 of 87)
 
 Second level of the geographic hierarchy. Stores states, provinces, union
 territories, or equivalent administrative divisions within a country.
@@ -287,10 +318,10 @@ territories, or equivalent administrative divisions within a country.
 
 ---
 
-### 9. `district` (Depth 2, #26 of 88)
+### 9. `district` (Depth 2, #26 of 87)
 
 Third level of the geographic hierarchy. Stores districts within a state.
-Seeded with all Indian districts (~770); non-India districts populated at
+Seeded with all 785 Indian districts (numeric LGD `district_code`); non-India districts populated at
 runtime.
 
 **FK:** `state_pk` → `state`
@@ -315,7 +346,7 @@ runtime.
 
 ---
 
-### 10. `city_village` (Depth 3, #32 of 88)
+### 10. `city_village` (Depth 3, #32 of 87)
 
 Fourth level of the geographic hierarchy. Stores individual localities
 (cities, towns, villages) within a district. Seeded all-India from the
@@ -353,7 +384,7 @@ nullable `postal_code_pk` FK is the primary location anchor
 
 ---
 
-### 11. `postal_code` (Depth 1, #87 of 88 — amendment, v2.0 2026-10-02)
+### 11. `postal_code` (Depth 1, #87 of 87 — amendment, v2.0 2026-10-02)
 
 PIN code / postal code reference table. State-scoped with a direct `state_pk`
 FK for administrative ownership (PIN → State is always deterministic — the dominant
@@ -410,6 +441,20 @@ geographic level. Seeded in bulk by `seed/01_foundation/08c_post_office_bulk.sql
 
 ---
 
+### `festival_master` / `festival_calendar_date` (Depths 0 / 1, Festival Calendar)
+
+`16_festival_master.sql` — festival registry (`festival_code` and `festival_name` each unique,
+`festival_name_odia`, `lunar_basis`, `is_erp_reference_date` flagging the festival the ERP uses as a
+reference date, `display_order`, standard `is_active`/`deleted_at` soft-delete with
+`chk_festival_master_soft_delete`). `17_festival_calendar_date.sql` — one entered (never computed)
+observed date per festival per year: `UNIQUE (festival_master_pk, calendar_year)`, `observed_date`
+must fall in `calendar_year` (`chk_festival_calendar_date_year_matches`), `is_confirmed`,
+`source_reference`, `remarks`. Seeded by `seed/01_foundation/10_festival_calendar.sql`; edited via
+`FOUNDATION_CALENDAR_MANAGE` (NSS_ERP_ADMIN only). Design: `docs/03_Solution/architecture/FESTIVAL_CALENDAR_ARCHITECTURE.md`.
+These are built in Phase 1 (despite file numbers 16/17) so the Phase 14 audit trigger attaches to them.
+
+---
+
 ### Member-Assisted Geographic Entry (`district`, `postal_code`, `post_office`, `city_village`)
 
 A member may type a geographic value not yet in the lists; it is inserted as
@@ -430,8 +475,8 @@ UUIDs here (Foundation builds before Membership) and get real FKs from
 
 Centralized, immutable audit trail (SOL-AUDIT-004 §8–9). Every authenticated write
 operation is expected to append a row here — either explicitly via the application-layer
-`api/helpers.py::log_audit()` helper (used by `api/routers/family.py`'s 9 new write
-endpoints), or automatically via the `nss.fn_audit_trigger()` database trigger
+`api/helpers.py::log_audit()` helper (called from the auth, admin, family, foundation, claim-approval,
+geo-approval and registration routers), or automatically via the `nss.fn_audit_trigger()` database trigger
 (`15_audit_trigger.sql`, below) attached to every other `nss.*` table. Rows are INSERT-only
 — no UPDATE/DELETE path exists in the application or DDL.
 
@@ -457,7 +502,7 @@ this table must be creatable at Depth 0 yet needs to reference rows in every oth
 `event_at`, `(module, event_at)`, `(action, event_at)`
 
 **Note — two independent write paths, not yet reconciled:** the application-layer
-`log_audit()` calls in `family.py` and the database-level `fn_audit_trigger()` (below) can
+`log_audit()` calls (e.g. in `family.py`) and the database-level `fn_audit_trigger()` (below) can
 both fire for the *same* write (e.g. `INSERT INTO nss.family_group` triggers both the trigger
 *and* an explicit `log_audit()` call in `create_family()`), producing two rows per event with
 different `module`/`summary`/`detail` shapes rather than one. No de-duplication exists yet.
@@ -469,15 +514,31 @@ different `module`/`summary`/`detail` shapes rather than one. No de-duplication 
 Not a table file — a `SECURITY DEFINER` PL/pgSQL trigger function plus a `DO $$ ... $$` block
 that dynamically attaches an `AFTER INSERT OR UPDATE OR DELETE` trigger
 (`trg_audit_<table>`) to every table currently in the `nss` schema (via
-`pg_tables`), excluding `system_event_log` and `field_change_log` themselves. On `UPDATE` it
-diffs `OLD`/`NEW` via `jsonb_each` to log only changed columns; on `INSERT`/`DELETE` it logs
-the full new/old row as JSONB. Actor identity comes from two Postgres session
-variables — `nss.actor_sangha_sevi_pk` / `nss.actor_user_account_pk` — that the application is
-expected to `SET` at the start of each request; if unset, actor columns are simply `NULL`.
-`api/dependencies/auth.py`'s `get_current_user()`/`get_optional_user()` set both via
-`SELECT set_config('nss.actor_...', %s, TRUE)` right after loading the JWT's `UserContext`
-(the `TRUE` third argument scopes it to the current transaction). Idempotent — re-running
-`DROP TRIGGER IF EXISTS` + `CREATE TRIGGER` for every table on each build.
+`pg_tables`), excluding `system_event_log` and `field_change_log` themselves.
+
+It writes **two** logs per operation:
+
+1. **`system_event_log`** — one row-level event. On `UPDATE` it diffs `OLD`/`NEW` via
+   `jsonb_each` and stores only the changed columns; on `INSERT`/`DELETE` it stores the
+   full new/old row as JSONB.
+2. **`field_change_log`** — field-level detail, one row per field, for all three
+   operations (`action` = CREATE/UPDATE/DELETE). Per AUDIT-ARCH-001 this is complete and
+   exclusion-defined: the `created_at`/`updated_at` columns are skipped everywhere, and
+   the counter tables `id_sequence_master` / `credential_sequence_counter` are skipped
+   wholesale (their `current_value` mutates on every ID mint). Excluded tables still get
+   their `system_event_log` row, so schema coverage stays complete.
+
+Actor identity comes from two Postgres session variables —
+`nss.actor_sangha_sevi_pk` / `nss.actor_user_account_pk` — and both are stamped onto every
+row written to either log; if unset, actor columns are simply `NULL`.
+`api/dependencies/auth.py`'s `get_write_connection()` sets them via
+`SELECT set_config('nss.actor_...', %s, TRUE)` after resolving the caller from the JWT
+(the `TRUE` third argument scopes it to the current transaction).
+
+**They must be set on the connection the write runs on.** Setting them on the read-pool
+connection leaves the trigger blind, because writes — and therefore the trigger — execute on
+the separate `nss_db_writer` pool. Idempotent — re-running `DROP TRIGGER IF EXISTS` +
+`CREATE TRIGGER` for every table on each build.
 
 Because it dynamically discovers `nss` tables at *run time* rather than listing them, this
 file must execute **after every other module's DDL** (see the Note on Files 14–15 above) or

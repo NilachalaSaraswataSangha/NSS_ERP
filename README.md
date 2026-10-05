@@ -113,7 +113,7 @@ design philosophy, ensuring that business rules are frozen before implementation
   `/auth/login|refresh|forgot-password|reset-password` endpoints need no JWT. Reads connect as
   `nss_db_backend` (SELECT-only); writes connect as a second role, `nss_db_writer`. A DB-level
   trigger (`fn_audit_trigger()`) records every `nss.*` INSERT/UPDATE/DELETE to
-  `nss.system_event_log`.
+  `nss.system_event_log` and, per changed field, to `nss.field_change_log`.
 
 ---
 
@@ -150,7 +150,7 @@ Security Middleware (CORS, rate limiting, security headers, CSP, Cache-Control)
    │
    ▼
 FastAPI (api/main.py — 12 routers: bootstrap, foundation, organization, person, family,
-   │       membership, auth, registration, claim_approval, admin, audit)
+   │       membership, auth, registration, claim_approval, admin, audit, geo_approval)
    │       JWT + RBAC guards (api/dependencies/), services (api/services/)
    ▼
 psycopg2 connection pools (api/database.py) — read pool (nss_db_backend) + write pool
@@ -803,7 +803,7 @@ Completed:
 * New `test_data_integrity.py` (23 tests, now `tests/db/test_data_integrity.py`) — cross-module
   smoke tests
 * Merged to `develop` and `main`, tagged `v0.10.0` (see `docs/05_Releases/v0.10.0.md`)
-* Three patch/hotfix tags followed v0.10.0, no individual release-notes docs yet: `v0.10.1`
+* Hotfix tags followed v0.10.0 (release notes for each are in `docs/05_Releases/`): `v0.10.1`
   (wired `family_link` into `02_build.sh`/`render_build.sh`, extended `render_build.sh` through
   the full Tier 4 phase sequence), `v0.10.2` (creates `nss_db_owner`/`nss_db_backend` roles on
   Neon before granting — `render_build.sh` was failing at the grant step on a fresh Neon
@@ -859,7 +859,7 @@ Completed:
 * Frontend CSS build migration (since released): Tailwind CSS +
   DaisyUI moved from CDN (`<script src="https://cdn.tailwindcss.com">` + DaisyUI CDN `<link>`)
   to a pre-built, tree-shaken, minified stylesheet (`frontend/assets/css/tailwind.min.css`,
-  ~72 KB) generated via Tailwind CLI (`package.json`, `tailwind.config.js`); every page
+  ~87 KB) generated via Tailwind CLI (`package.json`, `tailwind.config.js`); every page
   `<link>`s the built file (a committed artifact — Node.js is only needed to rebuild it);
   `render_build.sh` runs `npm install` + the Tailwind build before Python deps. `api/middleware.py` gained a `Cache-Control: public, max-age=86400,
   must-revalidate` header on `/assets/*` responses (previously only `/api/*` had a Cache-Control
@@ -877,9 +877,9 @@ Completed:
   (`15_audit_trigger.sql`, `SOL-AUDIT-004`) that fires on every INSERT/UPDATE/DELETE across
   `nss.*` tables — actor identity comes from per-request session variables, so writes can't
   bypass the audit trail; `api/helpers.py::log_audit()` also records explicitly from write
-  endpoints. **47 tables total** (incl. `post_office`/festival tables added later on the branch). New routers at that point: `auth.py` (8 endpoints), `registration.py` (6,
+  endpoints. **47 tables total** (incl. `post_office`/festival tables added later on the branch). New routers at that point: `auth.py` (8 endpoints), `registration.py` (6 then; 10 now,
   public), `claim_approval.py` (5), `admin.py` (25 then; 28 now), `audit.py` (1), plus 9 endpoints added to
-  `family.py` and 6 write endpoints added to `foundation.py` (`FOUNDATION_MANAGE`) — **108
+  `family.py` and 6 write endpoints added to `foundation.py` (`FOUNDATION_MANAGE`; 8 writes plus 4 member `propose` POSTs now) — **108
   endpoints at that point (133 now, incl. `geo_approval.py`)**. New `nss_db_writer` PostgreSQL role (write access scoped to the
   auth/admin tables). `permission_master`/`role_permission` are seeded. Every Tier 4
   "verification"/demo seed file has been deleted — a fresh build produces **zero demo
@@ -912,11 +912,11 @@ Each tier follows the vertical slice pattern: **DB -> API -> Web UI -> Flutter M
 | Tier | Modules | Focus | DB | API | Web UI | Mobile |
 |------|---------|-------|----|-----|--------|--------|
 | **0** | Bootstrap RBAC | Infrastructure bootstrap — `role_master`, `permission_master`, `role_permission` (3 tables) | Done | Done (4 endpoints) | Done (Bootstrap Verification) | -- |
-| **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables + `system_event_log`) | Done | Done (17 endpoints at release; 23 with Tier 5 writes) | Done (folded into `admin.html` Reference Data/Geography) | -- |
-| **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (7 endpoints at release; 8 now) | Done (folded into `admin.html`) | -- |
-| **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints) | Done (folded into `admin.html` Person Directory) | -- |
+| **1** | Foundation | Master data, geography, ID sequences, document/change-log (12 tables + `system_event_log`) | Done | Done (17 endpoints at release; 33 now) | Done (folded into `admin.html` Reference Data/Geography) | -- |
+| **2** | Organization | Org types, statuses, self-referencing hierarchy (1 table; types/statuses sourced from Foundation `master_data`) | Done | Done (7 endpoints at release; 11 now) | Done (folded into `admin.html`) | -- |
+| **3** | Person | Person identity, contact, address (2 tables: `person`, `person_address`) | Done | Done (4 endpoints at release; 5 now) | Done (folded into `admin.html` Person Directory) | -- |
 | **4** | Family, Membership | Family groups/relationships + dynamic relationship graph (5 tables) + membership registration/approval/transfer/lifecycle (12 tables) | Done | Done (14 endpoints at release; 24 now incl. 9 Tier 5 Family endpoints) | Done (folded into `dashboard.html`/`admin.html`) | -- |
-| **5** | Authentication, Administration | `user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_role`, `admin_scope` (4 auth + 2 admin tables, plus supporting tables added to Family/Membership/Foundation) — RBAC management, JWT, audit | In progress (Tier 5 branch) | Committed, unmerged ( — auth, registration, claim-approval, admin, audit routers: 45 endpoints) | Committed, unmerged ( — login/register/dashboard/admin pages) | -- |
+| **5** | Authentication, Administration | `user_account`, `password_history`, `registration_claim`, `password_reset_token`, `user_role`, `admin_scope` (4 auth + 2 admin tables, plus supporting tables added to Family/Membership/Foundation) — RBAC management, JWT, audit | In progress (Tier 5 branch) | Committed, unmerged ( — auth, registration, claim-approval, admin, audit, geo-approval routers: 56 endpoints) | Committed, unmerged ( — login/register/dashboard/admin pages) | -- |
 | **6** | Attendance, Governance, Assets & Property | Weekly sangha puja attendance + review, unified body governance + elections, property/asset custodianship | Not started | Not started | Not started | -- |
 | **7** | Heritage (Founder & Heritage) | Founder record, teachings, objectives, milestones, publications framework (8 tables) | Not started | Not started | Not started | -- |
 | **8** | Kumari Sangha, Kishor Puja | Youth modules — KM/KH identity, annual events, guardian assignment, SS transition | Not started | Not started | Not started | -- |
@@ -964,7 +964,7 @@ NSS_ERP
 │
 ├── api
 │   ├── routers              (12 routers: bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, Tier 5 (committed, not yet merged): auth.py, admin.py, registration.py, claim_approval.py, audit.py, geo_approval.py)
-│   ├── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, Tier 5: auth.py, admin.py, audit.py)
+│   ├── schemas               (bootstrap.py, foundation.py, organization.py, person.py, family.py, membership.py; plus, Tier 5: auth.py, admin.py, audit.py, geo_approval.py)
 │   ├── services              (family_graph.py — BFS relationship computation; plus, Tier 5: auth_service.py, rbac_service.py)
 │   ├── dependencies          (Tier 5 — auth.py, rbac.py: FastAPI dependency-injected JWT/RBAC guards)
 │   └── config.py, database.py, helpers.py, middleware.py, error_handlers.py, main.py
@@ -974,7 +974,7 @@ NSS_ERP
 │
 ├── database
 │   ├── ddl                  (00_bootstrap .. 05_membership; plus, Tier 5: 06_authentication, 07_administration)
-│   ├── seed                 (00_bootstrap .. 03_person; 04_admin — the single admin superuser; no demo data)
+│   ├── seed                 (00_bootstrap .. 02_organization hold the SQL seeds, 03_person/04_family/05_membership hold only READMEs; 04_admin — the single admin superuser; no demo data)
 │   └── scripts              (00_create_database.sql .. 06_setup_env.sh, 02_build.sh/.ps1, 03_validate.sh/.ps1, grant scripts)
 │
 ├── scripts                (repo-root Python ops scripts, e.g. `bootstrap_admin.py`; distinct from `database/scripts/`)

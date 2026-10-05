@@ -109,7 +109,7 @@ each module, `ROLLBACK TO SAVEPOINT` undoes every INSERT/UPDATE/DELETE the modul
 made. `_reset_rate_limiter` (autouse, function-scoped) resets `api.main.limiter`'s in-memory
 storage before every test.
 
-Further session-scoped fixtures in the root `conftest.py`:
+Further fixtures in the root `conftest.py` (session-scoped unless noted):
 
 | Fixture | Purpose |
 |---------|---------|
@@ -126,7 +126,7 @@ connection.
 `tests/ui/conftest.py` is separate: it is **not** SAVEPOINT-wrapped (UI tests drive a real running
 server), defines `page`/`admin_page`/`member_page` fixtures plus helpers (`wait_for_alpine`,
 `wait_for_toast`, `get_table_rows`, `click_nav_item`), logs in as `SS1`/`Admin@123` against
-`http://127.0.0.1:8001`, and auto-applies the `ui` marker. `member_page` currently logs in as
+`http://127.0.0.1:8001` (override with `NSS_UI_BASE_URL`), caches/restores login sessions across tests, and auto-applies the `ui` marker. `member_page` currently logs in as
 the **same** `SS1` admin account (no separate member account is bootstrapped yet).
 
 **Implication for anyone adding a test:** don't assume any row already exists — either create
