@@ -15,9 +15,7 @@ SOL-ARCH-011 (Bootstrap Architecture), module table-design documents
 > enforced by the application layer). See SOL-ARCH-011 §7.2 for the
 > full identity distinction.
 
-> **Tier 5 (Authentication + Administration) is committed on the branch, not merged** — branch
-> `feature/tier5-authentication-administration`, not merged to `develop`/`main`, no release
-> tag. Relative to the last released schema (v0.10.4) it adds `ddl/06_authentication/` (5 tables),
+> **Tier 5 (Authentication + Administration) is released in v0.11.0** (merged to `develop`/`main`). Relative to the last released schema (v0.10.4) it adds `ddl/06_authentication/` (5 tables),
 > `ddl/07_administration/` (2 tables), `family_admin` (Family), `darshak_attendance_registration`
 > and `credential_sequence_counter` (Membership), and `system_event_log` (Foundation, with
 > `fn_audit_trigger()` attached to every other `nss.*` table) — **11 new tables**, plus
@@ -216,8 +214,8 @@ There is no `database/migrations/` or `database/fixes/` folder.
 | Person | 2 | ✅ IMPLEMENTED | — |
 | Family | 6 | ✅ IMPLEMENTED (`family_admin` Tier 5; + move-transition guard trigger) | — |
 | Membership | 14 | ✅ IMPLEMENTED (`darshak_attendance_registration`, `credential_sequence_counter` Tier 5; + Sakha-only trigger) | — |
-| Authentication | 4 | ⏳ Tier 5 branch, committed, not merged | Not merged/released; freeze DDL before relying on it |
-| Administration | 2 (`user_role`/`admin_scope`; the 3 RBAC definition tables live in Bootstrap) | ⏳ Tier 5 branch, committed, not merged | Not merged/released |
+| Authentication | 4 | ⏳ Tier 5, released in v0.11.0 | Not merged/released; freeze DDL before relying on it |
+| Administration | 2 (`user_role`/`admin_scope`; the 3 RBAC definition tables live in Bootstrap) | ⏳ Tier 5, released in v0.11.0 | Not merged/released |
 | Heritage | 4 | ⬜ NOT YET | — |
 
 Table counts for the implemented modules above are the actual counts of tables created by their

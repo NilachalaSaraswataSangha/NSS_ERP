@@ -4,8 +4,8 @@ API design documentation: request/response contracts for the FastAPI service imp
 the root-level `api/` folder (raw psycopg2, no ORM; 12 routers — see
 `api/README.md` for the running code). Each contract is written per-tier, as its vertical slice
 lands, and stays DRAFT until the tier's implementation is frozen. The four per-tier contracts
-were written when Tiers 0-3 were read-only and unauthenticated; on the in-progress Tier 5 branch
-(`feature/tier5-authentication-administration`) each now opens with a **Tier 5
+were written when Tiers 0-3 were read-only and unauthenticated; in Tier 5
+(v0.11.0) each now opens with a **Tier 5
 update** note describing the JWT/permission gating, and `API_CONTRACT.md` carries the cross-tier
 Tier 5 catalogue.
 ## Files
@@ -14,7 +14,7 @@ Tier 5 catalogue.
   endpoints (`health`, `roles`, `permissions`, `roles/{pk}/permissions`) over 3 tables
   (`role_master`, `permission_master`, `role_permission`). No authentication (the only fully
   unauthenticated router); `nss_db_backend` connects SELECT-only. Permissions/mappings are
-  now seeded on the Tier 5 branch, so those endpoints no longer return empty lists.
+  now seeded in Tier 5, so those endpoints no longer return empty lists.
 - **`FOUNDATION_API_CONTRACT.md`** (v1.2, DRAFT) — Tier 1 Foundation contract: documents 23 of the
   router's 33 endpoints (the festival-calendar, `sakha-postal-codes`, `/post-offices` and four
   member `*/propose` endpoints are catalogued only in `API_CONTRACT.md` §4) —
@@ -27,10 +27,10 @@ Tier 5 catalogue.
 - **`ORGANIZATION_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 2 Organization read-only contract: 8
   endpoints (`types`, `statuses`, `organizations` list/detail/children, `children-stats`,
   `stats`, `hierarchy`), exposing the NSS institutional hierarchy (Kendra → Anchalika/Zilla →
-  Sakha → Patha Chakra). All gated by `ORGANIZATION_VIEW` on the Tier 5 branch; the body
+  Sakha → Patha Chakra). All gated by `ORGANIZATION_VIEW` in Tier 5; the body
   still describes the original 6-7 endpoints, with the update note at the top covering `/stats`.
 - **`PERSON_API_CONTRACT.md`** (v1.0, DRAFT) — Tier 3 Person read-only contract (list/search
-  need `PERSON_VIEW`; detail/addresses are self-or-`PERSON_VIEW` on the Tier 5 branch): 4 endpoints
+  need `PERSON_VIEW`; detail/addresses are self-or-`PERSON_VIEW` in Tier 5): 4 endpoints
   (`persons` list/detail, `persons/{pk}/addresses`, trigram `search`) over the `person` and
   `person_address` tables. Master-data FKs (gender, marital status, blood group, emergency
   relationship, address type) are resolved via JOINs; `aadhaar_encrypted`/`aadhaar_hash` are
@@ -50,7 +50,7 @@ Tier 5 catalogue.
 Each per-tier contract documents conventions, the full endpoint catalogue with example
 requests/responses and SQL patterns, a response-schema summary, error responses, and an
 implementation file map tying the contract back to its router/schema/test/frontend files.
-Write operations (POST/PATCH/DELETE) were deferred to Tier 5; they now exist (committed, not yet merged) — Foundation's six are specified in `FOUNDATION_API_CONTRACT.md` §3.5, everything
+Write operations (POST/PATCH/DELETE) were deferred to Tier 5; they now exist (v0.11.0) — Foundation's six are specified in `FOUNDATION_API_CONTRACT.md` §3.5, everything
 else in `API_CONTRACT.md` §7 and §9-§13.
 
 See `docs/PROJECT_DOCUMENTATION.md` → Conventions & gotchas for how this folder relates to the

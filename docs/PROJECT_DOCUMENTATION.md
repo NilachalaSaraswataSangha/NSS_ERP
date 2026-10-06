@@ -53,9 +53,8 @@ convention that contradicts the project's actual frozen `_code`-only convention 
 Conventions & gotchas. `programmes_events` is the one module not tagged SOURCE ALIGNED (still
 DRAFT, not frozen), though its cross-module reconciliation is complete.
 
-**Tier 5 is currently mid-flight** on branch `feature/tier5-authentication-administration`
-(Tier 5 branch changes as of this documentation pass — not merged to `develop`/
-`main`, not released). It adds a genuine read-write slice on top of the read-only Tiers 0-4
+**Tier 5 is released as v0.11.0** (merged to `develop` and `main`; the tag exists locally and
+must still be pushed). It adds a genuine read-write slice on top of the read-only Tiers 0-4
 above: JWT authentication (`api/routers/auth.py`), user/role administration
 (`api/routers/admin.py`), self-registration with admin-approval (`api/routers/registration.py`,
 `api/routers/claim_approval.py`), an authenticated audit-trail viewer
@@ -80,7 +79,7 @@ current auth behavior. It also
 **removes every Tier 4 demo/verification seed file** and `database/migrations/` wholesale, and
 rewrites `tests/conftest.py` to use a session-scoped, `SAVEPOINT`-rolled-back write connection
 instead of relying on pre-seeded data. See the new "Tier 5" subsection under Architecture below
-for the full detail — everything there should be read as *in-progress*, not shipped.
+for the full detail.
 
 ## Architecture
 
@@ -129,7 +128,7 @@ security headers
   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
   `Referrer-Policy: strict-origin-when-cross-origin`, and
   `Permissions-Policy: camera=(), microphone=(), geolocation=()` on every response, plus
-  `Cache-Control: no-store` scoped to paths starting `/api/` only, and (new on the Tier 5 branch)
+  `Cache-Control: no-store` scoped to paths starting `/api/` only, and (Tier 5)
   `Cache-Control: public, max-age=86400, must-revalidate` on `/assets/*`; and (4, Tier 5) a Content-Security-Policy via `api/middleware.py::build_csp()` — enabled and
   enforcing by default (`CSP_ENABLED`/`CSP_REPORT_ONLY`/`CSP_SCRIPT_SRC_EXTRA`/
   `CSP_STYLE_SRC_EXTRA` env vars; `script-src` omits `'unsafe-inline'` since all inline event
@@ -145,14 +144,13 @@ security headers
   `api/routers/bootstrap.py` (prefix `/api/v1/bootstrap`), `api/routers/foundation.py` (prefix
   `/api/v1/foundation`), `api/routers/organization.py` (prefix `/api/v1/organization`),
   `api/routers/person.py` (prefix `/api/v1/person`), `api/routers/family.py` (prefix
-  `/api/v1/family`), `api/routers/membership.py` (prefix `/api/v1/membership`), and — Tier 5, on
-  `feature/tier5-authentication-administration`, not yet merged; run `git status` for what is uncommitted — `api/routers/auth.py` (`/api/v1/auth`), `api/routers/admin.py`
+  `/api/v1/family`), `api/routers/membership.py` (prefix `/api/v1/membership`), and — Tier 5 (v0.11.0) — `api/routers/auth.py` (`/api/v1/auth`), `api/routers/admin.py`
   (`/api/v1/admin`), `api/routers/registration.py` (`/api/v1/register`),
   `api/routers/claim_approval.py` (`/api/v1/admin/claims`), and `api/routers/audit.py`
   (`/api/v1/audit`) — **endpoints** (see the per-router breakdown in the Overview
   above). `family.py`'s `/graph` endpoint delegates its BFS relationship computation to
   a new `api/services/` layer (`api/services/family_graph.py`, `build_family_graph()` +
-  `FamilyGraph.compute_relationships()`) — joined on the Tier 5 branch by
+  `FamilyGraph.compute_relationships()`) — joined in Tier 5 by
   `api/services/auth_service.py` (Argon2 hashing + JWT issuance) and
   `api/services/rbac_service.py` (`UserContext` + permission/scope loading); no other endpoint
   uses `family_graph.py`. If `frontend/` exists on disk, `api/main.py`
@@ -171,7 +169,7 @@ security headers
   `api/.env`. The security middleware stack above is registered; authentication/authorization is
   **not** implemented as middleware — it's a per-route FastAPI dependency
   (`Depends(get_current_user)` / `Depends(require_permission(...))`, `api/dependencies/`) layered
-  on top. On the Tier 5 branch (Tier 5 branch) that dependency now gates every
+  on top. On the Tier 5 (Tier 5) that dependency now gates every
   Foundation/Organization/Person/Membership GET route plus all 16 Family routes (an
   ownership-based model — see the Family section below); only `bootstrap.py`'s 4 endpoints
   remain unauthenticated.
@@ -203,7 +201,7 @@ security headers
   `"light"` theme) and root `package.json` (`devDependencies`: `tailwindcss` `^3.4.17`,
   `daisyui` `^4.12.14`; scripts `css:build`/`css:watch`). `render_build.sh` now runs `npm
   install` + that same `npx tailwindcss ... --minify` build as its first step, before the Python
-  dependency install — also Tier 5 branch. `.gitignore` gained a `node_modules/` entry.
+  dependency install — also Tier 5. `.gitignore` gained a `node_modules/` entry.
   `frontend/assets/js/` now contains `login.js`, `register.js`, `dashboard.js` and `admin.js`
   (the four page components), `auth.js` (`NSSAuth` — JWT storage/refresh + authenticated
   `fetch()` wrapper), and the shared helpers `nss-layout.js`, `nss-config.js`,
@@ -300,7 +298,7 @@ distinct from `NSS_ERP_ADMIN` (an ERP RBAC role, a `role_master` row) — the tw
 equivalent, and `NSS_ERP_ADMIN` never bypasses RBAC checks. DDL for all 3 tables exists under
 `database/ddl/00_bootstrap/` and is **implemented and committed** (`feat(bootstrap): Phase 0
 Bootstrap RBAC DDL and seed data`); seed data is now complete (`role_master`: 9 roles;
-`permission_master`/`role_permission`: **now populated on the Tier 5 branch, in progress** —
+`permission_master`/`role_permission`: **now populated in Tier 5, in progress** —
 `FOUNDATION_VIEW`/`ORGANIZATION_VIEW`/`PERSON_VIEW`/`PERSON_VIEW_SENSITIVE`/`FAMILY_VIEW`/
 `MEMBERSHIP_VIEW`/`AUDIT_VIEW` plus the admin/user-management permission set are mapped to
 roles — the "empty, pending the permission catalogue" state below no longer applies). Ownership of
@@ -442,8 +440,9 @@ ledgers.
 
 ### Current position
 
-Tier 0 (Bootstrap), Tier 1 (Foundation), Tier 2 (Organization), Tier 3 (Person), and Tier 4
-(Family + Membership) DB phases are all **implemented**. `database/ddl/03_person/02_person.sql`
+Tiers 0-5 (Bootstrap, Foundation, Organization, Person, Family + Membership, Authentication +
+Administration) are all **implemented**; the latest release is **v0.11.0**. (The notes below were
+written tier-by-tier; Tier 5 detail is under Architecture.) Tier 0-4 DB phases:  `database/ddl/03_person/02_person.sql`
 (`person`, 28 columns) and `03_person_address.sql` (`person_address`) are real, implemented DDL
 — following the same
 Foundation `master_data` pattern as Organization (gender/marital_status/blood_group/
@@ -501,12 +500,11 @@ Geography; Organization → Organizations + Organization Hierarchy; Person → P
 Membership → Member Directory) and `dashboard.html` (Family → Family tab; Membership →
 Membership tab). See the `frontend/` directory-structure section below.
 
-**Tier 5 (Authentication + Administration) DB/API/UI phases all have committed
-work** on branch `feature/tier5-authentication-administration` — not yet merged, not yet
-released, no `v0.11.0` tag exists. See the "Tier 5" subsection under Architecture above for the
+**Tier 5 (Authentication + Administration) DB/API/UI phases are complete and released
+as `v0.11.0`** (merged to `main`; the tag exists locally, not yet pushed). See the "Tier 5" subsection under Architecture above for the
 full detail (new tables, routers, services, dependencies, removed seed data, and the new
-session-scoped test-fixture architecture). Do not treat any Tier 5 claim in this document as
-final until that branch is merged and tagged.
+session-scoped test-fixture architecture). The suite was not executed as part of cutting the release (see
+`docs/05_Releases/v0.11.0.md`); run `pytest -m integration` against a bootstrapped DB before relying on it.
 
 ### Database schema
 
@@ -528,9 +526,9 @@ NSS_ERP/
 │   ├── ddl/                     Hand-written PostgreSQL schema, numbered by module (adds
 │   │                             06_authentication/, 07_administration/ — Tier 5, see above)
 │   ├── seed/                    Reference/lookup data matching the DDL (Tier 4 demo/
-│   │                             verification seed files removed on the Tier 5 branch — see
+│   │                             verification seed files removed in Tier 5 — see
 │   │                             above; new 04_admin/ folder seeds a single admin superuser)
-│   ├── migrations/              REMOVED on the Tier 5 branch — see above
+│   ├── migrations/              REMOVED in Tier 5 — see above
 │   │                             (its narrow `fixes/` successor, added on this same branch to
 │   │                             hold one-off data-repair scripts, has since been deleted too —
 │   │                             its only file was verified obsolete against `family.py`'s
@@ -538,8 +536,8 @@ NSS_ERP/
 │   │                             targeted; there is no `database/fixes/` folder anymore)
 │   └── scripts/                 Executable bootstrap/build/validate/grant scripts (see below;
 │                                 gains `05_create_writer_role.sql`/`06_setup_env.sh` on the
-│                                 Tier 5 branch)
-├── scripts/                      New top-level folder (Tier 5 branch) — `bootstrap_admin.py`,
+│                                 Tier 5)
+├── scripts/                      New top-level folder (Tier 5) — `bootstrap_admin.py`,
 │                                   run by `02_build.sh`/`render_build.sh` Phase 13 to seed the
 │                                   admin superuser with a runtime-generated Argon2 hash
 ├── tests/                        pytest suite, reorganized (Tier 5) into
@@ -570,7 +568,7 @@ NSS_ERP/
 │   │                            per-tier doc for Family/Membership; see detail
 │   │                            below), distinct from the real, implemented root-level `api/`
 │   │                            code folder
-│   └── 05_Releases/             Release notes, v0.1.0 → v0.10.4
+│   └── 05_Releases/             Release notes, v0.1.0 → v0.11.0
 ├── BY-LAW/                       Original source PDFs/docx of the NSS and Mahila Sangha Bye-Laws — the primary source both `docs/01_Authoritative_References/NSS/` and `.../MAHILA_SANGHA/` are transcribed from
 ├── render.yaml                    Render.com Infrastructure-as-Code — free-tier web service
 │                                   (`uvicorn api.main:app`); does not provision a database — DB
@@ -666,12 +664,9 @@ api/
 │   │                   FAM-036 majority-rule "effective Sakha" computation — this CTE has no
 │   │                   depth-cap guard, unlike `/hierarchy` below, a real unresolved gap; see
 │   │                   Gotchas) and a newer `/organizations/{organization_pk}/stats`
-│   │                   (committed, not yet merged — the same recursive counts collapsed to one
-│   │                   row of whole-subtree totals for the requested org itself, 403s if it
-│   │                   falls outside the caller's own admin scope per ADMIN-BR-076, backs the
-│   │                   new Org Dashboard tab — see Frontend detail below); both share the FAM-036
+│   │                   (v0.11.0); both share the FAM-036
 │   │                   CTE via a single `FAMILY_MAJORITY_CTE_SQL` constant in `api/helpers.py`
-│   │                   (Tier 5 branch) rather than a duplicated copy — see Key Workflow #4 — and the
+│   │                   (Tier 5) rather than a duplicated copy — see Key Workflow #4 — and the
 │   │                   self-referencing tree (`/hierarchy`,
 │   │                   a `WITH RECURSIVE org_tree` CTE returning a flat depth-annotated list,
 │   │                   also paginated, **with** a depth-cap guard); all organization-shaped endpoints share one SQL
@@ -706,7 +701,7 @@ api/
 │   │                   family context to membership context — **no test coverage**); no
 │   │                   dedicated per-tier contract doc — documented in the
 │   │                   consolidated `docs/03_Solution/api/API_CONTRACT.md` instead (see Key
-│   │                   workflows below). **On the in-progress Tier 5 branch (Tier 5 branch),
+│   │                   workflows below). **On the in-progress Tier 5 (Tier 5),
 │   │                   this router gained 9 more, authenticated write endpoints — `POST
 │   │                   /families` (create), `POST`/`DELETE /families/{pk}/members` (add/remove
 │   │                   member), `POST /families/{pk}/links`, `GET/POST/DELETE
@@ -725,8 +720,7 @@ api/
 │                       list/detail/search are gated by `require_permission("MEMBERSHIP_VIEW")`;
 │                       Sakha affiliation history, Parichaya Patra records, Anumati Patra
 │                       records, and a journey-event timeline (all per member) instead use an
-│                       **ownership model** (committed, not yet merged, via a shared
-│                       `_require_member_view()`/`require_self_or_permission()` helper) —
+│                       **ownership model** (v0.11.0)`/`require_self_or_permission()` helper) —
 │                       `get_current_user` plus either `MEMBERSHIP_VIEW` or being the member
 │                       themself. An 8th endpoint,
 │                       `/organizations/{organization_pk}/darshak-summary` (Tier 5,
@@ -798,7 +792,7 @@ referenced elsewhere in the project's roadmap (`mahila`, `kumari`, `kishor`, `se
 `publications`, `upbs`, `reports`) **do not exist yet** in either `api/` or
 any other code form — they are planned, not scaffolded.
 
-### Tier 5 (Authentication + Administration) — committed, not yet merged on `feature/tier5-authentication-administration`
+### Tier 5 (Authentication + Administration) — released in v0.11.0
 
 **Not yet merged to `develop`/`main`, not yet released.** The working tree on this branch adds a
 full read-write vertical slice on top of the read-only Tiers 0-4 above. Treat everything in this
@@ -829,7 +823,7 @@ api/
 │                          `resolve_or_create_city_village()` (lookup-or-insert into
 │                          `nss.city_village` by name+district, used by registration/admin org
 │                          edits), `get_active_status_pk()` (STATUS/ACTIVE master_data_pk lookup),
-│                          plus (Tier 5 branch) 4 shared SQL fragment constants dedup-ing
+│                          plus (Tier 5) 4 shared SQL fragment constants dedup-ing
 │                          previously byte-identical router queries: `FAMILY_MAJORITY_CTE_SQL`
 │                          (FAM-036, shared by `organization.py`/`family.py`),
 │                          `ORGANIZATION_ADDRESS_JOINS_SQL` (shared by `organization.py`/
@@ -884,8 +878,7 @@ api/
 │   │                     (admin-created person, no account), sangha-sevi provisioning
 │   │                     (`POST /sangha-sevi`, `GET /sangha-sevi/check/{person_pk}`,
 │   │                     `POST /sangha-sevi/check-batch`,
-│   │                     `GET /sangha-sevi/without-account` (committed, not yet merged —
-│   │                     paginated/searchable list backing the "Create Account" picker)),
+│   │                     `GET /sangha-sevi/without-account` (v0.11.0)),
 │   │                     `GET /dashboard-stats`, and
 │   │                     organization management (`GET/POST /organizations`,
 │   │                     `GET /organizations/kumari-sevak-sakha-options` (ORG-BR-101/102),
@@ -896,15 +889,15 @@ api/
 │   │                     ADMIN-BR-076/077): `NSS_ERP_ADMIN`/NSS-WIDE edits any
 │   │                     org, any other scoped admin edits only their own scope subtree,
 │   │                     regardless of holding `ORGANIZATION_MANAGE` or only
-│   │                     `ORGANIZATION_VIEW`. `short-code`'s gate was fixed (Tier 5 branch) — used
+│   │                     `ORGANIZATION_VIEW`. `short-code`'s gate was fixed (Tier 5) — used
 │   │                     to require `ADMIN_USER_MANAGE` outright, wrongly blocking scoped org
 │   │                     admins. `PATCH /organizations/{pk}` also gained a
-│   │                     `parent_organization_pk` re-parenting field (Tier 5 branch), validated
+│   │                     `parent_organization_pk` re-parenting field (Tier 5), validated
 │   │                     against a module-level `_ALLOWED_PARENT_TYPES` map shared with
 │   │                     `create_organization()` — backs a new "Assign Sakhas" admin tab (see
 │   │                     Frontend detail below). The org-list query was also missing the
 │   │                     NSS-wide `email`/`website_url`/`youtube_channel_url` columns (only had
-│   │                     the nullable per-org `org_*` overrides) — fixed (Tier 5 branch); the org
+│   │                     the nullable per-org `org_*` overrides) — fixed (Tier 5); the org
 │   │                     detail view now shows both an "(NSS)" and, when set, an "(Own)" row for
 │   │                     each of Email/Website/YouTube. `PATCH /users/{pk}/status` only changes
 │   │                     `account_status` — it never creates a `sangha_sevi`; activating a
@@ -921,7 +914,7 @@ api/
 │   │                     approval. Local Sakha Number is required for non-Darshaka claims,
 │   │                     optional for Darshaka (`PROBATIONARY`); not validated at registration
 │   │                     (admin verifies on approval). Also `POST /check-duplicate` (JSON body, not query string, so PII stays out of access logs; pre-submit
-│   │                     contact-uniqueness check), and (Tier 5 branch) 4 more public,
+│   │                     contact-uniqueness check), and (Tier 5) 4 more public,
 │   │                     unauthenticated endpoints — `GET /reference-data` (bundles countries +
 │   │                     4 master-data categories + the Sakha list into one call), `GET
 │   │                     /states`/`/districts`/`/postal-codes` (location cascade) — each a thin
@@ -947,7 +940,7 @@ api/
                           CreateSanghaSeviRequest/Response
 ```
 
-**New DDL (Tier 5 branch):** `database/ddl/06_authentication/` (`user_account`,
+**New DDL (Tier 5):** `database/ddl/06_authentication/` (`user_account`,
 `password_history`, `registration_claim`, `password_reset_token`, `user_session` — 5 tables) and
 `database/ddl/07_administration/` (`user_role`, `admin_scope` — 2 tables), plus two tables added
 to already-implemented modules: `database/ddl/04_family/06_family_admin.sql` (`family_admin` —
@@ -965,7 +958,7 @@ double-write for the same event with no de-duplication, accepted because `log_au
 carries semantic actions (LOGIN/APPROVE) the trigger cannot express (see Gotchas). The table
 count has since grown to **47** (see `database/README.md`).
 
-**Removed (Tier 5 branch):** every Tier 4 "verification" seed file
+**Removed (Tier 5):** every Tier 4 "verification" seed file
 (`database/seed/02_organization/04_tier4_verification_orgs.sql`,
 `database/seed/03_person/02_tier4_verification_persons.sql`,
 `database/seed/04_family/01_tier4_verification_family.sql` +
@@ -985,7 +978,7 @@ UUIDs from the now-deleted demo seed data and was verified obsolete (the case it
 already handled by `family.py`'s auto-transfer logic). There is no `database/fixes/` folder on
 disk anymore.
 
-**Test infrastructure changed (Tier 5 branch):** `tests/conftest.py` no longer opens a fresh
+**Test infrastructure changed (Tier 5):** `tests/conftest.py` no longer opens a fresh
 `TestClient`-only connection per module — it now holds one **session-scoped write-pool
 connection** for the whole pytest run, opens a `SAVEPOINT` per test module, and both
 `get_connection`/`get_write_connection` FastAPI dependencies are overridden to yield that same
@@ -1002,7 +995,7 @@ rollback for cleanup, rather than depending on any pre-seeded Tier 4 data. Per-f
 `nss-datepicker.css`, `nss-combobox.css`, `tailwind-input.css`, `tailwind.min.css`; `img/`: `nss-logo.png`,
 `nss-logo-original.png`, `ssm-mandir.webp`; `js/`: `login.js`, `register.js`, `dashboard.js`,
 `admin.js`, `auth.js`, `nss-config.js`, `nss-layout.js`, `nss-datepicker.js`, `nss-dialog.js`,
-`nss-location.js`, `nss-combobox.js` (select-or-propose dropdown for geography; loaded by register/dashboard/admin but not yet instantiated by any page), `org-dashboard.js` (new on the Tier 5 branch — shared "Org Dashboard" tab component,
+`nss-location.js`, `nss-combobox.js` (select-or-propose dropdown for geography; loaded by register/dashboard/admin but not yet instantiated by any page), `org-dashboard.js` (new in Tier 5 — shared "Org Dashboard" tab component,
 see below)). See "Tier 5 frontend" below the tree for the per-page detail.
 
 > **⚠ Historical.** The tree immediately below documents the six Tier 0-4 standalone
@@ -1149,7 +1142,7 @@ inherited.
 `dashboard.js`, `admin.js`) and shared helpers `auth.js` (`NSSAuth` — JWT storage/refresh +
 authenticated `fetch()` wrapper), `nss-layout.js` (`NSSLayout` — sidebar/topbar mixin shared by
 `admin.html`/`dashboard.html`), `nss-datepicker.js`/`nss-dialog.js`/`nss-location.js`, and
-`org-dashboard.js` (new on the Tier 5 branch — see below), backed
+`org-dashboard.js` (new in Tier 5 — see below), backed
 by two new shared stylesheets `nss-layout.css`/`nss-datepicker.css` (not yet in
 `frontend/README.md`'s file reference). There is no standalone
 `forgot-password.html` and no `/forgot-password` page route by design — the
@@ -1185,7 +1178,7 @@ empty since only the `claims` tab had its data-loader wired to fire on hash-rest
 `activeTab` itself is now also resolved synchronously from `window.location.hash` before
 Alpine's first render (previously flashed the default "users" tab first).
 
-**`api/main.py` gained automatic per-request asset cache-busting (Tier 5 branch).**
+**`api/main.py` gained automatic per-request asset cache-busting (Tier 5).**
 `_render_html_with_asset_versions()`/`_serve_page()` rewrite every `/assets/js/*.js` and
 `/assets/css/*.css` reference in each served HTML page to `?v=<10-char sha256 prefix of that
 file's current contents>`, computed per request but memoized by file mtime (an unchanged file
@@ -1201,12 +1194,12 @@ relies on the content hash to invalidate correctly. `NSSLocation.create()`
 new public `/api/v1/register/*` endpoints instead (see `registration.py` above) — `admin.js`'s
 own usage is unaffected (still defaults to `/api/v1/foundation`).
 
-**`dashboard.js`'s family-tree logic was consolidated (Tier 5 branch).** The Family tab and the
+**`dashboard.js`'s family-tree logic was consolidated (Tier 5).** The Family tab and the
 Family-of-Origin org browser inside `dashboard.html` each used to independently implement the
 entire couple-tree-building and tree-rendering algorithm (~90+ duplicated lines); both now share
 `_buildCoupleTree(allPersons)` and `_renderGenSubtree(nodes, isRoot, renderCouple, recurse)`.
 
-**New shared `org-dashboard.js` component (committed, not yet merged).** One Alpine component,
+**New shared `org-dashboard.js` component (v0.11.0).** One Alpine component,
 `orgDashboardTab()`, embedded as an "Org Dashboard" tab inside both `admin.html` and
 `dashboard.html`'s existing sidebar/topbar shell (not a standalone page — both hosts instantiate
 it in a nested `x-data` scope via `openOrgDashboard(orgPk)`). Renders one of six layouts
@@ -1595,10 +1588,10 @@ summarize the full sequence from a clean machine to a running API.
    pytest tests/api/test_family.py::TestOrgAdminFamilyFilter::test_filter_by_sakha_code  # one test
    ```
    Configured via `pytest.ini` (repo root: `testpaths = tests`, `integration`/`ui`/`db` markers
-   — the Tier 5 branch added `ui` and `db` alongside the original `integration`).
+   — the Tier 5 added `ui` and `db` alongside the original `integration`).
    `tests/conftest.py`'s `client` fixture wraps `fastapi.testclient.TestClient(app)` against the
    **real** local Postgres DB set up in step 2 — nothing is mocked, so these are true
-   integration tests, not unit tests. On the Tier 5 branch, `conftest.py` was rewritten to hold
+   integration tests, not unit tests. On the Tier 5, `conftest.py` was rewritten to hold
    one session-scoped `nss_db_writer` connection for the whole run, wrapping each test *module*
    in a `SAVEPOINT` that's rolled back at teardown — both `get_connection`/`get_write_connection`
    dependencies are overridden to yield that same connection, so tests no longer depend on any
@@ -1609,8 +1602,7 @@ summarize the full sequence from a clean machine to a running API.
    `httpx` (required by `TestClient` at import time) are pinned in `requirements.txt`. No lint/
    format tooling is configured yet.
 
-**Tier 5 additions to the bootstrap sequence (branch
-`feature/tier5-authentication-administration`):** after Phase 9 (grant `nss_db_backend`) above,
+**Tier 5 additions to the bootstrap sequence (v0.11.0):** after Phase 9 (grant `nss_db_backend`) above,
 `02_build.sh`/`.ps1` continue with Phase 10 (Authentication DDL — `user_account`,
 `password_history`, `registration_claim`, `password_reset_token`), Phase 11 (Administration DDL
 — `user_role`, `admin_scope`), Phase 12 (`database/scripts/05_create_writer_role.sql` — grants
@@ -1621,7 +1613,7 @@ script rather than plain SQL because the password hash must be generated at runt
 app's own Argon2 hasher, never hardcoded), and Phase 14 (`14_system_event_log.sql` +
 `15_audit_trigger.sql` — the `nss.system_event_log` audit table plus a `fn_audit_trigger()`
 attached to every `nss.*` table via a `DO $$` loop, confirmed wired into `render_build.sh`).
-**`01_admin_bootstrap.sql` had a silent membership-type bug, now fixed (Tier 5 branch):** it used
+**`01_admin_bootstrap.sql` had a silent membership-type bug, now fixed (Tier 5):** it used
 to pick "first active `MEMBERSHIP_TYPE` by `display_order`", which happened to be
 `PROBATIONARY`/"Darshaka" (`display_order=1`, lower than `REGULAR`'s `2`) — seeding the admin
 superuser as a Darshaka instead of a regular member. The seed now selects `REGULAR` explicitly
@@ -1674,7 +1666,7 @@ only new tables are created and seeded; non-table objects (`run_sql`) still repo
 | `CORS_ORIGINS` | `api/.env` | Comma-separated allowed origins; defaults to empty, in which case `CORSMiddleware` is never registered at all (no CORS headers on any response) |
 | `RATE_LIMIT` | `api/.env` | Defaults to `"60/minute"` (a `slowapi`/`limits`-style rate spec); applied globally via `SlowAPIMiddleware`, not per-route |
 
-**Tier 5 additions (committed, not yet merged — `api/config.py`):**
+**Tier 5 additions (v0.11.0):**
 
 | Setting | Source | Notes |
 |---|---|---|
@@ -1708,7 +1700,7 @@ pattern the other three use.
 display_order, is_active FROM nss.role_master WHERE is_active = TRUE ORDER BY display_order`
 via `Depends(get_connection)`, returning the 9 frozen roles as `RoleResponse` models.
 `GET /api/v1/bootstrap/permissions` mirrors this against `nss.permission_master` — was empty
-through Tier 4; **now returns real rows on the Tier 5 branch (committed, not yet merged)**, since
+through Tier 4; **now returns real rows in Tier 5 (v0.11.0)**, since
 `permission_master`/`role_permission` are now seeded (see Bootstrap RBAC above).
 `GET /api/v1/bootstrap/roles/{role_pk}/permissions` (`api/routers/bootstrap.py:100-152`) first
 verifies the role exists and is active (404 if not), then joins `nss.role_permission` to
@@ -1716,14 +1708,14 @@ verifies the role exists and is active (404 if not), then joins `nss.role_permis
 All three endpoints are unauthenticated, read-only, and connect as `nss_db_backend`
 — they exist to verify the RBAC schema is queryable, not to enforce RBAC themselves.
 
-### 3. Person business-ID generation (now wired to real write paths on the Tier 5 branch)
+### 3. Person business-ID generation (now wired to real write paths in Tier 5)
 `database/ddl/01_foundation/04_id_sequence_master.sql` defines an `id_sequence_master` table —
 a registry of `{sequence_code, prefix, current_value, padding_length}` rows, seeded with **14**
 sequences (`database/seed/01_foundation/03_id_sequence_master.sql`): `PERSON`→`P` (padding
 **10** — first code is `P0000000001`, 11 characters), `SANGHA_SEVI`→`SS`, `ANCHALIKA`→`ANC`,
 `ZILLA`→`ZL`, `SAKHA`→`SKH`, `SAKHA_ASANA`→`SA`, `PATHA_CHAKRA`→`PC`, `PARIBARIK_ASANA`→`PA`,
 `PARIBARIK_SANGHA`→`PS`, `FAMILY`→`F`,
-`DOCUMENT`→`DOC`, and — added on the Tier 5 branch, for the 3 new Tier 4 org types —
+`DOCUMENT`→`DOC`, and — added in Tier 5, for the 3 new Tier 4 org types —
 `KUMARI_SANGHA`→`KS`, `SEVAK_SANGHA`→`SEV`, `MAHILA_SANGHA`→`MS` (all padding 8 except `PERSON`,
 and `PARIBARIK_ASANA`/`PARIBARIK_SANGHA`/`KUMARI_SANGHA`/`SEVAK_SANGHA`/`MAHILA_SANGHA` at
 5/3/5/5/5 respectively). The org-type-specific prefixes now cover **10** organization types
@@ -1769,7 +1761,7 @@ physical schema — see Gotchas for the full reconciliation status (this diverge
 data-catalogue docs too, none of which have been reconciled with this migration).
 
 **API now implemented.** `api/routers/organization.py` (prefix `/api/v1/organization`) exposes 8
-GET endpoints (gated by `require_permission("ORGANIZATION_VIEW")` on the Tier 5 branch — its own module docstring says "7 GET endpoints," now stale again since the new
+GET endpoints (gated by `require_permission("ORGANIZATION_VIEW")` in Tier 5 — its own module docstring says "7 GET endpoints," now stale again since the new
 `/stats` endpoint below shipped without an accompanying docstring update) — the
 same raw-`psycopg2`/`Depends(get_connection)` pattern as Tier 0/1.
 Grouped by theme:
@@ -1794,18 +1786,18 @@ Grouped by theme:
   — for each direct child, recursively walks all descendant Sakhas and returns
   `OrgChildStatsResponse` (family/member/person counts), reusing the "effective Sakha"
   majority-rule CTE Family's `/sakha-alignment` implements — **now a single shared
-  `FAMILY_MAJORITY_CTE_SQL` constant in `api/helpers.py` (Tier 5 branch), not a duplicated
+  `FAMILY_MAJORITY_CTE_SQL` constant in `api/helpers.py` (Tier 5), not a duplicated
   byte-for-byte copy.** **This recursive CTE still has
   no depth-cap guard**, unlike `/hierarchy` below (`t.depth < 10`) — a circular parent reference
   could recurse indefinitely; this is a real, still-open gap (see Gotchas/Deferred Items), not
   fixed by the CTE-sharing above. Its own docstring claims it's "used by the org admin sidebar to
   display inline counts on each drill-down card," and while no such consumer exists in
   `frontend/admin.html`/`admin.js`'s Organization Hierarchy tab (which absorbed the deleted
-  `organization.html`/`organization.js`), the endpoint **is now consumed** (Tier 5 branch) —
+  `organization.html`/`organization.js`), the endpoint **is now consumed** (Tier 5) —
   `frontend/assets/js/dashboard.js`'s `_fetchOrgChildrenStats(orgPk)` calls it from the org
   family browser inside `dashboard.html`'s Family tab instead, a different page than the
   docstring implies but no longer an unwired endpoint.
-- **Aggregate stats (new on the Tier 5 branch, Tier 5):** `/organizations/{organization_pk}/stats` — the
+- **Aggregate stats (new in Tier 5, Tier 5):** `/organizations/{organization_pk}/stats` — the
   same recursive descendant-Sakha counting as `/children-stats` above (sharing the same
   `FAMILY_MAJORITY_CTE_SQL` constant), but collapsed to a single `OrgStatsResponse` row of
   whole-subtree totals for the *requested* org itself (not its children). 403s if the requested
@@ -1947,14 +1939,13 @@ transitions), and `family_link` (added after the initial Tier 4 landing — see 
 below). `api/routers/family.py` (prefix `/api/v1/family`) exposes 7 read-only
 GET endpoints as of the v0.10.0 Tier 4 release: the original 4 — `/families` (list, filters, pagination), `/families/{family_pk}` (detail),
 family members (relationships per family), and family head history (per family) — plus 3 newer
-ones described below. **In progress, on `feature/tier5-authentication-
-administration`:** 9 more authenticated write endpoints (create family, add/remove family
+ones described below. **Added in Tier 5:** 9 more authenticated write endpoints (create family, add/remove family
 member, create family link, list/add/revoke family admins, transfer family head — see Key
 Workflow #9) were added directly to this same router file, bringing it to 16 endpoints total and
 6 tables (`family_admin` added); its module docstring has already been updated to say "Tier 4
 read-only + Tier 5 write endpoints" rather than the old stale "4 endpoints across 3 Family
 tables" claim. 16 Pydantic
-models in `api/schemas/family.py` as of the Tier 5 branch (up from the original 8: `FamilyGroupResponse`, `FamilyMemberResponse`
+models in `api/schemas/family.py` as of the Tier 5 (up from the original 8: `FamilyGroupResponse`, `FamilyMemberResponse`
 — gained an `is_head` field —,
 `FamilyHeadHistoryResponse`, the 5 read-only additions below, plus 8 new write-request/response schemas for the Tier 5 endpoints above). A matching Family Verification UI
 (`frontend/family.html` +
@@ -2010,22 +2001,21 @@ Sangha Sevi ID) plus 13 supporting tables split into "current state" + "history"
 `membership_status_history`, `membership_renewal_request`/`membership_renewal_history`,
 `membership_transfer_history`, `membership_sakha_affiliation` (current Sakha assignment — a
 partial unique index enforces at most one active affiliation per person **per organization**,
-narrowed from "per person" (Tier 5 branch) specifically so a member's home affiliation and a
+narrowed from "per person" (Tier 5) specifically so a member's home affiliation and a
 cross-Sakha Darshak-attendance affiliation at a different Sakha can coexist as two active rows),
 `probationary_member_review`,
 `membership_journey_event` (a timeline of everything that's happened to a membership),
 `parichaya_patra`/`parichaya_patra_history`, `anumati_patra`/`anumati_patra_history`
-(the two membership credential/card documents), `darshak_attendance_registration` (new on the Tier 5 branch — a member's registration to attend Sangha Puja as a Darshak at a different Sakha
-than their own, SOL-MEM-006, 3-step approval chain), and `credential_sequence_counter` (new on the Tier 5 branch — backs `api/helpers.py::next_credential_document_number()`, a per-(credential-type,
+(the two membership credential/card documents), `darshak_attendance_registration` (new in Tier 5 — a member's registration to attend Sangha Puja as a Darshak at a different Sakha
+than their own, SOL-MEM-006, 3-step approval chain), and `credential_sequence_counter` (new in Tier 5 — backs `api/helpers.py::next_credential_document_number()`, a per-(credential-type,
 org, financial-year) counter distinct from the flat, never-reset `id_sequence_master`).
 `api/routers/membership.py` exposes 8 endpoints: `/members` (list, filters,
 pagination) and `/search` are gated by `require_permission("MEMBERSHIP_VIEW")`;
 `/members/{member_pk}` (detail), Sakha affiliation history,
 Parichaya Patra records, Anumati Patra records, and a journey-event timeline (the last four
-per-member sub-resources scoped by `member_pk`) instead use an **ownership model** (committed, not yet merged, via a shared `_require_member_view()`/`require_self_or_permission()` helper) —
+per-member sub-resources scoped by `member_pk`) instead use an **ownership model** (v0.11.0)`/`require_self_or_permission()` helper) —
 `get_current_user` plus either `MEMBERSHIP_VIEW` or being the member themself; and an 8th
-endpoint, `/organizations/{organization_pk}/darshak-summary` (committed, not yet merged,
-`MEMBERSHIP_VIEW`-gated), returns per-org Darshak counts for the new Org Dashboard. 5 Pydantic
+endpoint, `/organizations/{organization_pk}/darshak-summary` (v0.11.0), returns per-org Darshak counts for the new Org Dashboard. 5 Pydantic
 models in `api/schemas/membership.py`: `MemberResponse`, `SakhaAffiliationResponse`,
 `ParichayaPatraResponse`,
 `AnumatiPatraResponse`, `JourneyEventResponse` (plus the newer `OrgDarshakSummaryResponse`).
@@ -2195,7 +2185,7 @@ verdicts: `docs/03_Solution/security/TIER0_SECURITY_AUDIT.md` through
 `TIER4_SECURITY_AUDIT.md`, plus a consolidated `SECURITY_AUDIT_TIER0_4.md` — moved out of
 `code_explanations/` into a dedicated `security/` folder as part of the Tier 4 work.
 
-### 9. Tier 5 (Authentication + Administration) — self-registration → approval → login → RBAC (committed, not yet merged)
+### 9. Tier 5 (Authentication + Administration) — self-registration → approval → login → RBAC (v0.11.0)
 
 **Not yet merged/released — see the Tier 5 subsection under Architecture above.** This is the
 first genuinely write-path, authenticated vertical slice in the codebase. Two independent
@@ -2203,7 +2193,7 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
 
 **Self-registration flow** (`POST /api/v1/register`, `api/routers/registration.py`):
 0. Before submitting, `register.html`/`register.js` populates its dropdowns from 4 new, public,
-   unauthenticated endpoints (Tier 5 branch): `GET /api/v1/register/reference-data` (countries +
+   unauthenticated endpoints (Tier 5): `GET /api/v1/register/reference-data` (countries +
    gender/marital-status/blood-group/membership-type master-data + the Sakha list, bundled into
    one call) and `GET /states`/`/districts`/`/postal-codes` for the location cascade — each a
    thin wrapper over `foundation.py`'s/`organization.py`'s own shared query functions
@@ -2284,7 +2274,7 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
    (validated against `_ALLOWED_PARENT_TYPES`) — backs the new "Assign Sakhas" admin
    tab (see `frontend/` detail above).
 
-### 10. Member-assisted geographic entry — propose → review → approve/correct (Tier 5 branch)
+### 10. Member-assisted geographic entry — propose → review → approve/correct (Tier 5)
 
 1. A logged-in member whose account has an active Sangha Sevi record proposes a value the lists
    lack via `POST /api/v1/foundation/{districts|postal-codes|post-offices|city-villages}/propose`
@@ -2674,10 +2664,9 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
   02_role_master.sql` now seeds **9 roles** (3 SYSTEM-class + 6 ORGANIZATIONAL, after adding
   `NSS_ERP_KENDRA_MAHILA_SANGHA_ADMIN` on 2026-09-25) — the "at least N" phrasing means this
   didn't require touching the tests.
-- **Tier 5 is a large change set committed on `feature/tier5-authentication-
-  administration` but not yet merged to `develop` or released — treat everything below as not yet reviewed/merged.** (See the Tier
+- **Tier 5 is a large change set, released as v0.11.0.** (See the Tier
   5 subsection under Architecture and Key Workflow #9 for the functional detail; these gotchas
-  cover doc/code drift the branch introduced.)
+  cover doc/code drift Tier 5 introduced.)
 - **`database/scripts/README.md`'s Phase 13 description is now fixed** (previously didn't match
   `02_build.sh`'s actual Phase 13 — referenced nonexistent seed files and fictional `Admin@123`/
   "Ramesh Mishra" credentials). It now correctly describes `python3 scripts/bootstrap_admin.py`
@@ -2732,12 +2721,8 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
 
 ## Open questions / TODOs
 
-- **Tier 5 branch merge status** — `feature/tier5-authentication-administration` has a large
-  Tier 5 branch changes (new routers/services/dependencies/DDL/seed changes, deleted
-  Tier 4 verification seed, rewritten `tests/conftest.py`). Decide and execute: finish the
-  in-flight work, commit it, verify (`pytest` against a rebuilt local DB — not run during this
-  documentation pass), then follow the documented branch policy (`feature/*` → `develop` →
-  release) rather than merging ad hoc.
+- **Push the `v0.11.0` tag** — created locally on `main` (`c8f2c9c`); `git push <remote> v0.11.0`, then
+  publish the GitHub Release. Also run `pytest` against a rebuilt local DB (not run when cutting the release).
 - ~~Reconcile `database/scripts/README.md`'s Phase 13 narrative with the actual
   `scripts/bootstrap_admin.py` behaviour~~ — **done**: the README documents the real
   seed-file paths and current default credentials (`SS1`/`P1` / `Admin@123`,
@@ -2800,7 +2785,7 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
   seed adds rows to `organization`/`person`; new `STATUS` and `ORGANIZATION_TYPE` seed values
   grow `master_data`), and there are no Family/Membership
   checks at all yet.
-- ~~**Factor out the duplicated FAM-036 "effective Sakha" CTE**~~ — **fixed (Tier 5 branch):** the
+- ~~**Factor out the duplicated FAM-036 "effective Sakha" CTE**~~ — **fixed (Tier 5):** the
   majority-rule computation, previously implemented twice identically in
   `api/routers/organization.py`'s `/children-stats` and `api/routers/family.py`'s
   `_FAMILY_SELECT`/`/sakha-alignment`, is now a single `FAMILY_MAJORITY_CTE_SQL` constant in
@@ -2808,23 +2793,23 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
 - **Add a depth-cap guard to `/children-stats`'s recursive CTE** — unlike `/hierarchy`
   (`t.depth < 10`), `_CHILDREN_STATS_SQL` has no such guard against circular parent references.
 - ~~**Add test coverage for `/families/{pk}/graph` and `/person/{pk}/membership-summary`**~~ —
-  **partially fixed (Tier 5 branch):** `tests/api/test_family_ownership.py` now covers `/graph`
+  **partially fixed (Tier 5):** `tests/api/test_family_ownership.py` now covers `/graph`
   (`test_head_can_read_own_family_graph`, `test_viewer_person_pk_does_not_bypass_the_gate`).
   `/person/{pk}/membership-summary` still has zero test coverage.
 - ~~**Wire `/children-stats` into the UI its own docstring claims to serve**~~ — **fixed
-  (Tier 5 branch), but in a different page than expected:** `frontend/assets/js/dashboard.js`
+  (Tier 5), but in a different page than expected:** `frontend/assets/js/dashboard.js`
   (`_fetchOrgChildrenStats(orgPk)`, around line 2076) now calls it from the org family browser in
   `dashboard.html`, not from `admin.html`/`admin.js`'s Organization Hierarchy tab as the
   endpoint's own docstring still implies.
 - ~~**Update stale module docstrings**~~ — `api/routers/family.py`'s docstring was updated on
-  the Tier 5 branch (Tier 5 branch) to "Tier 4 read-only + Tier 5 write endpoints" — no longer
+  the Tier 5 (Tier 5) to "Tier 4 read-only + Tier 5 write endpoints" — no longer
   stale. `api/routers/organization.py`'s docstring now correctly says "7 GET endpoints" too
   (previously stale at "6") — this item is fully resolved.
-- ~~**Fix `test_kumari_transition_has_event`**~~ — **fixed on the Tier 5 branch (Tier 5 branch):**
+- ~~**Fix `test_kumari_transition_has_event`**~~ — **fixed in Tier 5:**
   now `pytest.skip()`s if `SS5` isn't seeded, instead of asserting against it — no longer a
   failing test against the now seed-less database.
 - ~~**Fix `test_page_loads_tailwind`/`test_page_loads_daisyui` — 10 tests**~~ — **fixed on the
-  Tier 5 branch (Tier 5 branch):** all 6 files' assertions now check for
+  Tier 5 (Tier 5):** all 6 files' assertions now check for
   `tailwind.min.css`/`"tailwind"` (case-insensitive) instead of the old
   `cdn.tailwindcss.com`/lowercase-`daisyui` CDN strings. `test_bootstrap.py`'s UI assertions
   also now target `/bootstrap` instead of `/`, matching the new `GET /` → `/login` redirect.

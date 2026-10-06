@@ -3,8 +3,7 @@
 Membership Module DDL — 14 tables (Depth 2–4) per SOL-MEM-005, SOL-MEM-003, plus (for
 `darshak_attendance_registration`) SOL-MEM-006, and one enforcement-trigger file. The 13th table
 (`darshak_attendance_registration`) and 14th (`credential_sequence_counter`) are Tier 5
-additions on branch `feature/tier5-authentication-administration` (committed; nothing is merged to
-`develop`). `16_foundation_audit_fk.sql` is a Pass-2-style `ALTER TABLE` file (no table) that lives
+additions (released in v0.11.0). `16_foundation_audit_fk.sql` is a Pass-2-style `ALTER TABLE` file (no table) that lives
 here because it needs `sangha_sevi`.
 
 Authority: SOL-MEM-005 v1.0 (Physical Table Design), SOL-MEM-003 (Business Rules), MBR-001
@@ -111,7 +110,7 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
   globally-unique numbers, so `uq_pp_document_number` stays single-column.)
 - **`anumati_patra_history`** — change log for an `anumati_patra` row, same shape and rationale
   as `parichaya_patra_history`.
-- **`darshak_attendance_registration`** — (Tier 5 branch) a member's
+- **`darshak_attendance_registration`** — (Tier 5) a member's
   registration to attend Sangha Puja as a Darshak at a **different** Sakha than their own
   (`chk_dar_att_reg_different_sakha` forbids `home_organization_pk = attending_organization_pk`).
   Goes through a 3-step approval chain (`PENDING_HOME_SAKHA` → `PENDING_PARICHALAK` →
@@ -123,7 +122,7 @@ Execute AFTER Foundation, Organization, and Person DDL (`database/ddl/01_foundat
   (`uq_dar_att_reg_active`) enforces at most one `ACTIVE` `registration_status` row per member at
   a time.
 
-- **`credential_sequence_counter`** — (Tier 5 branch) backs
+- **`credential_sequence_counter`** — (Tier 5) backs
   `api/helpers.py::next_credential_document_number()`, which mints
   `parichaya_patra.document_number`/`anumati_patra.document_number` in `<seq>/<FY start>/<FY end>`
   format. One row per (`credential_type`, `scope_organization_pk`, `financial_year_start`) —

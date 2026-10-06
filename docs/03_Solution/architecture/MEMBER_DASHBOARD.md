@@ -61,7 +61,7 @@ All data is fetched dynamically on dashboard initialization. No tab contains har
 | Selected person detail | `GET /api/v1/person/persons/{person_pk}` | On-demand when a tree node or member row is clicked |
 | Selected person membership | `GET /api/v1/family/person/{person_pk}/membership-summary` | On-demand, parallel with person detail |
 
-**Tree Visualization:** Recursive renderer (`renderTree()` → `_renderSubtree()` → `_renderCouple()` → `_renderPerson()`) generates HTML via Alpine's `x-html` directive. No external charting library. `_buildCoupleTree(allPersons)` (tree construction) and a shared `_renderGenSubtree(nodes, isRoot, renderCouple, recurse)` (rendering skeleton, committed, not yet merged) are now reused by both this Family tab and the Family-of-Origin org browser in the Admin tabs below — previously each independently implemented the whole algorithm.
+**Tree Visualization:** Recursive renderer (`renderTree()` → `_renderSubtree()` → `_renderCouple()` → `_renderPerson()`) generates HTML via Alpine's `x-html` directive. No external charting library. `_buildCoupleTree(allPersons)` (tree construction) and a shared `_renderGenSubtree(nodes, isRoot, renderCouple, recurse)` (rendering skeleton, released in v0.11.0) are now reused by both this Family tab and the Family-of-Origin org browser in the Admin tabs below — previously each independently implemented the whole algorithm.
 
 **Viewer Perspective:** Always the logged-in user. No "View As" selector — the graph API is called with the user's own `person_pk` as `viewer_person_pk`.
 
@@ -89,7 +89,7 @@ Sort is driven by the `relationship_label` from the graph API, matched against a
 | Data | Source | Notes |
 |------|--------|-------|
 | Which tabs appear | `user.roles` from JWT token | RBAC-driven; e.g., NSS_ERP_ADMIN sees System Admin, NSS_ERP_KENDRA_ADMIN sees Kendra Management |
-| Org-level stats (Active Members, Families, Sakha counts, renewals due) | `GET /api/v1/organization/organizations/{pk}/stats` and `GET /api/v1/membership/organizations/{pk}/darshak-summary` | Rendered by the shared `assets/js/org-dashboard.js` (`orgDashboardTab()`), embedded as the "Org Dashboard" tab of both this page and `admin.html` (committed, not yet merged); every number is real, while attendance % and renewal-tracking widgets from the mockups show honest "not tracked yet" placeholders |
+| Org-level stats (Active Members, Families, Sakha counts, renewals due) | `GET /api/v1/organization/organizations/{pk}/stats` and `GET /api/v1/membership/organizations/{pk}/darshak-summary` | Rendered by the shared `assets/js/org-dashboard.js` (`orgDashboardTab()`), embedded as the "Org Dashboard" tab of both this page and `admin.html` (v0.11.0); every number is real, while attendance % and renewal-tracking widgets from the mockups show honest "not tracked yet" placeholders |
 
 **Admin tab types:** System Admin, Kendra Management, Anchalika Management, Zilla Management, Sakha Management, Patha Chakra Management, Audit and Compliance, Reports.
 
@@ -116,7 +116,7 @@ Active tab is stored in `sessionStorage` under key `nss_dashboard_tab`. On page 
 
 ### 4.4 Cache Busting
 
-**Automatic, committed, not yet merged — no longer a hand-maintained `?v=X.X.X` string.**
+**Automatic, released in v0.11.0 — no longer a hand-maintained `?v=X.X.X` string.**
 `api/main.py`'s `_serve_page()`/`_render_html_with_asset_versions()` rewrites every
 `/assets/js/*.js`/`/assets/css/*.css` reference in the served `dashboard.html` to `?v=<10-char
 sha256 prefix of that file's current contents>` at request time (memoized by file mtime); the
@@ -134,7 +134,7 @@ All API calls use `NSSAuth.apiFetch(url)` which:
 2. Attaches `Authorization: Bearer <token>` header
 3. On 401, tries one refresh-token cycle (`POST /api/v1/auth/refresh`); if that fails, redirects to the login page
 
-**Endpoint gating (Tier 5 branch, committed, not yet merged):** the dashboard's own reads are
+**Endpoint gating (Tier 5, released in v0.11.0):** the dashboard's own reads are
 authorized by *ownership* rather than a blanket permission — `/person/persons/{pk}` and
 `/addresses` (self or `PERSON_VIEW`), `/membership/members/{pk}` and its four sub-resources
 (self or `MEMBERSHIP_VIEW`), and `/family/person/{pk}/families|membership-summary` plus

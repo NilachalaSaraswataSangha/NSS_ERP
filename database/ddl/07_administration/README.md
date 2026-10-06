@@ -1,7 +1,7 @@
 # database/ddl/07_administration/
 
-Administration Module DDL — 2 tables (RBAC role-assignment + scope). **In progress
-(committed on the branch, not merged)** on branch `feature/tier5-authentication-administration` (see
+Administration Module DDL — 2 tables (RBAC role-assignment + scope). **Implemented
+(released in v0.11.0)** (see
 `docs/PROJECT_DOCUMENTATION.md` → Tier 5).
 
 Authority: SOL-ADMIN-004, SOL-AUTH-004, Tier 5 decisions (2026-09-15).

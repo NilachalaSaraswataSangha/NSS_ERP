@@ -106,7 +106,7 @@ their own inline `VARCHAR` + `CHECK` column, not FKs into `master_data`, so this
 reference/lookup value rather than what those two tables actually store.
 
 **RELATIONSHIP_TYPE** (30 values, comprehensive for Indian family structure — grew from 29 to 30
-on the Tier 5 branch, with the addition of `SELF`):
+in Tier 5, with the addition of `SELF`):
 - Immediate family: SPOUSE, FATHER, MOTHER, SON, DAUGHTER, BROTHER, SISTER
 - In-laws: FATHER_IN_LAW, MOTHER_IN_LAW, SON_IN_LAW, DAUGHTER_IN_LAW,
   BROTHER_IN_LAW, SISTER_IN_LAW
@@ -139,7 +139,7 @@ prefix and counter for generating human-readable business IDs.
 | 2 | `SANGHA_SEVI` | `SS` | 8 | SS00000001 | Membership identity |
 | 3 | `ANCHALIKA` | `ANC` | 8 | ANC00000001 | Anchalika organization (multiple) |
 | 4 | `ZILLA` | `ZL` | 8 | ZL00000001 | Zilla organization (multiple) |
-| 5 | `SAKHA` | `SKH` | 0 (was 8 — changed on the Tier 5 branch) | SKH1 | Sakha organization (multiple) |
+| 5 | `SAKHA` | `SKH` | 0 (was 8 — changed in Tier 5) | SKH1 | Sakha organization (multiple) |
 | 6 | `SAKHA_ASANA` | `SA` | 8 | SA00000001 | Sakha Asana organization (multiple) |
 | 7 | `PATHA_CHAKRA` | `PC` | 8 | PC00000001 | Patha Chakra organization (multiple) |
 | 8 | `PARIBARIK_ASANA` | `PA` | 5 | PA00001 | Paribarik Asana organization (multiple) |
@@ -151,7 +151,7 @@ prefix and counter for generating human-readable business IDs.
 | 14 | `MAHILA_SANGHA` | `MS` | 5 | MS00001 | Reserved for a future module (not yet consumed by any API) |
 
 All sequences start at `current_value = 0`. `padding_length` varies per sequence (see table
-above). **`SAKHA`'s `padding_length` was changed from `8` to `0` on the Tier 5 branch**
+above). **`SAKHA`'s `padding_length` was changed from `8` to `0` in Tier 5**
 — it is no longer true that "no existing sequence's `padding_length` has been
 changed to 0"; `SAKHA` is now the first real example, matching the unpadded `SKH1`-`SKH175`
 codes seeded by `database/seed/02_organization/05_sakha_branches.sql` (Tier 5). Every
@@ -278,7 +278,7 @@ idempotent via `uq_post_office_pin_name_approved`.
 
 ---
 
-### 09_sakha_postal_codes.sql (Tier 5 branch)
+### 09_sakha_postal_codes.sql (Tier 5)
 
 Seeds 56 additional unique postal codes into `postal_code`, extracted from the official NSS
 Sakha branch directory addresses — the minimal bootstrap set needed by

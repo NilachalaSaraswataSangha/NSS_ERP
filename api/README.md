@@ -22,17 +22,14 @@ section below). Only Tier 0's 4 `bootstrap.py` endpoints remain fully unauthenti
 (plus `registration.py`'s public endpoints, `POST /auth/login`/`refresh`/`forgot-password`/
 `reset-password`, which are unauthenticated by nature).
 
-**Tier 5 (Authentication + Administration + Audit) is committed, not yet merged** on branch
-`feature/tier5-authentication-administration` — not yet merged/released. It adds the first
+**Tier 5 (Authentication + Administration + Audit) is released in v0.11.0** (merged to `main`). It adds the first
 authenticated, write-path endpoints: JWT login/refresh/logout/password-management
 (`routers/auth.py`), user/role/organization administration (`routers/admin.py`),
 self-registration (`routers/registration.py`), Sakha-admin claim approval
 (`routers/claim_approval.py`), and an authenticated audit-trail viewer (`routers/audit.py`),
 backed by a new `api/dependencies/` layer and two new
 `api/services/` modules (`auth_service.py`, `rbac_service.py`) — see "Endpoints (Tier 5)" below
-and `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5") for full detail. Everything in
-this Tier 5 section should be read as in-flight, not shipped.
-
+and `docs/PROJECT_DOCUMENTATION.md` → Architecture ("Tier 5") for full detail. 
 An earlier Django prototype lived under `backend/` and covered parts of Foundation,
 Authentication, Family, Membership, and Heritage; it was fully archived and removed once the
 FastAPI direction (`docs/03_Solution/architecture/TECH_STACK_DECISIONS.md`) was adopted.
@@ -66,7 +63,7 @@ api/
 │                        `/claim-approval` route or `claim-approval.html` file — that feature
 │                        shipped as a tab inside `admin.html` instead. **Every page route
 │                        serves through `_serve_page()`/`_render_html_with_asset_versions()`**
-│                        (committed, not yet merged) instead of a bare `FileResponse` — rewrites
+│                        (v0.11.0) instead of a bare `FileResponse` — rewrites
 │                        each served page's `/assets/js|css/*` references to
 │                        `?v=<10-char sha256 prefix of current file contents>`, computed per
 │                        request but memoized by file mtime, replacing the old hand-maintained
@@ -166,7 +163,7 @@ api/
 │   │                    member `propose` POSTs (`get_current_user` only). Reads gated by
 │   │                    `require_permission("FOUNDATION_VIEW")`, writes by
 │   │                    `require_permission("FOUNDATION_MANAGE")` (festival-calendar writes:
-│   │                    `FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only) on the Tier 5 branch. Also
+│   │                    `FOUNDATION_CALENDAR_MANAGE`, NSS_ERP_ADMIN only) in Tier 5. Also
 │   │                    exports `fetch_countries()`/`fetch_states()`/`fetch_districts()`/
 │   │                    `fetch_postal_codes()`/`fetch_master_data()`, reused by `registration.py`
 │   ├── organization.py  11 endpoints under /api/v1/organization across 3 tables — reference
@@ -326,7 +323,7 @@ api/
                           whole point of this endpoint is exposing them)
 ```
 
-## Endpoints (Tier 5 — committed, not yet merged)
+## Endpoints (Tier 5 — released in v0.11.0)
 
 Not yet merged/released. Requires `api/.env` to also carry `DB_WRITE_USER`, `DB_WRITE_PASSWORD`,
 and `JWT_SECRET_KEY` (see `docs/PROJECT_DOCUMENTATION.md` → Configuration). Endpoints that
@@ -400,7 +397,7 @@ gap list has been separately tracked for Tier 5 yet — see `tests/README.md`.
 See `docs/PROJECT_DOCUMENTATION.md` → Key Workflow #9 for the full registration → approval →
 login → RBAC flow this layer implements.
 
-## Audit trail (Tier 5, committed, not yet merged)
+## Audit trail (v0.11.0)
 
 Every Tier 5 write endpoint calls `api/helpers.py::log_audit()` after each mutation, inserting a
 row into the new `nss.system_event_log` table (`action`, `table_name`, `record_pk`, `actor_pk`,
@@ -478,7 +475,7 @@ Swagger UI: `http://localhost:8001/docs` (set `DISABLE_DOCS=true` in `api/.env` 
 |--------|------|---------|
 | GET | `/api/v1/bootstrap/health` | `{"status", "database"}` — liveness/DB-connectivity probe |
 | GET | `/api/v1/bootstrap/roles` | The 9 frozen roles from `nss.role_master` |
-| GET | `/api/v1/bootstrap/permissions` | `nss.permission_master` rows — was empty by design through Tier 4; **now returns real rows on the Tier 5 branch**, since the catalogue is seeded |
+| GET | `/api/v1/bootstrap/permissions` | `nss.permission_master` rows — was empty by design through Tier 4; **now returns real rows in Tier 5**, since the catalogue is seeded |
 | GET | `/api/v1/bootstrap/roles/{role_pk}/permissions` | Permissions mapped to a role — same, no longer empty for roles with real `role_permission` mappings; 404 if `role_pk` doesn't match an active role |
 
 All four are unauthenticated and read-only — they exist to verify the RBAC schema is queryable,
@@ -500,7 +497,7 @@ branch** (read-only/no-auth through Tier 4); 8 admin write endpoints (below) gat
 | Member-assisted entry | `POST /districts/propose`, `/postal-codes/propose`, `/post-offices/propose`, `/city-villages/propose` — a member (active Sangha Sevi required, else 403) submits an unseen value as `entry_status='PENDING'`; reviewed via `/api/v1/admin/geo-entries/*` |
 | Festival calendar | `/festivals`, `/festival-calendar-dates` (`GET`+`POST`), `/festival-calendar-dates/{pk}` (`PATCH`) |
 
-The 8 `POST`/`PATCH` endpoints above are new (Tier 5, committed, not yet merged) —
+The 8 `POST`/`PATCH` endpoints above are new (v0.11.0) —
 `create_master_data`/`update_master_data`, `create_setting`/`update_setting`,
 `create_sequence`/`update_sequence`, `create_festival_calendar_date`/`update_festival_calendar_date` — each writes via `get_write_connection` and logs through
 `log_audit()`.
@@ -517,7 +514,7 @@ tests (`tests/api/test_foundation.py`, `tests/api/test_geo_approval.py`; some of
 ## Endpoints (Tier 2)
 
 11 endpoints under `/api/v1/organization` (table below lists the original 8; `/organizations/selectable`, `/organizations/{pk}/wings`, `/organizations/{pk}/wings/{wing_type_code}/members` are documented in API_CONTRACT.md) — no ORM,
-parameterized SQL. **Gated by `require_permission("ORGANIZATION_VIEW")` on the Tier 5 branch**
+parameterized SQL. **Gated by `require_permission("ORGANIZATION_VIEW")` in Tier 5**
 (read-only/no-auth through Tier 4). Organization type values come from Foundation `master_data`
 (category `ORGANIZATION_TYPE`). Status values come from the unified ERP-wide
 `STATUS` category. Organization LEFT JOINs
@@ -532,7 +529,7 @@ for address resolution, since those FKs are nullable.
 | GET | `/api/v1/organization/organizations/{organization_pk}` | Single organization detail; 404 if missing/inactive |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children` | Direct children of an organization; 404 if the parent `organization_pk` doesn't exist |
 | GET | `/api/v1/organization/organizations/{organization_pk}/children-stats` | Aggregate family/member/person counts per direct child, recursing through descendant Sakhas and applying the FAM-036 majority-rule "effective Sakha" computation; its own recursive CTE has **no** depth-cap guard, unlike `/hierarchy` |
-| GET | `/api/v1/organization/organizations/{organization_pk}/stats` | New, committed, not yet merged — same recursive counts collapsed to one row of whole-subtree totals for the requested org itself; 403s outside the caller's own admin scope (ADMIN-BR-076); backs the new Org Dashboard tab |
+| GET | `/api/v1/organization/organizations/{organization_pk}/stats` | New, released in v0.11.0 — same recursive counts collapsed to one row of whole-subtree totals for the requested org itself; 403s outside the caller's own admin scope (ADMIN-BR-076); backs the new Org Dashboard tab |
 | GET | `/api/v1/organization/hierarchy` | Full organization tree as a flat list with a `depth` field, via a `WITH RECURSIVE` CTE (depth guard at 10); `limit`/`offset` pagination |
 
 All list endpoints filter `is_active = TRUE`; detail/children endpoints 404 on a missing parent.
@@ -570,12 +567,12 @@ against Foundation's `master_data`. Trigram search relies on `pg_trgm` (installe
 ## Endpoints (Tier 4)
 
 Originally 14 read-only endpoints across Family and Membership — no ORM, raw
-parameterized SQL. **On the Tier 5 branch `membership.py`'s list/search gained
+parameterized SQL. **On the Tier 5 `membership.py`'s list/search gained
 `require_permission("MEMBERSHIP_VIEW")` gating and its per-member endpoints an ownership check
 (see the Membership table below); `family.py`'s 7 gained an ownership-based auth model instead**
 (every endpoint now requires `get_current_user`, with `FAMILY_VIEW`/`FAMILY_MANAGE` as the admin
 override — a deliberate design choice, not a gap), and `family.py` separately
-**gained 9 more endpoints on the Tier 5 branch (committed, not yet merged) — see below.**
+**gained 9 more endpoints in Tier 5 (v0.11.0) — see below.**
 
 **Family** — originally 7 read-only endpoints under `/api/v1/family`, across 5 tables (now
 authenticated — see above):
@@ -596,7 +593,7 @@ for the 9 below). Verified by 52 pytest integration tests
 `tests/security/`) plus 20 in `tests/api/test_family_ownership.py` (role-less JWT path, incl.
 `/graph`) — `/person/{pk}/membership-summary` is the one endpoint with no coverage.
 
-**Family (Tier 5 additions, committed, not yet merged) — 9 more endpoints, all requiring
+**Family (Tier 5 additions, released in v0.11.0) — 9 more endpoints, all requiring
 `get_current_user` (JWT); the 2 `GET`s use the read pool, the 7 `POST`/`DELETE`s use
 `get_write_connection` (`nss_db_writer`). The 7 writes (plus the admin list) are covered by
 `tests/api/test_family_ownership.py`:**

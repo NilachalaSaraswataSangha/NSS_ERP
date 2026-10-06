@@ -21,11 +21,9 @@ Public URL (after deployment): `https://nss-erp.onrender.com/`
 
 See `TECH_STACK_DECISIONS.md` §6 for architectural rationale.
 
-> **Status:** not yet run in production. The last tagged release (`v0.10.4`) is Tier 4; Tier 5
-> (Authentication + Administration) is committed, not yet merged, on
-> `feature/tier5-authentication-administration`, and `render_build.sh`/`render.yaml` already
-> carry its changes (writer role, JWT secret, admin bootstrap, audit trigger). This guide
-> describes the build as it exists on that branch.
+> **Status:** not yet run in production. The latest release is `v0.11.0` (Tier 5, Authentication +
+> Administration), and `render_build.sh`/`render.yaml` already carry its changes (writer role,
+> JWT secret, admin bootstrap, audit trigger). This guide describes the build as it exists on `main`.
 
 ---
 
@@ -84,7 +82,7 @@ PostGIS and dblink are **not used** in current DDL and are not required.
    - **Plan:** Free
    - **Python version:** 3.12.4
 
-**⚠️ Unverified risk (Tier 5 branch):** `render.yaml` declares
+**⚠️ Unverified risk (Tier 5):** `render.yaml` declares
 `runtime: python`, but `render_build.sh` now runs `npm install` and `npx tailwindcss` as its
 first step (Tailwind CDN → CLI migration). Render's native Python runtime environment is not
 confirmed to include Node.js/npm — this has **not been tested against an actual Render deploy

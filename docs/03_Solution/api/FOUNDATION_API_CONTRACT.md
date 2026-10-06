@@ -15,8 +15,7 @@
 This document defines the API contract for the Tier 1 Foundation API: **23 endpoints —
 17 reads plus 6 writes**.
 
-> **Tier 5 update (committed, not yet merged on `feature/tier5-authentication-administration`,
-> not merged/released).** Originally this API was GET-only and unauthenticated. On the Tier 5
+> **Tier 5 update (v0.11.0).** Originally this API was GET-only and unauthenticated. On the Tier 5
 > branch:
 >
 > - The 17 GET endpoints (§3.1-§3.4) now require a valid JWT whose user holds the
@@ -674,7 +673,7 @@ change-log route is enforced by `tests/api/test_foundation.py::TestChangeLogNotE
 > endpoints (any logged-in user with an active Sangha Sevi; rows land `PENDING` and are reviewed
 > via `/api/v1/admin/geo-entries/*`). The router therefore has 33 endpoints in total.
 
-### 3.5 Write Endpoints (Tier 5 — committed, not yet merged)
+### 3.5 Write Endpoints (Tier 5 — released in v0.11.0)
 
 All six require a JWT with the **`FOUNDATION_MANAGE`** permission, use the write-capable
 `nss_db_writer` connection, and call `log_audit()` (`module="foundation"`). Codes are
@@ -789,7 +788,7 @@ docs/
 
 ```
 Tier 1 (v0.7.0): 17 GET handlers, 11 response models, Foundation Verification UI
-Tier 5 (branch feature/tier5-authentication-administration):
+Tier 5 (v0.11.0):
   - require_permission("FOUNDATION_VIEW") added to every GET
   - 6 write handlers + Create/Update request models + FOUNDATION_MANAGE permission
   - Verification UI retired; functionality moved into admin.html

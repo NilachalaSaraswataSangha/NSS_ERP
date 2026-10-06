@@ -25,7 +25,7 @@ the last 4 digits returned for masked display.
 Write operations (POST/PATCH/DELETE) are deferred to Tier 5 when authenticated
 administration and authorization exist.
 
-> **Tier 5 update (committed, not yet merged on `feature/tier5-authentication-administration`):**
+> **Tier 5 update (v0.11.0):**
 > all 4 endpoints now require a JWT. `GET /persons` (list) and `GET /search` require
 > `require_permission("PERSON_VIEW")`; `GET /persons/{pk}` and `GET /persons/{pk}/addresses`
 > use `get_current_user` plus an ownership check (`_require_person_view`) — the person

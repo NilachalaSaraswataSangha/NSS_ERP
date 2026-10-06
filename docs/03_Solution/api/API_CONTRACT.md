@@ -20,9 +20,8 @@
 # 1. Overview
 
 The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **137 endpoints** across 12
-routers. Tiers 0-4 were originally read-only and unauthenticated; the **Tier 5 branch
-(`feature/tier5-authentication-administration`, committed, not yet merged — not merged or
-released)** added JWT authentication, RBAC, write endpoints, and gated almost everything:
+routers. Tiers 0-4 were originally read-only and unauthenticated; **Tier 5
+(released as v0.11.0)** added JWT authentication, RBAC, write endpoints, and gated almost everything:
 
 - **Only the 4 Tier 0 `bootstrap.py` endpoints and the 12 `/api/v1/register` endpoints (public
   self-registration + its reference-data lookups) plus `POST /auth/login|refresh|forgot-password|

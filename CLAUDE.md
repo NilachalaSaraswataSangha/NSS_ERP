@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > `api/README.md`, `database/README.md`, `frontend/README.md`, `tests/README.md`. Don't append
 > session-by-session narrative here; permanent decisions belong in `docs/00_Project_Governance/GDR/`
 > (once ratified) or the relevant module's SOLUTION doc. For what is uncommitted, run `git status` —
-> Tier 5 (Authentication + Administration) lives on `feature/tier5-authentication-administration`,
-> not yet merged to `develop`/`main`, no release tag.
+> Tier 5 (Authentication + Administration) is merged to `develop`/`main` and tagged `v0.11.0`
+> (tag is local only until pushed; `git push <remote> v0.11.0`).
 
 ## Commands
 
@@ -165,7 +165,8 @@ threshold 0.45 with `re.split(r'[.@]', q)[0]` for email-shaped input.
 only via a documented release (tag + `docs/05_Releases/vX.Y.Z.md` + GitHub Release). Verify the
 branch with `git status` before changes. Remotes: `personal` (daily dev) → PR → `org` (deploy
 source); pushes are often blocked in-sandbox, so push from a terminal. Never add a `Co-Authored-By`
-trailer to commits.
+trailer to commits. Current state: `main` = `develop` = `v0.11.0` (Tier 5 released; old
+`feature/*` branches are merged leftovers) — branch the next feature from `develop`.
 
 ## Open items
 

@@ -2,8 +2,7 @@
 
 Family Module DDL — 6 tables per SOL-FAM-005, SOL-FAM-003, SOL-ARCH-010, and (for `family_link`)
 ERP-DECISION — Graph-based dynamic relationship model. `family_admin` (see below) and the
-move-transition guard are Tier 5 additions on branch `feature/tier5-authentication-administration`
-(committed, not merged to `develop`).
+move-transition guard are Tier 5 additions (released in v0.11.0).
 
 Authority: SOL-FAM-005 (Family Table Design), SOL-FAM-003, SOL-ARCH-010 (DDL Creation Order) for
 the first 4 tables; `family_link` carries its own separate `ERP-DECISION` authority tag (see its
@@ -70,14 +69,14 @@ implement that:
   than storing every possible relationship label as data. See "Is `family_relationship`
   superseded by `family_link`?" below — it is not; the two tables serve different, coexisting
   purposes.
-- **`family_admin`** — (Tier 5 branch) tracks Family Admin role assignments,
+- **`family_admin`** — (Tier 5) tracks Family Admin role assignments,
   independent of `family_head_history`: a person may be Head, Admin, both, or neither at once.
   Multiple admins per family are allowed. Only the current Family Head may assign/revoke an
   admin (enforced in `api/routers/family.py`'s `POST`/`DELETE /families/{pk}/admins`, FAM-046/
   FAM-050 — not a DB constraint); a partial unique index
   (`uq_family_admin_current`) allows at most one *current* (`effective_to IS NULL`) admin row
   per (`family_group_pk`, `person_pk`) pair, but does not itself limit how many distinct people
-  can be current admins of the same family. **Has 3 API endpoints as of the Tier 5 branch**
+  can be current admins of the same family. **Has 3 API endpoints as of the Tier 5**
   (`GET/POST/DELETE /api/v1/family/families/{pk}/admins`) — not DDL-only; the head-only
   appoint rule is exercised in `tests/api/test_family_ownership.py`.
 

@@ -8,8 +8,7 @@ full table design in `docs/03_Solution/architecture/FESTIVAL_CALENDAR_ARCHITECTU
 as a child of `postal_code` — one PIN can carry many post offices. `district`, `postal_code`,
 `post_office` and `city_village` are the four **member-writable** geographic levels and share the
 member-assisted-entry columns described under "Member-Assisted Geographic Entry" below.
-`14_system_event_log.sql`/`15_audit_trigger.sql` are added on branch
-`feature/tier5-authentication-administration`.
+`14_system_event_log.sql`/`15_audit_trigger.sql` were added in Tier 5 (v0.11.0).
 
 Authority: SOL-ARCH-010 (DDL Creation Order) + Amendment (PIN Code Geographic
 Model), SOL-FND-004 (Foundation Table Design); `system_event_log`/the audit trigger cite

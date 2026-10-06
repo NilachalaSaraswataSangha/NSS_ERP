@@ -1,6 +1,6 @@
 # api/routers/
 
-One FastAPI `APIRouter` per module, all included by `api/main.py`. **12 routers, 135 endpoints**
+One FastAPI `APIRouter` per module, all included by `api/main.py`. **12 routers, 137 endpoints**
 (AST-counted decorators). Raw parameterized psycopg2 SQL, no ORM; response models live in
 `api/schemas/`. See `api/README.md` for the per-endpoint tables.
 

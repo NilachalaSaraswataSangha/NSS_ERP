@@ -1,7 +1,6 @@
 # database/ddl/06_authentication/
 
-Authentication & Security Module DDL — 5 tables. **In progress (committed on the branch, not merged)** on branch
-`feature/tier5-authentication-administration` (see `docs/PROJECT_DOCUMENTATION.md` → Tier 5).
+Authentication & Security Module DDL — 5 tables. **Implemented (released in v0.11.0)** (see `docs/PROJECT_DOCUMENTATION.md` → Tier 5).
 
 Authority: SOL-AUTH-001, SOL-AUTH-002, SOL-AUTH-004, SOL-AUTH-005, SOL-AUTH-006, SOL-AUTH-007,
 Tier 5 decisions (2026-09-15), Tier 5.1 self-service reset (2026-09-20).

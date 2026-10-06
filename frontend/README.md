@@ -1,7 +1,6 @@
 # frontend/
 
-**On the Tier 5 branch (`feature/tier5-authentication-administration`, committed but not yet
-merged to `develop`), the six original Tier 0-4 verification pages this README used to document as
+**In Tier 5 (v0.11.0), the six original Tier 0-4 verification pages this README used to document as
 current — `index.html`, `foundation.html`, `organization.html`, `person.html`, `family.html`,
 `membership.html`, and their per-page JS (`app.js`, `foundation.js`, `organization.js`,
 `person.js`, `family.js`, `membership.js`) — were deleted outright**, not just retired at the
@@ -109,7 +108,7 @@ every page that loads it picks it up automatically.
 > `family.html`, `membership.html`, and their per-page JS (`app.js`, `foundation.js`,
 > `organization.js`, `person.js`, `family.js`, `membership.js`) — every subsection from
 > `### index.html` down to `### assets/js/membership.js` — were **deleted from disk** on the Tier 5
-> branch (committed, not yet merged to `develop`); see the header note at the top of this file. Those
+> branch (v0.11.0); see the header note at the top of this file. Those
 > subsections are kept for historical reference only. **Everything from `### assets/css/badges.css`
 > onward describes files that still exist** (shared CSS/JS helpers, the four Tier 5 page scripts,
 > Tailwind build files, images) and is kept current.
@@ -954,7 +953,7 @@ inline on the Login page (see the "Forgot/reset password" note below).
 
 > **⚠ Historical.** The per-page tables below document what the now-deleted `index.html`/
 > `foundation.html`/`organization.html`/`person.html`/`family.html`/`membership.html` consumed.
-> Two of the underlying facts have also since changed on the Tier 5 branch: `foundation.py`/
+> Two of the underlying facts have also since changed in Tier 5: `foundation.py`/
 > `organization.py`/`person.py`/`membership.py` are now gated by `require_permission(...)`
 > (were "no authentication" as stated below), and `/api/v1/bootstrap/permissions`/
 > `/roles/{pk}/permissions` are no longer guaranteed-empty now that `permission_master`/
@@ -1069,9 +1068,9 @@ Response schemas are defined in `api/schemas/membership.py`. `MemberResponse` re
 name/contact, membership type, status, organization (Sakha), and the current active
 `local_sakha_erp_id` via JOINs. Full contract: `docs/03_Solution/api/API_CONTRACT.md` §8.
 
-## Tier 5 pages — on `feature/tier5-authentication-administration` (committed, not yet merged to `develop`)
+## Tier 5 pages (v0.11.0)
 
-**Not yet merged to `develop` or released.** Four new pages. The shared helpers and per-page scripts now have their own File Reference
+Four new pages. The shared helpers and per-page scripts now have their own File Reference
 subsections above (`auth.js` through `nss-datepicker.css`); this section remains a summary
 pointer for the pages themselves, not an exhaustive per-function walkthrough. All four consume the new `/api/v1/auth/*`/`/api/v1/admin/*`/
 `/api/v1/register`/`/api/v1/admin/claims/*` endpoints (see `api/README.md` → "Endpoints (Tier 5)"
@@ -1152,8 +1151,8 @@ Tier 2   Organization Verification (retired — deleted, folded into admin.html)
 Tier 3   Person Verification (retired — deleted, folded into admin.html)
 Tier 4   Family + Membership Verification (retired — deleted, folded into admin.html/dashboard.html)
   ...
-Tier 5   Authentication + Administration + login/session UI — committed on its branch (see
-         "Tier 5 pages" above); not yet merged/released
+Tier 5   Authentication + Administration + login/session UI — released as v0.11.0 (see
+         "Tier 5 pages" above)
   ...
          Full ERP interface
 ```
@@ -1162,5 +1161,4 @@ Tier 5   Authentication + Administration + login/session UI — committed on its
 The page structure, CSS framework, and Alpine.js pattern established
 by the original six Tiers 0-4 pages carried forward into the four Tier 5 pages, even though
 those six pages themselves were deleted (see the header note at the top of this file).
-Authentication + Administration UI is implemented on the Tier 5 branch (see "Tier 5 pages" above) —
-treat it as not shipped until the branch merges and a release tag exists.
+Authentication + Administration UI is implemented and released in Tier 5 / v0.11.0 (see "Tier 5 pages" above).

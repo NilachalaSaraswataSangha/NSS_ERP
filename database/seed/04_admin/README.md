@@ -1,7 +1,6 @@
 # database/seed/04_admin/
 
-Seeds the initial NSS Admin superuser account. **Committed on the branch, not merged** — branch
-`feature/tier5-authentication-administration`. (Unrelated to `database/seed/04_family/` — the
+Seeds the initial NSS Admin superuser account. Added in Tier 5 (released in v0.11.0). (Unrelated to `database/seed/04_family/` — the
 shared `04_` prefix is coincidence; this folder has no `ddl/` counterpart.)
 
 Authority: SOL-AUTH-006, Tier 5 decisions.

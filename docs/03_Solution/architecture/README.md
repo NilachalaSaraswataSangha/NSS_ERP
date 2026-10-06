@@ -119,10 +119,9 @@ Overall solution architecture documentation (cross-module, above the per-module 
 ## Current state vs. these decisions
 
 The Django-to-FastAPI migration (`TECH_STACK_DECISIONS.md` v1.3) has landed: the Django
-prototype was fully removed and FastAPI is the sole API layer (`api/`: 135 endpoints across 12
-routers, raw psycopg2, no ORM). Released through `v0.10.4` (Tier 4 Family + Membership) on
-`main`; **Tier 5 (Authentication + Administration) is committed, not yet merged, on
-`feature/tier5-authentication-administration`** — JWT/RBAC, a second write-capable
+prototype was fully removed and FastAPI is the sole API layer (`api/`: 137 endpoints across 12
+routers, raw psycopg2, no ORM). Released through `v0.11.0` on
+`main`; **Tier 5 (Authentication + Administration, v0.11.0)** — JWT/RBAC, a second write-capable
 `nss_db_writer` pool, registration + claim approval, admin/audit routers, a DB-level audit
 trigger, a CSP, and a login/register/dashboard/admin frontend (Tailwind/DaisyUI pre-built via
 Tailwind CLI, Alpine.js from CDN) that replaced the six standalone Tier 0-4 verification pages.
