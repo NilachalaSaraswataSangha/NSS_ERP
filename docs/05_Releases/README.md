@@ -19,8 +19,5 @@ Release notes. Every version includes a git tag, this notes file, and a GitHub r
 | `v0.10.1.md` | Build-script fix — `family_link` wired into `02_build.sh`, `render_build.sh` brought to Tier 4 parity |
 | `v0.10.2.md` | `render_build.sh` creates `nss_db_owner`/`nss_db_backend` roles on Neon before granting |
 | `v0.10.3.md` | Idempotent DDL + seed — root-cause fix for Neon schema/data drift |
-| `v0.10.4.md` | Performance hardening — connection pool, composite partial indexes, multi-worker Uvicorn (latest released tag) |
-
-Tier 5 (Authentication + Administration) has **no release notes yet** — it is in progress,
-uncommitted, on `feature/tier5-authentication-administration`; its notes will be `v0.11.0.md`
-once merged and tagged.
+| `v0.10.4.md` | Performance hardening — connection pool, composite partial indexes, multi-worker Uvicorn |
+| `v0.11.0.md` | Tier 5 Authentication + Administration — Argon2/JWT auth with server-side sessions, RBAC + admin scope, registration/claim flow, audit trail, member-proposed geography, existence-gated builds (48 tables, 137 endpoints; latest released tag) |
