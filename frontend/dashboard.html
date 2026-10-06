@@ -93,6 +93,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 1rem;
             position: sticky;
             top: 0;
             z-index: 20;
@@ -102,98 +103,61 @@
 
         /* Mobile hamburger — .mobile-toggle is shared, see nss-layout.css */
 
-        /* Content area */
+        /* Content area — full width, no cap.
+           The 960px cap + `margin: 0 auto` were removed 2026-10-06: a
+           capped, centered block sits inside the space left of the
+           sidebar, so on a wide screen it became a narrow ribbon with
+           large dead gutters either side and cramped card grids. Every
+           tab now behaves the way admin_*/family already did.
+           Width/max-width come from the shared nss-layout.css rule
+           (`.content-area { padding: 1.5rem; max-width: 100%; }`);
+           padding is repeated here only to keep this block self-evident.
+           The former `.content-area.admin-view { max-width: none }`
+           override is gone with it — it is a no-op once the base rule
+           no longer caps. The `admin-view` class is still bound in the
+           markup; it is harmless and kept as a styling hook. */
         .content-area {
             padding: 1.5rem;
-            max-width: 960px;
         }
 
-        /* Admin tabs need full width for embedded iframe */
-        .content-area.admin-view {
-            max-width: none;
-        }
-
-        /* ── Member Header Card ──────────────────────────── */
-        .member-header {
-            background: #ffffff;
-            border-radius: 0.75rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-            padding: 1.25rem 1.5rem;
-            margin-bottom: 1.5rem;
+        /* ── Profile Avatar Row (inside Personal Information card) ──── */
+        /* Replaces the old standalone "Member Header" banner that used to
+           render above every tab, duplicating the topbar's identity info —
+           and the follow-up "profile-identity" strip that gave the name its
+           own oversized heading, duplicating the Full Name field below it.
+           Name now appears exactly once, as a normal field row like Gender
+           or Mobile. This row is just a small avatar + the membership/
+           status badges, a glance-level accent above the field list. */
+        .profile-avatar-row {
             display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
             align-items: center;
-            border-top: 3px solid #0D7377;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding: 0.85rem 1.25rem 0.25rem;
         }
 
-        .member-header .avatar-lg {
-            width: 56px;
-            height: 56px;
+        .profile-avatar-row .avatar-sm {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: linear-gradient(135deg, #1B2A4A, #0D7377);
             color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
+            font-size: 0.95rem;
             font-weight: 700;
             flex-shrink: 0;
         }
 
-        .member-header .member-info {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .member-header .member-name {
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: #1B2A4A;
-            margin: 0 0 0.15rem;
-        }
-
-        .member-header .member-code {
-            font-size: 0.8rem;
-            color: #6b7280;
-            margin: 0;
-        }
-
-        .member-header .badges {
+        .profile-avatar-row .badges {
             display: flex;
             flex-wrap: wrap;
             gap: 0.35rem;
-            margin-top: 0.4rem;
         }
 
-        /* No .badge / .badge-xs overrides here. They used to shrink badges in
-           the dashboard context and fought assets/css/badges.css, giving the
-           same status two different sizes across pages. Badge geometry comes
-           only from badges.css (mirroring
-           docs/03_Solution/ui/mockups/status_badge_preview.html): use
-           badge-xs in tables, badge-sm in cards, badge-md/badge-lg elsewhere. */
-
-        .member-header .member-org {
-            text-align: right;
-            flex-shrink: 0;
-        }
-
-        .member-header .member-org .org-label {
-            font-size: 0.7rem;
-            color: #9ca3af;
-        }
-
-        .member-header .member-org .org-name {
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #1B2A4A;
-        }
-
-        .member-header .member-org .join-date {
-            font-size: 0.7rem;
-            color: #9ca3af;
-            margin-top: 0.15rem;
-        }
+        /* No .badge / .badge-xs overrides here — geometry comes only from
+           badges.css. */
 
         /* ── Data Cards ──────────────────────────────────── */
         .data-card {
@@ -255,6 +219,30 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
             gap: 1rem;
+        }
+
+        /* Personal tab: explicit two-column layout so Active Sessions
+           (and the Membership Snapshot beneath it) sit in a fixed right
+           column, with Personal Information pinned to a wider left column
+           spanning both rows. Replaces the auto-fit flow, which placed the
+           Active Sessions card wherever the viewport width happened to
+           wrap it rather than reliably on the right. */
+        .personal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            align-items: start;
+        }
+        /* Each column stacks its two cards vertically. Left: Personal
+           Information + Address. Right: Active Sessions + Membership
+           Snapshot. Balancing the cards two-per-column keeps the columns
+           roughly equal height, removing the large empty gap the old
+           row-span layout left on the left. */
+        .personal-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-width: 0;
         }
 
         /* ── Placeholder (Coming Soon) ───────────────────── */
@@ -320,14 +308,12 @@
                 grid-template-columns: 1fr;
             }
 
-            .member-header {
-                flex-direction: column;
-                align-items: flex-start;
+            /* Personal tab collapses to a single column; both column
+               wrappers stack so all four cards flow in natural order. */
+            .personal-grid {
+                grid-template-columns: 1fr;
             }
 
-            .member-header .member-org {
-                text-align: left;
-            }
         }
 
         /* ── Version badge ───────────────────────────────── */
@@ -589,10 +575,10 @@
             }
         }
 
-        /* Family tab wider for tree */
-        .content-area.family-view {
-            max-width: none;
-        }
+        /* `.content-area.family-view { max-width: none }` removed
+           2026-10-06 — a no-op now that the base .content-area rule
+           no longer caps width. The `family-view` class remains bound
+           in the markup as a styling hook. */
 
         /* ── Org Family Browser ──────────────────────────── */
         .ofb-header {
@@ -929,10 +915,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                     </svg>
                 </button>
-                <div class="topbar-heading">
-                    <div class="topbar-title" x-text="currentTabLabel" :title="currentTabLabel"></div>
-                    <div class="topbar-breadcrumb">Dashboard</div>
+                <div class="topbar-brand">
+                    <img src="/assets/img/nss-logo.png" alt="NSS" class="topbar-logo">
+                    <div class="topbar-heading">
+                        <div class="topbar-title">Nilachala Saraswata Sangha</div>
+                        <div class="topbar-breadcrumb" x-text="currentTabLabel" :title="currentTabLabel"></div>
+                    </div>
                 </div>
+                <!-- Desktop: sidebar brand is always visible, so just show the
+                     current tab here instead of repeating logo + name. -->
+                <div class="topbar-breadcrumb-desktop" x-text="currentTabLabel" :title="currentTabLabel"></div>
             </div>
             <div class="topbar-user-info" x-show="currentUser" x-html="topbarUserInfo()"></div>
         </div>
@@ -943,13 +935,6 @@
             <!-- Loading state -->
             <template x-if="loading">
                 <div>
-                    <div class="member-header">
-                        <div class="avatar-lg skeleton" style="width:56px;height:56px;border-radius:50%"></div>
-                        <div class="member-info">
-                            <div class="skeleton skeleton-line w-60"></div>
-                            <div class="skeleton skeleton-line w-40"></div>
-                        </div>
-                    </div>
                     <div class="card-grid">
                         <div class="data-card" style="padding:1.25rem">
                             <div class="skeleton skeleton-line w-40"></div>
@@ -984,28 +969,11 @@
             <!-- Loaded content -->
             <template x-if="!loading && !error">
                 <div>
-                    <!-- Member Header Card -->
-                    <div class="member-header">
-                        <div class="avatar-lg" x-text="initials"></div>
-                        <div class="member-info">
-                            <h1 class="member-name" x-text="person.display_name || user.person_name || '—'"></h1>
-                            <p class="member-code" x-text="person.person_id ? ('Person Code: ' + person.person_id) : ''"></p>
-                            <div class="badges">
-                                <span class="badge badge-xs badge-identity" x-text="user.sangha_sevi_id" x-show="user.sangha_sevi_id"></span>
-                                <span class="badge badge-xs" :class="NSS.typeBadgeClass(member.membership_type_code)" x-text="NSS.typeDisplayName(member.membership_type_code, member.membership_type_name)" x-show="member.membership_type_name"></span>
-                                <span class="badge badge-xs" :class="NSS.statusBadgeClass(member.status_code)" x-text="member.status_name || ''" x-show="member.status_name"></span>
-                            </div>
-                        </div>
-                        <div class="member-org" x-show="member.organization_name">
-                            <p class="org-label">Sakha Sangha</p>
-                            <p class="org-name" x-text="member.organization_name || ''"></p>
-                            <p class="join-date" x-show="member.joining_date" x-text="'Sangha Joining Date: ' + formatDate(member.joining_date)"></p>
-                        </div>
-                    </div>
-
                     <!-- ═══ Personal Tab ═══ -->
                     <div x-show="tab === 'personal'">
-                        <div class="card-grid">
+                        <div class="personal-grid">
+                            <!-- Left column: profile details + address -->
+                            <div class="personal-col">
                             <!-- Personal Information -->
                             <div class="data-card">
                                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
@@ -1013,11 +981,28 @@
                                     <button class="btn-action" x-show="!editingProfile" @click="startEditProfile()">Edit</button>
                                 </div>
 
+                                <!-- Compact avatar + badge accent — identity at a glance,
+                                     without repeating the name as its own heading (that lives
+                                     in the Full Name row below, same style as every other
+                                     field). -->
+                                <div class="profile-avatar-row">
+                                    <div class="avatar-sm" x-text="initials"></div>
+                                    <div class="badges">
+                                        <span class="badge badge-xs badge-identity" x-text="user.sangha_sevi_id" x-show="user.sangha_sevi_id"></span>
+                                        <span class="badge badge-xs" :class="NSS.typeBadgeClass(member.membership_type_code)" x-text="NSS.typeDisplayName(member.membership_type_code, member.membership_type_name)" x-show="member.membership_type_name"></span>
+                                        <span class="badge badge-xs" :class="NSS.statusBadgeClass(member.status_code)" x-text="member.status_name || ''" x-show="member.status_name"></span>
+                                    </div>
+                                </div>
+
                                 <!-- View mode -->
                                 <div class="data-rows" x-show="!editingProfile">
                                     <div class="data-row">
                                         <span class="data-label">Full Name</span>
-                                        <span class="data-value" x-text="person.display_name || '—'"></span>
+                                        <span class="data-value" x-text="person.display_name || user.person_name || '—'"></span>
+                                    </div>
+                                    <div class="data-row" x-show="person.person_id">
+                                        <span class="data-label">Person Code</span>
+                                        <span class="data-value mono" x-text="person.person_id || '—'"></span>
                                     </div>
                                     <div class="data-row" x-show="person.gender_name">
                                         <span class="data-label">Gender</span>
@@ -1051,6 +1036,14 @@
                                             <span class="mono" style="display: block; color: #64748b; font-size: 0.78rem;" x-show="person.emergency_contact_phone" x-text="person.emergency_contact_phone"></span>
                                         </span>
                                     </div>
+                                    <div class="data-row" x-show="member.organization_name">
+                                        <span class="data-label">Sakha Sangha</span>
+                                        <span class="data-value" x-text="member.organization_name || '—'"></span>
+                                    </div>
+                                    <div class="data-row" x-show="member.joining_date">
+                                        <span class="data-label">Sangha Joining Date</span>
+                                        <span class="data-value" x-text="formatDate(member.joining_date)"></span>
+                                    </div>
                                 </div>
 
                                 <!-- Edit mode -->
@@ -1061,11 +1054,6 @@
                                     <template x-if="profileSuccess">
                                         <div class="alert-msg alert-success" x-text="profileSuccess" style="margin-bottom: 0.75rem;"></div>
                                     </template>
-
-                                    <div class="data-row">
-                                        <span class="data-label">Full Name</span>
-                                        <span class="data-value" x-text="person.display_name || '—'" style="color: #6b7280; font-style: italic;"></span>
-                                    </div>
 
                                     <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
                                         <div>
@@ -1095,6 +1083,55 @@
                                 </div>
                             </div>
 
+                            <!-- Address -->
+                            <div class="data-card">
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
+                                    <h2 class="data-card-title" style="padding: 0;">Address</h2>
+                                </div>
+                                <div class="data-rows" x-show="addresses.length > 0">
+                                    <template x-for="addr in addresses" :key="addr.person_address_pk">
+                                        <div>
+                                            <!-- Per-address heading. The type name and the Primary
+                                                 flag are real fields on PersonAddressResponse
+                                                 (api/schemas/person.py:124,139). Previously a single
+                                                 unconditional "Primary" badge sat in the card header
+                                                 while this loop rendered *every* address, so a
+                                                 secondary address was labelled Primary too. -->
+                                            <div class="data-row">
+                                                <span class="data-label" x-text="addr.address_type_name || 'Address'"></span>
+                                                <span class="badge badge-xs badge-muted" x-show="addr.is_primary">Primary</span>
+                                            </div>
+                                            <div class="data-row" x-show="addr.address_line_1">
+                                                <span class="data-label">Address</span>
+                                                <span class="data-value" style="text-align: right;" x-html="formatAddress(addr)"></span>
+                                            </div>
+                                            <div class="data-row" x-show="addr.city_village_name">
+                                                <span class="data-label">City / Village</span>
+                                                <span class="data-value" x-text="addr.city_village_name || '—'"></span>
+                                            </div>
+                                            <div class="data-row" x-show="addr.district_name">
+                                                <span class="data-label">District</span>
+                                                <span class="data-value" x-text="addr.district_name || '—'"></span>
+                                            </div>
+                                            <div class="data-row" x-show="addr.state_name">
+                                                <span class="data-label">State</span>
+                                                <span class="data-value" x-text="addr.state_name || '—'"></span>
+                                            </div>
+                                            <div class="data-row" x-show="addr.postal_code">
+                                                <span class="data-label">PIN</span>
+                                                <span class="data-value mono" x-text="addr.postal_code || '—'"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                                <div class="data-rows" x-show="addresses.length === 0">
+                                    <p style="color: #9ca3af; font-size: 0.8rem; text-align: center; padding: 1rem 0;">No address on record</p>
+                                </div>
+                            </div>
+                            </div><!-- /personal-col (left) -->
+
+                            <!-- Right column: sessions + membership snapshot -->
+                            <div class="personal-col">
                             <!-- Active Sessions -->
                             <div class="data-card">
                                 <div class="data-card-header">
@@ -1161,54 +1198,9 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Address -->
-                            <div class="data-card">
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.25rem 0;">
-                                    <h2 class="data-card-title" style="padding: 0;">Address</h2>
-                                </div>
-                                <div class="data-rows" x-show="addresses.length > 0">
-                                    <template x-for="addr in addresses" :key="addr.person_address_pk">
-                                        <div>
-                                            <!-- Per-address heading. The type name and the Primary
-                                                 flag are real fields on PersonAddressResponse
-                                                 (api/schemas/person.py:124,139). Previously a single
-                                                 unconditional "Primary" badge sat in the card header
-                                                 while this loop rendered *every* address, so a
-                                                 secondary address was labelled Primary too. -->
-                                            <div class="data-row">
-                                                <span class="data-label" x-text="addr.address_type_name || 'Address'"></span>
-                                                <span class="badge badge-xs badge-muted" x-show="addr.is_primary">Primary</span>
-                                            </div>
-                                            <div class="data-row" x-show="addr.address_line_1">
-                                                <span class="data-label">Address</span>
-                                                <span class="data-value" style="text-align: right;" x-html="formatAddress(addr)"></span>
-                                            </div>
-                                            <div class="data-row" x-show="addr.city_village_name">
-                                                <span class="data-label">City / Village</span>
-                                                <span class="data-value" x-text="addr.city_village_name || '—'"></span>
-                                            </div>
-                                            <div class="data-row" x-show="addr.district_name">
-                                                <span class="data-label">District</span>
-                                                <span class="data-value" x-text="addr.district_name || '—'"></span>
-                                            </div>
-                                            <div class="data-row" x-show="addr.state_name">
-                                                <span class="data-label">State</span>
-                                                <span class="data-value" x-text="addr.state_name || '—'"></span>
-                                            </div>
-                                            <div class="data-row" x-show="addr.postal_code">
-                                                <span class="data-label">PIN</span>
-                                                <span class="data-value mono" x-text="addr.postal_code || '—'"></span>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-                                <div class="data-rows" x-show="addresses.length === 0">
-                                    <p style="color: #9ca3af; font-size: 0.8rem; text-align: center; padding: 1rem 0;">No address on record</p>
-                                </div>
-                            </div>
-                        </div>
+                            </div><!-- /personal-col (right) -->
+                        </div><!-- /personal-grid -->
+                    </div>
 
                     <!-- ═══ Membership Tab ═══ -->
                     <div x-show="tab === 'membership'">

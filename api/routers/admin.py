@@ -143,6 +143,15 @@ def list_users(
     conditions = ["TRUE"]
     params: list = []
 
+    # Only accounts tied to an active Sangha Sevi belong in the User Accounts
+    # view. An account with no Sangha Sevi (a bare person, or an in-flight
+    # self-registration) must not surface here — a claim-based one is handled
+    # in Registration Approvals, and a claimless orphan must never be
+    # approvable. Equivalent to INNER JOINing sangha_sevi, but kept as a WHERE
+    # filter so the shared join constant (reused by get_user_detail) is
+    # untouched.
+    conditions.append("ss.sangha_sevi_pk IS NOT NULL")
+
     if account_status:
         conditions.append("ua.account_status = %s")
         params.append(account_status)
@@ -1429,6 +1438,30 @@ def update_status(
                         "This account has a pending registration claim. "
                         "Approve or reject it from Registration Approvals — "
                         "that is where the Sangha Sevi record gets created."
+                    ),
+                )
+
+            # A user_account cannot be activated unless the person already
+            # has an active Sangha Sevi record. An account with no claim and
+            # no Sangha Sevi (e.g. a bare person registered without membership
+            # details) must not be approvable here — approving it would leave
+            # an ACTIVE account that can never log in (login requires a Sangha
+            # Sevi). The admin must create the Sangha Sevi record first.
+            cur.execute(
+                """
+                SELECT 1 FROM nss.sangha_sevi
+                WHERE person_pk = %s AND is_active = TRUE
+                LIMIT 1
+                """,
+                (str(person_pk),),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=(
+                        "This person has no Sangha Sevi record. Create the "
+                        "Sangha Sevi record first (Create Sangha Sevi), then "
+                        "approve the account."
                     ),
                 )
 

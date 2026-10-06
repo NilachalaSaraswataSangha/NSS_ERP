@@ -129,11 +129,26 @@ run_sql() {
 }
 
 # ── Existence-gated table creation / seeding ────────────────
-# PREEXISTING[<table>]=1 marks a table that was already present in
-# the database at the START of this run. A pre-existing table has
-# its DDL AND its seed skipped — its live data is never touched.
-# A table absent at start is created and then seeded exactly once.
-declare -A PREEXISTING
+# PREEXISTING_LIST is a space-delimited list of table names that
+# were already present in the database at the START of this run
+# (bash 3.2 — Apple's stock /bin/bash, in case this script is ever
+# run locally too — has no associative arrays, so this avoids
+# `declare -A`, which fails with "invalid option" there). A
+# pre-existing table has its DDL AND its seed skipped — its live
+# data is never touched. A table absent at start is created and
+# then seeded exactly once.
+PREEXISTING_LIST=" "
+
+mark_preexisting() {
+    PREEXISTING_LIST="${PREEXISTING_LIST}$1 "
+}
+
+is_preexisting() {
+    case "${PREEXISTING_LIST}" in
+        *" $1 "*) return 0 ;;
+        *)        return 1 ;;
+    esac
+}
 
 # Deterministic catalog check (no error-string guessing).
 # to_regclass returns the OID (non-NULL) iff the relation exists.
@@ -145,13 +160,13 @@ table_exists() {
 
 # Create a table only if it does not already exist.
 #   run_ddl <label> <table_name> <ddl_file>
-# If the table exists we record it in PREEXISTING (so run_seed
+# If the table exists we record it in PREEXISTING_LIST (so run_seed
 # skips its seed too) and do nothing. Otherwise we create it.
 run_ddl() {
     local label="$1" table="$2" file="$3"
     echo "  [CHECK] ${label}  (nss.${table}) ..."
     if table_exists "${table}"; then
-        PREEXISTING["${table}"]=1
+        mark_preexisting "${table}"
         echo "  [EXISTS] ${label}  (nss.${table} already present — DDL + seed skipped, live data preserved)"
         return 0
     fi
@@ -165,7 +180,7 @@ run_ddl() {
 # seed never runs. A freshly-created table is seeded exactly once.
 run_seed() {
     local label="$1" table="$2" file="$3"
-    if [ "${PREEXISTING[${table}]:-0}" = "1" ]; then
+    if is_preexisting "${table}"; then
         echo "  [SKIP] ${label}  (nss.${table} pre-existed — seed skipped, live data preserved)"
         return 0
     fi

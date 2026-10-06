@@ -19,12 +19,12 @@
 
 # 1. Overview
 
-The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **135 endpoints** across 12
+The NSS ERP exposes a REST API (FastAPI, raw `psycopg2`, no ORM) of **137 endpoints** across 12
 routers. Tiers 0-4 were originally read-only and unauthenticated; the **Tier 5 branch
 (`feature/tier5-authentication-administration`, committed, not yet merged — not merged or
 released)** added JWT authentication, RBAC, write endpoints, and gated almost everything:
 
-- **Only the 4 Tier 0 `bootstrap.py` endpoints and the 10 `/api/v1/register` endpoints (public
+- **Only the 4 Tier 0 `bootstrap.py` endpoints and the 12 `/api/v1/register` endpoints (public
   self-registration + its reference-data lookups) plus `POST /auth/login|refresh|forgot-password|
   reset-password` are reachable without a JWT.** Everything else needs
   `Authorization: Bearer <access token>`.
@@ -375,14 +375,19 @@ A4; `logout` and `DELETE /sessions/{session_pk}` revoke it); Argon2 password has
 
 # 10. Tier 5 — Registration (public)
 
-**Router prefix:** `/api/v1/register` — 10 endpoints, all deliberately unauthenticated (the
-registration page has no JWT yet). Creates `person` + `user_account(PENDING_APPROVAL)` + optional
-`registration_claim`; **no `sangha_sevi` is created until an admin approves the claim.**
+**Router prefix:** `/api/v1/register` — 12 endpoints, all deliberately unauthenticated (the
+registration page has no JWT yet). `POST ""` always creates a `person`; it creates
+`user_account(PENDING_APPROVAL)` + `registration_claim` **only when `has_membership` is true**
+(a membership-less registrant gets no account — it could never log in — and the typed password is
+discarded). Such a person can later submit a claim through `/lookup-existing` + `/claim`, verified
+by `person_id` + date of birth. **No `sangha_sevi` is created until an admin approves the claim.**
 
 | # | Method | Path | Description |
 |---|---|---|---|
 | 72 | POST | `` | Self-register |
 | 73 | POST | `/check-duplicate` | Pre-submit contact-uniqueness check |
+| 136 | POST | `/lookup-existing` | Verify a previously-registered, Sangha-Sevi-less person by `person_id` + `date_of_birth` (404 on mismatch; 409 if an account, pending claim or active Sangha Sevi already exists) |
+| 137 | POST | `/claim` | Create `user_account(PENDING_APPROVAL)` + `registration_claim` for that person (re-verifies `person_id` + DOB; 201, same `RegisterResponse` as register) |
 | 74 | GET | `/reference-data` | Countries, gender/marital-status/blood-group/membership-type master data and the Sakha list in one call |
 | 75 | GET | `/states` | States for a country |
 | 76 | GET | `/districts` | Districts for a state |
@@ -417,12 +422,12 @@ the last column (`any of`).
 
 | # | Method | Path | Description | Permission (any of) |
 |---|---|---|---|---|
-| 83 | GET | `/users` | List users (search, sort, pagination) | `ADMIN_USER_VIEW`, `ADMIN_USER_MANAGE`, `MEMBERSHIP_APPROVE` |
+| 83 | GET | `/users` | List users (search, sort, pagination); only accounts tied to an active `sangha_sevi` | `ADMIN_USER_VIEW`, `ADMIN_USER_MANAGE`, `MEMBERSHIP_APPROVE` |
 | 84 | POST | `/users` | Create a user account | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
 | 85 | GET | `/users/{pk}` | User detail | view set above |
 | 86 | GET | `/users/check-account/{person_pk}` | Does a person already have a usable/soft-deleted login | `ADMIN_USER_VIEW`, `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
 | 87 | POST | `/users/{pk}/reset-password` | Admin password reset | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
-| 88 | PATCH | `/users/{pk}/status` | Activate / suspend / etc. | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
+| 88 | PATCH | `/users/{pk}/status` | Activate / suspend / etc. — only sets `account_status`; ACTIVE from `PENDING_APPROVAL` is 422 if a PENDING claim exists or the person has no active `sangha_sevi` | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
 | 89 | DELETE | `/users/{pk}` | Soft-delete a user | `ADMIN_USER_MANAGE`, `PERSON_MANAGE` |
 | 90 | GET | `/users/{pk}/roles` | List role assignments | view set above |
 | 91 | POST | `/users/{pk}/roles` | Assign a role (with scope) | `ADMIN_ROLE_MANAGE` |
@@ -520,15 +525,15 @@ Frontend routes are excluded from OpenAPI schema (`include_in_schema=False`).
 | 4 | Family | 16 (7 original read + 9 Tier 5) |
 | 4 | Membership | 8 |
 | 5 | Authentication | 10 |
-| 5 | Registration | 10 |
+| 5 | Registration | 12 |
 | 5 | Claim Approval | 5 |
 | 5 | Administration | 28 |
 | 5 | Geo-Entry Approval | 4 |
 | 5 | Audit | 1 |
-| **Total** | | **135** |
+| **Total** | | **137** |
 
 The endpoint numbers in the tables above are stable identifiers, not path order: #1-#46 are the
-original Tier 0-4 set; #47-#135 were appended as Tier 5 endpoints landed.
+original Tier 0-4 set; #47-#137 were appended as Tier 5 endpoints landed.
 
 ---
 

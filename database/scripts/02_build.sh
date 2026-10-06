@@ -126,6 +126,68 @@ run_sql() {
     fi
 }
 
+# ── Existence-gated table creation / seeding ────────────────
+# Same deterministic model as render_build.sh (Version 3.0,
+# 2026-10-05): "only genuinely new tables are ever created or
+# seeded; a table that already exists is never dropped,
+# re-created, or re-seeded, so its local data is never touched."
+#
+# PREEXISTING_LIST is a space-delimited list of table names that
+# were already present at the START of this run (bash 3.2 —
+# Apple's stock /bin/bash — has no associative arrays, so this
+# avoids `declare -A`, which fails with "invalid option" there).
+# A pre-existing table has its DDL AND its seed skipped. A table
+# absent at start is created, then seeded exactly once.
+PREEXISTING_LIST=" "
+
+mark_preexisting() {
+    PREEXISTING_LIST="${PREEXISTING_LIST}$1 "
+}
+
+is_preexisting() {
+    case "${PREEXISTING_LIST}" in
+        *" $1 "*) return 0 ;;
+        *)        return 1 ;;
+    esac
+}
+
+# Deterministic catalog check (no error-string guessing).
+# to_regclass returns the OID (non-NULL) iff the relation exists.
+table_exists() {
+    local t="$1" res
+    res=$(${PSQL} -tA -c "SELECT to_regclass('nss.${t}') IS NOT NULL;" 2>/dev/null | tr -d '[:space:]')
+    [ "${res}" = "t" ]
+}
+
+# Create a table only if it does not already exist.
+#   run_ddl <label> <table_name> <ddl_file>
+run_ddl() {
+    local label="$1" table="$2" file="$3"
+    echo -e "  ${CYAN}[CHECK]${NC} ${label}  (nss.${table}) ..."
+    if table_exists "${table}"; then
+        mark_preexisting "${table}"
+        total=$((total + 1))
+        skipped=$((skipped + 1))
+        echo -e "  ${YELLOW}[EXISTS]${NC} ${label}  (nss.${table} already present — DDL + seed skipped, local data preserved)"
+        return 0
+    fi
+    echo -e "  ${GREEN}[NEW]${NC}  ${label}  (nss.${table} absent — creating)"
+    run_sql "${label}" "${file}"
+}
+
+# Seed a table ONLY if it was newly created in this run.
+#   run_seed <label> <target_table> <seed_file>
+run_seed() {
+    local label="$1" table="$2" file="$3"
+    if is_preexisting "${table}"; then
+        total=$((total + 1))
+        skipped=$((skipped + 1))
+        echo -e "  ${YELLOW}[SKIP]${NC} ${label}  (nss.${table} pre-existed — seed skipped, local data preserved)"
+        return 0
+    fi
+    run_sql "${label}" "${file}"
+}
+
 echo ""
 echo -e "${CYAN}=============================================${NC}"
 echo -e "${CYAN}  NSS ERP — Full Database Build${NC}"
@@ -140,15 +202,15 @@ echo ""
 # Phase 0: Bootstrap RBAC (SOL-ARCH-011 §4)
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 0] Bootstrap RBAC — DDL${NC}"
-run_sql "role_master"       "${DDL_BASE}/00_bootstrap/01_role_master.sql"
-run_sql "permission_master" "${DDL_BASE}/00_bootstrap/02_permission_master.sql"
-run_sql "role_permission"   "${DDL_BASE}/00_bootstrap/03_role_permission.sql"
+run_ddl "role_master"       "role_master"       "${DDL_BASE}/00_bootstrap/01_role_master.sql"
+run_ddl "permission_master" "permission_master" "${DDL_BASE}/00_bootstrap/02_permission_master.sql"
+run_ddl "role_permission"   "role_permission"   "${DDL_BASE}/00_bootstrap/03_role_permission.sql"
 echo ""
 
 echo -e "${CYAN}[Phase 0] Bootstrap RBAC — Seed${NC}"
-run_sql "permission_master (seed)" "${SEED_BASE}/00_bootstrap/01_permission_master.sql"
-run_sql "role_master (seed)"       "${SEED_BASE}/00_bootstrap/02_role_master.sql"
-run_sql "role_permission (seed)"   "${SEED_BASE}/00_bootstrap/03_role_permission.sql"
+run_seed "permission_master (seed)" "permission_master" "${SEED_BASE}/00_bootstrap/01_permission_master.sql"
+run_seed "role_master (seed)"       "role_master"       "${SEED_BASE}/00_bootstrap/02_role_master.sql"
+run_seed "role_permission (seed)"   "role_permission"   "${SEED_BASE}/00_bootstrap/03_role_permission.sql"
 echo ""
 
 # -------------------------------------------------
@@ -180,7 +242,7 @@ FOUNDATION_DDL=(
 for entry in "${FOUNDATION_DDL[@]}"; do
     label="${entry%%|*}"
     file="${entry##*|}"
-    run_sql "${label}" "${DDL_BASE}/01_foundation/${file}"
+    run_ddl "${label}" "${label}" "${DDL_BASE}/01_foundation/${file}"
 done
 echo ""
 
@@ -191,24 +253,25 @@ echo ""
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 2] Foundation — Seed Data${NC}"
 FOUNDATION_SEED=(
-    "master_category (seed)|01_master_category.sql"
-    "master_data (seed)|02_master_data.sql"
-    "id_sequence_master (seed)|03_id_sequence_master.sql"
-    "country (seed)|04_country.sql"
-    "state (seed)|05_state.sql"
-    "district (seed)|06_district.sql"
-    "system_setting (seed)|07_system_setting.sql"
-    "postal_code (seed)|08_postal_code.sql"
-    "postal_code bulk (seed)|08b_postal_code_bulk.sql"
-    "post_office bulk (seed)|08c_post_office_bulk.sql"
-    "festival_calendar (seed)|10_festival_calendar.sql"
-    "city_village (seed)|11_city_village.sql"
-    "city_village urban recovery (seed)|11b_city_village_urban_recovery.sql"
+    "master_category (seed)|master_category|01_master_category.sql"
+    "master_data (seed)|master_data|02_master_data.sql"
+    "id_sequence_master (seed)|id_sequence_master|03_id_sequence_master.sql"
+    "country (seed)|country|04_country.sql"
+    "state (seed)|state|05_state.sql"
+    "district (seed)|district|06_district.sql"
+    "system_setting (seed)|system_setting|07_system_setting.sql"
+    "postal_code (seed)|postal_code|08_postal_code.sql"
+    "postal_code bulk (seed)|postal_code|08b_postal_code_bulk.sql"
+    "post_office bulk (seed)|post_office|08c_post_office_bulk.sql"
+    "festival_calendar (seed)|festival_calendar_date|10_festival_calendar.sql"
+    "city_village (seed)|city_village|11_city_village.sql"
+    "city_village urban recovery (seed)|city_village|11b_city_village_urban_recovery.sql"
 )
 for entry in "${FOUNDATION_SEED[@]}"; do
-    label="${entry%%|*}"
-    file="${entry##*|}"
-    run_sql "${label}" "${SEED_BASE}/01_foundation/${file}"
+    label="$(echo "${entry}" | cut -d'|' -f1)"
+    table="$(echo "${entry}" | cut -d'|' -f2)"
+    file="$(echo "${entry}" | cut -d'|' -f3)"
+    run_seed "${label}" "${table}" "${SEED_BASE}/01_foundation/${file}"
 done
 echo ""
 
@@ -219,7 +282,7 @@ echo ""
 #       type/status now use Foundation master_data.
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 3] Organization — DDL (1 table + address-restriction trigger + Kumari/Sevak one-per-Sakha trigger)${NC}"
-run_sql "organization"               "${DDL_BASE}/02_organization/03_organization.sql"
+run_ddl "organization"               "organization" "${DDL_BASE}/02_organization/03_organization.sql"
 run_sql "organization_address_restriction_trigger" "${DDL_BASE}/02_organization/04_organization_address_restriction_trigger.sql"
 run_sql "organization_kumari_sevak_uniqueness_trigger" "${DDL_BASE}/02_organization/05_organization_kumari_sevak_uniqueness_trigger.sql"
 echo ""
@@ -228,10 +291,10 @@ echo ""
 # Phase 4: Organization Seed Data
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 4] Organization — Seed Data${NC}"
-run_sql "organization (seed)"               "${SEED_BASE}/02_organization/03_organization.sql"
-run_sql "sakha postal codes (seed)"          "${SEED_BASE}/01_foundation/09_sakha_postal_codes.sql"
-run_sql "sakha branches (seed)"              "${SEED_BASE}/02_organization/05_sakha_branches.sql"
-run_sql "id_sequence_master (org sync)"      "${SEED_BASE}/02_organization/06_id_sequence_org_sync.sql"
+run_seed "organization (seed)"               "organization"       "${SEED_BASE}/02_organization/03_organization.sql"
+run_seed "sakha postal codes (seed)"         "postal_code"        "${SEED_BASE}/01_foundation/09_sakha_postal_codes.sql"
+run_seed "sakha branches (seed)"             "organization"       "${SEED_BASE}/02_organization/05_sakha_branches.sql"
+run_seed "id_sequence_master (org sync)"     "id_sequence_master" "${SEED_BASE}/02_organization/06_id_sequence_org_sync.sql"
 echo ""
 
 # -------------------------------------------------
@@ -242,8 +305,8 @@ echo ""
 #       data lives in Foundation master_data seed.
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 5] Person — DDL (2 tables)${NC}"
-run_sql "person"         "${DDL_BASE}/03_person/02_person.sql"
-run_sql "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
+run_ddl "person"         "person"         "${DDL_BASE}/03_person/02_person.sql"
+run_ddl "person_address" "person_address" "${DDL_BASE}/03_person/03_person_address.sql"
 echo ""
 
 # -------------------------------------------------
@@ -254,12 +317,12 @@ echo ""
 #       in api/services/family_graph.py), not stored.
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 6] Family — DDL (6 tables + move-transition guard)${NC}"
-run_sql "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
-run_sql "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
-run_sql "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
-run_sql "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
-run_sql "family_link"               "${DDL_BASE}/04_family/05_family_link.sql"
-run_sql "family_admin"              "${DDL_BASE}/04_family/06_family_admin.sql"
+run_ddl "family_group"              "family_group"              "${DDL_BASE}/04_family/01_family_group.sql"
+run_ddl "family_relationship"       "family_relationship"       "${DDL_BASE}/04_family/02_family_relationship.sql"
+run_ddl "family_head_history"       "family_head_history"       "${DDL_BASE}/04_family/03_family_head_history.sql"
+run_ddl "family_transition_history" "family_transition_history" "${DDL_BASE}/04_family/04_family_transition_history.sql"
+run_ddl "family_link"               "family_link"               "${DDL_BASE}/04_family/05_family_link.sql"
+run_ddl "family_admin"              "family_admin"              "${DDL_BASE}/04_family/06_family_admin.sql"
 run_sql "family_move_transition_guard" "${DDL_BASE}/04_family/07_family_move_transition_guard.sql"
 echo ""
 
@@ -269,21 +332,21 @@ echo ""
 #       other membership tables depend on it.
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 7] Membership — DDL (14 tables + Sakha-only trigger)${NC}"
-run_sql "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
-run_sql "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
-run_sql "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
-run_sql "membership_renewal_history"     "${DDL_BASE}/05_membership/04_membership_renewal_history.sql"
-run_sql "membership_transfer_history"    "${DDL_BASE}/05_membership/05_membership_transfer_history.sql"
-run_sql "membership_sakha_affiliation"   "${DDL_BASE}/05_membership/06_membership_sakha_affiliation.sql"
-run_sql "membership_journey_event"       "${DDL_BASE}/05_membership/07_membership_journey_event.sql"
-run_sql "probationary_member_review"     "${DDL_BASE}/05_membership/08_probationary_member_review.sql"
-run_sql "parichaya_patra"                "${DDL_BASE}/05_membership/09_parichaya_patra.sql"
-run_sql "parichaya_patra_history"        "${DDL_BASE}/05_membership/10_parichaya_patra_history.sql"
-run_sql "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_patra.sql"
-run_sql "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
-run_sql "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
+run_ddl "sangha_sevi"                    "sangha_sevi"                    "${DDL_BASE}/05_membership/01_sangha_sevi.sql"
+run_ddl "membership_status_history"      "membership_status_history"      "${DDL_BASE}/05_membership/02_membership_status_history.sql"
+run_ddl "membership_renewal_request"     "membership_renewal_request"     "${DDL_BASE}/05_membership/03_membership_renewal_request.sql"
+run_ddl "membership_renewal_history"     "membership_renewal_history"     "${DDL_BASE}/05_membership/04_membership_renewal_history.sql"
+run_ddl "membership_transfer_history"    "membership_transfer_history"    "${DDL_BASE}/05_membership/05_membership_transfer_history.sql"
+run_ddl "membership_sakha_affiliation"   "membership_sakha_affiliation"   "${DDL_BASE}/05_membership/06_membership_sakha_affiliation.sql"
+run_ddl "membership_journey_event"       "membership_journey_event"       "${DDL_BASE}/05_membership/07_membership_journey_event.sql"
+run_ddl "probationary_member_review"     "probationary_member_review"     "${DDL_BASE}/05_membership/08_probationary_member_review.sql"
+run_ddl "parichaya_patra"                "parichaya_patra"                "${DDL_BASE}/05_membership/09_parichaya_patra.sql"
+run_ddl "parichaya_patra_history"        "parichaya_patra_history"        "${DDL_BASE}/05_membership/10_parichaya_patra_history.sql"
+run_ddl "anumati_patra"                  "anumati_patra"                  "${DDL_BASE}/05_membership/11_anumati_patra.sql"
+run_ddl "anumati_patra_history"          "anumati_patra_history"          "${DDL_BASE}/05_membership/12_anumati_patra_history.sql"
+run_ddl "darshak_attendance_registration" "darshak_attendance_registration" "${DDL_BASE}/05_membership/13_darshak_attendance_registration.sql"
 run_sql "sakha_only_membership_trigger"  "${DDL_BASE}/05_membership/14_sakha_only_membership_trigger.sql"
-run_sql "credential_sequence_counter"    "${DDL_BASE}/05_membership/15_credential_sequence_counter.sql"
+run_ddl "credential_sequence_counter"    "credential_sequence_counter"    "${DDL_BASE}/05_membership/15_credential_sequence_counter.sql"
 echo ""
 
 # -------------------------------------------------
@@ -325,11 +388,11 @@ echo ""
 # user_session FK → user_account (Depth 4)
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 10] Authentication — DDL (5 tables)${NC}"
-run_sql "user_account"           "${DDL_BASE}/06_authentication/01_user_account.sql"
-run_sql "password_history"       "${DDL_BASE}/06_authentication/02_password_history.sql"
-run_sql "registration_claim"     "${DDL_BASE}/06_authentication/03_registration_claim.sql"
-run_sql "password_reset_token"   "${DDL_BASE}/06_authentication/04_password_reset_token.sql"
-run_sql "user_session"           "${DDL_BASE}/06_authentication/05_user_session.sql"
+run_ddl "user_account"           "user_account"         "${DDL_BASE}/06_authentication/01_user_account.sql"
+run_ddl "password_history"       "password_history"     "${DDL_BASE}/06_authentication/02_password_history.sql"
+run_ddl "registration_claim"     "registration_claim"   "${DDL_BASE}/06_authentication/03_registration_claim.sql"
+run_ddl "password_reset_token"   "password_reset_token" "${DDL_BASE}/06_authentication/04_password_reset_token.sql"
+run_ddl "user_session"           "user_session"         "${DDL_BASE}/06_authentication/05_user_session.sql"
 echo ""
 
 # -------------------------------------------------
@@ -338,8 +401,8 @@ echo ""
 # admin_scope FK → user_role + organization (Depth 5)
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 11] Administration — DDL (2 tables)${NC}"
-run_sql "user_role"    "${DDL_BASE}/07_administration/01_user_role.sql"
-run_sql "admin_scope"  "${DDL_BASE}/07_administration/02_admin_scope.sql"
+run_ddl "user_role"    "user_role"   "${DDL_BASE}/07_administration/01_user_role.sql"
+run_ddl "admin_scope"  "admin_scope" "${DDL_BASE}/07_administration/02_admin_scope.sql"
 echo ""
 
 # -------------------------------------------------
@@ -381,7 +444,7 @@ echo ""
 # attach to every table in the nss schema.
 # -------------------------------------------------
 echo -e "${CYAN}[Phase 14] Audit — DDL (1 table + trigger)${NC}"
-run_sql "system_event_log"  "${DDL_BASE}/01_foundation/14_system_event_log.sql"
+run_ddl "system_event_log"  "system_event_log" "${DDL_BASE}/01_foundation/14_system_event_log.sql"
 run_sql "audit_trigger"     "${DDL_BASE}/01_foundation/15_audit_trigger.sql"
 echo ""
 

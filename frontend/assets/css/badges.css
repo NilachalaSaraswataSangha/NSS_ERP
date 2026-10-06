@@ -52,6 +52,19 @@
     border: none !important;
 }
 
+/* Let Alpine's x-show / x-cloak actually hide a badge. x-show hides an
+   element by writing an inline `display: none`, but the
+   `display: inline-flex !important` above overrides that inline style —
+   so a badge gated with x-show (e.g. the "This device" session badge)
+   stayed permanently visible on every row, regardless of its condition.
+   This higher-specificity !important rule matches exactly when Alpine
+   has set the inline none, so the hidden state wins. */
+.badge[style*="display: none"],
+.badge[style*="display:none"],
+.badge[x-cloak] {
+    display: none !important;
+}
+
 .badge-xs { padding: 2px 8px !important;  font-size: 11px !important; }  /* preview: tables  */
 .badge-sm { padding: 3px 10px !important; font-size: 12px !important; }  /* preview: cards   */
 .badge-md { padding: 4px 14px !important; font-size: 13px !important; }  /* preview: default */

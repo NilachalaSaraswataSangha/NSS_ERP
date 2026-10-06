@@ -112,6 +112,54 @@ function Invoke-Sql {
     }
 }
 
+# -- Existence-gated table creation / seeding ----------------
+# Same deterministic model as 02_build.sh and render_build.sh:
+# "only genuinely new tables are ever created or seeded; a table
+# that already exists is never dropped, re-created, or re-seeded,
+# so its local data is never touched."
+#
+# $PreExisting holds the tables that were already present at the
+# START of this run. A pre-existing table has its DDL AND its seed
+# skipped. A table absent at start is created, then seeded once.
+$PreExisting = @{}
+
+# Deterministic catalog check (no error-string guessing).
+# to_regclass returns the OID (non-NULL) iff the relation exists.
+function Test-TableExists {
+    param([string]$Table)
+    $res = & psql -h $DbHost -p $DbPort -U $DbUser -d $DbName -v ON_ERROR_STOP=1 -tA -c "SELECT to_regclass('nss.$Table') IS NOT NULL;" 2>$null
+    return ((($res | Out-String).Trim()) -eq "t")
+}
+
+# Create a table only if it does not already exist.
+#   Invoke-Ddl <label> <table_name> <ddl_file>
+function Invoke-Ddl {
+    param([string]$Label, [string]$Table, [string]$File)
+    Write-Host "  [CHECK] $Label  (nss.$Table) ..." -ForegroundColor Cyan
+    if (Test-TableExists $Table) {
+        $script:PreExisting[$Table] = $true
+        $script:total++
+        $script:skipped++
+        Write-Host "  [EXISTS] $Label  (nss.$Table already present - DDL + seed skipped, local data preserved)" -ForegroundColor Yellow
+        return
+    }
+    Write-Host "  [NEW]  $Label  (nss.$Table absent - creating)" -ForegroundColor Green
+    Invoke-Sql $Label $File
+}
+
+# Seed a table ONLY if it was newly created in this run.
+#   Invoke-Seed <label> <target_table> <seed_file>
+function Invoke-Seed {
+    param([string]$Label, [string]$Table, [string]$File)
+    if ($script:PreExisting.ContainsKey($Table)) {
+        $script:total++
+        $script:skipped++
+        Write-Host "  [SKIP] $Label  (nss.$Table pre-existed - seed skipped, local data preserved)" -ForegroundColor Yellow
+        return
+    }
+    Invoke-Sql $Label $File
+}
+
 Write-Host ""
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "  NSS ERP - Full Database Build" -ForegroundColor Cyan
@@ -124,15 +172,15 @@ Write-Host ""
 
 # Phase 0: Bootstrap RBAC
 Write-Host "[Phase 0] Bootstrap RBAC - DDL" -ForegroundColor Cyan
-Invoke-Sql "role_master"       "$DdlBase\00_bootstrap\01_role_master.sql"
-Invoke-Sql "permission_master" "$DdlBase\00_bootstrap\02_permission_master.sql"
-Invoke-Sql "role_permission"   "$DdlBase\00_bootstrap\03_role_permission.sql"
+Invoke-Ddl "role_master"       "role_master"       "$DdlBase\00_bootstrap\01_role_master.sql"
+Invoke-Ddl "permission_master" "permission_master" "$DdlBase\00_bootstrap\02_permission_master.sql"
+Invoke-Ddl "role_permission"   "role_permission"   "$DdlBase\00_bootstrap\03_role_permission.sql"
 Write-Host ""
 
 Write-Host "[Phase 0] Bootstrap RBAC - Seed" -ForegroundColor Cyan
-Invoke-Sql "permission_master (seed)" "$SeedBase\00_bootstrap\01_permission_master.sql"
-Invoke-Sql "role_master (seed)"       "$SeedBase\00_bootstrap\02_role_master.sql"
-Invoke-Sql "role_permission (seed)"   "$SeedBase\00_bootstrap\03_role_permission.sql"
+Invoke-Seed "permission_master (seed)" "permission_master" "$SeedBase\00_bootstrap\01_permission_master.sql"
+Invoke-Seed "role_master (seed)"       "role_master"       "$SeedBase\00_bootstrap\02_role_master.sql"
+Invoke-Seed "role_permission (seed)"   "role_permission"   "$SeedBase\00_bootstrap\03_role_permission.sql"
 Write-Host ""
 
 # Phase 1: Foundation DDL
@@ -159,45 +207,45 @@ $foundationDdl = @(
     @("festival_calendar_date",       "17_festival_calendar_date.sql")
 )
 foreach ($entry in $foundationDdl) {
-    Invoke-Sql $entry[0] "$DdlBase\01_foundation\$($entry[1])"
+    Invoke-Ddl $entry[0] $entry[0] "$DdlBase\01_foundation\$($entry[1])"
 }
 Write-Host ""
 
 # Phase 2: Foundation Seed (includes ORGANIZATION_TYPE + unified STATUS in master_data)
 Write-Host "[Phase 2] Foundation - Seed Data" -ForegroundColor Cyan
 $foundationSeed = @(
-    @("master_category (seed)",    "01_master_category.sql"),
-    @("master_data (seed)",        "02_master_data.sql"),
-    @("id_sequence_master (seed)", "03_id_sequence_master.sql"),
-    @("country (seed)",            "04_country.sql"),
-    @("state (seed)",              "05_state.sql"),
-    @("district (seed)",           "06_district.sql"),
-    @("system_setting (seed)",     "07_system_setting.sql"),
-    @("postal_code (seed)",        "08_postal_code.sql"),
-    @("postal_code bulk (seed)",   "08b_postal_code_bulk.sql"),
-    @("post_office bulk (seed)",   "08c_post_office_bulk.sql"),
-    @("festival_calendar (seed)",  "10_festival_calendar.sql"),
-    @("city_village (seed)",       "11_city_village.sql"),
-    @("city_village urban recovery (seed)", "11b_city_village_urban_recovery.sql")
+    @("master_category (seed)",    "master_category",        "01_master_category.sql"),
+    @("master_data (seed)",        "master_data",            "02_master_data.sql"),
+    @("id_sequence_master (seed)", "id_sequence_master",     "03_id_sequence_master.sql"),
+    @("country (seed)",            "country",                "04_country.sql"),
+    @("state (seed)",              "state",                  "05_state.sql"),
+    @("district (seed)",           "district",               "06_district.sql"),
+    @("system_setting (seed)",     "system_setting",         "07_system_setting.sql"),
+    @("postal_code (seed)",        "postal_code",            "08_postal_code.sql"),
+    @("postal_code bulk (seed)",   "postal_code",            "08b_postal_code_bulk.sql"),
+    @("post_office bulk (seed)",   "post_office",            "08c_post_office_bulk.sql"),
+    @("festival_calendar (seed)",  "festival_calendar_date", "10_festival_calendar.sql"),
+    @("city_village (seed)",       "city_village",           "11_city_village.sql"),
+    @("city_village urban recovery (seed)", "city_village",  "11b_city_village_urban_recovery.sql")
 )
 foreach ($entry in $foundationSeed) {
-    Invoke-Sql $entry[0] "$SeedBase\01_foundation\$($entry[1])"
+    Invoke-Seed $entry[0] $entry[1] "$SeedBase\01_foundation\$($entry[2])"
 }
 Write-Host ""
 
 # Phase 3: Organization DDL (1 table — type/status now in Foundation master_data)
 Write-Host "[Phase 3] Organization - DDL (1 table + address-restriction trigger + Kumari/Sevak one-per-Sakha trigger)" -ForegroundColor Cyan
-Invoke-Sql "organization"               "$DdlBase\02_organization\03_organization.sql"
+Invoke-Ddl "organization"               "organization" "$DdlBase\02_organization\03_organization.sql"
 Invoke-Sql "organization_address_restriction_trigger" "$DdlBase\02_organization\04_organization_address_restriction_trigger.sql"
 Invoke-Sql "organization_kumari_sevak_uniqueness_trigger" "$DdlBase\02_organization\05_organization_kumari_sevak_uniqueness_trigger.sql"
 Write-Host ""
 
 # Phase 4: Organization Seed
 Write-Host "[Phase 4] Organization - Seed Data" -ForegroundColor Cyan
-Invoke-Sql "organization (seed)"               "$SeedBase\02_organization\03_organization.sql"
-Invoke-Sql "sakha postal codes (seed)"          "$SeedBase\01_foundation\09_sakha_postal_codes.sql"
-Invoke-Sql "sakha branches (seed)"              "$SeedBase\02_organization\05_sakha_branches.sql"
-Invoke-Sql "id_sequence_master (org sync)"      "$SeedBase\02_organization\06_id_sequence_org_sync.sql"
+Invoke-Seed "organization (seed)"               "organization"       "$SeedBase\02_organization\03_organization.sql"
+Invoke-Seed "sakha postal codes (seed)"         "postal_code"        "$SeedBase\01_foundation\09_sakha_postal_codes.sql"
+Invoke-Seed "sakha branches (seed)"             "organization"       "$SeedBase\02_organization\05_sakha_branches.sql"
+Invoke-Seed "id_sequence_master (org sync)"     "id_sequence_master" "$SeedBase\02_organization\06_id_sequence_org_sync.sql"
 Write-Host ""
 
 # Phase 5: Person DDL
@@ -206,8 +254,8 @@ Write-Host ""
 #       gender/marital_status/address_type data lives in
 #       Foundation master_data seed.
 Write-Host "[Phase 5] Person - DDL (2 tables)" -ForegroundColor Cyan
-Invoke-Sql "person"         "$DdlBase\03_person\02_person.sql"
-Invoke-Sql "person_address" "$DdlBase\03_person\03_person_address.sql"
+Invoke-Ddl "person"         "person"         "$DdlBase\03_person\02_person.sql"
+Invoke-Ddl "person_address" "person_address" "$DdlBase\03_person\03_person_address.sql"
 Write-Host ""
 
 # Phase 6: Family DDL (6 tables)
@@ -215,12 +263,12 @@ Write-Host ""
 #       SPOUSE_OF edges; all other relationship labels
 #       are computed dynamically via BFS traversal.
 Write-Host "[Phase 6] Family - DDL (6 tables + move-transition guard)" -ForegroundColor Cyan
-Invoke-Sql "family_group"              "$DdlBase\04_family\01_family_group.sql"
-Invoke-Sql "family_relationship"       "$DdlBase\04_family\02_family_relationship.sql"
-Invoke-Sql "family_head_history"       "$DdlBase\04_family\03_family_head_history.sql"
-Invoke-Sql "family_transition_history" "$DdlBase\04_family\04_family_transition_history.sql"
-Invoke-Sql "family_link"               "$DdlBase\04_family\05_family_link.sql"
-Invoke-Sql "family_admin"              "$DdlBase\04_family\06_family_admin.sql"
+Invoke-Ddl "family_group"              "family_group"              "$DdlBase\04_family\01_family_group.sql"
+Invoke-Ddl "family_relationship"       "family_relationship"       "$DdlBase\04_family\02_family_relationship.sql"
+Invoke-Ddl "family_head_history"       "family_head_history"       "$DdlBase\04_family\03_family_head_history.sql"
+Invoke-Ddl "family_transition_history" "family_transition_history" "$DdlBase\04_family\04_family_transition_history.sql"
+Invoke-Ddl "family_link"               "family_link"               "$DdlBase\04_family\05_family_link.sql"
+Invoke-Ddl "family_admin"              "family_admin"              "$DdlBase\04_family\06_family_admin.sql"
 Invoke-Sql "family_move_transition_guard" "$DdlBase\04_family\07_family_move_transition_guard.sql"
 Write-Host ""
 
@@ -228,21 +276,21 @@ Write-Host ""
 # Note: sangha_sevi must be created first - all
 #       other membership tables depend on it.
 Write-Host "[Phase 7] Membership - DDL (14 tables + Sakha-only trigger)" -ForegroundColor Cyan
-Invoke-Sql "sangha_sevi"                    "$DdlBase\05_membership\01_sangha_sevi.sql"
-Invoke-Sql "membership_status_history"      "$DdlBase\05_membership\02_membership_status_history.sql"
-Invoke-Sql "membership_renewal_request"     "$DdlBase\05_membership\03_membership_renewal_request.sql"
-Invoke-Sql "membership_renewal_history"     "$DdlBase\05_membership\04_membership_renewal_history.sql"
-Invoke-Sql "membership_transfer_history"    "$DdlBase\05_membership\05_membership_transfer_history.sql"
-Invoke-Sql "membership_sakha_affiliation"   "$DdlBase\05_membership\06_membership_sakha_affiliation.sql"
-Invoke-Sql "membership_journey_event"       "$DdlBase\05_membership\07_membership_journey_event.sql"
-Invoke-Sql "probationary_member_review"     "$DdlBase\05_membership\08_probationary_member_review.sql"
-Invoke-Sql "parichaya_patra"                "$DdlBase\05_membership\09_parichaya_patra.sql"
-Invoke-Sql "parichaya_patra_history"        "$DdlBase\05_membership\10_parichaya_patra_history.sql"
-Invoke-Sql "anumati_patra"                  "$DdlBase\05_membership\11_anumati_patra.sql"
-Invoke-Sql "anumati_patra_history"          "$DdlBase\05_membership\12_anumati_patra_history.sql"
-Invoke-Sql "darshak_attendance_registration" "$DdlBase\05_membership\13_darshak_attendance_registration.sql"
+Invoke-Ddl "sangha_sevi"                    "sangha_sevi"                    "$DdlBase\05_membership\01_sangha_sevi.sql"
+Invoke-Ddl "membership_status_history"      "membership_status_history"      "$DdlBase\05_membership\02_membership_status_history.sql"
+Invoke-Ddl "membership_renewal_request"     "membership_renewal_request"     "$DdlBase\05_membership\03_membership_renewal_request.sql"
+Invoke-Ddl "membership_renewal_history"     "membership_renewal_history"     "$DdlBase\05_membership\04_membership_renewal_history.sql"
+Invoke-Ddl "membership_transfer_history"    "membership_transfer_history"    "$DdlBase\05_membership\05_membership_transfer_history.sql"
+Invoke-Ddl "membership_sakha_affiliation"   "membership_sakha_affiliation"   "$DdlBase\05_membership\06_membership_sakha_affiliation.sql"
+Invoke-Ddl "membership_journey_event"       "membership_journey_event"       "$DdlBase\05_membership\07_membership_journey_event.sql"
+Invoke-Ddl "probationary_member_review"     "probationary_member_review"     "$DdlBase\05_membership\08_probationary_member_review.sql"
+Invoke-Ddl "parichaya_patra"                "parichaya_patra"                "$DdlBase\05_membership\09_parichaya_patra.sql"
+Invoke-Ddl "parichaya_patra_history"        "parichaya_patra_history"        "$DdlBase\05_membership\10_parichaya_patra_history.sql"
+Invoke-Ddl "anumati_patra"                  "anumati_patra"                  "$DdlBase\05_membership\11_anumati_patra.sql"
+Invoke-Ddl "anumati_patra_history"          "anumati_patra_history"          "$DdlBase\05_membership\12_anumati_patra_history.sql"
+Invoke-Ddl "darshak_attendance_registration" "darshak_attendance_registration" "$DdlBase\05_membership\13_darshak_attendance_registration.sql"
 Invoke-Sql "sakha_only_membership_trigger"  "$DdlBase\05_membership\14_sakha_only_membership_trigger.sql"
-Invoke-Sql "credential_sequence_counter"    "$DdlBase\05_membership\15_credential_sequence_counter.sql"
+Invoke-Ddl "credential_sequence_counter"    "credential_sequence_counter"    "$DdlBase\05_membership\15_credential_sequence_counter.sql"
 Write-Host ""
 
 # Phase 7b: Deferred Foundation Audit FKs
@@ -272,11 +320,11 @@ Write-Host ""
 # user_session FK -> user_account (Depth 4)
 # -------------------------------------------------
 Write-Host "[Phase 10] Authentication - DDL (5 tables)" -ForegroundColor Cyan
-Invoke-Sql "user_account"           "$DdlBase\06_authentication\01_user_account.sql"
-Invoke-Sql "password_history"       "$DdlBase\06_authentication\02_password_history.sql"
-Invoke-Sql "registration_claim"     "$DdlBase\06_authentication\03_registration_claim.sql"
-Invoke-Sql "password_reset_token"   "$DdlBase\06_authentication\04_password_reset_token.sql"
-Invoke-Sql "user_session"           "$DdlBase\06_authentication\05_user_session.sql"
+Invoke-Ddl "user_account"           "user_account"         "$DdlBase\06_authentication\01_user_account.sql"
+Invoke-Ddl "password_history"       "password_history"     "$DdlBase\06_authentication\02_password_history.sql"
+Invoke-Ddl "registration_claim"     "registration_claim"   "$DdlBase\06_authentication\03_registration_claim.sql"
+Invoke-Ddl "password_reset_token"   "password_reset_token" "$DdlBase\06_authentication\04_password_reset_token.sql"
+Invoke-Ddl "user_session"           "user_session"         "$DdlBase\06_authentication\05_user_session.sql"
 Write-Host ""
 
 # -------------------------------------------------
@@ -285,8 +333,8 @@ Write-Host ""
 # admin_scope FK -> user_role + organization (Depth 5)
 # -------------------------------------------------
 Write-Host "[Phase 11] Administration - DDL (2 tables)" -ForegroundColor Cyan
-Invoke-Sql "user_role"    "$DdlBase\07_administration\01_user_role.sql"
-Invoke-Sql "admin_scope"  "$DdlBase\07_administration\02_admin_scope.sql"
+Invoke-Ddl "user_role"    "user_role"   "$DdlBase\07_administration\01_user_role.sql"
+Invoke-Ddl "admin_scope"  "admin_scope" "$DdlBase\07_administration\02_admin_scope.sql"
 Write-Host ""
 
 # -------------------------------------------------
@@ -335,7 +383,7 @@ Write-Host ""
 # attach to every table in the nss schema.
 # -------------------------------------------------
 Write-Host "[Phase 14] Audit - DDL (1 table + trigger)" -ForegroundColor Cyan
-Invoke-Sql "system_event_log"  "$DdlBase\01_foundation\14_system_event_log.sql"
+Invoke-Ddl "system_event_log"  "system_event_log" "$DdlBase\01_foundation\14_system_event_log.sql"
 Invoke-Sql "audit_trigger"     "$DdlBase\01_foundation\15_audit_trigger.sql"
 Write-Host ""
 

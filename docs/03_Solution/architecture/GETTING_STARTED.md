@@ -8,7 +8,7 @@
 |---|---|
 | Document Name | Getting Started |
 | Repository Path | docs/03_Solution/architecture/GETTING_STARTED.md |
-| Version | 1.8 |
+| Version | 1.9 |
 | Status | Active |
 | Authority | NSS ERP Architecture |
 
@@ -185,10 +185,11 @@ phases, role naming conventions, cross-platform principles).
 
 # 7. Database Rebuild (Clean Slate)
 
-The build script (`02_build.sh` / `02_build.ps1`) is idempotent for re-runs (it
-skips tables/rows that already exist). However, if you need a **clean rebuild** —
-for example after schema changes, seed data edits, or switching branches — you must
-drop and recreate the database.
+The build script (`02_build.sh` / `02_build.ps1`) is idempotent for re-runs. However, if you need
+a **clean rebuild** — for example after schema changes, seed data edits, or switching branches —
+you must drop and recreate the database. For the much more common case of just picking up a
+**newly added table** with no other changes, see Section 7a-2 (Incremental Rebuild) below instead
+— it needs no drop at all.
 
 ## Full Rebuild Procedure
 
@@ -253,10 +254,93 @@ psql -U postgres -d nss_erp -f database\scripts\01_extensions.sql
 |---|---|
 | DDL schema change (new column, altered constraint) | Full rebuild required |
 | Seed data edit (new rows, changed values) | Full rebuild required |
-| New DDL file added to build script | Full rebuild required |
+| **New table added to the build script, nothing else changed** | **Incremental rebuild (Section 7a-2) — no drop needed** |
 | Branch switch with different schema state | Full rebuild required |
 | API code change only (no DB changes) | No rebuild needed — restart uvicorn |
 | New test added (no DB changes) | No rebuild needed |
+
+---
+
+# 7a-2. Incremental Rebuild (new table only — existing data preserved)
+
+As of **Version 3.0, 2026-10-05**, `02_build.sh` (and `render_build.sh` for Render deploys) use a
+**deterministic, existence-gated bootstrap**: before touching any business table, the script asks
+the Postgres catalog directly — `to_regclass('nss.<table>')` — whether that table already exists.
+
+- Table **already exists** → its DDL *and* its seed are both skipped entirely. Nothing is read,
+  written, dropped, or re-seeded. Your existing local rows are never touched.
+- Table **absent** → the script creates it (runs its DDL), then runs its seed exactly once.
+
+This means that when the **only** change is a new table being added to the project (e.g. a new
+module's DDL/seed files wired into the build script), you do **not** need to drop the database at
+all — just re-run the build directly against your existing local database.
+
+## Full Incremental Rebuild Procedure
+
+### macOS / Linux (bash)
+
+```bash
+# 7a-2a. Stop the API server (if running)
+#        Not strictly required for a new-table-only rebuild (no DROP involved), but a running
+#        uvicorn holding open connections can make the new table's GRANT step noisy — safest
+#        to stop it first.
+
+# 7a-2b. Re-run the build — as nss_db_owner. No drop, no --force, no re-entering passwords.
+./database/scripts/02_build.sh
+
+# 7a-2c. Validate
+./database/scripts/03_validate.sh
+
+# 7a-2d. Restart the API
+python3 -m uvicorn api.main:app --reload --port 8001
+```
+
+### Windows (PowerShell)
+
+```powershell
+# 7a-2a. Stop the API server (if running)
+#        Not strictly required for a new-table-only rebuild (no DROP involved), but a running
+#        uvicorn holding open connections can make the new table's GRANT step noisy — safest
+#        to stop it first.
+
+# 7a-2b. Re-run the build — as nss_db_owner. No drop, no --force, no re-entering passwords.
+.\database\scripts\02_build.ps1
+
+# 7a-2c. Validate
+.\database\scripts\03_validate.ps1
+
+# 7a-2d. Restart the API
+py -m uvicorn api.main:app --reload --port 8001
+```
+
+> **Windows parity note:** `02_build.ps1` has **not yet** been ported to the catalog-check model —
+> it still uses the older "skip on `already exists` error text" approach. The practical result for
+> a new-table-only rebuild is the same (existing tables/rows are left alone, the new table gets
+> created), but it is not the same deterministic mechanism as `02_build.sh`. Ask to have
+> `02_build.ps1` ported if you need the two to match exactly.
+
+Read the build output for confirmation:
+
+```
+  [CHECK] user_session  (nss.user_session) ...
+  [NEW]  user_session  (nss.user_session absent — creating)
+  [OK]   user_session
+  ...
+  [CHECK] organization  (nss.organization) ...
+  [EXISTS] organization  (nss.organization already present — DDL + seed skipped, local data preserved)
+```
+
+Every table you already had reports `[EXISTS]`; only the genuinely new one reports `[NEW]` and
+actually runs DDL/seed.
+
+**When incremental rebuild is NOT enough — fall back to the full rebuild in Section 7:**
+- An **existing** table's DDL changed (column added/altered/dropped, constraint changed) — the
+  existence check only sees "table is present," it does not diff columns.
+- An **existing** table's seed data was edited (new/changed/removed rows) — seed is skipped
+  wholesale for any pre-existing table, so edited seed rows never apply via incremental rebuild.
+- A table was renamed or removed — the old table stays around; nothing in this model drops a table.
+
+---
 
 ## Build Phases (execution order)
 

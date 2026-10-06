@@ -575,8 +575,9 @@ NSS_ERP/
 ├── render.yaml                    Render.com Infrastructure-as-Code — free-tier web service
 │                                   (`uvicorn api.main:app`); does not provision a database — DB
 │                                   env vars point to an externally-managed Neon.dev instance
-├── render_build.sh                 Render build hook — installs deps; DB bootstrap only if
-│                                   truthy `RUN_DB_BOOTSTRAP` (idempotent when run)
+├── render_build.sh                 Render build hook — installs deps; existence-gated DB
+│                                   bootstrap every deploy; truthy `RUN_DB_BOOTSTRAP` gates only
+│                                   the Phase 13 admin seed
 ├── requirements.txt              Python dependencies (pip, not pinned to a venv tool)
 ├── package.json / tailwind.config.js  Tailwind CLI + DaisyUI build tooling only (`npm run css:build`/`css:watch`)
 ├── pytest.ini                     pytest config — `testpaths = tests`; `integration`/`ui`/`db` markers
@@ -905,14 +906,17 @@ api/
 │   │                     NSS-wide `email`/`website_url`/`youtube_channel_url` columns (only had
 │   │                     the nullable per-org `org_*` overrides) — fixed (Tier 5 branch); the org
 │   │                     detail view now shows both an "(NSS)" and, when set, an "(Own)" row for
-│   │                     each of Email/Website/YouTube. `PATCH /users/{pk}/status` has a notable
-│   │                     side effect: activating a `PENDING_APPROVAL` account with no
-│   │                     `sangha_sevi` row auto-generates one from that user's most recent
-│   │                     `registration_claim` (or a hardcoded Kendra/first-membership-type
-│   │                     fallback if there's no claim)
-│   ├── registration.py   `/api/v1/register` (10 public endpoints: `POST ""`, `/check-duplicate`, `/reference-data`, and `/countries`/`/states`/`/districts`/`/cities`/`/postal-codes`/`/post-offices`/`/sakhas` lookups) — `POST ""` (self-registration): creates `person` +
-│   │                     `user_account(PENDING_APPROVAL)` + optional `registration_claim` in one
-│   │                     transaction; **no `sangha_sevi`/`membership_sakha_affiliation` row is
+│   │                     each of Email/Website/YouTube. `PATCH /users/{pk}/status` only changes
+│   │                     `account_status` — it never creates a `sangha_sevi`; activating a
+│   │                     `PENDING_APPROVAL` account 422s if a PENDING `registration_claim`
+│   │                     exists or the person has no active `sangha_sevi`
+│   ├── registration.py   `/api/v1/register` (12 public endpoints: `POST ""`, `/check-duplicate`, `/lookup-existing`, `/claim`, `/reference-data`, and `/countries`/`/states`/`/districts`/`/cities`/`/postal-codes`/`/post-offices`/`/sakhas` lookups) — `POST ""` (self-registration): always creates `person`, and
+│   │                     `user_account(PENDING_APPROVAL)` + `registration_claim` in the same
+│   │                     transaction **only when `has_membership` is true** (a membership-less
+│   │                     registrant gets no account; the password is discarded). They can come
+│   │                     back via `POST /lookup-existing` (person_id + DOB) and `POST /claim`,
+│   │                     which creates the account + claim (shared check
+│   │                     `_verify_existing_person_for_claim()`); **no `sangha_sevi`/`membership_sakha_affiliation` row is
 │   │                     created at registration time** — those are created later, on claim
 │   │                     approval. Local Sakha Number is required for non-Darshaka claims,
 │   │                     optional for Darshaka (`PROBATIONARY`); not validated at registration
@@ -1296,8 +1300,8 @@ database/
 │                         no password, via dblink),
 │                         01_extensions.sql (superuser, nss_erp: pgcrypto/pg_trgm/btree_gin/postgis,
 │                         nss schema),
-│                         02_build.sh/.ps1 (runs all implemented DDL+seed in Phases 0-14; the .sh
-│                         is v2.6, the .ps1 is still v2.5 and lacks post_office/08c/Phase 7b),
+│                         02_build.sh/.ps1 (runs all implemented DDL+seed in Phases 0-14; both
+│                         are v2.6; only the .sh has the existence-gated run_ddl/run_seed model),
 │                         03_validate.sh/.ps1 (row-count/FK integrity checks; no Family/Membership
 │                         coverage),
 │                         04_grant_backend.sql (nss_db_backend read-only SELECT on nss.*),
@@ -1522,14 +1526,16 @@ summarize the full sequence from a clean machine to a running API.
       all DDL + seed in Phases 0-14 (Bootstrap RBAC → Foundation → Organization → Person →
       Family → Membership → grants → Authentication → Administration → admin bootstrap →
       Audit). The seed includes the all-India geography bulk files, so Phase 2 is slow. Re-runs
-      are idempotent (`[SKIP]` on "already exists"/duplicate key).
+      are idempotent: `02_build.sh` is existence-gated per table (`run_ddl`/`run_seed`,
+      `to_regclass`; existing table → DDL and seed skipped, `[EXISTS]`), `.ps1` uses `[SKIP]` on
+      "already exists"/duplicate key. See `GETTING_STARTED.md` §7a-2.
    5. `03_validate.sh` / `.ps1` (as `nss_db_owner`) — post-build checks (table existence, row
       counts as minimums, unique constraints, FK integrity).
 
    `04_grant_backend.sql` (Phase 9) and `05_create_writer_role.sql` (Phase 12) are run by
    `02_build.sh` itself. The build covers **48 tables** (3 Bootstrap RBAC + 15 Foundation + 1
    Organization + 2 Person + 6 Family + 14 Membership + 5 Authentication + 2 Administration).
-   `02_build.ps1` matches `02_build.sh` (v2.6, incl. `post_office`, the `08c` seed and Phase 7b).
+   `02_build.ps1` matches `02_build.sh` v2.6 in phase/file order (incl. `post_office`, the `08c` seed and Phase 7b) and in the existence-gate mechanism (`Invoke-Ddl`/`Invoke-Seed`).
    `03_validate.sh`/`.ps1` only WARN on stale minimums (`master_data` 82 vs 89
    seeded, etc.) and have no Family/Membership/`system_event_log`/`credential_sequence_counter`
    checks. A fresh build seeds no demo Person/Family/Membership data.
@@ -1566,7 +1572,7 @@ summarize the full sequence from a clean machine to a running API.
    `dashboard.html`. Only `bootstrap.py` (4 endpoints) and the public `/api/v1/register` and
    `POST /api/v1/auth/login|refresh|forgot-password|reset-password` endpoints are reachable
    without a JWT; everything else is gated per router (see `CLAUDE.md` → Architecture and
-   `docs/03_Solution/api/API_CONTRACT.md`, which lists all 135 endpoints across 12 routers with
+   `docs/03_Solution/api/API_CONTRACT.md`, which lists all 137 endpoints across 12 routers with
    their gates).
 
 5. **Run the tests** (from the repository root, once the database is built per step 2 and
@@ -1642,16 +1648,18 @@ manifest — defines a single free-tier web service running `uvicorn api.main:ap
 env var) are declared as `sync: false` env vars that must be set manually in the Render
 dashboard, pointing at an external Neon.dev PostgreSQL instance (per `TECH_STACK_DECISIONS.md`
 §1/§6) — not provisioned by this file. `render_build.sh` runs on every deploy: `npm install` + the
-Tailwind CLI build, `pip install -r requirements.txt`; the DB bootstrap below runs **only when
-`RUN_DB_BOOTSTRAP` is truthy** (`true`/`1`/`yes`/`on`, case/whitespace-insensitive; default skipped; decided 2026-10-05, see
-`docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md`). When enabled it does `CREATE SCHEMA IF NOT EXISTS nss`, sets the
+Tailwind CLI build, `pip install -r requirements.txt`; the DB bootstrap below runs on every deploy.
+`RUN_DB_BOOTSTRAP` (`true`/`1`/`yes`/`on`, case/whitespace-insensitive; default off; see
+`docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md`) gates **only** the Phase 13 admin seed
+(an earlier version gated the whole bootstrap; corrected 2026-10-05). The bootstrap does `CREATE SCHEMA IF NOT EXISTS nss`, sets the
 database `search_path`, best-effort installs `pgcrypto`/`pg_trgm`/`btree_gin` (some may be
 unavailable on Neon's free tier; `postgis` isn't attempted), creates the three `nss_db_*` roles,
 and runs the same phases as `database/scripts/02_build.sh` (v2.6 phase order, including `post_office`,
 `08c` and Phase 7b) directly via `psql`. There is no "already bootstrapped" early exit: every
-phase runs on every deploy and "already exists"/duplicate-key errors are reported `[SKIP]`, so a
-redeploy is idempotent. A Phase 13 (admin bootstrap) failure only warns. Its header prose still says
-"Version 2.1". Treat the Render setup as declared-but-unverified infrastructure (notably whether
+phase runs on every deploy. Table DDL/seeds are existence-gated (`run_ddl`/`run_seed`,
+`to_regclass`, header "Version 3.0"): a table that already exists has its DDL and seed skipped,
+only new tables are created and seeded; non-table objects (`run_sql`) still report `[SKIP]` on
+"already exists"/duplicate-key. A Phase 13 (admin bootstrap) failure only warns. Treat the Render setup as declared-but-unverified infrastructure (notably whether
 `npm install` works in a `runtime: python` service).
 
 ## Configuration
@@ -2205,14 +2213,19 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
    JWT yet.
 1. A prospective member submits demographics + optional membership claim (Sakha, membership
    type, claimed Local Sakha Number) + a password.
-2. The endpoint creates `nss.person` (via `next_id(cur, "PERSON")`) and
-   `nss.user_account(account_status='PENDING_APPROVAL')` in one transaction — **no
+2. The endpoint creates `nss.person` (via `next_id(cur, "PERSON")`) and — only when
+   `has_membership` is true — `nss.user_account(account_status='PENDING_APPROVAL')` in one
+   transaction (no membership claim means no account, since an account with no path to a
+   `sangha_sevi` can never log in; the typed password is discarded). **No
    `sangha_sevi`/`membership_sakha_affiliation` row exists yet**, deliberately: those are only
    created on admin approval, so a rejected/abandoned registration never leaves a dangling
    membership identity.
-3. If membership details were supplied, a `nss.registration_claim(claim_status='PENDING')` row
+3. When membership details were supplied, a `nss.registration_claim(claim_status='PENDING')` row
    captures the claim for later review (a partial unique index enforces at most one `PENDING`
-   claim per `user_account`).
+   claim per `user_account`). A person who registered without membership later submits the same
+   account + claim via public `POST /register/lookup-existing` (person_id + DOB check; 404 on
+   mismatch, 409 if they already have an account, pending claim or active `sangha_sevi`) then
+   `POST /register/claim` (`register.js` `mode = "existing"`).
 4. `PENDING_APPROVAL` accounts cannot log in (`POST /api/v1/auth/login` checks
    `account_status` and 403s with an explanatory message before even checking the password).
 
@@ -2228,13 +2241,14 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
    `membership_sakha_affiliation` row and flips `user_account.account_status` to `ACTIVE`.
 3. `POST /{pk}/reject` leaves the account `PENDING_APPROVAL` (the person can be re-reviewed
    later, e.g. after correcting their claim) and requires a remarks string.
-4. Separately, `PATCH /api/v1/admin/users/{pk}/status` (`api/routers/admin.py`) has an
-   overlapping auto-provisioning path: activating a `PENDING_APPROVAL` user with no
-   `sangha_sevi` record yet (bypassing the claim-approval endpoints entirely) auto-generates one
-   from that user's most recent `registration_claim`, or — if there is no claim at all — a
-   hardcoded fallback (first active `MEMBERSHIP_TYPE` value + the `KEN` Kendra organization).
-   This means there are **two independent code paths** that can create a `sangha_sevi` record
-   on approval, not one shared helper — worth reconciling if the two ever diverge in behaviour.
+4. `PATCH /api/v1/admin/users/{pk}/status` (`api/routers/admin.py::update_status`) no longer
+   provisions a `sangha_sevi` (it used to, diverging from `approve_claim()`). Activating a
+   `PENDING_APPROVAL` account is refused with 422 when a PENDING claim exists (approve it in
+   Registration Approvals instead) or when the person has no active `sangha_sevi` (create one
+   first via `POST /admin/sangha-sevi`). `GET /admin/users` (`list_users`) only returns accounts
+   tied to an active `sangha_sevi` (`ss.sangha_sevi_pk IS NOT NULL`) — uncommitted working-tree
+   changes. `sangha_sevi` rows are still inserted in three independent places:
+   `claim_approval.py::approve_claim()`, `admin.py::create_user()` and `create_sangha_sevi()`.
 
 **Login + RBAC flow** (`POST /api/v1/auth/login`, then every protected endpoint):
 1. `login_id` is resolved to a `person_pk` by trying `sangha_sevi_id` first (case-insensitive),
@@ -2683,12 +2697,7 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
   but the feature it would have backed did ship**, as a "Registration Approvals" tab merged
   into `admin.html`/`admin.js`, and `admin.html`'s row in the File Reference doesn't mention
   that tab; the two new stylesheets `nss-layout.css`/`nss-datepicker.css` also have no entries.
-- **`tests/README.md` needs another pass.** It reflects the
-  `tests/api/`/`tests/db/`/`tests/ui/` split and corrected `test_auth.py`/`test_registration.py`
-  counts (19/17) as of an earlier point in this branch, but doesn't yet mention the newer
-  `tests/security/` directory, the `test_claim_approval.py`/`test_audit.py` additions, or the
-  current 620-test grand total (see Tests & lint in `CLAUDE.md`) — the session-scoped/
-  `SAVEPOINT` `conftest.py` architecture description is still accurate.
+- **`tests/README.md` counts were re-verified** against the working tree (921 `def test_*` functions: api 567, db 43, security 62, ui 249; `pytest --collect-only` = 1092 items). Re-run both counts after adding tests; the session-scoped/`SAVEPOINT` `conftest.py` architecture description is still accurate.
 - **Two independent "approve a pending user" code paths exist and can diverge.**
   `api/routers/claim_approval.py::approve_claim()` and
   `api/routers/admin.py::update_status()` (when activating a `PENDING_APPROVAL` account with no
@@ -2750,9 +2759,11 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
 - ~~Decide whether `permission_master`/`role_permission` get seeded as part of Tier 5~~ —
   **decided and done**: they're seeded (see Gotchas above); `require_permission(...)` calls no
   longer 403-trap every role.
-- **Reconcile the two independent "auto-provision `sangha_sevi` on approval" code paths**
-  (`claim_approval.py::approve_claim()` vs. `admin.py::update_status()`) into one shared helper,
-  or explicitly decide they should stay separate because their trigger conditions differ.
+- **No tests yet for `POST /register/lookup-existing` and `POST /register/claim`** (grep of `tests/` finds none), nor for the `has_membership=false` registration path now creating no account.
+- **Reconcile the three independent `INSERT INTO nss.sangha_sevi` code paths**
+  (`claim_approval.py::approve_claim()`, `admin.py::create_user()`, `admin.py::create_sangha_sevi()`)
+  into one shared helper, or explicitly decide they should stay separate because their trigger
+  conditions differ.
 - **Add test coverage confirming the session-scoped `SAVEPOINT` test architecture actually
   isolates modules from each other** — `tests/conftest.py`'s new design is a significant
   behavioural change (shared connection + rollback vs. independent per-module clients) with no
@@ -2972,5 +2983,6 @@ entry points converge on the same `sangha_sevi`/`membership_sakha_affiliation` s
 - **`nss-combobox.js` is loaded but unused.** No HTML page declares `x-data="nssCombobox(...)"` yet,
   so the member-facing propose UI is not wired even though the propose endpoints and the admin
   Geo Approvals tab exist.
-- **`02_build.ps1` has not been synced to `02_build.sh` v2.6** (no `post_office`, `08c`, Phase 7b);
-  `03_validate.*` lacks Family/Membership coverage. See `database/scripts/README.md`.
+- **`02_build.ps1` is ported to `02_build.sh`'s existence-gated model** (`Invoke-Ddl`/`Invoke-Seed`;
+  untested on Windows/PowerShell — no pwsh run yet); `03_validate.*` has only existence checks for
+  Family/Membership. See `database/scripts/README.md`.

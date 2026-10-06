@@ -124,9 +124,10 @@ design philosophy, ensuring that business rules are frozen before implementation
   `DB_PASSWORD`/`DB_HOST`/`DB_PORT` (plus the Tier 5 `DB_WRITE_USER`/`DB_WRITE_PASSWORD`/
   `JWT_SECRET_KEY`) are set manually in the Render dashboard, pointing at an external Neon.dev
   PostgreSQL instance. `render_build.sh` builds the Tailwind CSS, installs Python deps and then
-  runs the full DB bootstrap (phases 0-14, DDL + seed + admin bootstrap) **only when
-  `RUN_DB_BOOTSTRAP` is truthy** (`true`/`1`/`yes`/`on`, case/whitespace-insensitive; default: skipped) — each statement that hits "already
-  exists"/duplicate-key is skipped, so a re-run is idempotent. Not yet run in production; see
+  runs the DB bootstrap (phases 0-14, DDL + seed) on every deploy, existence-gated per table
+  (`to_regclass`: an existing table's DDL and seed are skipped, only new tables are created and
+  seeded), so a re-run is idempotent; `RUN_DB_BOOTSTRAP` (`true`/`1`/`yes`/`on`,
+  case/whitespace-insensitive; default: off) gates **only** the Phase 13 admin seed. Not yet run in production; see
   `docs/03_Solution/architecture/DEPLOYMENT_PROCEDURE.md`.
 
 ---
@@ -877,10 +878,10 @@ Completed:
   (`15_audit_trigger.sql`, `SOL-AUDIT-004`) that fires on every INSERT/UPDATE/DELETE across
   `nss.*` tables — actor identity comes from per-request session variables, so writes can't
   bypass the audit trail; `api/helpers.py::log_audit()` also records explicitly from write
-  endpoints. **48 tables total** (incl. `post_office`/festival tables added later on the branch). New routers at that point: `auth.py` (8 endpoints then; 10 now), `registration.py` (6 then; 10 now,
+  endpoints. **48 tables total** (incl. `post_office`/festival tables added later on the branch). New routers at that point: `auth.py` (8 endpoints then; 10 now), `registration.py` (6 then; 12 now,
   public), `claim_approval.py` (5), `admin.py` (25 then; 28 now), `audit.py` (1), plus 9 endpoints added to
   `family.py` and 6 write endpoints added to `foundation.py` (`FOUNDATION_MANAGE`; 8 writes plus 4 member `propose` POSTs now) — **108
-  endpoints at that point (135 now, incl. `geo_approval.py`)**. New `nss_db_writer` PostgreSQL role (write access scoped to the
+  endpoints at that point (137 now, incl. `geo_approval.py`)**. New `nss_db_writer` PostgreSQL role (write access scoped to the
   auth/admin tables). `permission_master`/`role_permission` are seeded. Every Tier 4
   "verification"/demo seed file has been deleted — a fresh build produces **zero demo
   Person/Family/Membership data**; real data comes from the registration/approval flow or the

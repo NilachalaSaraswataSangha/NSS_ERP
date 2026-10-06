@@ -303,12 +303,18 @@ implemented modules in SOL-ARCH-011 phase order, as `nss_db_owner` (see the phas
 **Not executed:** Pass 2 audit-actor FK constraints (deferred — see
 Two-Pass DDL Strategy above).
 
+Table DDL and seeds are **existence-gated** (`run_ddl`/`run_seed`, deterministic
+`to_regclass('nss.<table>')` check; `[EXISTS]`/`[SKIP]` for a table already present — its DDL **and**
+seed are skipped, so edited seed rows or altered DDL on an existing table need a full rebuild). All
+of `02_build.sh`, `02_build.ps1` (`Invoke-Ddl`/`Invoke-Seed`) and `render_build.sh` have this gate;
+the error-text rule below remains the fallback for non-table files. Non-table objects (triggers, functions, grants, FKs) still go through `run_sql`.
+
 Error handling: `set -euo pipefail` and psql `ON_ERROR_STOP=1`. A file whose output contains
 `already exists` or `duplicate key value violates unique constraint` is reported `[SKIP]` and the
 build continues, so **re-running against an existing database is supported** (idempotent); any
 other error aborts immediately. (Phase 13, the admin bootstrap, is the exception — a failure is
 counted, the build continues, and the final exit code is 1.) `render_build.sh` at the repository
-root mirrors this sequence for Render/Neon (gated behind a truthy `RUN_DB_BOOTSTRAP` — `true`/`1`/`yes`/`on`, case/whitespace-insensitive; skipped by default) — keep the two in sync.
+root mirrors this sequence for Render/Neon (`RUN_DB_BOOTSTRAP` — `true`/`1`/`yes`/`on`, case/whitespace-insensitive; default off — gates only the Phase 13 admin seed) — keep the two in sync.
 
 ### 03_validate.sh — Post-Build Validation
 

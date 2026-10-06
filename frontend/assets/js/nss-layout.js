@@ -88,12 +88,30 @@ const NSSLayout = {
 
             /**
              * Topbar user-info HTML.
-             * Shows: person name, SS ID, sakha ERP ID, sakha name, role badges.
+             * Shows: avatar initials, person name, SS ID, sakha ERP ID,
+             * sakha name, role badges.
+             *
+             * The avatar lives here (not just in the Personal tab's own
+             * identity card) so every tab shows who's logged in — the
+             * Personal tab used to repeat a near-identical banner above
+             * every single tab, which was the duplication being fixed.
              */
             topbarUserInfo() {
                 const u = this.currentUser;
                 if (!u) return "";
                 let html = "";
+
+                // Avatar initials — same first+last-initial convention as
+                // the Personal tab's identity strip (dashboard.js
+                // _computeInitials), kept here too since this function is
+                // shared across pages that don't have that helper.
+                if (u.person_name) {
+                    const parts = u.person_name.trim().split(/\s+/);
+                    const initials = parts.length >= 2
+                        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+                        : parts[0].substring(0, 2).toUpperCase();
+                    html += `<span class="user-avatar">${this._esc(initials)}</span>`;
+                }
 
                 // Person name
                 if (u.person_name) {

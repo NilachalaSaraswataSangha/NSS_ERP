@@ -47,14 +47,9 @@
            (loaded above) — duplicating it here just risked the two definitions
            drifting apart. */
 
-        .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 1.25rem 1.25rem 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-
+        /* .sidebar-brand itself is defined once in the shared
+           assets/css/nss-layout.css (loaded above) — duplicating it here
+           just risked the two definitions drifting apart. */
 
 
 
@@ -705,10 +700,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                     </svg>
                 </button>
-                <div class="topbar-heading">
-                    <div class="topbar-title" x-text="({users: 'User Accounts', detail: 'User Detail', create: 'Create Person & Account', createSS: 'Create Sangha Sevi', password: 'Change Password', organizations: 'Organizations', createOrg: 'Create Organization', claims: 'Registration Approvals', personDir: 'Person Directory', memberDir: 'Member Directory', orgHierarchy: 'Organization Hierarchy', assignSakha: 'Assign Sakhas to Anchalika/Zilla', refData: 'Reference Data', geography: 'Geography', sysSettings: 'System Settings', orgDashboard: viewingOrgDashboardLabel})[activeTab] || 'Administration'"></div>
-                    <div class="topbar-breadcrumb">Administration</div>
+                <div class="topbar-brand">
+                    <img src="/assets/img/nss-logo.png" alt="NSS" class="topbar-logo">
+                    <div class="topbar-heading">
+                        <div class="topbar-title">Nilachala Saraswata Sangha</div>
+                        <div class="topbar-breadcrumb" x-text="({users: 'User Accounts', detail: 'User Detail', create: 'Create Person & Account', createSS: 'Create Sangha Sevi', password: 'Change Password', organizations: 'Organizations', createOrg: 'Create Organization', claims: 'Registration Approvals', personDir: 'Person Directory', memberDir: 'Member Directory', orgHierarchy: 'Organization Hierarchy', assignSakha: 'Assign Sakhas to Anchalika/Zilla', refData: 'Reference Data', geography: 'Geography', sysSettings: 'System Settings', orgDashboard: viewingOrgDashboardLabel})[activeTab] || 'Administration'"></div>
+                    </div>
                 </div>
+                <!-- Desktop: sidebar brand is always visible, so just show the
+                     current tab here instead of repeating logo + name. -->
+                <div class="topbar-breadcrumb-desktop" x-text="({users: 'User Accounts', detail: 'User Detail', create: 'Create Person & Account', createSS: 'Create Sangha Sevi', password: 'Change Password', organizations: 'Organizations', createOrg: 'Create Organization', claims: 'Registration Approvals', personDir: 'Person Directory', memberDir: 'Member Directory', orgHierarchy: 'Organization Hierarchy', assignSakha: 'Assign Sakhas to Anchalika/Zilla', refData: 'Reference Data', geography: 'Geography', sysSettings: 'System Settings', orgDashboard: viewingOrgDashboardLabel})[activeTab] || 'Administration'"></div>
             </div>
             <div class="topbar-user-info" x-show="currentUser" x-html="topbarUserInfo()"></div>
         </div>
@@ -1266,7 +1267,7 @@
                          VIEW: Create Person & Account
                          ═══════════════════════════════════════════ -->
                     <div x-show="activeTab === 'create'">
-                        <div class="data-card" style="max-width: 600px;">
+                        <div class="data-card">
                             <div class="data-card-header">
                                 <h2 class="data-card-title">Create Person &amp; User Account</h2>
                             </div>
@@ -1576,7 +1577,7 @@
                          VIEW: Create Sangha Sevi
                          ═══════════════════════════════════════════ -->
                     <div x-show="activeTab === 'createSS'">
-                        <div class="data-card" style="max-width: 600px;">
+                        <div class="data-card">
                             <div class="data-card-header">
                                 <h2 class="data-card-title">Create Sangha Sevi</h2>
                             </div>

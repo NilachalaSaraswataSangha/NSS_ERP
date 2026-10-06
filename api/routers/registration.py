@@ -2,8 +2,10 @@
 NSS ERP — Self-Registration router.
 
 Tier 5 endpoints:
-  POST /api/v1/register                — Self-register (creates person + pending account + claim)
+  POST /api/v1/register                 — Self-register (person always; account+claim only if has_membership)
   POST /api/v1/register/check-duplicate — Pre-submit duplicate contact check (body, not query — avoids PII in access logs)
+  POST /api/v1/register/lookup-existing — "Previously registered" lookup (person_id + DOB) for the claim flow below
+  POST /api/v1/register/claim           — Submit a membership claim for an already-registered, SS-less person
   GET  /api/v1/register/reference-data  — Dropdown reference data for the form
   GET  /api/v1/register/states          — States lookup (cascading geography)
   GET  /api/v1/register/districts       — Districts lookup (by state)
@@ -13,14 +15,20 @@ Flow (POST /register):
   1. Validate input (person details, password policy)
   2. Generate person_id (P<next>) via id_sequence_master
   3. Insert person record
-  4. Create user_account with account_status = 'PENDING_APPROVAL'
-  5. Record password in password_history
-  6. If membership details provided: insert registration_claim
-  7. Return person_id only (no sangha_sevi_id — pending admin approval)
+  4. If membership details provided: create user_account (PENDING_APPROVAL),
+     record password history, and insert registration_claim
+  5. Return person_id (+ person_pk) — if no membership was claimed, no
+     account exists yet; the person can submit one later via
+     POST /register/claim
 
 Business rules (AUTH-BR-081 through AUTH-BR-098):
   - Mobile OR email required (person CHECK constraint)
-  - Registration creates person + user_account(PENDING_APPROVAL) only
+  - A user_account is NEVER created for a person with no membership claim —
+    an account with no path to a Sangha Sevi can never log in (login
+    requires an active sangha_sevi) and must not surface in User Accounts
+    or Registration Approvals (user decision, 2026-10-06). Registering
+    with has_membership=False creates a person record only; the typed
+    password is discarded, not persisted anywhere.
   - No sangha_sevi or membership_sakha_affiliation created at registration
   - Membership intent stored in nss.registration_claim table
   - Local Sakha Number: required for every membership type, incl. Darshaka —
@@ -234,6 +242,266 @@ def check_duplicate(
             result["email_exists"] = cur.fetchone() is not None
 
     return result
+
+
+# ── "Previously registered" flow ────────────────────────────────────────
+# A person who registered with has_membership=False has a person record
+# and NOTHING else — no account, no claim (user decision, 2026-10-06; see
+# module docstring). These two endpoints let that same person come back
+# later and submit a membership claim without re-entering their personal
+# details, creating the user_account + registration_claim only now.
+#
+# Both are public (no auth — the registrant has no JWT, same as the rest
+# of /register/*), so identity is verified with person_id + date_of_birth
+# instead: not secret, but not guessable from a person_id alone, and it's
+# exactly what the registrant already knows from their own registration.
+
+class LookupExistingRequest(BaseModel):
+    person_id: str = Field(..., min_length=1, max_length=30)
+    date_of_birth: "date" = Field(
+        ..., description="Date of birth as given at original registration"
+    )
+
+
+class LookupExistingResponse(BaseModel):
+    person_pk: str
+    person_id: str
+    person_name: str
+
+
+def _verify_existing_person_for_claim(cur, person_id: str, dob) -> tuple:
+    """
+    Shared identity + eligibility check for the lookup and claim endpoints.
+
+    Returns (person_pk, person_id, person_name). Raises HTTPException if the
+    person_id/DOB pair doesn't match, or if this person already has an
+    account, a pending claim, or an active Sangha Sevi — all of which mean
+    this flow no longer applies to them.
+    """
+    cur.execute(
+        """
+        SELECT person_pk, person_id,
+               CONCAT_WS(' ', first_name, middle_name, last_name)
+        FROM nss.person
+        WHERE person_id = %s AND date_of_birth = %s AND is_active = TRUE
+        """,
+        (person_id.strip(), dob),
+    )
+    row = cur.fetchone()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No matching registration found. Check your Person ID and date of birth.",
+        )
+    person_pk, resolved_person_id, person_name = row
+
+    cur.execute(
+        "SELECT 1 FROM nss.user_account WHERE person_pk = %s AND is_active = TRUE LIMIT 1",
+        (str(person_pk),),
+    )
+    if cur.fetchone() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This Person ID already has a registered account. Use the login page, or Forgot Password.",
+        )
+
+    cur.execute(
+        """
+        SELECT 1 FROM nss.registration_claim
+        WHERE person_pk = %s AND claim_status = 'PENDING' AND is_active = TRUE
+        LIMIT 1
+        """,
+        (str(person_pk),),
+    )
+    if cur.fetchone() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A membership claim is already pending approval for this Person ID.",
+        )
+
+    cur.execute(
+        "SELECT 1 FROM nss.sangha_sevi WHERE person_pk = %s AND is_active = TRUE LIMIT 1",
+        (str(person_pk),),
+    )
+    if cur.fetchone() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This Person ID is already a Sangha Sevi. Please log in.",
+        )
+
+    return person_pk, resolved_person_id, person_name
+
+
+@router.post("/lookup-existing", response_model=LookupExistingResponse)
+def lookup_existing(
+    body: LookupExistingRequest,
+    conn=Depends(get_connection),
+) -> LookupExistingResponse:
+    """
+    Verify a previously-registered, SS-less person by Person ID + DOB, so
+    the "Already registered? Add membership" flow can skip straight to the
+    membership step instead of re-asking for personal details.
+    """
+    with conn.cursor() as cur:
+        person_pk, person_id, person_name = _verify_existing_person_for_claim(
+            cur, body.person_id, body.date_of_birth
+        )
+    return LookupExistingResponse(
+        person_pk=str(person_pk),
+        person_id=person_id,
+        person_name=person_name or "",
+    )
+
+
+class ClaimExistingRequest(BaseModel):
+    person_id: str = Field(..., min_length=1, max_length=30)
+    date_of_birth: "date" = Field(
+        ..., description="Re-verified server-side — this endpoint is unauthenticated"
+    )
+
+    membership_type_master_data_pk: str = Field(..., min_length=1)
+    organization_pk: str = Field(..., min_length=1)
+    joining_date: Optional["date"] = None
+    claimed_local_sakha_number: str | None = Field(None, max_length=20)
+    claimed_credential_document_number: str | None = Field(None, max_length=30)
+    is_attending_as_darshak: bool = False
+    darshak_organization_pk: str | None = None
+    darshak_local_sakha_number: str | None = Field(None, max_length=20)
+
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+@router.post("/claim", response_model=RegisterResponse, status_code=201)
+def claim_existing(
+    body: ClaimExistingRequest,
+    conn=Depends(get_write_connection),
+) -> RegisterResponse:
+    """
+    Submit a membership claim for an already-registered person who has no
+    Sangha Sevi yet — creates the user_account + registration_claim that
+    POST /register skipped when they originally registered without
+    membership details. Mirrors the has_membership branch of register().
+    """
+    violations = validate_password_policy(body.password)
+    if violations:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=violations,
+        )
+
+    if not body.claimed_local_sakha_number:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Local Sakha Number is required.",
+        )
+
+    if body.is_attending_as_darshak:
+        if not body.darshak_organization_pk:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="darshak_organization_pk is required when is_attending_as_darshak is True.",
+            )
+        if not body.darshak_local_sakha_number:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="darshak_local_sakha_number is required when is_attending_as_darshak is True.",
+            )
+
+    with conn.cursor() as cur:
+        person_pk, person_id, person_name = _verify_existing_person_for_claim(
+            cur, body.person_id, body.date_of_birth
+        )
+
+        if not is_probationary_membership_type(cur, body.membership_type_master_data_pk):
+            if not body.claimed_credential_document_number or not body.claimed_credential_document_number.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="claimed_credential_document_number (Parichaya Patra Number) is required for this membership type.",
+                )
+
+        require_sakha_organization(cur, body.organization_pk)
+
+        password_hash_val = hash_password(body.password)
+        password_expires_at = datetime.now(timezone.utc) + timedelta(
+            days=settings.PASSWORD_EXPIRY_DAYS
+        )
+
+        cur.execute(
+            """
+            INSERT INTO nss.user_account (
+                person_pk,
+                password_hash,
+                account_status,
+                force_password_change,
+                password_expires_at
+            ) VALUES (%s, %s, 'PENDING_APPROVAL', FALSE, %s)
+            RETURNING user_account_pk
+            """,
+            (str(person_pk), password_hash_val, password_expires_at),
+        )
+        user_account_pk = cur.fetchone()[0]
+
+        log_audit(
+            cur,
+            action="CREATE",
+            table_name="user_account",
+            record_pk=str(user_account_pk),
+            actor_user_account_pk=str(user_account_pk),
+            module="registration",
+            summary="Created user account via previously-registered membership claim",
+        )
+
+        record_password_history(cur, str(user_account_pk), password_hash_val, "INITIAL")
+
+        cur.execute(
+            """
+            INSERT INTO nss.registration_claim (
+                user_account_pk,
+                person_pk,
+                claimed_organization_pk,
+                claimed_membership_type_master_data_pk,
+                claimed_local_sakha_number,
+                claimed_credential_document_number,
+                claimed_joining_date,
+                darshak_organization_pk,
+                darshak_local_sakha_number,
+                claim_status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'PENDING')
+            RETURNING registration_claim_pk
+            """,
+            (
+                str(user_account_pk),
+                str(person_pk),
+                body.organization_pk,
+                body.membership_type_master_data_pk,
+                body.claimed_local_sakha_number,
+                body.claimed_credential_document_number,
+                body.joining_date,
+                body.darshak_organization_pk if body.is_attending_as_darshak else None,
+                body.darshak_local_sakha_number if body.is_attending_as_darshak else None,
+            ),
+        )
+        claim_pk = cur.fetchone()[0]
+
+        log_audit(
+            cur,
+            action="CREATE",
+            table_name="registration_claim",
+            record_pk=str(claim_pk),
+            actor_user_account_pk=str(user_account_pk),
+            module="registration",
+            summary=f"Submitted registration claim for {body.organization_pk}",
+        )
+
+    return RegisterResponse(
+        person_pk=str(person_pk),
+        person_id=person_id,
+        person_name=person_name or "",
+        message=(
+            "Membership claim submitted. Your registration is pending approval "
+            "by your Sakha administrator. You will be able to log in once approved."
+        ),
+    )
 
 
 # ── GET /api/v1/register/reference-data ────────────────────────────────
@@ -634,42 +902,55 @@ def register(
             summary=f"Recorded permanent address for {body.first_name} {body.last_name}",
         )
 
-        # ── 8. Create user_account (PENDING_APPROVAL) ──────────────────
-        password_hash_val = hash_password(body.password)
-        password_expires_at = datetime.now(timezone.utc) + timedelta(
-            days=settings.PASSWORD_EXPIRY_DAYS
-        )
-
-        cur.execute(
-            """
-            INSERT INTO nss.user_account (
-                person_pk,
-                password_hash,
-                account_status,
-                force_password_change,
-                password_expires_at
-            ) VALUES (%s, %s, 'PENDING_APPROVAL', FALSE, %s)
-            RETURNING user_account_pk
-            """,
-            (str(person_pk), password_hash_val, password_expires_at),
-        )
-        user_account_pk = cur.fetchone()[0]
-
-        log_audit(
-            cur,
-            action="CREATE",
-            table_name="user_account",
-            record_pk=str(user_account_pk),
-            actor_user_account_pk=str(user_account_pk),
-            module="registration",
-            summary="Created user account via self-registration",
-        )
-
-        # ── 9. Record initial password in history ───────────────────────
-        record_password_history(cur, str(user_account_pk), password_hash_val, "INITIAL")
-
-        # ── 10. Insert registration_claim if membership claimed ─────────
+        # ── 8-10. Account + claim — ONLY when membership is claimed ──────
+        # A user_account must never be created for a person with no path to
+        # a Sangha Sevi (user decision, 2026-10-06): an account with no SS
+        # can never log in (login requires an active sangha_sevi) and has no
+        # business showing up in User Accounts / Registration Approvals. A
+        # person registering with has_membership=False is recorded as a
+        # person only; the password they typed here is never persisted. An
+        # admin (or the registrant later, via the "previously registered"
+        # flow — POST /register/claim) creates the account+claim when the
+        # person actually has membership details to submit.
+        account_created = False
         if body.has_membership:
+            account_created = True
+
+            # ── 8. Create user_account (PENDING_APPROVAL) ────────────────
+            password_hash_val = hash_password(body.password)
+            password_expires_at = datetime.now(timezone.utc) + timedelta(
+                days=settings.PASSWORD_EXPIRY_DAYS
+            )
+
+            cur.execute(
+                """
+                INSERT INTO nss.user_account (
+                    person_pk,
+                    password_hash,
+                    account_status,
+                    force_password_change,
+                    password_expires_at
+                ) VALUES (%s, %s, 'PENDING_APPROVAL', FALSE, %s)
+                RETURNING user_account_pk
+                """,
+                (str(person_pk), password_hash_val, password_expires_at),
+            )
+            user_account_pk = cur.fetchone()[0]
+
+            log_audit(
+                cur,
+                action="CREATE",
+                table_name="user_account",
+                record_pk=str(user_account_pk),
+                actor_user_account_pk=str(user_account_pk),
+                module="registration",
+                summary="Created user account via self-registration",
+            )
+
+            # ── 9. Record initial password in history ────────────────────
+            record_password_history(cur, str(user_account_pk), password_hash_val, "INITIAL")
+
+            # ── 10. Insert registration_claim ─────────────────────────────
             cur.execute(
                 """
                 INSERT INTO nss.registration_claim (
@@ -725,5 +1006,12 @@ def register(
         message=(
             "Registration successful. Your registration is pending approval "
             "by your Sakha administrator. You will be able to log in once approved."
+        ) if account_created else (
+            "Registration successful. Your Person ID is "
+            f"{person_id} — keep it safe. No login account was created yet "
+            "since no membership details were submitted. When you're ready to "
+            "join a Sakha, use \"Already registered? Add membership\" on the "
+            "registration page with this Person ID, or ask your Sakha "
+            "administrator to set up your Sangha Sevi record."
         ),
     )

@@ -48,7 +48,10 @@ migration tool, no ORM. All tables live in schema `nss` (`search_path` = `nss, p
    `nss_db_backend`, `nss_db_writer`; set passwords with `ALTER ROLE`.
 2. `01_extensions.sql` (superuser) — pgcrypto/pg_trgm/btree_gin/postgis, `nss` schema.
 3. `02_build.sh`/`.ps1` (as `nss_db_owner`) — all DDL + seed in phase order (phase/table
-   inventory: `database/README.md`), grants `nss_db_backend` read-only and
+   inventory: `database/README.md`). `02_build.sh`/`.ps1` (and `render_build.sh`) are **existence-gated**
+   (`run_ddl`/`run_seed`, `Invoke-Ddl`/`Invoke-Seed` in the `.ps1`; `to_regclass('nss.<t>')`): an existing
+   table's DDL **and seed** are skipped, so only new tables get created/seeded — editing an existing
+   table's DDL/seed needs a full rebuild. Also grants `nss_db_backend` read-only and
    `nss_db_writer` SELECT/INSERT/UPDATE on all `nss` tables (incl. future ones; no DELETE, no
    DDL), and seeds the admin superuser via `scripts/bootstrap_admin.py` (needs a runtime Argon2
    hash; default login `SS1`/`P1`, password `Admin@123`; INSERT-only with `WHERE NOT EXISTS`,
@@ -62,8 +65,7 @@ Sakha branches and the one admin. Real data arrives via `POST /api/v1/register` 
 
 - `.sh`/`.ps1` script pairs must stay operationally identical (shell wrappers only).
 - **`render_build.sh` (repo root) duplicates the build sequence for Render/Neon** — keep it in
-  sync with `02_build.sh`. The bootstrap runs only when `RUN_DB_BOOTSTRAP` is truthy (`true`/`1`/`yes`/`on`, case/whitespace-insensitive; default: skipped). Known drift: its header prose still says v2.1 (its phase list matches `02_build.sh` v2.6), no `postgis`, a Phase 13 failure
-  only warns, `render.yaml` declares an unused `DATABASE_URL`, and
+  sync with `02_build.sh`. `RUN_DB_BOOTSTRAP` (truthy = `true`/`1`/`yes`/`on`, case/whitespace-insensitive; default off) gates **only** Phase 13 (admin seed); all DDL/seed phases run every deploy, existence-gated. Known drift: no `postgis`, a Phase 13 failure only warns, `render.yaml` declares an unused `DATABASE_URL`, and
   `npm install` in a `runtime: python` service is untested.
 - `nss_db_*` = PostgreSQL roles (lowercase); `NSS_ERP_*` = application RBAC roles in
   `role_master` (uppercase) — separate security boundaries.
@@ -77,7 +79,7 @@ Sakha branches and the one admin. Real data arrives via `POST /api/v1/register` 
 FastAPI + raw psycopg2 (`api/`), static Tailwind/DaisyUI/Alpine frontend served by the same app
 (`frontend/`). Routers → `api/schemas/` (Pydantic) with shared logic in `api/helpers.py` and
 `api/services/` (`family_graph.py` BFS, `auth_service.py` Argon2/JWT, `rbac_service.py`
-permission + admin-scope loading). 12 routers, 135 endpoints; inventory: `docs/03_Solution/api/API_CONTRACT.md`.
+permission + admin-scope loading). 12 routers, 137 endpoints; inventory: `docs/03_Solution/api/API_CONTRACT.md`.
 
 **Two DB pools** (`api/database.py`): `get_connection` = `nss_db_backend` (SELECT-only) for reads;
 `get_write_connection` = `nss_db_writer` for every write endpoint. `tests/conftest.py` overrides
@@ -85,7 +87,7 @@ both to yield one session-scoped writer connection, wrapping each test module in
 rolled back at teardown — that is what lets the suite pass on a seed-less DB.
 
 **Auth model is per-router, not uniform** — check before adding an endpoint:
-- `bootstrap.py` — the only unauthenticated router (plus the public `registration.py` endpoints).
+- `bootstrap.py` — the only unauthenticated router (plus the public `registration.py` endpoints, incl. `/register/lookup-existing` + `/register/claim`).
 - `foundation`/`organization`/`person`/`membership` list endpoints — `require_permission("<MODULE>_VIEW")`
   (`api/dependencies/rbac.py`); Foundation writes need `FOUNDATION_MANAGE`.
 - Person/Membership detail + sub-resources — `get_current_user` + `require_self_or_permission()`
@@ -149,8 +151,11 @@ Unified Body Governance · One Person = One Membership = One Sangha Sevi ID.
 NSS-wide), Local Sakha Number (`membership_sakha_affiliation.local_sakha_erp_id`, per Sakha,
 archived on transfer never reassigned), Kendra Number (`parichaya_patra.document_number`, annual,
 e.g. `345/2024/2025`). Associate members get a Parichaya Patra but no Anumati Patra. Self-
-registration creates `person` + `user_account(PENDING_APPROVAL)` only; `sangha_sevi` is created on
-admin approval. ORG-BR-099: Anchalika/Zilla/Patha Chakra may carry country/state/district but never
+registration (`POST /register`) always creates `person`, but `user_account(PENDING_APPROVAL)` +
+`registration_claim` only when `has_membership` is true (an account with no path to a Sangha Sevi
+can never log in); a membership-less registrant returns later via public `POST /register/lookup-existing`
++ `/register/claim` (person_id + DOB). `sangha_sevi` is created on admin approval, and
+`admin.py::update_status` refuses to activate an account whose person has no active `sangha_sevi`. ORG-BR-099: Anchalika/Zilla/Patha Chakra may carry country/state/district but never
 a premises address (DB-trigger enforced). Member search is 7-field, person search 4-field, trigram
 threshold 0.45 with `re.split(r'[.@]', q)[0]` for email-shaped input.
 
@@ -167,9 +172,10 @@ trailer to commits.
 - There is deliberately no `/forgot-password` page (the flow is inline on `/login`); forgot-password
   OTPs are never delivered (`api/routers/auth.py` TODO) — only visible via `otp_debug`.
 - `/children-stats` and `/stats` recursive CTEs have no depth cap (`/hierarchy` caps at 10).
-- `/person/{pk}/membership-summary` has no test coverage.
-- `claim_approval.py::approve_claim()` and `admin.py::update_status()` each independently
-  auto-provision a `sangha_sevi` — no shared helper.
+- `/person/{pk}/membership-summary`, `/register/lookup-existing` and `/register/claim` have no test coverage.
+- `claim_approval.py::approve_claim()`, `admin.py::create_user()` and `admin.py::create_sangha_sevi()`
+  each `INSERT INTO nss.sangha_sevi` independently — no shared helper. (`admin.py::update_status()`
+  no longer provisions one; it 422s on activation when the person has no active `sangha_sevi`.)
 - Pass 2 audit-actor FKs (`*_by_sangha_sevi_pk`) are still unconstrained on all tables.
 - Deferred to later tiers: mobile/email verification, Organization contact-format CHECKs,
   inactive-person search, i18n, Governance (Tier 6), Kumari (Tier 8), Sevak/Mahila (Tier 9).

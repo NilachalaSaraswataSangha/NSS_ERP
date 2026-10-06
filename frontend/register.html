@@ -711,6 +711,62 @@
             <div class="login-link">
                 Already a member? <a href="/login">Sign In</a>
             </div>
+            <div class="login-link">
+                Registered before without membership details?
+                <a href="#" @click.prevent="goLookupExisting()">Add membership now</a>
+            </div>
+
+            <hr class="reg-divider">
+            <p class="register-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
+        </div>
+
+        <!-- ════════════════════════════════════════════════
+             Previously Registered: Find my registration
+             ════════════════════════════════════════════════ -->
+        <div class="register-card" x-show="step === 'lookup'" x-cloak>
+
+            <div style="text-align: center;">
+                <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
+                <h1>Nilachala Saraswata Sangha</h1>
+                <p class="subtitle">Add Membership Details</p>
+            </div>
+
+            <hr class="reg-divider">
+
+            <template x-if="error">
+                <div class="alert-box"><span x-text="error"></span></div>
+            </template>
+
+            <div class="section-heading">
+                Find Your Registration
+            </div>
+            <p style="font-size: 0.8rem; color: #6b7280; margin: 0 0 0.85rem;">
+                Enter the Person ID you received when you first registered, along
+                with your date of birth, to continue with your Sangha Sevi
+                membership details.
+            </p>
+
+            <div class="form-group">
+                <label class="reg-label">Person ID *</label>
+                <input type="text" x-model="lookup.person_id"
+                       placeholder="e.g. P00001" class="reg-input"
+                       :disabled="lookup.loading">
+            </div>
+
+            <div x-data="nssDatePicker('lookup.date_of_birth', { maxToday: true })" style="position: relative;" data-dp-input-class="reg-input" data-dp-disabled="lookup.loading">
+                <label class="reg-label">Date of Birth *</label>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+                <button class="btn-outline" @click="step = 1; error = ''" style="flex: 1;" :disabled="lookup.loading">
+                    ← Back
+                </button>
+                <button class="btn-gold" @click="lookupExisting()" style="flex: 1;"
+                        :disabled="lookup.loading || !lookup.person_id.trim() || !lookup.date_of_birth">
+                    <span x-show="lookup.loading" class="loading loading-spinner loading-sm"></span>
+                    <span x-text="lookup.loading ? 'Searching...' : 'Continue'"></span>
+                </button>
+            </div>
 
             <hr class="reg-divider">
             <p class="register-footer">Sri Shri Nigamananda Smruti Mandir, Puri</p>
@@ -745,8 +801,20 @@
                 Membership Details
             </div>
 
-            <!-- Not Applicable toggle -->
-            <div class="toggle-row">
+            <!-- Previously-registered identity banner (existing mode only) -->
+            <template x-if="mode === 'existing'">
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.85rem;">
+                    <p style="font-size: 0.8rem; color: #065f46; margin: 0;">
+                        Adding membership for <strong x-text="existingPerson.person_name"></strong>
+                        (<span x-text="existingPerson.person_id"></span>)
+                    </p>
+                </div>
+            </template>
+
+            <!-- Not Applicable toggle (new registration only — a previously-
+                 registered person reached this step specifically to add
+                 membership, so it's always on for them) -->
+            <div class="toggle-row" x-show="mode !== 'existing'">
                 <div>
                     <div class="toggle-label">I have membership credentials</div>
                     <div class="toggle-sublabel">
@@ -892,13 +960,17 @@
             <template x-if="!form.has_membership">
                 <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 0.85rem;">
                     <p style="font-size: 0.8rem; color: #92400e; margin: 0;">
-                        You can register without membership credentials. An admin can assign your Sangha Sevi membership later.
+                        You can register without membership credentials, but no login
+                        account will be created until you have them — you'll only get
+                        a Person ID. Come back and use "Add membership now" on this
+                        page when you're ready, or ask your Sakha administrator to
+                        set up your Sangha Sevi record.
                     </p>
                 </div>
             </template>
 
             <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
-                <button class="btn-outline" @click="step = 1" style="flex: 1;">
+                <button class="btn-outline" @click="mode === 'existing' ? (step = 'lookup') : (step = 1)" style="flex: 1;">
                     ← Back
                 </button>
                 <button class="btn-gold" @click="goStep3()" style="flex: 1;"

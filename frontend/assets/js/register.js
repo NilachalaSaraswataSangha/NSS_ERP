@@ -26,6 +26,22 @@ function registerApp() {
         showPassword: false,
         confirmPassword: "",
 
+        // "Previously registered? Add membership" flow — mode stays 'new'
+        // for the ordinary wizard; switches to 'existing' once lookupExisting()
+        // verifies a Person ID + DOB that has no account/claim/SS yet.
+        // Submits to POST /register/claim instead of POST /register.
+        mode: "new",
+        lookup: {
+            person_id: "",
+            date_of_birth: "",
+            loading: false,
+        },
+        existingPerson: {
+            person_pk: "",
+            person_id: "",
+            person_name: "",
+        },
+
         // Dropdown data
         genders: [],
         maritalStatuses: [],
@@ -157,6 +173,7 @@ function registerApp() {
         // completed signup.
         saveDraft() {
             if (this.step >= 4) return;
+            if (this.mode === "existing") return; // don't clobber a 'new' draft with existing-mode state
             try {
                 const { password, ...formNoPassword } = this.form;
                 sessionStorage.setItem("nss_register_draft", JSON.stringify({
@@ -309,6 +326,51 @@ function registerApp() {
             const t = this.membershipTypes.find(m => m.master_data_pk === pk);
             if (!t) return "";
             return t.value_code === "PROBATIONARY" ? "Darshaka" : t.value_name;
+        },
+
+        // ── "Previously registered? Add membership" flow ────────────────
+        // For a person who registered earlier with has_membership=false:
+        // no account exists for them (user decision, 2026-10-06), so they
+        // can't log in to add membership — this public lookup, keyed on
+        // Person ID + DOB, re-identifies them and skips straight to the
+        // membership step instead of re-asking for personal details.
+
+        goLookupExisting() {
+            this.error = "";
+            this.lookup = { person_id: "", date_of_birth: "", loading: false };
+            this.step = "lookup";
+        },
+
+        async lookupExisting() {
+            this.error = "";
+            this.lookup.loading = true;
+            try {
+                const res = await fetch("/api/v1/register/lookup-existing", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        person_id: this.lookup.person_id.trim(),
+                        date_of_birth: this.lookup.date_of_birth,
+                    }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    this.error = NSS.errorMessage(data, res.status);
+                    return;
+                }
+                this.existingPerson = {
+                    person_pk: data.person_pk,
+                    person_id: data.person_id,
+                    person_name: data.person_name,
+                };
+                this.mode = "existing";
+                this.form.has_membership = true;
+                this.step = 2;
+            } catch (err) {
+                this.error = "Unable to connect to server. Please try again.";
+            } finally {
+                this.lookup.loading = false;
+            }
         },
 
         // ── Step navigation with validation ────────────────────────
@@ -464,6 +526,73 @@ function registerApp() {
         // ── Submit registration ────────────────────────────────────
 
         async register() {
+            if (this.mode === "existing") {
+                return this.submitExistingClaim();
+            }
+            return this.submitNewRegistration();
+        },
+
+        // Previously-registered person adding membership — POST /register/claim.
+        async submitExistingClaim() {
+            this.error = "";
+
+            if (!this.isPasswordValid()) {
+                this.error = "Please fix password issues before submitting.";
+                return;
+            }
+
+            this.loading = true;
+            try {
+                const payload = {
+                    person_id: this.existingPerson.person_id,
+                    date_of_birth: this.lookup.date_of_birth,
+                    membership_type_master_data_pk: this.form.membership_type_master_data_pk,
+                    organization_pk: this.form.organization_pk,
+                    password: this.form.password,
+                };
+                if (this.form.joining_date) payload.joining_date = this.form.joining_date;
+                if (this.form.claimed_local_sakha_number.trim()) {
+                    payload.claimed_local_sakha_number = this.form.claimed_local_sakha_number.trim();
+                }
+                if (this.form.claimed_credential_document_number.trim()) {
+                    payload.claimed_credential_document_number = this.form.claimed_credential_document_number.trim();
+                }
+                if (this.form.is_attending_as_darshak && this.form.darshak_organization_pk) {
+                    payload.is_attending_as_darshak = true;
+                    payload.darshak_organization_pk = this.form.darshak_organization_pk;
+                    if (this.form.darshak_local_sakha_number.trim()) {
+                        payload.darshak_local_sakha_number = this.form.darshak_local_sakha_number.trim();
+                    }
+                }
+
+                const res = await fetch("/api/v1/register/claim", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    this.error = NSS.errorMessage(data, res.status);
+                    return;
+                }
+
+                const data = await res.json();
+                this.result = {
+                    person_pk: data.person_pk,
+                    person_id: data.person_id,
+                    person_name: data.person_name,
+                    message: data.message,
+                };
+                this.step = 4;
+            } catch (err) {
+                this.error = "Unable to connect to server. Please try again.";
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async submitNewRegistration() {
             this.error = "";
 
             if (!this.isPasswordValid()) {

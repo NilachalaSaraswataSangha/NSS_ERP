@@ -459,7 +459,12 @@ function dashboardApp() {
         adminStats: {},
         initials: "",
         myOrgDashboardPk: null,
-        viewingOrgPk: null,
+        // Restored from sessionStorage like `tab` above — otherwise a
+        // refresh landing back on the orgDashboard tab (tab alone is
+        // enough to pick the tab) still rendered nothing, because the
+        // template guards on `tab === 'orgDashboard' && viewingOrgPk`
+        // and this was always re-initialized to null.
+        viewingOrgPk: sessionStorage.getItem('nss_dashboard_org_pk') || null,
 
         // ── Init ──────────────────────────────────────────
         async init() {
@@ -3028,7 +3033,12 @@ function dashboardApp() {
         openOrgDashboard(orgPk) {
             this.viewingOrgPk = null;
             this.switchTab("orgDashboard");
-            this.$nextTick(() => { this.viewingOrgPk = orgPk; });
+            this.$nextTick(() => {
+                this.viewingOrgPk = orgPk;
+                // So a refresh while on this tab restores the same org
+                // (see the viewingOrgPk initializer above).
+                sessionStorage.setItem('nss_dashboard_org_pk', orgPk);
+            });
         },
 
         get myOrgDashboardLabel() {

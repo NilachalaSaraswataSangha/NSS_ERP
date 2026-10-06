@@ -128,16 +128,17 @@ These are referenced by both `render_build.sh` (for `psql` bootstrap and `script
      frontend/assets/css/tailwind.min.css --minify`) — see
      `TECH_STACK_DECISIONS.md` §3
    - Installs Python dependencies (`pip install -r requirements.txt`)
-   - **Database bootstrap (DDL + seed) is now skipped by default** (decided
-     2026-10-05) — set `RUN_DB_BOOTSTRAP=true` (or `1`/`yes`/`on`; case/whitespace-insensitive) in the Render dashboard for
-     the one deploy that needs it (first stand-up on a fresh database, or
-     a deploy that adds a new tier's DDL/seed), then unset it. Routine
-     deploys only ship app code. When set, the bootstrap:
+   - **Database bootstrap (DDL + seed) runs on every deploy**, existence-gated per table.
+     `RUN_DB_BOOTSTRAP` (`true`/`1`/`yes`/`on`; case/whitespace-insensitive; default off) gates
+     **only** the Phase 13 admin seed (`scripts/bootstrap_admin.py`): set it for the one deploy that
+     should seed the admin (first stand-up on a fresh database), then unset it. The bootstrap:
      - Creates the `nss` schema and extensions (`pgcrypto`, `pg_trgm`, `btree_gin` — best-effort)
      - Runs **every** DDL + seed phase, in the same order as
-       `database/scripts/02_build.sh`. Each `run_sql` call treats "already exists"/duplicate-key
-       errors as `[SKIP]`, so a redeploy against an already-bootstrapped database is safe and
-       picks up any newly added phase automatically:
+       `database/scripts/02_build.sh`. Table DDL/seeds go through `run_ddl`/`run_seed`
+       (Version 3.0: `to_regclass('nss.<table>')` check; an existing table's DDL and seed are both
+       skipped, only new tables are created and seeded); other objects use `run_sql`, which treats
+       "already exists"/duplicate-key errors as `[SKIP]`. A redeploy against an already-bootstrapped
+       database is therefore safe and picks up any newly added table automatically:
        - Phase 0: Bootstrap RBAC (3 tables + seed: roles, permissions, role-permission mappings)
        - Phase 1-2: Foundation (12 tables + seed)
        - Phase 3-4: Organization (1 table + address-restriction and Kumari/Sevak uniqueness
@@ -181,13 +182,13 @@ feature/* → develop (personal remote)
          → Render auto-deploys
 ```
 
-`render_build.sh` always rebuilds CSS, reinstalls dependencies, and restarts Uvicorn on every push. The database bootstrap step is skipped by default (see Step 4) — it only runs when `RUN_DB_BOOTSTRAP` is truthy (`true`/`1`/`yes`/`on`) for that deploy, which should only be when standing up a fresh database or deliberately applying newly added DDL/seed phases.
+`render_build.sh` always rebuilds CSS, reinstalls dependencies, and restarts Uvicorn on every push. The database bootstrap runs on every deploy but is existence-gated (see Step 4): only genuinely new tables are created/seeded. `RUN_DB_BOOTSTRAP` (`true`/`1`/`yes`/`on`) gates only the Phase 13 admin seed.
 
 ### Adding new tiers to the database
 
 When a new tier's DDL + seed are committed:
 
-1. Add the new DDL + seed `run_sql` calls to `render_build.sh` in the same position as in
+1. Add the new DDL + seed `run_ddl`/`run_seed` calls to `render_build.sh` in the same position as in
    `database/scripts/02_build.sh` (keep the two in sync).
 2. **Setting `RUN_DB_BOOTSTRAP=true` and redeploying is safe against a live database** (fixed
    2026-10-05 — every reference/config seed file now uses `ON CONFLICT ... DO NOTHING`,

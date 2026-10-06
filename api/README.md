@@ -5,7 +5,7 @@ FastAPI application — the only web/API layer in the codebase. Implements **Tie
 Organization), **Tier 3** (Person), and **Tier 4** (Family + Membership) —
 no ORM — behind a cross-tier security middleware stack (headers, opt-in CORS, rate limiting,
 plus a new Content-Security-Policy) and a shared error-handler layer (`error_handlers.py`).
-12 routers (135 endpoints); the endpoint inventory and per-router counts live in
+12 routers (137 endpoints); the endpoint inventory and per-router counts live in
 `docs/03_Solution/api/API_CONTRACT.md`.
 **Partway through this branch's development, Tiers 1-3
 and Membership (Tier 4) gained authenticated gating** — they were read-only/no-auth through
@@ -227,8 +227,10 @@ api/
 │   │                    (re-parenting, backs the "Assign Sakhas" admin tab). Module-level
 │   │                    `_ALLOWED_PARENT_TYPES`/`_NO_ADDRESS_TYPES`/`_SAKHA_GATED_TYPES`
 │   │                    constants are shared by create/update rather than re-defined per function
-│   ├── registration.py  Tier 5 — 10 endpoints under /api/v1/register: `POST ""`
-│   │                    self-registration, `POST /check-duplicate`, plus 8 public,
+│   ├── registration.py  Tier 5 — 12 endpoints under /api/v1/register: `POST ""`
+│   │                    self-registration (account + claim only when `has_membership`),
+│   │                    `POST /check-duplicate`, `POST /lookup-existing` + `POST /claim` (the
+│   │                    "previously registered" flow: person_id + DOB, then account + claim), plus 8 public,
 │   │                    unauthenticated reference-data endpoints (`/reference-data`, `/countries`,
 │   │                    `/states`, `/districts`, `/cities`, `/postal-codes`, `/post-offices`, `/sakhas`) that thinly wrap `foundation.py`'s/
 │   │                    `organization.py`'s own shared query functions — fixes a regression where
@@ -346,12 +348,12 @@ exact `require_permission`/`require_any_permission` arguments in each router.
 | POST | `/api/v1/auth/reset-password` | none | Consumes the OTP, sets a new password |
 | GET | `/api/v1/auth/me` | access token | Profile + permissions + scopes |
 | PATCH | `/api/v1/auth/profile` | access token | Self-service update of `mobile_number`/`country_phone_code`/`email`/`date_of_birth`; name fields are admin-only |
-| GET | `/api/v1/admin/users` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | List user accounts (scope-filtered unless NSS-WIDE) |
+| GET | `/api/v1/admin/users` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | List user accounts tied to an active `sangha_sevi` (scope-filtered unless NSS-WIDE) |
 | POST | `/api/v1/admin/users` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Create a user account |
 | GET | `/api/v1/admin/users/check-account/{person_pk}` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Whether a person already has a usable or soft-deleted login (Create User wizard) |
 | GET | `/api/v1/admin/users/{pk}` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | User detail + role assignments |
 | POST | `/api/v1/admin/users/{pk}/reset-password` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Admin-initiated password reset |
-| PATCH | `/api/v1/admin/users/{pk}/status` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Activate/suspend/deactivate; auto-generates a `sangha_sevi_id` when activating a claim-less `PENDING_APPROVAL` user |
+| PATCH | `/api/v1/admin/users/{pk}/status` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Activate/suspend/deactivate; only touches `account_status` (never creates a `sangha_sevi`) — activating a `PENDING_APPROVAL` user 422s if a PENDING claim exists (use Registration Approvals) or the person has no active `sangha_sevi` |
 | DELETE | `/api/v1/admin/users/{pk}` | any of `ADMIN_USER_MANAGE`/`PERSON_MANAGE` | Soft-delete (also revokes roles + scopes) |
 | GET | `/api/v1/admin/users/{pk}/roles` | any of `ADMIN_USER_VIEW`/`ADMIN_USER_MANAGE`/`MEMBERSHIP_APPROVE` | List role assignments |
 | POST | `/api/v1/admin/users/{pk}/roles` | `ADMIN_ROLE_MANAGE` | Assign role + scope |
