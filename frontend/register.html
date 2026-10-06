@@ -92,6 +92,31 @@
             margin: 1rem 0;
         }
 
+        /* Side-by-side field groups on wide screens so Steps 1 & 2 don't
+         * require as much scrolling. Below the breakpoint this stays a
+         * single column — same stacked layout as before. */
+        .reg-group-grid {
+            display: block;
+        }
+
+        @media (min-width: 900px) {
+            .register-card.wide { max-width: 72rem; }
+            .register-card.wide.cols-2 { max-width: 54rem; }
+            .reg-group-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 0 2rem;
+            }
+            .reg-group-grid.cols-2 {
+                grid-template-columns: 1fr 1fr;
+            }
+            .reg-group-grid > .reg-group-col + .reg-group-col {
+                border-left: 1px solid #e5e7eb;
+                padding-left: 2rem;
+            }
+            .reg-group-grid .reg-divider-stack-only { display: none; }
+        }
+
         .reg-label {
             font-size: 0.8rem;
             font-weight: 600;
@@ -457,7 +482,7 @@
         <!-- ════════════════════════════════════════════════
              Step 1: Personal Details
              ════════════════════════════════════════════════ -->
-        <div class="register-card" x-show="step === 1" x-cloak>
+        <div class="register-card wide" x-show="step === 1" x-cloak>
 
             <!-- Logo + Title -->
             <div style="text-align: center;">
@@ -479,6 +504,14 @@
             <template x-if="error">
                 <div class="alert-box"><span x-text="error"></span></div>
             </template>
+
+            <!-- On wide screens, Personal Details, Contact Information, and
+                 Address sit side by side as three columns, so the whole
+                 step fits with far less scrolling. Below 900px this
+                 collapses back to one column, stacked top-to-bottom
+                 exactly as before. -->
+            <div class="reg-group-grid">
+            <div class="reg-group-col">
 
             <div class="section-heading">
                 <span class="step-badge">1</span>
@@ -549,7 +582,12 @@
                 </div>
             </div>
 
+            </div>
+            <div class="reg-group-col">
+
             <!-- Contact -->
+            <hr class="reg-divider reg-divider-stack-only">
+
             <div class="section-heading" style="margin-top: 0.75rem;">
                 <span class="step-badge" style="background: #0D7377;">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 0.8rem; height: 0.8rem;">
@@ -584,17 +622,6 @@
             <p class="pw-requirements" style="margin-bottom: 1rem;">
                 * At least one of mobile or email is required.
             </p>
-
-            <!-- Address -->
-            <div class="section-heading" style="margin-top: 0.75rem;">
-                <span class="step-badge" style="background: #0D7377;">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 0.8rem; height: 0.8rem;">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                    </svg>
-                </span>
-                Address
-            </div>
 
             <div class="form-row" style="margin-bottom: 0.85rem;">
                 <div>
@@ -649,6 +676,22 @@
                 </div>
             </div>
 
+            </div>
+            <div class="reg-group-col">
+
+            <!-- Address -->
+            <hr class="reg-divider reg-divider-stack-only">
+
+            <div class="section-heading" style="margin-top: 0.75rem;">
+                <span class="step-badge" style="background: #0D7377;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 0.8rem; height: 0.8rem;">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                    </svg>
+                </span>
+                Address
+            </div>
+
             <div class="form-group">
                 <label class="reg-label">PIN Code *</label>
                 <input type="text" x-model="form.postal_code_value" class="reg-input"
@@ -700,6 +743,9 @@
                 <label class="reg-label">Landmark</label>
                 <input type="text" x-model="form.landmark" class="reg-input"
                        placeholder="Optional" maxlength="255" :disabled="loading">
+            </div>
+
+            </div>
             </div>
 
             <!-- Next button -->
@@ -775,7 +821,7 @@
         <!-- ════════════════════════════════════════════════
              Step 2: Membership Claim Details
              ════════════════════════════════════════════════ -->
-        <div class="register-card" x-show="step === 2" x-cloak>
+        <div class="register-card wide cols-2" x-show="step === 2" x-cloak>
 
             <div style="text-align: center;">
                 <img src="/assets/img/nss-logo.png" alt="NSS Logo" class="logo-img">
@@ -828,6 +874,11 @@
 
             <template x-if="form.has_membership">
                 <div>
+                <!-- Side by side on wide screens as two columns: Membership
+                     Details, and Darshak Attendance — collapses to one
+                     stacked column below 900px. -->
+                <div class="reg-group-grid cols-2">
+                <div class="reg-group-col">
                     <!-- Membership Type -->
                     <div class="form-group">
                         <label class="reg-label">Membership Type *</label>
@@ -913,17 +964,36 @@
                         <label class="reg-label"> Sakha Joining Date</label>
                     </div>
 
-                    <!-- ── Darshak Attendance ── -->
-                    <div class="toggle-row" style="margin-top: 0.5rem;">
-                        <div>
-                            <div class="toggle-label">Attending another Sangha as Darshak?</div>
-                            <div class="toggle-sublabel">
-                                If you are attending a different Sakha as a Darshak, check this box and provide that Sakha's details below. This is optional; you can leave it unchecked if you are not attending any other Sakha.
-                            </div>
-                        </div>
-                        <input type="checkbox" x-model="form.is_attending_as_darshak"
+                    <!-- ── Darshak Attendance ──
+                         Visually broken out from the Membership Details fields
+                         above (type/Sakha/numbers/joining date) with a divider
+                         and its own sub-heading — same pattern Step 1 uses for
+                         Contact Information / Address — so this one card
+                         doesn't read as a single unbroken wall of fields. -->
+                </div>
+                <div class="reg-group-col">
+
+                    <hr class="reg-divider reg-divider-stack-only">
+
+                    <div class="section-heading">
+                        <span class="step-badge" style="background: #0D7377;">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 0.8rem; height: 0.8rem;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                            </svg>
+                        </span>
+                        Attending another Sangha as Darshak?<input type="checkbox" x-model="form.is_attending_as_darshak"
                                class="nss-checkbox"
                                :disabled="loading">
+                        <span style="font-weight: 400; color: #9ca3af; font-size: 0.75rem;">(optional)</span>
+                    </div>
+
+                    <div class="toggle-row">
+                        <div>
+                            
+                            <div class="toggle-sublabel">
+                                If you are attending a different Sakha as a Darshak, check this box and provide that Sakha's details below. This is optional;
+                        
                     </div>
 
                     <template x-if="form.is_attending_as_darshak">
@@ -954,6 +1024,8 @@
                             </div>
                         </div>
                     </template>
+                </div>
+                </div>
                 </div>
             </template>
 
